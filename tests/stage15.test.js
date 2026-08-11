@@ -173,16 +173,17 @@ test('Cover memakai logo Tut Wuri Handayani dan lambang daerah, bukan logo aplik
   assert.match(page,/coverLogo\(school\.ministryLogo,COVER_LOGO_DEFAULTS\.ministry,'cover-logo-ministry'/);
   assert.match(page,/coverLogo\(school\.regionLogo,COVER_LOGO_DEFAULTS\.region,'cover-logo-region'/);
   assert.equal(/report-cover-a4[^`]*app-icon\.svg/.test(page),false);
-  assert.match(css,/\.report-cover-a4>\.cover-logo>img\{position:absolute;top:50%;left:50%;transform:translate\(-50%,-50%\);object-fit:contain/,'gambar logo dipusatkan dan memakai object-fit contain sehingga tidak digepengkan');
+  assert.match(css,/\.report-cover-a4>\.cover-logo>img\{display:block;max-width:none\}/,'gambar logo mengalir sebagai block, tidak bergantung positioning');
   assert.match(css,/\.report-cover-a4>\.cover-logo-custom\{overflow:visible/,'logo unggahan Admin ditampilkan utuh tanpa dipangkas');
+  assert.match(css,/\.report-cover-a4>\.cover-logo-custom>img\{width:100%;height:100%;object-fit:contain/,'logo unggahan Admin tidak digepengkan');
 });
 
 test('Ukuran tampak logo Cover mengikuti kotak 141,73pt pada cover.pdf',()=>{
   const css=read('src/styles/app.css');
   const slot=name=>{
-    const found=css.match(new RegExp(`\\.report-cover-a4>\\.cover-logo-${name}\\{width:(\\d+)px;height:(\\d+)px;margin-(?:top|bottom):(\\d+)px\\}`));
+    const found=css.match(new RegExp(`\\.report-cover-a4>\\.cover-logo-${name}\\{width:(\\d+)px;height:(\\d+)px(?:;margin-top:([\\d.]+)px)?\\}`));
     assert.ok(found,`slot ${name} tidak ditemukan`);
-    return {w:Number(found[1]),h:Number(found[2]),margin:Number(found[3])};
+    return {w:Number(found[1]),h:Number(found[2]),margin:Number(found[3]??0)};
   };
   const ministry=slot('ministry'),region=slot('region');
   // cover.pdf menggambar kedua logo pada kotak 141,73pt = 189px, jadi tinggi tampaknya sama.
@@ -192,24 +193,41 @@ test('Ukuran tampak logo Cover mengikuti kotak 141,73pt pada cover.pdf',()=>{
   // Proporsi asli tiap gambar dipertahankan (tidak digepengkan seperti PDF referensi).
   assert.ok(Math.abs(ministry.w/ministry.h-496/498)<=0.02,'aspek logo Tut Wuri sesuai gambar aslinya');
   assert.ok(Math.abs(region.w/region.h-268/294)<=0.02,'aspek lambang daerah sesuai gambar aslinya');
-  // Jarak teks ( SD ) ke gambar lambang yang terlihat: flex gap 20px + margin slot.
-  const jarak=20+region.margin;
-  assert.ok(jarak>=25&&jarak<=30,`jarak ( SD ) ke lambang ${jarak}px harus berada pada 25-30px`);
-  // Lambang dipusatkan horizontal tepat pada sumbu yang sama dengan logo Tut Wuri.
-  assert.match(css,/\.report-cover-a4>\.cover-logo-region>img\{width:329px;height:329px;transform:translate\(-50%,calc\(-50% \+ 1\.29px\)\)\}/,'lambang center horizontal penuh, geser vertikal saja untuk memusatkan gambar pada slot');
+  // Jarak ( SD ) ke lambang mengikuti cover.pdf (311,81pt - 274,02pt = 37,8pt = 50,4px),
+  // dihitung dari margin-top slot pada aliran block.
+  assert.ok(Math.abs(region.margin-45.3)<=1,`margin lambang ${region.margin}px mengikuti jarak cover.pdf`);
+  // Lambang dipusatkan mendatar oleh margin auto; geser vertikal 1,29px agar gambar pas di slot.
+  assert.match(css,/\.report-cover-a4>\.cover-logo-region>img\{width:329px;height:329px;margin:-68\.7px 0 0 -78\.5px\}/,'lambang dipangkas simetris pada slotnya');
+});
+
+test('Tata letak Cover stabil saat cetak PDF',()=>{
+  const css=read('src/styles/app.css');
+  // Aturan cetak global memaksa .document-a4 menjadi display:block, sehingga flex/grid
+  // beserta gap dan align-items hilang. Cover karena itu memakai aliran block murni.
+  assert.match(css,/\.report-cover-a4\{display:flow-root;text-align:center;padding:37\.8px\}/,'cover memakai aliran block, bukan flex');
+  assert.equal(/\.report-cover-a4\{display:flex/.test(css),false,'cover tidak boleh bergantung pada flex');
+  // Setiap elemen berlebar tetap dipusatkan dengan margin auto, bukan align-items.
+  assert.match(css,/\.report-cover-a4>\.cover-logo\{display:block;overflow:hidden;margin:37\.8px auto 0\}/);
+  assert.match(css,/\.cover-fields\{display:block;width:453px;margin:51\.5px auto 0\}/);
+  // Blok cetak khusus cover mengunci block flow dan pemusatan.
+  assert.match(css,/@media print\{\.report-cover-a4\{display:flow-root!important[^}]*\}/);
+  // Aturan mobile cover harus screen-only: lebar layout cetak A4 potret 718px akan
+  // salah memicu max-width:767px dan membuat PDF berbeda dari tampilan layar.
+  assert.match(css,/@media screen and \(max-width:767px\)\{\.report-cover-a4\{min-height:auto;padding:20px\}/);
+  const mobile=css.match(/@media\(max-width:767px\)\{[\s\S]*?\n/g)||[];
+  assert.equal(mobile.some(block=>/\.cover-|\.report-cover-a4/.test(block)),false,'tidak boleh ada aturan cover di @media(max-width) tanpa screen');
 });
 
 test('Ukuran teks Cover mengikuti cover.pdf',()=>{
   const css=read('src/styles/app.css');
   const PT=4/3; // 1pt = 4/3 px pada 96dpi
   // cover.pdf: judul 20pt, label dan isi kotak 16pt, baris kementerian 18pt.
-  assert.match(css,new RegExp(`\\.cover-title strong\\{font-size:${(20*PT).toFixed(2)}px`),'SEKOLAH DASAR 20pt');
-  assert.match(css,new RegExp(`\\.cover-title span\\{font-size:${(20*PT).toFixed(2)}px`),'( SD ) 20pt');
+  assert.match(css,new RegExp(`\\.cover-title strong,\\.cover-title span\\{[^}]*font-size:${(20*PT).toFixed(2)}px`),'SEKOLAH DASAR dan ( SD ) 20pt');
   assert.match(css,new RegExp(`\\.cover-field span\\{display:block;font-size:${(16*PT).toFixed(2)}px`),'label 16pt');
   assert.match(css,new RegExp(`\\.cover-box\\{[^}]*font-size:${(16*PT).toFixed(2)}px`),'isi kotak 16pt');
   assert.match(css,new RegExp(`\\.cover-ministry strong\\{[^}]*font-size:${18*PT}px`),'baris kementerian 18pt');
   // Lebar kotak isian 340,16pt.
-  assert.match(css,/\.cover-fields\{[^}]*width:min\(453px,100%\)\}/,'lebar kotak isian 340,16pt');
+  assert.match(css,/\.cover-fields\{display:block;width:453px/,'lebar kotak isian 340,16pt');
   // Isi teks sama dengan cover.pdf: tanpa baris nama sekolah / tahun pelajaran tambahan.
   assert.equal(read('src/pages/print.js').includes('cover-school'),false);
 });
