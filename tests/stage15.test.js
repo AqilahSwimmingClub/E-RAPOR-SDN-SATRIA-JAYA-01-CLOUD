@@ -173,8 +173,23 @@ test('Cover memakai logo Tut Wuri Handayani dan lambang daerah, bukan logo aplik
   assert.match(page,/coverLogo\(school\.ministryLogo,COVER_LOGO_DEFAULTS\.ministry,'cover-logo-ministry'/);
   assert.match(page,/coverLogo\(school\.regionLogo,COVER_LOGO_DEFAULTS\.region,'cover-logo-region'/);
   assert.equal(/report-cover-a4[^`]*app-icon\.svg/.test(page),false);
-  assert.match(css,/\.report-cover-a4>\.cover-logo-ministry,\.report-cover-a4>\.cover-logo-region\{width:158px;height:158px;object-fit:contain\}/,'slot logo memakai object-fit contain sehingga gambar tidak digepengkan');
-  assert.match(css,/\.report-cover-a4>\.cover-logo-region\{width:270px;height:270px;margin:-20px 0\}/,'slot lambang daerah menyesuaikan ruang kosong kanvasnya agar tampak seimbang');
+  assert.match(css,/\.report-cover-a4>\.cover-logo>img\{position:absolute;top:50%;left:50%;transform:translate\(-50%,-50%\);object-fit:contain/,'gambar logo dipusatkan dan memakai object-fit contain sehingga tidak digepengkan');
+  assert.match(css,/\.report-cover-a4>\.cover-logo-custom\{overflow:visible/,'logo unggahan Admin ditampilkan utuh tanpa dipangkas');
+});
+
+test('Ukuran tampak logo Cover mengikuti proporsi gambar referensi',()=>{
+  const css=read('src/styles/app.css');
+  const slot=name=>{
+    const found=css.match(new RegExp(`\\.report-cover-a4>\\.cover-logo-${name}\\{width:(\\d+)px;height:(\\d+)px;margin-(?:top|bottom):(\\d+)px\\}`));
+    assert.ok(found,`slot ${name} tidak ditemukan`);
+    return {w:Number(found[1]),h:Number(found[2]),margin:Number(found[3])};
+  };
+  const ministry=slot('ministry'),region=slot('region');
+  // Referensi: lambang daerah 1,23x tinggi dan 1,12x lebar logo Tut Wuri.
+  assert.ok(Math.abs(region.h/ministry.h-1.23)<=0.04,`rasio tinggi ${(region.h/ministry.h).toFixed(2)} harus mendekati 1,23`);
+  assert.ok(Math.abs(region.w/ministry.w-1.12)<=0.04,`rasio lebar ${(region.w/ministry.w).toFixed(2)} harus mendekati 1,12`);
+  // Jarak logo -> teks -> logo simetris seperti referensi.
+  assert.equal(ministry.margin,region.margin,'jarak atas dan bawah teks judul harus sama');
 });
 
 test('Logo resmi Cover tersedia di assets sebagai berkas PNG yang valid',()=>{

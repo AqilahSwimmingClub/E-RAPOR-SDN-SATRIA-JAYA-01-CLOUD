@@ -103,14 +103,18 @@ export function renderPrint(session){
 
   /* ---------------------------------------------------------------- Cover */
 
+  /* Slot memangkas ruang kosong bawaan kanvas file logo agar ukuran yang tampak dan
+     jaraknya mengikuti gambar referensi Cover. Logo unggahan Admin tidak diketahui
+     ruang kosongnya sehingga ditampilkan utuh. */
   function coverLogo(source,fallback,className,label){
-    return `<img class="${className}" src="${escapeHtml(source||fallback)}" alt="${escapeHtml(label)}" data-cover-logo="${escapeHtml(label)}"/>`;
+    return `<span class="cover-logo ${className}${source?' cover-logo-custom':''}"><img src="${escapeHtml(source||fallback)}" alt="${escapeHtml(label)}" data-cover-logo="${escapeHtml(label)}"/></span>`;
   }
 
   /* Slot logo yang filenya belum tersedia diganti penanda layar agar hasil cetak tetap bersih. */
   function bindCoverLogos(){
     view.querySelectorAll('[data-cover-logo]').forEach(image=>image.addEventListener('error',()=>{
-      image.replaceWith(el(`<span class="${image.className} cover-logo-empty no-print">${escapeHtml(image.dataset.coverLogo)}<small>Unggah di Data Referensi → Sekolah</small></span>`));
+      const slot=image.closest('.cover-logo')||image;
+      slot.replaceWith(el(`<span class="${slot.className||''} cover-logo-empty no-print">${escapeHtml(image.dataset.coverLogo)}<small>Unggah di Data Referensi → Sekolah</small></span>`));
     },{once:true}));
   }
 
