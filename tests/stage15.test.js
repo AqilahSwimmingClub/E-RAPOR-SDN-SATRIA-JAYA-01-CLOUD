@@ -168,13 +168,25 @@ test('Gaya cetak Tahap 15 memecah halaman dokumen dan menjaga tabel leger tetap 
   assert.match(css,/\.leger-table th,\.leger-table td\{min-width:0!important[^}]*white-space:normal!important/);
 });
 
-test('Cover memakai logo Tut Wuri Handayani dan lambang daerah dari master, bukan logo aplikasi',()=>{
+test('Cover memakai logo Tut Wuri Handayani dan lambang daerah, bukan logo aplikasi',()=>{
   const page=read('src/pages/print.js');const css=read('src/styles/app.css');
-  assert.match(page,/coverLogo\(school\.ministryLogo,'cover-logo-ministry'/);
-  assert.match(page,/coverLogo\(school\.regionLogo,'cover-logo-region'/);
+  assert.match(page,/coverLogo\(school\.ministryLogo,COVER_LOGO_DEFAULTS\.ministry,'cover-logo-ministry'/);
+  assert.match(page,/coverLogo\(school\.regionLogo,COVER_LOGO_DEFAULTS\.region,'cover-logo-region'/);
   assert.equal(/report-cover-a4[^`]*app-icon\.svg/.test(page),false);
   assert.match(css,/\.report-cover-a4>\.cover-logo-ministry\{width:150px;height:150px;object-fit:contain\}/);
   assert.match(css,/\.report-cover-a4>\.cover-logo-region\{width:150px;height:180px;object-fit:contain\}/);
+});
+
+test('Logo bawaan Cover dibaca dari assets dan didahulukan oleh logo master sekolah',async()=>{
+  const { COVER_LOGO_DEFAULTS }=await import('../src/pages/print.js');
+  assert.deepEqual({...COVER_LOGO_DEFAULTS},{ministry:'./assets/logo-tut-wuri-handayani.png',region:'./assets/logo-kabupaten-bekasi.png'});
+  const page=read('src/pages/print.js');
+  assert.match(page,/src="\$\{escapeHtml\(source\|\|fallback\)\}"/,'logo master didahulukan sebelum bawaan aplikasi');
+  assert.match(page,/bindCoverLogos\(\);bindStudentPicker\(\)/);
+  assert.match(page,/addEventListener\('error'/,'slot logo yang filenya belum ada diganti penanda layar');
+  assert.match(read('scripts/build-web.mjs'),/directories=\['assets','src'\]/,'folder assets ikut disalin saat build');
+  assert.match(read('README.md'),/assets\/logo-tut-wuri-handayani\.png/);
+  assert.match(read('README.md'),/assets\/logo-kabupaten-bekasi\.png/);
 });
 
 test('Logo sekolah tersimpan pada master, tervalidasi, dan tetap ada saat field lain disimpan',()=>{

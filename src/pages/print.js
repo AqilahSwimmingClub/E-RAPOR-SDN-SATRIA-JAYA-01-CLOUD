@@ -11,6 +11,13 @@ const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus'
 const DOTS='..................................';
 const PAGE_SIZE_STYLE_ID='erapor-print-page-size';
 
+/* Logo bawaan aplikasi untuk Cover. Logo pada master sekolah selalu diprioritaskan
+   agar setiap sekolah dapat memasang lambang daerahnya sendiri. */
+export const COVER_LOGO_DEFAULTS=Object.freeze({
+  ministry:'./assets/logo-tut-wuri-handayani.png',
+  region:'./assets/logo-kabupaten-bekasi.png',
+});
+
 /* Leger memakai A4 landscape. Ukuran halaman default harus ditimpa sebelum cetak
    karena lebar layout cetak Chromium mengikuti @page default, bukan named page. */
 export function setPrintPageSize(orientation){
@@ -96,22 +103,27 @@ export function renderPrint(session){
 
   /* ---------------------------------------------------------------- Cover */
 
-  function coverLogo(source,className,label){
-    return source
-      ? `<img class="${className}" src="${escapeHtml(source)}" alt="${escapeHtml(label)}"/>`
-      : `<span class="${className} cover-logo-empty no-print">${escapeHtml(label)}<small>Unggah di Data Referensi → Sekolah</small></span>`;
+  function coverLogo(source,fallback,className,label){
+    return `<img class="${className}" src="${escapeHtml(source||fallback)}" alt="${escapeHtml(label)}" data-cover-logo="${escapeHtml(label)}"/>`;
+  }
+
+  /* Slot logo yang filenya belum tersedia diganti penanda layar agar hasil cetak tetap bersih. */
+  function bindCoverLogos(){
+    view.querySelectorAll('[data-cover-logo]').forEach(image=>image.addEventListener('error',()=>{
+      image.replaceWith(el(`<span class="${image.className} cover-logo-empty no-print">${escapeHtml(image.dataset.coverLogo)}<small>Unggah di Data Referensi → Sekolah</small></span>`));
+    },{once:true}));
   }
 
   function coverSheet(doc){
     const school=doc.master.school,student=doc.student;
-    return `<section class="document-a4 document-sheet report-cover-a4">${coverLogo(school.ministryLogo,'cover-logo-ministry','Logo Tut Wuri Handayani')}<div class="cover-title"><strong>SEKOLAH DASAR</strong><span>( SD )</span></div>${coverLogo(school.regionLogo,'cover-logo-region','Lambang Daerah')}<div class="cover-fields"><div class="cover-field"><span>Nama Peserta Didik</span><div class="cover-box">${escapeHtml(student.name)}</div></div><div class="cover-field"><span>NISN / NIS</span><div class="cover-box">${escapeHtml(student.nisn)} / ${escapeHtml(student.nis)}</div></div></div><div class="cover-ministry"><strong>KEMENTERIAN PENDIDIKAN DASAR DAN MENENGAH</strong><strong>REPUBLIK INDONESIA</strong></div><div class="cover-school"><strong>${escapeHtml(school.name)}</strong><span>TAHUN PELAJARAN ${escapeHtml(doc.academicYear)}</span></div></section>`;
+    return `<section class="document-a4 document-sheet report-cover-a4">${coverLogo(school.ministryLogo,COVER_LOGO_DEFAULTS.ministry,'cover-logo-ministry','Logo Tut Wuri Handayani')}<div class="cover-title"><strong>SEKOLAH DASAR</strong><span>( SD )</span></div>${coverLogo(school.regionLogo,COVER_LOGO_DEFAULTS.region,'cover-logo-region','Lambang Daerah')}<div class="cover-fields"><div class="cover-field"><span>Nama Peserta Didik</span><div class="cover-box">${escapeHtml(student.name)}</div></div><div class="cover-field"><span>NISN / NIS</span><div class="cover-box">${escapeHtml(student.nisn)} / ${escapeHtml(student.nis)}</div></div></div><div class="cover-ministry"><strong>KEMENTERIAN PENDIDIKAN DASAR DAN MENENGAH</strong><strong>REPUBLIK INDONESIA</strong></div><div class="cover-school"><strong>${escapeHtml(school.name)}</strong><span>TAHUN PELAJARAN ${escapeHtml(doc.academicYear)}</span></div></section>`;
   }
 
   function drawCover(){
     const students=refresh();if(!students.length){emptyClass();return;}
     const doc=getReportDocument(scope,studentId);
     view.innerHTML=`${toolbar(studentPicker(students))}${coverSheet(doc)}`;
-    bindStudentPicker();
+    bindCoverLogos();bindStudentPicker();
   }
 
   /* -------------------------------------------------- Perlengkapan Rapor */

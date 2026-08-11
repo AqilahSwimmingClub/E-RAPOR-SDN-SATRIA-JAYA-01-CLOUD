@@ -49,6 +49,22 @@ Tersedia 24 akun `Guru1A` sampai `Guru6D`. Credential bootstrap mengikuti rombel
 
 Guru harus mengganti password awal melalui **Profile** atau **Pengaturan Akun**. Admin dapat mereset password Guru melalui **Data Pengguna**; password sementara hanya ditampilkan sekali. Admin juga dapat menonaktifkan akun Guru.
 
+## Logo Cover Rapor
+
+Cover rapor memakai dua logo sesuai format resmi: logo Tut Wuri Handayani di atas judul **SEKOLAH DASAR ( SD )** dan lambang kota/kabupaten di bawahnya. Logo diambil berurutan dari:
+
+1. Logo yang diunggah Admin melalui **Data Referensi → Sekolah** (disimpan pada database lokal, berlaku untuk perangkat tersebut).
+2. Logo bawaan aplikasi pada folder `assets/`:
+
+```text
+assets/logo-tut-wuri-handayani.png
+assets/logo-kabupaten-bekasi.png
+```
+
+Salin kedua file logo dengan nama persis seperti di atas ke folder `assets/`, lalu jalankan `npm run build` (dan `npm run cap:android` untuk Android). Format PNG atau JPG; gunakan gambar persegi untuk Tut Wuri Handayani dan gambar tegak (lebih tinggi daripada lebar) untuk lambang daerah. Proporsi asli tetap terjaga karena slot memakai `object-fit: contain`.
+
+Selama file belum tersedia dan Admin belum mengunggah logo, slot hanya menampilkan penanda di layar dan tidak ikut tercetak.
+
 ## Penyimpanan, backup, dan restore
 
 - Data tersimpan permanen pada storage lokal browser/WebView perangkat.
