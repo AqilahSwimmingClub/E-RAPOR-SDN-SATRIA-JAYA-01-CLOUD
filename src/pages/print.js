@@ -1,28 +1,231 @@
 import { CLASSES } from '../data/constants.js';
-import { assertReportPrintable, getLeger, getReportCompleteness, getReportDocument } from '../services/documents.js';
+import { assertReportPrintable, getDocumentIdentity, getLeger, getReportCompleteness, getReportDocument, legerWorkbookBytes } from '../services/documents.js';
 import { listStudents } from '../services/students.js';
-import { getPrintSettings } from '../services/print-settings.js';
+import { saveFile } from '../services/file-io.js';
 import { el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { digitalGauge } from '../ui/digital-gauge.js';
 import { printCurrentDocument } from '../services/print-service.js';
 
+const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const DOTS='..................................';
+
 function number(value){return value===null||value===undefined?'—':Number(value).toLocaleString('id-ID',{maximumFractionDigits:2});}
 function classes(selected){return CLASSES.map(item=>`<option value="${item}" ${item===selected?'selected':''}>Kelas ${item}</option>`).join('');}
 function badge(complete){return `<span class="badge ${complete?'badge-active':'badge-inactive'}">${complete?'Lengkap':'Belum Lengkap'}</span>`;}
+function blank(value){return escapeHtml(String(value??'').trim());}
+function longDate(value){const raw=String(value||'').trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(raw))return '';const [year,month,day]=raw.split('-').map(Number);return `${String(day).padStart(2,'0')} ${MONTHS[month-1]} ${year}`;}
+function genderLabel(value){return value==='L'?'Laki-Laki':value==='P'?'Perempuan':'';}
+function fileNamePart(value){return String(value??'').trim().replace(/[\\/:*?"<>|]+/g,'-');}
+
+function identityRow(index,label,value,{indent=false}={}){
+  return `<tr class="${indent?'is-indent':''}"><td class="identity-no">${index?`${index}.`:''}</td><td class="identity-label">${escapeHtml(label)}</td><td class="identity-sep">:</td><td class="identity-value">${blank(value)}</td></tr>`;
+}
+
+function signatureBlock(name,nip){
+  return `<strong>${name?escapeHtml(name):DOTS}</strong>${nip?`<small>NIP. ${escapeHtml(nip)}</small>`:'<small>NIP.</small>'}`;
+}
 
 export function renderPrint(session){
-  let classId=session.role==='teacher'?session.classId:CLASSES[0];let scope={...session,role:'teacher',classId};let tab='leger';let studentId='';let showLandscape=false;let previewed=false;const root=el(`<div><div class="page-head no-print"><div><h1>Cetak Nilai</h1><p>Leger, cover, pemeriksaan kelengkapan, dan Cetak Rapor A4 dari data tersimpan.</p></div></div><div class="report-tabs print-tabs no-print"><button class="tab active" data-tab="leger">Leger</button><button class="tab" data-tab="cover">Cover</button><button class="tab" data-tab="completeness">Kelengkapan Rapor</button><button class="tab" data-tab="report">Cetak Rapor</button></div>${session.role==='admin'?`<section class="card module-filter no-print"><div class="field compact-field"><label>Rombel</label><select class="input" data-class>${classes(classId)}</select></div><div class="scope-note">Dokumen Kelas<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section>`:''}<div data-view></div></div>`);const view=root.querySelector('[data-view]');
+  let classId=session.role==='teacher'?session.classId:CLASSES[0];
+  let scope={...session,role:'teacher',classId};
+  let tab='leger';let studentId='';let showLandscape=false;let previewed=false;
+  const root=el(`<div><div class="page-head no-print"><div><h1>Cetak Nilai</h1><p>Leger, cover, perlengkapan rapor, pemeriksaan kelengkapan, dan Cetak Rapor A4 dari data tersimpan.</p></div></div><div class="report-tabs print-tabs no-print"><button class="tab active" data-tab="leger">Leger</button><button class="tab" data-tab="cover">Cover</button><button class="tab" data-tab="equipment">Perlengkapan</button><button class="tab" data-tab="completeness">Kelengkapan Rapor</button><button class="tab" data-tab="report">Cetak Rapor</button></div>${session.role==='admin'?`<section class="card module-filter no-print"><div class="field compact-field"><label>Rombel</label><select class="input" data-class>${classes(classId)}</select></div><div class="scope-note">Dokumen Kelas<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section>`:''}<div data-view></div></div>`);
+  const view=root.querySelector('[data-view]');
+
   function refresh(){scope={...session,role:'teacher',classId};const students=listStudents(scope,{classId});if(!students.some(student=>student.id===studentId))studentId=students[0]?.id||'';return students;}
-  function drawLeger(){refresh();const data=getLeger(scope);view.innerHTML=`<div class="assessment-summary leger-summary no-print"><article class="stat-card"><div class="stat-label">Jumlah Siswa</div><div class="stat-value">${data.students.length}</div></article><article class="stat-card"><div class="stat-label">Mapel Aktif</div><div class="stat-value">${data.subjects.length}</div></article><article class="stat-card"><div class="stat-label">Rata-rata Kelas</div><div class="stat-value">${number(data.classAverage)}</div></article></div><div class="print-toolbar no-print"><span>Urutan kolom mengikuti Mapping Mata Pelajaran.</span><button class="btn btn-light" data-landscape>${showLandscape?'Sembunyikan Tabel Landscape':'Tampilkan Tabel Landscape'}</button></div><section class="card leger-table-card ${showLandscape?'show-mobile-table':''}"><div class="table-scroll"><table class="data-table leger-table"><thead><tr><th>No.</th><th>Nama Siswa</th>${data.subjects.map(subject=>`<th title="${escapeHtml(subject.name)}">${escapeHtml(subject.name)}</th>`).join('')}<th>Rata-rata</th></tr></thead><tbody>${data.students.map((row,index)=>`<tr><td>${index+1}</td><td><strong>${escapeHtml(row.student.name)}</strong><span>${escapeHtml(row.student.nisn)}</span></td>${row.scores.map(item=>`<td>${number(item.score)}</td>`).join('')}<td><strong>${number(row.average)}</strong></td></tr>`).join('')}</tbody><tfoot><tr><th colspan="2">Rata-rata Mapel</th>${data.subjectAverages.map(item=>`<th>${number(item.average)}</th>`).join('')}<th>${number(data.classAverage)}</th></tr></tfoot></table></div></section><div class="leger-card-list">${data.students.map(row=>`<article class="card"><div><strong>${escapeHtml(row.student.name)}</strong><span>${escapeHtml(row.student.nisn)}</span></div><b>${number(row.average)}</b><small>${row.completeCount}/${data.subjects.length} nilai tersedia</small></article>`).join('')}</div>`;view.querySelector('[data-landscape]').onclick=()=>{showLandscape=!showLandscape;drawLeger();};}
-  function drawCover(){const students=refresh();if(!students.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3></section>';return;}const document=getReportDocument(scope,studentId),student=document.student,school=document.master.school;view.innerHTML=`<section class="card report-print-control no-print"><div class="field compact-field"><label>Pilih Siswa</label><select class="input" data-student>${students.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===studentId?'selected':''}>${escapeHtml(item.name)} · ${escapeHtml(item.nisn)}</option>`).join('')}</select></div><button class="btn btn-light" data-common-preview>${icon('file',16)} Preview</button><button class="btn btn-light" data-common-print>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-common-pdf>${icon('download',16)} Simpan PDF</button></section><section class="document-a4 report-cover-a4"><img src="./assets/app-icon.svg" alt="Logo aplikasi"/><h2>LAPORAN HASIL BELAJAR<br/>PESERTA DIDIK</h2><div class="cover-school"><strong>${escapeHtml(school.name)}</strong><span>TAHUN PELAJARAN ${escapeHtml(session.academicYear)}</span></div><table class="document-identity"><tbody><tr><th>Nama Peserta Didik</th><td>${escapeHtml(student.name)}</td></tr><tr><th>NIS / NISN</th><td>${escapeHtml(student.nis)} / ${escapeHtml(student.nisn)}</td></tr><tr><th>Kelas / Semester</th><td>${escapeHtml(classId)} / ${escapeHtml(session.semester)}</td></tr></tbody></table></section>`;view.querySelector('[data-student]').onchange=event=>{studentId=event.target.value;drawCover();};}
-  function drawCompleteness(){refresh();const data=getReportCompleteness(scope);view.innerHTML=`<div class="assessment-summary completeness-report-summary"><article class="stat-card"><div class="stat-label">Siswa Lengkap</div><div class="stat-value">${data.completeStudents}</div><div class="stat-foot">dari ${data.studentCount} siswa</div></article><article class="stat-card"><div class="stat-label">Belum Lengkap</div><div class="stat-value">${data.incompleteStudents}</div></article><article class="stat-card"><div class="stat-label">Progress Seluruh Kelas</div><div class="stat-value">${data.overallPercentage}%</div><div class="bar"><span style="width:${data.overallPercentage}%"></span></div></article></div>${data.students.length?`<div class="report-completeness-list">${data.students.map(row=>`<article class="card"><div class="completion-student-head"><div><strong>${escapeHtml(row.student.name)}</strong><span>${escapeHtml(row.student.nis)} · ${escapeHtml(row.student.nisn)}</span></div>${badge(row.status==='COMPLETE')}</div><div class="completion-progress"><div class="bar"><span style="width:${row.percentage}%"></span></div><b>${row.percentage}%</b></div><div class="completion-category-grid">${Object.entries(row.categories).map(([key,complete])=>`<span class="${complete?'complete':'missing'}">${complete?'✓':'!'} ${escapeHtml({identity:'Identitas',scores:'Nilai Mapel',descriptions:'Deskripsi',attendance:'Absensi',extracurricular:'Ekstrakurikuler',homeroomNote:'Catatan',finalStatus:'Status Akhir'}[key])}</span>`).join('')}</div>${row.missing.length?`<p>Kurang: ${escapeHtml(row.missing.join(', '))}</p>`:'<p class="complete-text">Semua komponen rapor sudah lengkap.</p>'}</article>`).join('')}</div>`:'<section class="card empty-state"><h3>Belum ada Data Siswa</h3></section>'}`;}
-  function reportA4(document){const student=document.student,school=document.master.school,teacher=document.master.teacher;return `<section class="document-a4 report-a4"><div class="document-school"><strong>LAPORAN HASIL BELAJAR PESERTA DIDIK</strong><span>${escapeHtml(school.name)} · ${escapeHtml(session.academicYear)}</span></div><table class="document-identity"><tbody><tr><th>Nama Peserta Didik</th><td>${escapeHtml(student.name)}</td><th>Kelas</th><td>${escapeHtml(classId)}</td></tr><tr><th>NIS / NISN</th><td>${escapeHtml(student.nis)} / ${escapeHtml(student.nisn)}</td><th>Semester</th><td>${escapeHtml(session.semester)}</td></tr><tr><th>Tempat, Tanggal Lahir</th><td>${escapeHtml(student.birthPlace)}, ${escapeHtml(student.birthDate)}</td><th>Jenis Kelamin</th><td>${student.gender==='L'?'Laki-laki':'Perempuan'}</td></tr></tbody></table><h3>Hasil Belajar</h3><table class="document-table report-learning-table"><thead><tr><th>No.</th><th>Mata Pelajaran</th><th>Nilai</th><th>Capaian Kompetensi</th></tr></thead><tbody>${document.subjects.map((row,index)=>`<tr><td>${index+1}</td><td>${escapeHtml(row.subject.name)}</td><td>${row.score??'—'}</td><td>${escapeHtml(row.description||'—')}</td></tr>`).join('')}</tbody></table><div class="report-lower-grid"><section><h3>Ekstrakurikuler</h3><table class="document-table"><thead><tr><th>Kegiatan</th><th>Predikat</th><th>Deskripsi</th></tr></thead><tbody>${document.extracurricular.length?document.extracurricular.map(item=>`<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.predicate)}</td><td>${escapeHtml(item.description)}</td></tr>`).join(''):'<tr><td colspan="3">—</td></tr>'}</tbody></table></section><section><h3>Ketidakhadiran</h3><table class="document-table absence-document-table"><tbody><tr><th>Sakit</th><td>${document.attendance.Sakit} hari</td></tr><tr><th>Izin</th><td>${document.attendance.Izin} hari</td></tr><tr><th>Alpa</th><td>${document.attendance.Alpa} hari</td></tr></tbody></table></section></div><section class="document-note"><h3>Catatan Wali Kelas</h3><p>${escapeHtml(document.homeroomNote||'—')}</p></section><section class="document-final-status"><strong>${Number.parseInt(classId,10)===6?'Kelulusan':'Kenaikan Kelas'}:</strong> ${escapeHtml(document.finalStatusLabel)}</section><div class="document-signatures"><div><span>Orang Tua/Wali</span><strong>(....................................)</strong></div><div><span>Wali Kelas ${escapeHtml(classId)}</span><strong>${escapeHtml(teacher.name||'(....................................)')}</strong><small>NIP ${escapeHtml(teacher.nip||'—')}</small></div><div><span>Kepala Sekolah</span><strong>${escapeHtml(school.principalName||'(....................................)')}</strong><small>NIP ${escapeHtml(school.principalNip||'—')}</small></div></div></section>`;}
-  function drawReport(){const students=refresh();if(!students.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3></section>';return;}const document=getReportDocument(scope,studentId);view.innerHTML=`<section class="card report-print-control no-print"><div class="field compact-field"><label>Pilih Siswa</label><select class="input" data-student>${students.map(student=>`<option value="${escapeHtml(student.id)}" ${student.id===studentId?'selected':''}>${escapeHtml(student.name)} · ${escapeHtml(student.nisn)}</option>`).join('')}</select></div><button class="btn btn-light" data-preview>${icon('file',16)} Preview</button><button class="btn btn-light" data-print ${document.complete?'':'disabled'}>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-pdf ${document.complete?'':'disabled'}>${icon('download',16)} Download PDF</button></section>${document.complete?'<div class="source-banner no-print">Rapor lengkap dan siap dicetak final.</div>':`<div class="source-banner warning-banner no-print">Cetak final ditolak. Masih kurang: ${escapeHtml(document.missing.join(', '))}.</div>`}${previewed?reportA4(document):'<section class="card empty-state no-print"><h3>Preview belum dibuka</h3><p>Pilih siswa lalu klik Preview untuk menampilkan lembar A4.</p></section>'}`;view.querySelector('[data-student]').onchange=event=>{studentId=event.target.value;previewed=false;drawReport();};view.querySelector('[data-preview]').onclick=()=>{previewed=true;drawReport();};const print=()=>{try{assertReportPrintable(scope,studentId);window.print();}catch(error){toast(error.message,'error');}};view.querySelector('[data-print]').onclick=print;view.querySelector('[data-pdf]').onclick=()=>{try{assertReportPrintable(scope,studentId);toast('Pilih tujuan “Save as PDF” pada dialog cetak browser.');window.print();}catch(error){toast(error.message,'error');}};}
-  function addCommonPrintControls(label){const toolbar=el(`<section class="card report-print-control no-print"><span>${escapeHtml(label)}</span><button class="btn btn-light" data-common-preview>${icon('file',16)} Preview</button><button class="btn btn-light" data-common-print>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-common-pdf>${icon('download',16)} Download PDF</button></section>`);view.prepend(toolbar);const settings=getPrintSettings(scope);toolbar.insertAdjacentHTML('afterend',`<section class="document-print-heading"><strong>${escapeHtml(label.toUpperCase())} · ${escapeHtml(scope.school||'SDN Satria Jaya 01')}</strong><span>Kelas ${escapeHtml(classId)} · ${escapeHtml(scope.semester)}</span>${settings.printDateLabel?`<small>${escapeHtml(settings.printDateLabel)}</small>`:''}<small>Wali Kelas: ${escapeHtml(settings.teacherName||'—')} · Kepala Sekolah: ${escapeHtml(settings.principalName||'—')}</small></section>`);toolbar.querySelector('[data-common-preview]').onclick=()=>toast(`Preview ${label} siap dicetak.`);toolbar.querySelector('[data-common-print]').onclick=()=>window.print();toolbar.querySelector('[data-common-pdf]').onclick=()=>{toast('Pilih tujuan “Save as PDF” pada dialog cetak browser.');window.print();};}
-  function addCompletenessGauge(){const data=getReportCompleteness(scope);const host=view.querySelector('.completeness-report-summary');if(host)host.insertAdjacentHTML('afterend',`<section class="card completion-gauge-row">${digitalGauge(data.overallPercentage,{label:'Kelengkapan Rapor',tone:'green',caption:`${data.completeStudents}/${data.studentCount} siswa lengkap`})}</section>`);}
-  function bindPlatformPrint(label,{requireComplete=false}={}){const run=async savePdf=>{try{if(requireComplete)assertReportPrintable(scope,studentId);await printCurrentDocument({title:`${label}-${classId}-${session.academicYear.replace('/','-')}`,savePdf});}catch(error){toast(error.message,'error');}};view.querySelector('[data-print]')?.addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();run(false);},{capture:true});view.querySelector('[data-pdf]')?.addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();run(true);},{capture:true});view.querySelector('[data-common-print]')?.addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();run(false);},{capture:true});view.querySelector('[data-common-pdf]')?.addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();run(true);},{capture:true});}
-  function enhanceReportPreview(document){const report=view.querySelector('.report-a4');if(!report)return;const learning=[...report.querySelectorAll('h3')].find(node=>node.textContent.trim()==='Hasil Belajar');if(document.attitudes?.length&&learning)learning.insertAdjacentHTML('beforebegin',`<section><h3>Profil Pelajar Pancasila / Nilai Sikap</h3><table class="document-table"><thead><tr><th>Dimensi</th><th>Capaian</th><th>Deskripsi</th></tr></thead><tbody>${document.attitudes.map(item=>`<tr><td>${escapeHtml(item.dimensionLabel)}</td><td>${escapeHtml(item.level)}</td><td>${escapeHtml(item.description)}</td></tr>`).join('')}</tbody></table></section>`);const lower=report.querySelector('.report-lower-grid');if(document.cocurricular&&lower)lower.insertAdjacentHTML('beforebegin',`<section><h3>Kokurikuler</h3><table class="document-table"><tbody><tr><th>Kegiatan</th><td>${escapeHtml(document.cocurricular.activity||'—')}</td></tr><tr><th>Predikat</th><td>${escapeHtml(document.cocurricular.predicate)}</td></tr><tr><th>Deskripsi</th><td>${escapeHtml(document.cocurricular.description)}</td></tr></tbody></table></section>`);const signatures=report.querySelector('.document-signatures');if(document.printSettings?.printDateLabel&&signatures)signatures.insertAdjacentHTML('beforebegin',`<p class="document-print-date">${escapeHtml(document.printSettings.printDateLabel)}</p>`);}
-  function draw(){root.querySelectorAll('[data-tab]').forEach(button=>button.classList.toggle('active',button.dataset.tab===tab));if(tab==='leger'){drawLeger();addCommonPrintControls('Leger Kelas');bindPlatformPrint('Leger');}if(tab==='cover'){drawCover();bindPlatformPrint('Cover Rapor');}if(tab==='completeness'){drawCompleteness();addCompletenessGauge();addCommonPrintControls('Kelengkapan Rapor');bindPlatformPrint('Kelengkapan');}if(tab==='report'){drawReport();if(previewed&&studentId)enhanceReportPreview(getReportDocument(scope,studentId));bindPlatformPrint('Rapor',{requireComplete:true});}}
-  if(session.role==='admin')root.querySelector('[data-class]').onchange=event=>{classId=event.target.value;studentId='';previewed=false;draw();};root.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{tab=button.dataset.tab;previewed=false;draw();});draw();return root;
+  function documentTitle(label,student){return [label,`Kelas ${classId}`,student?.name,session.semester,session.academicYear.replace('/','-')].filter(Boolean).map(fileNamePart).join(' - ');}
+
+  function bindActions(label,{student=null,requireComplete=false,onPreview=null}={}){
+    const run=async savePdf=>{
+      try{
+        if(requireComplete)assertReportPrintable(scope,studentId);
+        if(savePdf&&!globalThis.desktopBridge)toast('Pilih tujuan “Save as PDF” pada dialog cetak perangkat.');
+        await printCurrentDocument({title:documentTitle(label,student),savePdf});
+      }catch(error){toast(error.message,'error');}
+    };
+    view.querySelector('[data-print]')?.addEventListener('click',()=>run(false));
+    view.querySelector('[data-pdf]')?.addEventListener('click',()=>run(true));
+    view.querySelector('[data-preview]')?.addEventListener('click',()=>{
+      if(onPreview){onPreview();return;}
+      view.querySelector('.document-sheet')?.scrollIntoView({behavior:'smooth',block:'start'});
+      toast(`Preview ${label} siap dicetak.`);
+    });
+  }
+
+  function studentPicker(students){return `<div class="field compact-field"><label>Pilih Siswa</label><select class="input" data-student>${students.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===studentId?'selected':''}>${escapeHtml(item.name)} · ${escapeHtml(item.nisn)}</option>`).join('')}</select></div>`;}
+  function toolbar(lead,{disabled=false}={}){return `<section class="card report-print-control no-print">${lead}<button class="btn btn-light" data-preview>${icon('file',16)} Preview</button><button class="btn btn-light" data-print ${disabled?'disabled':''}>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-pdf ${disabled?'disabled':''}>${icon('download',16)} Simpan PDF</button></section>`;}
+  function bindStudentPicker(){const picker=view.querySelector('[data-student]');if(picker)picker.onchange=event=>{studentId=event.target.value;previewed=false;draw();};}
+  function emptyClass(){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan Data Siswa pada rombel ini sebelum mencetak dokumen rapor.</p></section>';}
+
+  /* ---------------------------------------------------------------- Leger */
+
+  function legerHeading(data){
+    return `<section class="document-print-heading leger-heading"><strong>LEGER NILAI RAPOR SISWA TAHUN PELAJARAN ${escapeHtml(data.academicYear)} ${escapeHtml(String(data.semester).split(' ')[0].toUpperCase())}</strong><span>SEKOLAH : ${escapeHtml(data.school.name)}</span><span>Kelas : ${escapeHtml(data.classLabel||`Kelas ${classId}`)}</span></section>`;
+  }
+
+  function legerTable(data){
+    const span=data.subjects.length;
+    const footRow=(label,values)=>`<tr><th colspan="4">${escapeHtml(label)}</th>${values.map(value=>`<th>${number(value)}</th>`).join('')}<th colspan="6"></th></tr>`;
+    return `<section class="card leger-table-card ${showLandscape?'show-mobile-table':''}"><div class="table-scroll"><table class="data-table leger-table"><thead><tr><th rowspan="2">NO</th><th rowspan="2">NAMA SISWA</th><th rowspan="2">NISN</th><th rowspan="2">NIS</th><th colspan="${span}">MATA PELAJARAN</th><th rowspan="2">TOTAL</th><th rowspan="2">RATA-RATA</th><th rowspan="2">RANK</th><th colspan="3">Ketidakhadiran</th></tr><tr>${data.subjects.map(subject=>`<th title="${escapeHtml(subject.name)}">${escapeHtml(subject.name)}</th>`).join('')}<th>Sakit</th><th>Izin</th><th>Alpa</th></tr></thead><tbody>${data.students.map((row,index)=>`<tr><td>${index+1}</td><td class="leger-name">${escapeHtml(row.student.name)}</td><td>${escapeHtml(row.student.nisn)}</td><td>${escapeHtml(row.student.nis)}</td>${row.scores.map(item=>`<td>${number(item.score)}</td>`).join('')}<td>${number(row.total)}</td><td><strong>${number(row.average)}</strong></td><td>${row.rank??'—'}</td><td>${row.attendance.Sakit}</td><td>${row.attendance.Izin}</td><td>${row.attendance.Alpa}</td></tr>`).join('')}</tbody><tfoot>${footRow('NILAI TERTINGGI',data.subjectAverages.map(item=>item.highest))}${footRow('NILAI TERENDAH',data.subjectAverages.map(item=>item.lowest))}${footRow('RATA-RATA MAPEL',data.subjectAverages.map(item=>item.average))}</tfoot></table></div></section>`;
+  }
+
+  function drawLeger(){
+    refresh();const data=getLeger(scope);
+    view.innerHTML=`${toolbar('<span>Leger Kelas</span>')}<div class="assessment-summary leger-summary no-print"><article class="stat-card"><div class="stat-label">Jumlah Siswa</div><div class="stat-value">${data.students.length}</div></article><article class="stat-card"><div class="stat-label">Mapel Aktif</div><div class="stat-value">${data.subjects.length}</div></article><article class="stat-card"><div class="stat-label">Rata-rata Kelas</div><div class="stat-value">${number(data.classAverage)}</div></article></div><div class="print-toolbar no-print"><span>Urutan kolom mengikuti Mapping Mata Pelajaran.</span><div class="actions"><button class="btn btn-light" data-excel>${icon('download',16)} Unduh Excel</button><button class="btn btn-light" data-landscape>${showLandscape?'Sembunyikan Tabel Landscape':'Tampilkan Tabel Landscape'}</button></div></div><div class="document-sheet document-leger">${legerHeading(data)}${legerTable(data)}</div><div class="leger-card-list">${data.students.map(row=>`<article class="card"><div><strong>${escapeHtml(row.student.name)}</strong><span>${escapeHtml(row.student.nisn)}</span></div><b>${number(row.average)}</b><small>${row.completeCount}/${data.subjects.length} nilai tersedia · Rank ${row.rank??'—'}</small></article>`).join('')}</div>`;
+    view.querySelector('[data-landscape]').onclick=()=>{showLandscape=!showLandscape;draw();};
+    view.querySelector('[data-excel]').onclick=async()=>{
+      try{await saveFile({name:`${documentTitle('Leger')}.xlsx`,mime:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',data:legerWorkbookBytes(scope)});toast('Leger Excel berhasil disimpan.');}
+      catch(error){toast(error.message,'error');}
+    };
+  }
+
+  /* ---------------------------------------------------------------- Cover */
+
+  function coverSheet(doc){
+    const school=doc.master.school,student=doc.student;
+    return `<section class="document-a4 document-sheet report-cover-a4"><img class="cover-emblem" src="./assets/app-icon.svg" alt=""/><div class="cover-title"><strong>SEKOLAH DASAR</strong><span>( SD )</span></div><div class="cover-fields"><div class="cover-field"><span>Nama Peserta Didik</span><div class="cover-box">${escapeHtml(student.name)}</div></div><div class="cover-field"><span>NISN / NIS</span><div class="cover-box">${escapeHtml(student.nisn)} / ${escapeHtml(student.nis)}</div></div></div><div class="cover-ministry"><strong>KEMENTERIAN PENDIDIKAN DASAR DAN MENENGAH</strong><strong>REPUBLIK INDONESIA</strong></div><div class="cover-school"><strong>${escapeHtml(school.name)}</strong><span>TAHUN PELAJARAN ${escapeHtml(doc.academicYear)}</span></div></section>`;
+  }
+
+  function drawCover(){
+    const students=refresh();if(!students.length){emptyClass();return;}
+    const doc=getReportDocument(scope,studentId);
+    view.innerHTML=`${toolbar(studentPicker(students))}${coverSheet(doc)}`;
+    bindStudentPicker();
+  }
+
+  /* -------------------------------------------------- Perlengkapan Rapor */
+
+  function schoolSheet(doc){
+    const school=doc.master.school;
+    const row=(label,value)=>`<tr><td class="identity-label">${escapeHtml(label)}</td><td class="identity-sep">:</td><td class="identity-value">${blank(value)}</td></tr>`;
+    return `<section class="document-a4 document-sheet equipment-sheet"><div class="cover-title equipment-title"><strong>SEKOLAH DASAR</strong><span>( SD )</span></div><table class="document-identity equipment-identity"><tbody>${row('Nama Sekolah',school.name)}${row('NPSN',school.npsn)}${row('NIS/NSS/NDS',school.registrationNumber)}${row('Alamat Sekolah',school.address)}${row('Kelurahan / Desa',school.village)}${row('Kecamatan',school.district)}${row('Kota/Kabupaten',school.city)}${row('Provinsi',school.province)}${row('Website',school.website)}${row('E-mail',school.email)}</tbody></table></section>`;
+  }
+
+  function studentIdentitySheet(doc){
+    const student=doc.student,school=doc.master.school,settings=doc.printSettings;
+    const father=student.fatherName||student.parentName||'';
+    const rows=[
+      identityRow(1,'Nama Lengkap Peserta Didik',student.name),
+      identityRow(2,'Nomor Induk/NISN',`${student.nis} / ${student.nisn}`),
+      identityRow(3,'Tempat, Tanggal Lahir',[student.birthPlace,longDate(student.birthDate)].filter(Boolean).join(', ')),
+      identityRow(4,'Jenis Kelamin',genderLabel(student.gender)),
+      identityRow(5,'Agama',student.religion),
+      identityRow(6,'Status dalam Keluarga',student.familyStatus),
+      identityRow(7,'Anak ke',student.childOrder),
+      identityRow(8,'Alamat Peserta Didik',student.address),
+      identityRow(9,'Nomor Telepon Rumah',student.phone),
+      identityRow(10,'Sekolah Asal',student.previousSchool),
+      identityRow(11,'Diterima di sekolah ini',''),
+      identityRow(0,'Di kelas',student.admissionClass,{indent:true}),
+      identityRow(0,'Pada tanggal',longDate(student.admissionDate),{indent:true}),
+      identityRow(12,'Nama Orang Tua',''),
+      identityRow(0,'a. Ayah',father,{indent:true}),
+      identityRow(0,'b. Ibu',student.motherName,{indent:true}),
+      identityRow(13,'Alamat Orang Tua',student.parentAddress),
+      identityRow(0,'Nomor Telepon Rumah',student.parentPhone,{indent:true}),
+      identityRow(14,'Pekerjaan Orang Tua',''),
+      identityRow(0,'a. Ayah',student.fatherJob,{indent:true}),
+      identityRow(0,'b. Ibu',student.motherJob,{indent:true}),
+      identityRow(15,'Nama Wali Siswa',student.guardianName),
+      identityRow(16,'Alamat Wali Peserta Didik',student.guardianAddress),
+      identityRow(0,'Nomor Telepon Rumah',student.guardianPhone,{indent:true}),
+      identityRow(17,'Pekerjaan Wali Peserta Didik',student.guardianJob),
+    ].join('');
+    return `<section class="document-a4 document-sheet equipment-sheet"><h2 class="document-heading">IDENTITAS PESERTA DIDIK</h2><table class="document-identity equipment-identity numbered"><tbody>${rows}</tbody></table><div class="equipment-sign"><div class="equipment-photo">${student.photo?`<img src="${escapeHtml(student.photo)}" alt=""/>`:'<span>Foto 3 × 4</span>'}</div><div class="equipment-sign-block"><span>${escapeHtml(settings.printDateLabel||`${settings.city||'Bekasi'}, ${DOTS}`)}</span><span>Kepala Sekolah</span>${signatureBlock(school.principalName,school.principalNip)}</div></div></section>`;
+  }
+
+  function transferOutSheet(doc){
+    const body=[1,2,3].map(()=>`<tr><td></td><td></td><td></td><td class="transfer-sign"><span>${DOTS.slice(0,26)},${DOTS.slice(0,10)}</span><span>Kepala Sekolah,</span><span class="transfer-line">${DOTS}</span><span>NIP.</span><span>Orang Tua/Wali,</span><span class="transfer-line">${DOTS}</span></td></tr>`).join('');
+    return `<section class="document-a4 document-sheet equipment-sheet"><h2 class="document-heading">KETERANGAN PINDAH SEKOLAH</h2><p class="equipment-note">Nama Peserta Didik : ${escapeHtml(doc.student.name)}</p><table class="document-table transfer-table"><thead><tr><th colspan="4">KELUAR</th></tr><tr><th>Tanggal</th><th>Kelas yang ditinggalkan</th><th>Sebab-sebab Keluar atau Atas Permintaan (Tertulis)</th><th>Tanda Tangan Kepala Sekolah, Stempel Sekolah, dan Tanda Tangan Orang Tua/Wali</th></tr></thead><tbody>${body}</tbody></table></section>`;
+  }
+
+  function transferInSheet(doc){
+    const entry=`<td class="transfer-entry"><ol><li>Nama Siswa <i></i></li><li>Nomor Induk <i></i></li><li>Nama Sekolah <i></i></li><li>Masuk di Sekolah ini:<ul><li>a. Tanggal <i></i></li><li>b. Di Kelas <i></i></li></ul></li><li>Tahun Pelajaran <i></i></li></ol></td><td class="transfer-sign"><span>${DOTS.slice(0,26)},${DOTS.slice(0,10)}</span><span>Kepala Sekolah,</span><span class="transfer-line">${DOTS}</span><span>NIP.</span></td>`;
+    return `<section class="document-a4 document-sheet equipment-sheet"><h2 class="document-heading">KETERANGAN PINDAH SEKOLAH</h2><p class="equipment-note">Nama Peserta Didik : ${escapeHtml(doc.student.name)}</p><table class="document-table transfer-table"><thead><tr><th colspan="2">MASUK</th></tr></thead><tbody>${[1,2,3].map(()=>`<tr>${entry}</tr>`).join('')}</tbody></table></section>`;
+  }
+
+  function drawEquipment(){
+    const students=refresh();if(!students.length){emptyClass();return;}
+    const doc=getReportDocument(scope,studentId);
+    view.innerHTML=`${toolbar(studentPicker(students))}${schoolSheet(doc)}${studentIdentitySheet(doc)}${transferOutSheet(doc)}${transferInSheet(doc)}`;
+    bindStudentPicker();
+  }
+
+  /* ------------------------------------------------------- Kelengkapan */
+
+  function drawCompleteness(){
+    refresh();const data=getReportCompleteness(scope);
+    view.innerHTML=`<div class="assessment-summary completeness-report-summary"><article class="stat-card"><div class="stat-label">Siswa Lengkap</div><div class="stat-value">${data.completeStudents}</div><div class="stat-foot">dari ${data.studentCount} siswa</div></article><article class="stat-card"><div class="stat-label">Belum Lengkap</div><div class="stat-value">${data.incompleteStudents}</div></article><article class="stat-card"><div class="stat-label">Progress Seluruh Kelas</div><div class="stat-value">${data.overallPercentage}%</div><div class="bar"><span style="width:${data.overallPercentage}%"></span></div></article></div>${data.students.length?`<div class="report-completeness-list">${data.students.map(row=>`<article class="card"><div class="completion-student-head"><div><strong>${escapeHtml(row.student.name)}</strong><span>${escapeHtml(row.student.nis)} · ${escapeHtml(row.student.nisn)}</span></div>${badge(row.status==='COMPLETE')}</div><div class="completion-progress"><div class="bar"><span style="width:${row.percentage}%"></span></div><b>${row.percentage}%</b></div><div class="completion-category-grid">${Object.entries(row.categories).map(([key,complete])=>`<span class="${complete?'complete':'missing'}">${complete?'✓':'!'} ${escapeHtml({identity:'Identitas',scores:'Nilai Mapel',descriptions:'Deskripsi',attendance:'Absensi',extracurricular:'Ekstrakurikuler',homeroomNote:'Catatan',finalStatus:'Status Akhir'}[key])}</span>`).join('')}</div>${row.missing.length?`<p>Kurang: ${escapeHtml(row.missing.join(', '))}</p>`:'<p class="complete-text">Semua komponen rapor sudah lengkap.</p>'}</article>`).join('')}</div>`:'<section class="card empty-state"><h3>Belum ada Data Siswa</h3></section>'}`;
+  }
+
+  function completenessHeading(){
+    const identity=getDocumentIdentity(scope);const data=getReportCompleteness(scope);
+    view.insertAdjacentHTML('afterbegin',`${toolbar('<span>Kelengkapan Rapor</span>')}<section class="document-print-heading"><strong>KELENGKAPAN RAPOR · ${escapeHtml(identity.school.name)}</strong><span>${escapeHtml(identity.classLabel)} · ${escapeHtml(identity.semester)} · ${escapeHtml(identity.academicYear)}</span>${identity.printSettings.printDateLabel?`<small>${escapeHtml(identity.printSettings.printDateLabel)}</small>`:''}<small>Wali Kelas: ${escapeHtml(identity.teacher.name||'—')} · Kepala Sekolah: ${escapeHtml(identity.school.principalName||'—')}</small></section>`);
+    view.querySelector('.completeness-report-summary')?.insertAdjacentHTML('afterend',`<section class="card completion-gauge-row no-print">${digitalGauge(data.overallPercentage,{label:'Kelengkapan Rapor',tone:'green',caption:`${data.completeStudents}/${data.studentCount} siswa lengkap`})}</section>`);
+  }
+
+  /* ------------------------------------------------------------- Rapor */
+
+  function subjectRows(doc){
+    return ['A','B'].map(group=>{
+      const rows=doc.subjects.filter(row=>(row.subject.group||'B')===group);
+      if(!rows.length)return '';
+      return `<tr class="subject-group-row"><td colspan="4">Kelompok ${group}</td></tr>${rows.map((row,index)=>`<tr><td>${index+1}</td><td class="subject-name-cell">${escapeHtml(row.subject.name)}</td><td>${row.score??'—'}</td><td class="subject-description-cell">${escapeHtml(row.description||'')}</td></tr>`).join('')}`;
+    }).join('');
+  }
+
+  function attitudeBlock(doc){
+    const body=doc.attitudes?.length
+      ? doc.attitudes.map(item=>`<p>${escapeHtml(item.description||`${item.dimensionLabel}: ${item.level}`)}</p>`).join('')
+      : '<p class="document-empty">Deskripsi capaian profil lulusan belum tersedia.</p>';
+    return `<h3 class="document-section">A. Sikap</h3><section class="document-box"><div class="document-box-head">Deskripsi Capaian Profil Lulusan</div><div class="document-box-body attitude-body">${body}</div></section>`;
+  }
+
+  function extracurricularTable(doc){
+    const items=doc.extracurricular||[];
+    const rows=Math.max(items.length,2);
+    return `<table class="document-table extracurricular-table"><thead><tr><th>No</th><th>Ekstrakurikuler</th><th>Keterangan</th></tr></thead><tbody>${Array.from({length:rows},(_,index)=>{const item=items[index];return `<tr><td>${index+1}</td><td class="subject-name-cell">${item?escapeHtml(item.name):''}</td><td class="subject-description-cell">${item?escapeHtml([item.predicate,item.description].filter(Boolean).join('. ')):''}</td></tr>`;}).join('')}</tbody></table>`;
+  }
+
+  function cocurricularBlock(doc){
+    if(!doc.cocurricular)return '';
+    return `<section class="document-box"><div class="document-box-head">Kokurikuler</div><div class="document-box-body"><p><strong>${escapeHtml(doc.cocurricular.activity||'—')}</strong> — ${escapeHtml(doc.cocurricular.predicate||'')}</p><p>${escapeHtml(doc.cocurricular.description||'')}</p></div></section>`;
+  }
+
+  function finalStatusBlock(doc){
+    if(doc.semesterNumber!==2)return '';
+    return `<section class="document-box"><div class="document-box-head">${Number.parseInt(classId,10)===6?'Kelulusan':'Kenaikan Kelas'}</div><div class="document-box-body"><p>${escapeHtml(doc.finalStatusLabel)}</p></div></section>`;
+  }
+
+  function reportA4(doc){
+    const student=doc.student,school=doc.master.school,teacher=doc.master.teacher,settings=doc.printSettings;
+    const head=`<table class="report-head-table"><tbody><tr><td>Nama Murid</td><td>:</td><td>${escapeHtml(student.name)}</td><td>Kelas</td><td>:</td><td>${escapeHtml(doc.classLabel)}</td></tr><tr><td>NIS/NISN</td><td>:</td><td>${escapeHtml(student.nis)} / ${escapeHtml(student.nisn)}</td><td>Semester</td><td>:</td><td>${doc.semesterNumber}</td></tr><tr><td>Sekolah</td><td>:</td><td>${escapeHtml(school.name)}</td><td>Tahun Ajaran</td><td>:</td><td>${escapeHtml(doc.academicYear)}</td></tr><tr><td>Alamat</td><td>:</td><td colspan="4">${blank(school.address)}</td></tr></tbody></table>`;
+    const signatures=`<div class="report-signatures"><div><span>Orang Tua Murid</span><span class="signature-spacer"></span><strong>${DOTS}</strong></div><div><span>Kepala Sekolah</span><span class="signature-spacer"></span>${signatureBlock(school.principalName,school.principalNip)}</div><div><span>${escapeHtml(settings.printDateLabel||`${settings.city||'Bekasi'}, ${DOTS.slice(0,18)}`)}</span><span>Wali Kelas</span><span class="signature-spacer"></span>${signatureBlock(teacher.name,teacher.nip)}</div></div>`;
+    return `<section class="document-a4 document-sheet report-a4">${head}<h2 class="document-heading">LAPORAN HASIL BELAJAR</h2>${attitudeBlock(doc)}<h3 class="document-section">B. Pengetahuan dan Keterampilan</h3><table class="document-table report-learning-table"><thead><tr><th>No</th><th>Mata Pelajaran</th><th>Nilai Akhir</th><th>Capaian Kompetensi</th></tr></thead><tbody>${subjectRows(doc)}</tbody></table>${extracurricularTable(doc)}${cocurricularBlock(doc)}<div class="report-lower-grid"><section class="document-box"><div class="document-box-head">Ketidakhadiran</div><div class="document-box-body"><table class="absence-document-table"><tbody><tr><th>Sakit</th><td>: ${doc.attendance.Sakit} hari</td></tr><tr><th>Izin</th><td>: ${doc.attendance.Izin} hari</td></tr><tr><th>Tanpa Keterangan</th><td>: ${doc.attendance.Alpa} hari</td></tr></tbody></table></div></section><section class="document-box"><div class="document-box-head">Catatan Wali Kelas</div><div class="document-box-body"><p>${escapeHtml(doc.homeroomNote||'')}</p></div></section></div>${finalStatusBlock(doc)}<section class="document-box response-box"><div class="document-box-head">Tanggapan Orang Tua/Wali Murid</div><div class="document-box-body"></div></section>${signatures}<div class="document-foot">${escapeHtml(doc.classLabel)} | ${escapeHtml(student.name)} | ${escapeHtml(student.nis)}</div></section>`;
+  }
+
+  function drawReport(){
+    const students=refresh();if(!students.length){emptyClass();return;}
+    const doc=getReportDocument(scope,studentId);
+    view.innerHTML=`${toolbar(studentPicker(students),{disabled:!doc.complete})}${doc.complete?'<div class="source-banner no-print">Rapor lengkap dan siap dicetak final.</div>':`<div class="source-banner warning-banner no-print">Cetak final ditolak. Masih kurang: ${escapeHtml(doc.missing.join(', '))}.</div>`}${previewed?reportA4(doc):'<section class="card empty-state no-print"><h3>Preview belum dibuka</h3><p>Pilih siswa lalu klik Preview untuk menampilkan lembar A4.</p></section>'}`;
+    bindStudentPicker();
+  }
+
+  function openPreview(){previewed=true;draw();}
+
+  /* -------------------------------------------------------------- Router */
+
+  function draw(){
+    root.querySelectorAll('[data-tab]').forEach(button=>button.classList.toggle('active',button.dataset.tab===tab));
+    if(tab==='leger'){drawLeger();bindActions('Leger');return;}
+    if(tab==='cover'){drawCover();bindActions('Cover Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId)});return;}
+    if(tab==='equipment'){drawEquipment();bindActions('Perlengkapan Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId)});return;}
+    if(tab==='completeness'){drawCompleteness();completenessHeading();bindActions('Kelengkapan Rapor');return;}
+    drawReport();bindActions('Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId),requireComplete:true,onPreview:openPreview});
+  }
+
+  if(session.role==='admin')root.querySelector('[data-class]').onchange=event=>{classId=event.target.value;studentId='';previewed=false;draw();};
+  root.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{tab=button.dataset.tab;previewed=false;draw();});
+  draw();return root;
 }

@@ -15,8 +15,15 @@ export function listTeacherProfiles(){const teachers=loadDb().masterData.teacher
 export function listMasterClasses(){return [...CLASSES];}
 
 export function saveSchoolMaster(session,input){
-  if(session?.role!=='admin')throw new Error('Hanya Admin yang dapat mengubah master sekolah.');const principalName=clean(input?.principalName,150),principalNip=clean(input?.principalNip,40);let saved;
-  updateDb(db=>{saved={name:SCHOOL,principalName,principalNip,updatedAt:new Date().toISOString()};db.masterData.school=saved;return db;});return clone(saved);
+  if(session?.role!=='admin')throw new Error('Hanya Admin yang dapat mengubah master sekolah.');const principalName=clean(input?.principalName,150),principalNip=clean(input?.principalNip,40);const email=clean(input?.email,180).toLowerCase();if(!validEmail(email))throw new Error('Format email sekolah tidak valid.');let saved;
+  updateDb(db=>{
+    saved={...db.masterData.school,name:SCHOOL,principalName,principalNip,
+      npsn:clean(input?.npsn,20),registrationNumber:clean(input?.registrationNumber,40),
+      address:clean(input?.address,200),village:clean(input?.village,120),district:clean(input?.district,120),
+      city:clean(input?.city,120),province:clean(input?.province,120),website:clean(input?.website,180),email,
+      updatedAt:new Date().toISOString()};
+    db.masterData.school=saved;return db;
+  });return clone(saved);
 }
 
 export function saveAdminProfile(session,input){

@@ -29,7 +29,7 @@ function normalizeReferenceData(input){
 
 function defaultMasterData(){
   return {
-    school:{name:SCHOOL,principalName:'',principalNip:''},
+    school:{name:SCHOOL,principalName:'',principalNip:'',npsn:'20218098',registrationNumber:'101022205007',address:'Kp. Gebang',village:'Satriajaya',district:'Kec. Tambun Utara',city:'Kab. Bekasi',province:'Prov. Jawa Barat',website:'',email:'sdnsatriajaya01tamara@gmail.com'},
     admin:{name:'Fahmi Djawas, S.Pd.',nip:'',phone:'',email:'',photo:'./assets/fahmi-djawas.jpg'},
     classes:[...CLASSES],
     teachers:Object.fromEntries(CLASSES.map(classId=>[classId,{classId,name:`Guru / Wali Kelas ${classId}`,nip:'',phone:'',email:'',photo:'',updatedAt:null}])),
