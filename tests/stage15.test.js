@@ -177,7 +177,7 @@ test('Cover memakai logo Tut Wuri Handayani dan lambang daerah, bukan logo aplik
   assert.match(css,/\.report-cover-a4>\.cover-logo-custom\{overflow:visible/,'logo unggahan Admin ditampilkan utuh tanpa dipangkas');
 });
 
-test('Ukuran tampak logo Cover mengikuti proporsi gambar referensi',()=>{
+test('Ukuran tampak logo Cover mengikuti kotak 141,73pt pada cover.pdf',()=>{
   const css=read('src/styles/app.css');
   const slot=name=>{
     const found=css.match(new RegExp(`\\.report-cover-a4>\\.cover-logo-${name}\\{width:(\\d+)px;height:(\\d+)px;margin-(?:top|bottom):(\\d+)px\\}`));
@@ -185,15 +185,33 @@ test('Ukuran tampak logo Cover mengikuti proporsi gambar referensi',()=>{
     return {w:Number(found[1]),h:Number(found[2]),margin:Number(found[3])};
   };
   const ministry=slot('ministry'),region=slot('region');
-  // Referensi: lambang daerah 1,23x tinggi dan 1,12x lebar logo Tut Wuri.
-  assert.ok(Math.abs(region.h/ministry.h-1.23)<=0.04,`rasio tinggi ${(region.h/ministry.h).toFixed(2)} harus mendekati 1,23`);
-  assert.ok(Math.abs(region.w/ministry.w-1.12)<=0.04,`rasio lebar ${(region.w/ministry.w).toFixed(2)} harus mendekati 1,12`);
+  // cover.pdf menggambar kedua logo pada kotak 141,73pt = 189px, jadi tinggi tampaknya sama.
+  const KOTAK=189;
+  assert.equal(ministry.h,KOTAK,'tinggi tampak logo Tut Wuri mengikuti kotak 141,73pt');
+  assert.equal(region.h,KOTAK,'tinggi tampak lambang daerah mengikuti kotak yang sama');
+  // Proporsi asli tiap gambar dipertahankan (tidak digepengkan seperti PDF referensi).
+  assert.ok(Math.abs(ministry.w/ministry.h-496/498)<=0.02,'aspek logo Tut Wuri sesuai gambar aslinya');
+  assert.ok(Math.abs(region.w/region.h-268/294)<=0.02,'aspek lambang daerah sesuai gambar aslinya');
   // Jarak teks ( SD ) ke gambar lambang yang terlihat: flex gap 20px + margin slot.
-  const coverGap=20;
-  const jarak=coverGap+region.margin;
+  const jarak=20+region.margin;
   assert.ok(jarak>=25&&jarak<=30,`jarak ( SD ) ke lambang ${jarak}px harus berada pada 25-30px`);
   // Lambang dipusatkan horizontal tepat pada sumbu yang sama dengan logo Tut Wuri.
-  assert.match(css,/\.report-cover-a4>\.cover-logo-region>img\{width:453px;height:453px;transform:translate\(-50%,calc\(-50% \+ 1\.5px\)\)\}/,'lambang center horizontal penuh, geser vertikal saja untuk memusatkan gambar pada slot');
+  assert.match(css,/\.report-cover-a4>\.cover-logo-region>img\{width:329px;height:329px;transform:translate\(-50%,calc\(-50% \+ 1\.29px\)\)\}/,'lambang center horizontal penuh, geser vertikal saja untuk memusatkan gambar pada slot');
+});
+
+test('Ukuran teks Cover mengikuti cover.pdf',()=>{
+  const css=read('src/styles/app.css');
+  const PT=4/3; // 1pt = 4/3 px pada 96dpi
+  // cover.pdf: judul 20pt, label dan isi kotak 16pt, baris kementerian 18pt.
+  assert.match(css,new RegExp(`\\.cover-title strong\\{font-size:${(20*PT).toFixed(2)}px`),'SEKOLAH DASAR 20pt');
+  assert.match(css,new RegExp(`\\.cover-title span\\{font-size:${(20*PT).toFixed(2)}px`),'( SD ) 20pt');
+  assert.match(css,new RegExp(`\\.cover-field span\\{display:block;font-size:${(16*PT).toFixed(2)}px`),'label 16pt');
+  assert.match(css,new RegExp(`\\.cover-box\\{[^}]*font-size:${(16*PT).toFixed(2)}px`),'isi kotak 16pt');
+  assert.match(css,new RegExp(`\\.cover-ministry strong\\{[^}]*font-size:${18*PT}px`),'baris kementerian 18pt');
+  // Lebar kotak isian 340,16pt.
+  assert.match(css,/\.cover-fields\{[^}]*width:min\(453px,100%\)\}/,'lebar kotak isian 340,16pt');
+  // Isi teks sama dengan cover.pdf: tanpa baris nama sekolah / tahun pelajaran tambahan.
+  assert.equal(read('src/pages/print.js').includes('cover-school'),false);
 });
 
 test('Logo resmi Cover tersedia di assets sebagai berkas PNG yang valid',()=>{

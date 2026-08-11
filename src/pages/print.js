@@ -120,7 +120,8 @@ export function renderPrint(session){
 
   function coverSheet(doc){
     const school=doc.master.school,student=doc.student;
-    return `<section class="document-a4 document-sheet report-cover-a4">${coverLogo(school.ministryLogo,COVER_LOGO_DEFAULTS.ministry,'cover-logo-ministry','Logo Tut Wuri Handayani')}<div class="cover-title"><strong>SEKOLAH DASAR</strong><span>( SD )</span></div>${coverLogo(school.regionLogo,COVER_LOGO_DEFAULTS.region,'cover-logo-region','Lambang Daerah')}<div class="cover-fields"><div class="cover-field"><span>Nama Peserta Didik</span><div class="cover-box">${escapeHtml(student.name)}</div></div><div class="cover-field"><span>NISN / NIS</span><div class="cover-box">${escapeHtml(student.nisn)} / ${escapeHtml(student.nis)}</div></div></div><div class="cover-ministry"><strong>KEMENTERIAN PENDIDIKAN DASAR DAN MENENGAH</strong><strong>REPUBLIK INDONESIA</strong></div><div class="cover-school"><strong>${escapeHtml(school.name)}</strong><span>TAHUN PELAJARAN ${escapeHtml(doc.academicYear)}</span></div></section>`;
+    /* Susunan dan ukuran mengikuti berkas referensi cover.pdf. */
+    return `<section class="document-a4 document-sheet report-cover-a4">${coverLogo(school.ministryLogo,COVER_LOGO_DEFAULTS.ministry,'cover-logo-ministry','Logo Tut Wuri Handayani')}<div class="cover-title"><strong>SEKOLAH DASAR</strong><span>( SD )</span></div>${coverLogo(school.regionLogo,COVER_LOGO_DEFAULTS.region,'cover-logo-region','Lambang Daerah')}<div class="cover-fields"><div class="cover-field"><span>Nama Peserta Didik</span><div class="cover-box">${escapeHtml(student.name)}</div></div><div class="cover-field"><span>NISN / NIS</span><div class="cover-box">${escapeHtml(student.nisn)} / ${escapeHtml(student.nis)}</div></div></div><div class="cover-ministry"><strong>KEMENTERIAN PENDIDIKAN DASAR DAN MENENGAH</strong><strong>REPUBLIK INDONESIA</strong></div></section>`;
   }
 
   function drawCover(){
