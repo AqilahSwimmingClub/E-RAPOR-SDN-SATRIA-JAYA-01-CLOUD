@@ -188,8 +188,12 @@ test('Ukuran tampak logo Cover mengikuti proporsi gambar referensi',()=>{
   // Referensi: lambang daerah 1,23x tinggi dan 1,12x lebar logo Tut Wuri.
   assert.ok(Math.abs(region.h/ministry.h-1.23)<=0.04,`rasio tinggi ${(region.h/ministry.h).toFixed(2)} harus mendekati 1,23`);
   assert.ok(Math.abs(region.w/ministry.w-1.12)<=0.04,`rasio lebar ${(region.w/ministry.w).toFixed(2)} harus mendekati 1,12`);
-  // Jarak logo -> teks -> logo simetris seperti referensi.
-  assert.equal(ministry.margin,region.margin,'jarak atas dan bawah teks judul harus sama');
+  // Jarak teks ( SD ) ke gambar lambang yang terlihat: flex gap 20px + margin slot.
+  const coverGap=20;
+  const jarak=coverGap+region.margin;
+  assert.ok(jarak>=25&&jarak<=30,`jarak ( SD ) ke lambang ${jarak}px harus berada pada 25-30px`);
+  // Lambang dipusatkan horizontal tepat pada sumbu yang sama dengan logo Tut Wuri.
+  assert.match(css,/\.report-cover-a4>\.cover-logo-region>img\{width:453px;height:453px;transform:translate\(-50%,calc\(-50% \+ 1\.5px\)\)\}/,'lambang center horizontal penuh, geser vertikal saja untuk memusatkan gambar pada slot');
 });
 
 test('Logo resmi Cover tersedia di assets sebagai berkas PNG yang valid',()=>{
