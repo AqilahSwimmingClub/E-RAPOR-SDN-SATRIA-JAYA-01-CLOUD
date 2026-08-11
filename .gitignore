@@ -1,0 +1,17 @@
+node_modules/
+dist/
+out/
+.tools/
+android/.gradle/
+android/build/
+android/app/build/
+ios/DerivedData/
+*.log
+android/signing.properties
+*.jks
+*.keystore
+*.p12
+release-signing/
+KEYSTORE-CREDENTIALS.txt
+.DS_Store
+Thumbs.db

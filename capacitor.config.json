@@ -1,0 +1,24 @@
+{
+  "appId": "id.sch.sdn.satriajaya01.erapor",
+  "appName": "e-Rapor SDN Satria Jaya 01",
+  "webDir": "dist",
+  "backgroundColor": "#f3f0eb",
+  "loggingBehavior": "debug",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "backgroundColor": "#f3f0eb",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false,
+    "resolveServiceWorkerRequests": true
+  },
+  "ios": {
+    "backgroundColor": "#f3f0eb",
+    "contentInset": "automatic",
+    "scrollEnabled": true,
+    "preferredContentMode": "mobile",
+    "webContentsDebuggingEnabled": false
+  }
+}

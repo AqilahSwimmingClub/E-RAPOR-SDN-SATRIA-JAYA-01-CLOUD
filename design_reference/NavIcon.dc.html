@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="{{ color }}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <sc-if value="{{ isHome }}"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></sc-if>
+  <sc-if value="{{ isUser }}"><circle cx="12" cy="8" r="3.4"></circle><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"></path></sc-if>
+  <sc-if value="{{ isUsers }}"><circle cx="9" cy="8" r="3"></circle><path d="M3.5 19c0-3 2.5-5.2 5.5-5.2s5.5 2.2 5.5 5.2"></path><circle cx="17" cy="9" r="2.4"></circle><path d="M15.8 13.6c2 .2 3.7 1.9 3.7 4.4"></path></sc-if>
+  <sc-if value="{{ isBook }}"><path d="M4 5.5C4 4.7 4.7 4 5.5 4H11v16H5.5C4.7 20 4 19.3 4 18.5z"></path><path d="M20 5.5c0-.8-.7-1.5-1.5-1.5H13v16h5.5c.8 0 1.5-.7 1.5-1.5z"></path></sc-if>
+  <sc-if value="{{ isCompass }}"><circle cx="12" cy="12" r="9"></circle><path d="M15 9l-2 6-6 2 2-6z"></path></sc-if>
+  <sc-if value="{{ isCheck }}"><circle cx="12" cy="12" r="9"></circle><polyline points="8 12.5 11 15.5 16 9"></polyline></sc-if>
+  <sc-if value="{{ isChart }}"><line x1="4" y1="20" x2="20" y2="20"></line><rect x="6" y="13" width="3" height="7"></rect><rect x="11" y="9" width="3" height="11"></rect><rect x="16" y="5" width="3" height="15"></rect></sc-if>
+  <sc-if value="{{ isFile }}"><path d="M7 3.5h7l3 3v14H7z"></path><path d="M14 3.5v3h3"></path></sc-if>
+  <sc-if value="{{ isPrinter }}"><rect x="6" y="9" width="12" height="7" rx="1"></rect><path d="M7 9V4.5h10V9"></path><path d="M8 16v3.5h8V16"></path></sc-if>
+  <sc-if value="{{ isDatabase }}"><ellipse cx="12" cy="6" rx="7" ry="2.6"></ellipse><path d="M5 6v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"></path><path d="M5 12v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-6"></path></sc-if>
+  <sc-if value="{{ isCalendar }}"><rect x="4" y="5.5" width="16" height="15" rx="1.5"></rect><line x1="4" y1="10" x2="20" y2="10"></line><line x1="8" y1="3.5" x2="8" y2="7"></line><line x1="16" y1="3.5" x2="16" y2="7"></line><polyline points="9 14.5 11 16.5 15.5 12.5"></polyline></sc-if>
+  <sc-if value="{{ isClipboard }}"><rect x="5.5" y="4.5" width="13" height="17" rx="1.5"></rect><rect x="9" y="3" width="6" height="3" rx="1"></rect><line x1="8.5" y1="11" x2="15.5" y2="11"></line><line x1="8.5" y1="15" x2="15.5" y2="15"></line></sc-if>
+  <sc-if value="{{ isSliders }}"><line x1="4" y1="7" x2="20" y2="7"></line><circle cx="9" cy="7" r="2"></circle><line x1="4" y1="14" x2="20" y2="14"></line><circle cx="16" cy="14" r="2"></circle><line x1="4" y1="19" x2="20" y2="19"></line><circle cx="11" cy="19" r="2"></circle></sc-if>
+  <sc-if value="{{ isTarget }}"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="5"></circle><circle cx="12" cy="12" r="1.5"></circle></sc-if>
+  <sc-if value="{{ isEdit }}"><path d="M4 20l1-4.5L15.5 5 19 8.5 8.5 19z"></path><line x1="13.5" y1="6.5" x2="17" y2="10"></line></sc-if>
+  <sc-if value="{{ isSave }}"><rect x="4.5" y="4.5" width="15" height="15" rx="1.5"></rect><rect x="8" y="5" width="8" height="4"></rect><rect x="7" y="13" width="10" height="6.5"></rect></sc-if>
+  <sc-if value="{{ isListCheck }}"><polyline points="4.5 7 6 8.5 8.5 5.5"></polyline><line x1="11" y1="7" x2="20" y2="7"></line><polyline points="4.5 13.5 6 15 8.5 12"></polyline><line x1="11" y1="13.5" x2="20" y2="13.5"></line><polyline points="4.5 20 6 21.5 8.5 18.5"></polyline><line x1="11" y1="20" x2="20" y2="20"></line></sc-if>
+  <sc-if value="{{ isFilePlus }}"><path d="M7 3.5h7l3 3v14H7z"></path><path d="M14 3.5v3h3"></path><line x1="10.5" y1="13" x2="15" y2="13"></line><line x1="12.75" y1="10.75" x2="12.75" y2="15.25"></line></sc-if>
+  <sc-if value="{{ isGrid }}"><rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1"></rect><rect x="13" y="3.5" width="7.5" height="7.5" rx="1"></rect><rect x="3.5" y="13" width="7.5" height="7.5" rx="1"></rect><rect x="13" y="13" width="7.5" height="7.5" rx="1"></rect></sc-if>
+  <sc-if value="{{ isLogout }}"><path d="M9 4H6a1.5 1.5 0 0 0-1.5 1.5v13A1.5 1.5 0 0 0 6 20h3"></path><line x1="21" y1="12" x2="10.5" y2="12"></line><polyline points="17 8 21 12 17 16"></polyline></sc-if>
+  <sc-if value="{{ isMenu }}"><line x1="4" y1="6.5" x2="20" y2="6.5"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17.5" x2="20" y2="17.5"></line></sc-if>
+  <sc-if value="{{ isBell }}"><path d="M6 16v-5a6 6 0 1 1 12 0v5"></path><path d="M4.5 16h15"></path><path d="M10 19.5a2 2 0 0 0 4 0"></path></sc-if>
+  <sc-if value="{{ isSearch }}"><circle cx="10.5" cy="10.5" r="6.5"></circle><line x1="19.5" y1="19.5" x2="15.2" y2="15.2"></line></sc-if>
+  <sc-if value="{{ isChevron }}"><polyline points="6 9.5 12 15.5 18 9.5"></polyline></sc-if>
+  <sc-if value="{{ isPlus }}"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></sc-if>
+  <sc-if value="{{ isDownload }}"><path d="M12 3.5v11"></path><polyline points="7.5 10.5 12 15 16.5 10.5"></polyline><path d="M4.5 17.5v2A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5v-2"></path></sc-if>
+  <sc-if value="{{ isUpload }}"><path d="M12 20.5v-11"></path><polyline points="7.5 13.5 12 9 16.5 13.5"></polyline><path d="M4.5 17.5v2A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5v-2"></path></sc-if>
+  <sc-if value="{{ isEye }}"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"></path><circle cx="12" cy="12" r="2.6"></circle></sc-if>
+  <sc-if value="{{ isEyeOff }}"><path d="M4 4l16 16"></path><path d="M10.6 5.7A9.4 9.4 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a15 15 0 0 1-3 3.6M6.8 7.3A15.6 15.6 0 0 0 2.5 12S6 18.5 12 18.5a9.7 9.7 0 0 0 3.3-.58"></path><path d="M9.6 10.4a2.6 2.6 0 0 0 3.9 3.5"></path></sc-if>
+  <sc-if value="{{ isX }}"><line x1="5" y1="5" x2="19" y2="19"></line><line x1="19" y1="5" x2="5" y2="19"></line></sc-if>
+  <sc-if value="{{ isLock }}"><rect x="5.5" y="10.5" width="13" height="9.5" rx="1.5"></rect><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"></path></sc-if>
+  <sc-if value="{{ isSchool }}"><path d="M12 3.5l9 4.5-9 4.5-9-4.5z"></path><path d="M6 10v6c0 1.5 2.7 2.7 6 2.7s6-1.2 6-2.7v-6"></path><line x1="21" y1="8" x2="21" y2="14.5"></line></sc-if>
+</svg>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:24,&quot;height&quot;:24},&quot;iconName&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;home&quot;,&quot;user&quot;,&quot;users&quot;,&quot;book&quot;,&quot;compass&quot;,&quot;check&quot;,&quot;chart&quot;,&quot;file&quot;,&quot;printer&quot;,&quot;database&quot;,&quot;calendar&quot;,&quot;clipboard&quot;,&quot;sliders&quot;,&quot;target&quot;,&quot;edit&quot;,&quot;save&quot;,&quot;listCheck&quot;,&quot;filePlus&quot;,&quot;grid&quot;,&quot;logout&quot;,&quot;menu&quot;,&quot;bell&quot;,&quot;search&quot;,&quot;chevron&quot;,&quot;plus&quot;,&quot;download&quot;,&quot;upload&quot;,&quot;eye&quot;,&quot;eyeOff&quot;,&quot;x&quot;,&quot;lock&quot;,&quot;school&quot;]},&quot;size&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:20,&quot;tsType&quot;:&quot;number&quot;},&quot;color&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#2B211D&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const n = this.props.iconName || "";
+    const size = this.props.size || 20;
+    const color = this.props.color || "currentColor";
+    const flags = {};
+    ["home","user","users","book","compass","check","chart","file","printer","database","calendar","clipboard","sliders","target","edit","save","listCheck","filePlus","grid","logout","menu","bell","search","chevron","plus","download","upload","eye","eyeOff","x","lock","school"]
+      .forEach((k) => { flags["is" + k[0].toUpperCase() + k.slice(1)] = n === k; });
+    return { size, color, ...flags };
+  }
+}
+</script>
+</body>
+</html>

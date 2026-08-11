@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "e-Rapor SDN Satria Jaya 01",
+  "short_name": "e-Rapor",
+  "description": "Aplikasi e-Rapor lokal SDN Satria Jaya 01",
+  "lang": "id-ID",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#f3f0eb",
+  "theme_color": "#711827",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {"src":"./assets/app-icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any"},
+    {"src":"./assets/app-icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any"},
+    {"src":"./assets/app-icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"maskable"}
+  ]
+}

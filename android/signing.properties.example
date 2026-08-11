@@ -1,0 +1,6 @@
+# Salin menjadi signing.properties hanya pada mesin build lokal.
+# Jangan commit file signing.properties, keystore, atau password.
+storeFile=C:/path/aman/di-luar-repository/erapor-release.jks
+storePassword=ISI_DARI_PASSWORD_MANAGER
+keyAlias=erapor-release
+keyPassword=ISI_DARI_PASSWORD_MANAGER
