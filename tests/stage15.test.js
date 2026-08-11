@@ -173,8 +173,7 @@ test('Cover memakai logo Tut Wuri Handayani dan lambang daerah, bukan logo aplik
   assert.match(page,/coverLogo\(school\.ministryLogo,COVER_LOGO_DEFAULTS\.ministry,'cover-logo-ministry'/);
   assert.match(page,/coverLogo\(school\.regionLogo,COVER_LOGO_DEFAULTS\.region,'cover-logo-region'/);
   assert.equal(/report-cover-a4[^`]*app-icon\.svg/.test(page),false);
-  assert.match(css,/\.report-cover-a4>\.cover-logo-ministry\{width:150px;height:150px;object-fit:contain\}/);
-  assert.match(css,/\.report-cover-a4>\.cover-logo-region\{width:150px;height:180px;object-fit:contain\}/);
+  assert.match(css,/\.report-cover-a4>\.cover-logo-ministry,\.report-cover-a4>\.cover-logo-region\{width:158px;height:158px;object-fit:contain\}/,'kedua slot logo berukuran sama dan tidak menggepengkan gambar');
 });
 
 test('Logo bawaan Cover dibaca dari assets dan didahulukan oleh logo master sekolah',async()=>{
