@@ -9,6 +9,20 @@ import { printCurrentDocument } from '../services/print-service.js';
 
 const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const DOTS='..................................';
+const PAGE_SIZE_STYLE_ID='erapor-print-page-size';
+
+/* Leger memakai A4 landscape. Ukuran halaman default harus ditimpa sebelum cetak
+   karena lebar layout cetak Chromium mengikuti @page default, bukan named page. */
+export function setPrintPageSize(orientation){
+  const host=globalThis.document;if(!host?.head)return null;
+  const existing=host.getElementById(PAGE_SIZE_STYLE_ID);
+  if(!orientation){existing?.remove();return null;}
+  const style=existing||host.createElement('style');
+  style.id=PAGE_SIZE_STYLE_ID;
+  style.textContent=`@media print{@page{size:A4 ${orientation};margin:8mm}}`;
+  if(!existing)host.head.append(style);
+  return style;
+}
 
 function number(value){return value===null||value===undefined?'—':Number(value).toLocaleString('id-ID',{maximumFractionDigits:2});}
 function classes(selected){return CLASSES.map(item=>`<option value="${item}" ${item===selected?'selected':''}>Kelas ${item}</option>`).join('');}
@@ -82,9 +96,15 @@ export function renderPrint(session){
 
   /* ---------------------------------------------------------------- Cover */
 
+  function coverLogo(source,className,label){
+    return source
+      ? `<img class="${className}" src="${escapeHtml(source)}" alt="${escapeHtml(label)}"/>`
+      : `<span class="${className} cover-logo-empty no-print">${escapeHtml(label)}<small>Unggah di Data Referensi → Sekolah</small></span>`;
+  }
+
   function coverSheet(doc){
     const school=doc.master.school,student=doc.student;
-    return `<section class="document-a4 document-sheet report-cover-a4"><img class="cover-emblem" src="./assets/app-icon.svg" alt=""/><div class="cover-title"><strong>SEKOLAH DASAR</strong><span>( SD )</span></div><div class="cover-fields"><div class="cover-field"><span>Nama Peserta Didik</span><div class="cover-box">${escapeHtml(student.name)}</div></div><div class="cover-field"><span>NISN / NIS</span><div class="cover-box">${escapeHtml(student.nisn)} / ${escapeHtml(student.nis)}</div></div></div><div class="cover-ministry"><strong>KEMENTERIAN PENDIDIKAN DASAR DAN MENENGAH</strong><strong>REPUBLIK INDONESIA</strong></div><div class="cover-school"><strong>${escapeHtml(school.name)}</strong><span>TAHUN PELAJARAN ${escapeHtml(doc.academicYear)}</span></div></section>`;
+    return `<section class="document-a4 document-sheet report-cover-a4">${coverLogo(school.ministryLogo,'cover-logo-ministry','Logo Tut Wuri Handayani')}<div class="cover-title"><strong>SEKOLAH DASAR</strong><span>( SD )</span></div>${coverLogo(school.regionLogo,'cover-logo-region','Lambang Daerah')}<div class="cover-fields"><div class="cover-field"><span>Nama Peserta Didik</span><div class="cover-box">${escapeHtml(student.name)}</div></div><div class="cover-field"><span>NISN / NIS</span><div class="cover-box">${escapeHtml(student.nisn)} / ${escapeHtml(student.nis)}</div></div></div><div class="cover-ministry"><strong>KEMENTERIAN PENDIDIKAN DASAR DAN MENENGAH</strong><strong>REPUBLIK INDONESIA</strong></div><div class="cover-school"><strong>${escapeHtml(school.name)}</strong><span>TAHUN PELAJARAN ${escapeHtml(doc.academicYear)}</span></div></section>`;
   }
 
   function drawCover(){
@@ -218,6 +238,7 @@ export function renderPrint(session){
 
   function draw(){
     root.querySelectorAll('[data-tab]').forEach(button=>button.classList.toggle('active',button.dataset.tab===tab));
+    setPrintPageSize(tab==='leger'?'landscape':null);
     if(tab==='leger'){drawLeger();bindActions('Leger');return;}
     if(tab==='cover'){drawCover();bindActions('Cover Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId)});return;}
     if(tab==='equipment'){drawEquipment();bindActions('Perlengkapan Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId)});return;}
@@ -227,5 +248,6 @@ export function renderPrint(session){
 
   if(session.role==='admin')root.querySelector('[data-class]').onchange=event=>{classId=event.target.value;studentId='';previewed=false;draw();};
   root.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{tab=button.dataset.tab;previewed=false;draw();});
+  globalThis.addEventListener?.('hashchange',()=>setPrintPageSize(null),{once:true});
   draw();return root;
 }

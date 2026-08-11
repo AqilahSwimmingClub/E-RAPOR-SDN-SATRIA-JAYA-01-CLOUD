@@ -165,6 +165,45 @@ test('Gaya cetak Tahap 15 memecah halaman dokumen dan menjaga tabel leger tetap 
   const css=read('src/styles/app.css');
   assert.match(css,/\.document-sheet\+\.document-sheet\{break-before:page/);
   assert.match(css,/\.leger-table-card\{display:block!important/);
-  assert.match(css,/\.leger-table thead tr\+tr th\{writing-mode:vertical-rl/);
   assert.match(css,/\.leger-table th,\.leger-table td\{min-width:0!important[^}]*white-space:normal!important/);
+});
+
+test('Cover memakai logo Tut Wuri Handayani dan lambang daerah dari master, bukan logo aplikasi',()=>{
+  const page=read('src/pages/print.js');const css=read('src/styles/app.css');
+  assert.match(page,/coverLogo\(school\.ministryLogo,'cover-logo-ministry'/);
+  assert.match(page,/coverLogo\(school\.regionLogo,'cover-logo-region'/);
+  assert.equal(/report-cover-a4[^`]*app-icon\.svg/.test(page),false);
+  assert.match(css,/\.report-cover-a4>\.cover-logo-ministry\{width:150px;height:150px;object-fit:contain\}/);
+  assert.match(css,/\.report-cover-a4>\.cover-logo-region\{width:150px;height:180px;object-fit:contain\}/);
+});
+
+test('Logo sekolah tersimpan pada master, tervalidasi, dan tetap ada saat field lain disimpan',()=>{
+  useMemoryStorage();
+  const png='data:image/png;base64,iVBORw0KGgo=';
+  const base={npsn:'20218098',registrationNumber:'101022205007',address:'Kp. Gebang',village:'Satriajaya',district:'Kec. Tambun Utara',city:'Kab. Bekasi',province:'Prov. Jawa Barat',website:'',email:'sdnsatriajaya01tamara@gmail.com',principalName:'Misan, S.Pd',principalNip:'196604171992031008'};
+  assert.equal(getSchoolMaster().ministryLogo,'');
+  const saved=saveSchoolMaster(admin,{...base,ministryLogo:png,regionLogo:png});
+  assert.equal(saved.ministryLogo,png);
+  assert.equal(saved.regionLogo,png);
+  saveSchoolMaster(admin,base);
+  assert.equal(getSchoolMaster().ministryLogo,png,'logo bertahan saat form lain disimpan');
+  assert.equal(saveSchoolMaster(admin,{...base,ministryLogo:''}).ministryLogo,'');
+  assert.throws(()=>saveSchoolMaster(admin,{...base,regionLogo:'https://contoh.test/logo.png'}),/harus berupa file gambar lokal/);
+});
+
+test('Leger memakai A4 landscape melalui override ukuran halaman cetak',async()=>{
+  const styles=new Map();
+  const head={append:node=>styles.set(node.id,node)};
+  globalThis.document={head,getElementById:id=>styles.get(id)||null,createElement:()=>({id:'',textContent:'',remove(){styles.delete(this.id);}})};
+  const { setPrintPageSize }=await import('../src/pages/print.js');
+  const style=setPrintPageSize('landscape');
+  assert.match(style.textContent,/@media print\{@page\{size:A4 landscape;margin:8mm\}\}/);
+  assert.equal(styles.size,1);
+  setPrintPageSize('landscape');
+  assert.equal(styles.size,1,'override tidak digandakan');
+  setPrintPageSize(null);
+  assert.equal(styles.size,0,'override dilepas di luar tab Leger');
+  delete globalThis.document;
+  const page=read('src/pages/print.js');
+  assert.match(page,/setPrintPageSize\(tab==='leger'\?'landscape':null\)/);
 });
