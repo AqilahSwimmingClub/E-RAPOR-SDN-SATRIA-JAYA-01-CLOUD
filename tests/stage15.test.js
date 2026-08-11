@@ -173,7 +173,18 @@ test('Cover memakai logo Tut Wuri Handayani dan lambang daerah, bukan logo aplik
   assert.match(page,/coverLogo\(school\.ministryLogo,COVER_LOGO_DEFAULTS\.ministry,'cover-logo-ministry'/);
   assert.match(page,/coverLogo\(school\.regionLogo,COVER_LOGO_DEFAULTS\.region,'cover-logo-region'/);
   assert.equal(/report-cover-a4[^`]*app-icon\.svg/.test(page),false);
-  assert.match(css,/\.report-cover-a4>\.cover-logo-ministry,\.report-cover-a4>\.cover-logo-region\{width:158px;height:158px;object-fit:contain\}/,'kedua slot logo berukuran sama dan tidak menggepengkan gambar');
+  assert.match(css,/\.report-cover-a4>\.cover-logo-ministry,\.report-cover-a4>\.cover-logo-region\{width:158px;height:158px;object-fit:contain\}/,'slot logo memakai object-fit contain sehingga gambar tidak digepengkan');
+  assert.match(css,/\.report-cover-a4>\.cover-logo-region\{width:270px;height:270px;margin:-20px 0\}/,'slot lambang daerah menyesuaikan ruang kosong kanvasnya agar tampak seimbang');
+});
+
+test('Logo resmi Cover tersedia di assets sebagai berkas PNG yang valid',()=>{
+  for(const name of ['logo-tut-wuri-handayani.png','logo-kabupaten-bekasi.png']){
+    const file=readFileSync(new URL(`assets/${name}`,root));
+    assert.ok(file.length>1000,`${name} tidak boleh kosong`);
+    assert.deepEqual([...file.subarray(0,8)],[0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a],`${name} harus PNG asli`);
+    assert.equal(file.readUInt32BE(16),512,`${name} lebar 512`);
+    assert.equal(file.readUInt32BE(20),512,`${name} tinggi 512`);
+  }
 });
 
 test('Logo bawaan Cover dibaca dari assets dan didahulukan oleh logo master sekolah',async()=>{
