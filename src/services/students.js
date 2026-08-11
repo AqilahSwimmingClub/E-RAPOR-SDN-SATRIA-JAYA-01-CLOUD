@@ -3,15 +3,42 @@ import { loadDb, updateDb } from './storage.js';
 import { createWorkbookBytes, readWorkbookRows } from './excel.js';
 
 export const STUDENT_CSV_HEADERS=[
-  'NIS','NISN','Nama','JK','Tempat Lahir','Tanggal Lahir',
-  'Nama Orang Tua','No. Telepon','Alamat'
+  'NIS','NISN','Nama','JK','Tempat/Tanggal Lahir','Orang Tua','Telepon','Alamat'
 ];
+/* Tempat dan tanggal lahir ditulis satu kolom, contoh: "Bekasi, 4 September 2015". */
+const BIRTH_MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+export function formatBirthPlaceDate(student){
+  const place=String(student?.birthPlace??'').trim();
+  const raw=String(student?.birthDate??'').trim();
+  const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  const date=match?`${Number(match[3])} ${BIRTH_MONTHS[Number(match[2])-1]} ${match[1]}`:raw;
+  return [place,date].filter(Boolean).join(', ');
+}
+export function parseBirthPlaceDate(value){
+  const text=String(value??'').trim();
+  if(!text)return {birthPlace:'',birthDate:''};
+  const index=text.lastIndexOf(',');
+  const place=index>=0?text.slice(0,index).trim():text;
+  const rest=index>=0?text.slice(index+1).trim():'';
+  if(!rest)return {birthPlace:place,birthDate:''};
+  const iso=/^(\d{4})-(\d{2})-(\d{2})$/.exec(rest);
+  if(iso)return {birthPlace:place,birthDate:rest};
+  const named=/^(\d{1,2})\s+([A-Za-z\u00C0-\u024F]+)\s+(\d{4})$/.exec(rest);
+  if(named){
+    const month=BIRTH_MONTHS.findIndex(item=>item.toLowerCase()===named[2].toLowerCase());
+    if(month>=0)return {birthPlace:place,birthDate:`${named[3]}-${String(month+1).padStart(2,'0')}-${String(Number(named[1])).padStart(2,'0')}`};
+  }
+  const numeric=/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(rest);
+  if(numeric)return {birthPlace:place,birthDate:`${numeric[3]}-${String(Number(numeric[2])).padStart(2,'0')}-${String(Number(numeric[1])).padStart(2,'0')}`};
+  return {birthPlace:text,birthDate:''};
+}
 
 const HEADER_FIELDS={
   rombel:'classId',kelas:'classId',foto:'photo',nis:'nis',nisn:'nisn',nama:'name',
   jk:'gender','jenis kelamin':'gender','tempat lahir':'birthPlace','tanggal lahir':'birthDate',
-  'nama orang tua':'parentName','nama orangtua':'parentName','nama ayah':'parentName','nama ibu':'parentName','no telepon':'phone','nomor telepon':'phone',
-  telepon:'phone',alamat:'address'
+  'tempat/tanggal lahir':'birthPlaceDate','tempat tanggal lahir':'birthPlaceDate','ttl':'birthPlaceDate',
+  'orang tua':'parentName','nama orang tua':'parentName','nama orangtua':'parentName','nama ayah':'parentName','nama ibu':'parentName',
+  'no telepon':'phone','nomor telepon':'phone',telepon:'phone',alamat:'address'
 };
 
 export class StudentValidationError extends Error{
@@ -68,14 +95,15 @@ export function getStudent(session,id,{classId='ALL'}={}){
 
 export function normalizeStudentInput(input,classId){
   const parentName=clean(input.parentName||input.fatherName||input.motherName,150);
+  const combined=input.birthPlaceDate?parseBirthPlaceDate(input.birthPlaceDate):null;
   return {
     photo:String(input.photo??'').trim(),
     nis:clean(input.nis,30),
     nisn:clean(input.nisn,30),
     name:clean(input.name,150),
     gender:clean(input.gender,1).toUpperCase(),
-    birthPlace:clean(input.birthPlace,100),
-    birthDate:clean(input.birthDate,10),
+    birthPlace:clean(combined?combined.birthPlace:input.birthPlace,100),
+    birthDate:clean(combined?combined.birthDate:input.birthDate,10),
     parentName,
     phone:clean(input.phone,40),
     address:clean(input.address,500),
@@ -157,9 +185,11 @@ export function filterStudents(students,{query='',gender='',classId='ALL'}={}){
       .some(value=>String(value||'').toLowerCase().includes(q))));
 }
 
+export function studentRow(student){return [student.nis,student.nisn,student.name,student.gender,formatBirthPlaceDate(student),student.parentName||'',student.phone||'',student.address||''];}
 export function studentTemplateCsv(){return `\uFEFF${STUDENT_CSV_HEADERS.join(',')}\r\n`;}
+export function studentWorkbookBytes(session,{classId='ALL'}={}){const rows=listStudents(session,{classId}).map(studentRow);return createWorkbookBytes('Data Siswa',[STUDENT_CSV_HEADERS,...rows],{columnWidths:[14,18,30,6,30,26,16,52]});}
 
-export function studentTemplateWorkbook(){return createWorkbookBytes('Data Siswa',[STUDENT_CSV_HEADERS],{columnWidths:[14,18,28,8,18,16,28,18,36]});}
+export function studentTemplateWorkbook(){return createWorkbookBytes('Data Siswa',[STUDENT_CSV_HEADERS],{columnWidths:[14,18,30,6,30,26,16,52]});}
 
 function xmlEscape(value){return String(value??'').replace(/[&<>"']/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[character]));}
 function xmlDecode(value){return String(value??'').replace(/&#(\d+);/g,(_,code)=>String.fromCharCode(Number(code))).replace(/&#x([0-9a-f]+);/gi,(_,code)=>String.fromCharCode(Number.parseInt(code,16))).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&');}
@@ -216,7 +246,14 @@ export function previewStudentImport(session,text,{classId='ALL'}={}){
   assertSession(session);
   const csvRows=parseCsv(text);
   if(csvRows.length<1) throw new Error('File CSV kosong.');
-  const headers=csvRows[0].map(normalizeHeader);
+  /* Berkas asli sering diawali baris judul, mis. "Data Siswa Kelas 5B", sehingga baris header
+     dicari pada beberapa baris pertama. */
+  const headerIndex=csvRows.slice(0,10).findIndex(row=>{
+    const fields=row.map(cell=>HEADER_FIELDS[normalizeHeader(cell)]||null);
+    return ['nis','nisn','name','gender'].every(field=>fields.includes(field));
+  });
+  const headerRow=headerIndex>=0?headerIndex:0;
+  const headers=csvRows[headerRow].map(normalizeHeader);
   const mappedHeaders=headers.map(header=>HEADER_FIELDS[header]||null);
   for(const required of ['nis','nisn','name','gender']){
     if(!mappedHeaders.includes(required)) throw new Error(`Kolom wajib ${required.toUpperCase()} tidak ditemukan pada template.`);
@@ -224,7 +261,7 @@ export function previewStudentImport(session,text,{classId='ALL'}={}){
   if(session.role==='admin' && classId==='ALL' && !mappedHeaders.includes('classId')) throw new Error('Kolom Rombel wajib tersedia untuk import Admin semua rombel.');
   const db=loadDb();
   const previous=[];
-  const rows=csvRows.slice(1).map((cells,index)=>{
+  const rows=csvRows.slice(headerRow+1).map((cells,index)=>{
     const raw={};mappedHeaders.forEach((field,column)=>{if(field)raw[field]=cells[column]??'';});
     const errors=[];let targetClass='';
     try{targetClass=importClass(session,raw.classId,classId);}catch(error){errors.push(error.message);}
@@ -235,7 +272,7 @@ export function previewStudentImport(session,text,{classId='ALL'}={}){
       errors.push(...validateDuplicates(data,[...existing,...previous.filter(record=>record.classId===targetClass)]));
     }
     previous.push({...data,id:`preview-${index+1}`});
-    return {rowNumber:index+2,data,valid:errors.length===0,errors:[...new Set(errors)]};
+    return {rowNumber:headerRow+index+2,data,valid:errors.length===0,errors:[...new Set(errors)]};
   });
   const invalidCount=rows.filter(row=>!row.valid).length;
   return {sourceText:String(text),selectedClass:classId,rows,validCount:rows.length-invalidCount,invalidCount,canCommit:rows.length>0 && invalidCount===0};

@@ -24,7 +24,22 @@ function migrate2To3(db){
   grouped.forEach(records=>records.sort((a,b)=>(Number(a[1].order)||0)-(Number(b[1].order)||0)).forEach(([key,record],index)=>{next.learningObjectives[key]={...record,code:String(record?.code||'').trim()||`TP-${index+1}`,order:index+1};}));
   next.appSchemaVersion=3;return next;
 }
-export const APP_MIGRATIONS=Object.freeze({1:migrate1To2,2:migrate2To3});
+/* Schema 4: mapel baru pada SUBJECTS_DEFAULT (mis. Seni Rupa) disisipkan ke master dan ke
+   setiap Mapping rombel yang sudah tersimpan, tanpa mengubah nama, urutan, kelompok, atau
+   status aktif mapel yang sudah diatur guru. */
+function mergeNewDefaultSubjects(subjects){
+  const saved=Array.isArray(subjects)?subjects.filter(item=>item&&item.id):[];
+  const known=new Set(saved.map(item=>item.id));
+  const tambahan=SUBJECTS_DEFAULT.filter(subject=>!known.has(subject.id)).map(subject=>({...subject}));
+  return normalizeMappingGroups([...saved,...tambahan]);
+}
+function migrate3To4(db){
+  const next=clone(db);next.masterData=next.masterData||{};next.masterData.references=next.masterData.references||{};
+  next.masterData.references.subjects=mergeNewDefaultSubjects(next.masterData.references.subjects);
+  next.subjectMappings=Object.fromEntries(Object.entries(next.subjectMappings||{}).map(([key,mapping])=>[key,Array.isArray(mapping)?mergeNewDefaultSubjects(mapping):mapping]));
+  next.appSchemaVersion=4;return next;
+}
+export const APP_MIGRATIONS=Object.freeze({1:migrate1To2,2:migrate2To3,3:migrate3To4});
 export function listMigrationSafetySnapshots(){return snapshots().map(item=>({...item,database:undefined}));}
 export function migrationSnapshotStorageKey(){return MIGRATION_SNAPSHOT_KEY;}
 export function getApplicationInfo(){let schemaVersion=APP_SCHEMA_VERSION,lastMigration=null;try{const raw=localStorage.getItem(storageKey());if(raw){const db=JSON.parse(raw);schemaVersion=Number(db.appSchemaVersion||1);lastMigration=Array.isArray(db.migrationHistory)?db.migrationHistory.at(-1)||null:null;}}catch{}return {name:'e-Rapor SDN Satria Jaya 01',versionName:APP_VERSION,versionCode:VERSION_CODE,schemaVersion,lastMigration};}

@@ -29,7 +29,7 @@ test('Android project is build-ready with app ID, web assets, icon, splash, and 
 test('Android release uses stable identity, production versioning, and external signing credentials',()=>{
   const gradle=read('android/app/build.gradle'),ignore=read('.gitignore'),example=read('android/signing.properties.example');
   assert.match(gradle,/applicationId "id\.sch\.sdn\.satriajaya01\.erapor"/);
-  assert.match(gradle,/ERAPOR_VERSION_CODE[\s\S]*'3'/);assert.match(gradle,/ERAPOR_VERSION_NAME[\s\S]*'1\.1\.0'/);
+  assert.match(gradle,/ERAPOR_VERSION_CODE[\s\S]*'4'/);assert.match(gradle,/ERAPOR_VERSION_NAME[\s\S]*'1\.1\.0'/);
   assert.match(gradle,/signingConfig signingConfigs\.release/);assert.doesNotMatch(gradle,/signingConfig signingConfigs\.debug/);
   assert.match(gradle,/Release signing belum dikonfigurasi/);assert.match(ignore,/android\/signing\.properties/);assert.match(ignore,/\*\.jks/);
   assert.match(example,/storePassword=ISI_DARI_PASSWORD_MANAGER/);assert.doesNotMatch(example,/storePassword=(?!ISI_DARI_)/);

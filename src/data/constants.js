@@ -14,6 +14,7 @@ export const SUBJECTS_DEFAULT = [
   { id:'ipas', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Ilmu Pengetahuan Alam dan Sosial (IPAS)', active:true, order:6 },
   { id:'pjok', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Jasmani, Olahraga, dan Kesehatan', active:true, order:7 },
   { id:'seni', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Seni dan Budaya', active:true, order:8 },
+  { id:'seni_rupa', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Seni Rupa', active:true, order:9 },
   { id:'bing', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', name:'Bahasa Inggris', active:true, order:1 },
   { id:'sunda', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', parent:'Muatan Lokal', name:'Bahasa Sunda', active:true, order:2 },
   { id:'koding', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', parent:'Muatan Lokal', name:'Koding dan Kecerdasan Artifisial', active:true, order:3 },

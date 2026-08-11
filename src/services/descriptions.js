@@ -16,7 +16,7 @@ function context(session,subjectId,studentId,bestObjectiveId,improvementObjectiv
 export function generateReportDescription(session,subjectId,studentId,{bestObjectiveId,improvementObjectiveId}){
   const {student,best,improvement}=context(session,subjectId,studentId,bestObjectiveId,improvementObjectiveId);
   const text=best.id===improvement.id
-    ? `Ananda ${student.name} menunjukkan capaian pada ${phrase(best.description)} dan perlu terus mengembangkan kemampuan tersebut.`
+    ? `Ananda ${student.name} menunjukkan capaian pada ${phrase(best.description)}.`
     : `Ananda ${student.name} sangat baik dalam ${phrase(best.description)}, serta perlu meningkatkan kemampuan dalam ${phrase(improvement.description)}.`;
   return {text,bestObjectiveId:best.id,improvementObjectiveId:improvement.id};
 }

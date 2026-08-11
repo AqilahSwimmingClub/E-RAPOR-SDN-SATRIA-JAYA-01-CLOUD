@@ -56,6 +56,29 @@ export function saveAssessmentSettings(session,subjectId,input){
   return clone(saved);
 }
 
+/* Simpan bobot dan KKTP seluruh mapel sekaligus. Divalidasi lebih dulu untuk semua mapel,
+   baru ditulis, sehingga satu mapel yang salah tidak menyisakan penyimpanan separuh jalan.
+   Bobot tiap mapel tetap tersimpan independen pada kuncinya masing-masing. */
+export function saveAllAssessmentSettings(session,entries){
+  const list=Array.isArray(entries)?entries:Object.entries(entries||{}).map(([subjectId,value])=>({subjectId,...value}));
+  if(!list.length)throw new Error('Tidak ada bobot yang disimpan.');
+  const prepared=list.map(entry=>{
+    const subject=requireActiveSubject(session,entry.subjectId);
+    try{
+      return {subjectId:subject.id,weights:normalizeWeights(entry),kktp:numberInRange(entry?.kktp,'KKTP')};
+    }catch(error){throw new Error(`${subject.name}: ${error.message}`);}
+  });
+  const now=new Date().toISOString();const saved=[];
+  updateDb(db=>{
+    prepared.forEach(item=>{
+      const record={...item.weights,kktp:item.kktp,subjectId:item.subjectId,classId:session.classId,semester:session.semester,academicYear:session.academicYear,updatedAt:now};
+      db.assessmentSettings[settingsKey(session,item.subjectId)]=record;saved.push(record);
+    });
+    return db;
+  });
+  return clone(saved);
+}
+
 export function resetAssessmentSettings(session,subjectId){
   requireActiveSubject(session,subjectId);
   updateDb(db=>{delete db.assessmentSettings[settingsKey(session,subjectId)];return db;});

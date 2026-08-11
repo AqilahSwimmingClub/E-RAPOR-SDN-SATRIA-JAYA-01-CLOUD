@@ -24,10 +24,11 @@ import { renderPlaceholder } from './pages/placeholder.js';
 import { renderSubjectMapping, renderBackupRestore, renderAccountSettings } from './pages/settings.js';
 import { renderLayout } from './ui/layout.js';
 import { runAppMigrations } from './services/migrations.js';
+import { seedInitialStudents } from './services/seed.js';
 
 const app=document.querySelector('#app');
 let startupError=null;
-try{runAppMigrations();}catch(error){startupError=error;}
+try{runAppMigrations();seedInitialStudents();}catch(error){startupError=error;}
 let session=startupError?null:getSession();
 let expiryTimer=null;
 

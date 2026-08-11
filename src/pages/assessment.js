@@ -9,7 +9,7 @@ function formatAverage(value){return value===null?'—':Number(value.toFixed(2))
 
 export function renderAssessment(session){
   const subjects=listActiveSubjects(session);let subjectId=subjects[0]?.id||'';let assessmentType=ASSESSMENT_TYPES[0].id;
-  const root=el(`<div><div class="page-head"><div><h1>Penilaian</h1><p>Input nilai 0–100 untuk siswa Kelas ${escapeHtml(session.classId)} pada scope aktif.</p></div><div class="actions"><button class="btn btn-primary" data-save>${icon('save',17)} Simpan Nilai</button></div></div><section class="card assessment-filter"><div class="field compact-field"><label for="assessmentSubject">Mata Pelajaran Aktif</label><select class="input" id="assessmentSubject" data-subject>${subjects.map(subject=>`<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></div><div class="field compact-field"><label for="assessmentType">Jenis Penilaian</label><select class="input" id="assessmentType" data-type>${ASSESSMENT_TYPES.map(type=>`<option value="${type.id}">${escapeHtml(type.label)}</option>`).join('')}</select></div><div class="scope-note">Kelas ${escapeHtml(session.classId)}<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section><section data-summary></section><div data-list></div></div>`);
+  const root=el(`<div><div class="page-head"><div><h1>Penilaian</h1><p>Input nilai 0–100 untuk siswa Kelas ${escapeHtml(session.classId)} pada scope aktif.</p></div><div class="actions"><button class="btn btn-primary" data-save>${icon('save',17)} Simpan Nilai</button></div></div><section class="card assessment-filter"><div class="field compact-field"><label for="assessmentSubject">Mata Pelajaran Aktif</label><select class="input" id="assessmentSubject" data-subject>${subjects.map(subject=>`<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></div><div class="field compact-field"><label for="assessmentType">Jenis Penilaian</label><select class="input" id="assessmentType" data-type>${ASSESSMENT_TYPES.map(type=>`<option value="${type.id}">${escapeHtml(type.label)}</option>`).join('')}</select></div><div class="field compact-field"><label for="assessmentFillTarget">Sasaran Isi Semua Nilai</label><select class="input" id="assessmentFillTarget" data-fill-target><option value="">Semua Siswa</option></select></div><div class="scope-note">Kelas ${escapeHtml(session.classId)}<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section><section data-summary></section><div data-list></div></div>`);
   root.querySelector('.page-head .actions').insertAdjacentHTML('afterbegin','<button class="btn btn-light" data-fill-all>Isi Semua Nilai</button>');
   const listHost=root.querySelector('[data-list]');const summaryHost=root.querySelector('[data-summary]');const saveButton=root.querySelector('[data-save]');
   if(!subjects.length){root.querySelector('[data-subject]').disabled=true;root.querySelector('[data-type]').disabled=true;saveButton.disabled=true;listHost.innerHTML='<section class="card empty-state"><h3>Tidak ada mata pelajaran aktif</h3><p>Aktifkan mata pelajaran melalui Mapping Mata Pelajaran.</p></section>';return root;}
@@ -17,6 +17,9 @@ export function renderAssessment(session){
   function draw(){
     const attendanceMode=assessmentType==='daily'&&getDailyAttendanceMode(session,subjectId);const sheet=attendanceMode?attendanceDerivedSheet(session,subjectId):getAssessmentSheet(session,subjectId,assessmentType);drawSummary(sheet.average,sheet.pendingCount,sheet.filledCount,sheet.rows.length,attendanceMode);
     saveButton.disabled=!sheet.rows.length||attendanceMode;saveButton.innerHTML=attendanceMode?`${icon('calendar',17)} Dihitung dari Absensi`:`${icon('save',17)} Simpan Nilai`;
+    const target=root.querySelector('[data-fill-target]');const chosen=target.value;
+    target.innerHTML=`<option value="">Semua Siswa</option>${sheet.rows.map(row=>`<option value="${escapeHtml(row.studentId)}">${escapeHtml(row.name)}</option>`).join('')}`;
+    if(sheet.rows.some(row=>row.studentId===chosen))target.value=chosen;
     if(!sheet.rows.length){listHost.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan Data Siswa sebelum mengisi Penilaian.</p></section>';return;}
     const rows=sheet.rows.map((row,index)=>`<tr><td>${index+1}</td><td><strong>${escapeHtml(row.name)}</strong><span>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</span></td><td><input class="input score-input" type="number" min="0" max="100" step="0.01" data-score data-id="${escapeHtml(row.studentId)}" value="${row.score??''}" aria-label="Nilai ${escapeHtml(row.name)}" ${attendanceMode?'disabled':''}/></td><td><span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${attendanceMode?(row.saved?'Dari Absensi':'Belum ada absensi'):(row.saved?'Tersimpan':'Belum diisi')}</span></td></tr>`).join('');
     const cards=sheet.rows.map((row,index)=>`<article class="card assessment-mobile-card"><div class="assessment-student"><span>${index+1}</span><div><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</small></div></div><div class="score-mobile-input"><label>Nilai 0–100</label><input class="input score-input" type="number" min="0" max="100" step="0.01" data-score data-id="${escapeHtml(row.studentId)}" value="${row.score??''}" aria-label="Nilai ${escapeHtml(row.name)}" ${attendanceMode?'disabled':''}/><span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${attendanceMode?(row.saved?'Dari Absensi':'Belum ada absensi'):(row.saved?'Tersimpan':'Belum diisi')}</span></div></article>`).join('');
@@ -42,9 +45,17 @@ export function renderAssessment(session){
     try{saveAssessmentScores(session,subjectId,assessmentType,values);draw();toast('Nilai berhasil disimpan. Nilai kosong tetap tidak dinilai.');}catch(error){toast(error.message,'error');}
   };
   root.querySelector('[data-fill-all]').onclick=()=>{
-    const value=window.prompt('Nilai yang diterapkan ke semua siswa dan lima jenis penilaian:', '80');
+    const target=root.querySelector('[data-fill-target]');
+    const studentId=target.value||null;
+    const namaSasaran=studentId?target.options[target.selectedIndex].textContent:'semua siswa';
+    const value=window.prompt(`Nilai yang diterapkan ke ${namaSasaran} pada lima jenis penilaian:`, '80');
     if(value===null)return;
-    try{const result=fillAllAssessmentScores(session,subjectId,value);draw();toast(result.dailyFromAttendance?'Nilai massal disimpan. Penilaian Harian dilewati karena memakai Absensi.':'Nilai massal berhasil disimpan ke lima jenis penilaian.');}catch(error){toast(error.message,'error');}
+    try{
+      const result=fillAllAssessmentScores(session,subjectId,value,{studentId});
+      draw();
+      const sasaran=studentId?`${namaSasaran} saja`:`${result.studentCount} siswa`;
+      toast(result.dailyFromAttendance?`Nilai massal disimpan untuk ${sasaran}. Penilaian Harian dilewati karena memakai Absensi.`:`Nilai massal berhasil disimpan ke lima jenis penilaian untuk ${sasaran}.`);
+    }catch(error){toast(error.message,'error');}
   };
   draw();return root;
 }

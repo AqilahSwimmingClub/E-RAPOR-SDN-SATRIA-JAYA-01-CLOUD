@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ikon splash dibuat transparan agar tidak ada logo statis sebelum animasi intro.
+     Android 12+ tetap mewajibkan layar splash, sehingga yang tampil hanya warna latar
+     yang sama dengan latar WebView dan animasi. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+</shape>

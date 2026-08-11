@@ -9,7 +9,10 @@ export const GRADUATION_STATUSES=[
   {id:'GRADUATED',label:'Lulus'},
   {id:'NOT_GRADUATED',label:'Tidak Lulus'},
 ];
-export const ACTIVITY_PREDICATES=['Cukup','Baik','Sangat Baik'];
+export const ACTIVITY_PREDICATES=['Baik','Sangat Baik'];
+/* Predikat lama tetap dapat dibaca agar data sebelum revisi ini tidak menjadi tidak valid. */
+export const LEGACY_ACTIVITY_PREDICATES=['Cukup'];
+function knownPredicate(value){return ACTIVITY_PREDICATES.includes(value)||LEGACY_ACTIVITY_PREDICATES.includes(value);}
 export const ACTIVITY_DESCRIPTIONS={
   'Sangat Baik':'Menunjukkan partisipasi, kedisiplinan, dan tanggung jawab yang sangat baik dalam kegiatan.',
   'Baik':'Menunjukkan partisipasi dan tanggung jawab yang baik dalam kegiatan.',
@@ -21,8 +24,8 @@ export function pramukaPresetForClass(classId){const grade=gradeOf(classId);retu
 export function pramukaDescriptionsForClass(classId){return [...(gradeOf(classId)<=3?PRAMUKA_DESCRIPTIONS.siaga:PRAMUKA_DESCRIPTIONS.penggalang)];}
 export function cocurricularDescriptionsForClass(classId){return [...(gradeOf(classId)<=3?COCURRICULAR_DESCRIPTIONS.lower:COCURRICULAR_DESCRIPTIONS.upper)];}
 function predicatePrefix(predicate){return {'Cukup':'Cukup','Baik':'Baik','Sangat Baik':'Sangat baik'}[predicate]||'Baik';}
-export function pramukaDescriptionTemplates(classId,predicate){if(!ACTIVITY_PREDICATES.includes(predicate))throw new Error('Predikat ekstrakurikuler tidak valid.');return pramukaDescriptionsForClass(classId).map(text=>`${predicatePrefix(predicate)} dalam ${text.charAt(0).toLowerCase()}${text.slice(1)}`);}
-export function cocurricularDescriptionTemplates(classId,predicate){if(!ACTIVITY_PREDICATES.includes(predicate))throw new Error('Predikat kokurikuler tidak valid.');return cocurricularDescriptionsForClass(classId).map(text=>`${predicatePrefix(predicate)} dalam ${text.charAt(0).toLowerCase()}${text.slice(1)}`);}
+export function pramukaDescriptionTemplates(classId,predicate){if(!knownPredicate(predicate))throw new Error('Predikat ekstrakurikuler tidak valid.');return pramukaDescriptionsForClass(classId).map(text=>`${predicatePrefix(predicate)} dalam ${text.charAt(0).toLowerCase()}${text.slice(1)}`);}
+export function cocurricularDescriptionTemplates(classId,predicate){if(!knownPredicate(predicate))throw new Error('Predikat kokurikuler tidak valid.');return cocurricularDescriptionsForClass(classId).map(text=>`${predicatePrefix(predicate)} dalam ${text.charAt(0).toLowerCase()}${text.slice(1)}`);}
 
 function clone(value){return JSON.parse(JSON.stringify(value));}
 function newId(prefix){return globalThis.crypto?.randomUUID?.()||`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;}
@@ -48,7 +51,7 @@ function normalizeActivity(input){
   const record={name:clean(input?.name,120),predicate:clean(input?.predicate,50),description:clean(input?.description,1000)};
   if(!record.name)throw new Error('Nama ekstrakurikuler wajib diisi.');
   if(!record.predicate)throw new Error('Predikat ekstrakurikuler wajib diisi.');
-  if(!ACTIVITY_PREDICATES.includes(record.predicate))throw new Error('Predikat ekstrakurikuler tidak valid.');
+  if(!knownPredicate(record.predicate))throw new Error('Predikat ekstrakurikuler tidak valid.');
   if(!record.description)throw new Error('Deskripsi ekstrakurikuler wajib diisi.');
   return record;
 }
@@ -60,7 +63,7 @@ export function saveExtracurricularBulk(session,input){
 }
 
 function cocurricularKey(session,studentId){return `${scopeKey(session)}|${studentId}`;}
-function normalizeCocurricular(input){const record={activity:clean(input?.activity||input?.projectTitle||input?.theme,180),predicate:clean(input?.predicate,50),description:clean(input?.description,1200)};if(!record.activity)throw new Error('Kegiatan kokurikuler wajib diisi.');if(!ACTIVITY_PREDICATES.includes(record.predicate))throw new Error('Predikat kokurikuler tidak valid.');if(!record.description)throw new Error('Deskripsi kokurikuler wajib diisi.');return record;}
+function normalizeCocurricular(input){const record={activity:clean(input?.activity||input?.projectTitle||input?.theme,180),predicate:clean(input?.predicate,50),description:clean(input?.description,1200)};if(!record.activity)throw new Error('Kegiatan kokurikuler wajib diisi.');if(!knownPredicate(record.predicate))throw new Error('Predikat kokurikuler tidak valid.');if(!record.description)throw new Error('Deskripsi kokurikuler wajib diisi.');return record;}
 
 export function getStudentCocurricular(session,studentId){requireStudent(session,studentId);const record=loadDb().cocurricularScores?.[cocurricularKey(session,studentId)];return record?clone(record):null;}
 
@@ -87,6 +90,22 @@ export function deleteExtracurricular(session,studentId,id){
 
 export function getHomeroomNote(session,studentId){
   requireStudent(session,studentId);const record=loadDb().homeroomNotes[studentKey(session,studentId)];return record?clone(record):null;
+}
+
+/* Catatan massal. Secara bawaan hanya mengisi siswa yang catatannya masih kosong sehingga
+   catatan individual tidak tertimpa. Timpa hanya terjadi bila pemanggil sudah meminta
+   konfirmasi guru dan mengirim overwrite:true. */
+export function saveHomeroomNoteBulk(session,note,{overwrite=false}={}){
+  assertTeacher(session);const text=clean(note,2000);if(!text)throw new Error('Catatan wali kelas wajib diisi.');
+  const students=listStudents(session,{classId:session.classId});
+  if(!students.length)throw new Error('Belum ada siswa pada rombel ini.');
+  const saved=[];const skipped=[];
+  students.forEach(student=>{
+    const existing=getHomeroomNote(session,student.id);
+    if(existing?.text&&!overwrite){skipped.push(student.id);return;}
+    saved.push(saveHomeroomNote(session,student.id,text));
+  });
+  return {saved:saved.length,skipped:skipped.length,skippedIds:skipped,total:students.length,overwrite};
 }
 
 export function saveHomeroomNote(session,studentId,note){
