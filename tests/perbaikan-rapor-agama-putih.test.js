@@ -192,6 +192,32 @@ test('Perubahan warna tidak menyentuh ukuran, margin, tabel, atau jumlah halaman
   assert.doesNotMatch(barisBaru,/width|height|margin|padding|display|position|font/,'tidak ada properti geometri pada aturan warna baru');
 });
 
+/* ------------------------------------------------------- Geometri kertas Rapor saat cetak */
+
+test('Margin kiri-kanan Rapor dibawa lembarnya sendiri, bukan oleh @page',()=>{
+  const css=read('src/styles/app.css');
+  /* Sistem cetak Android tidak menerapkan margin @page. Bila lembar rapor tidak punya padding
+     sendiri, isi rapor menempel ke tepi kertas dan halaman terlihat terpotong. */
+  assert.match(css,/\.report-a4\{padding:0 13mm!important\}/,'lembar rapor punya margin samping sendiri saat cetak');
+  assert.doesNotMatch(css,/\.report-a4\{padding:0!important\}/,'padding samping tidak lagi dinolkan');
+  assert.match(css,/\.report-a4\{padding:14mm 13mm\}/,'tampilan layar tidak berubah');
+  const cetak=read('src/pages/print.js');
+  assert.match(cetak,/else if\(tab==='report'\)setPrintPageSize\('portrait','10mm 0'\)/,'@page Rapor A4 portrait dengan margin samping 0');
+  assert.match(cetak,/if\(tab==='leger'\)setPrintPageSize\('landscape'\)/,'Leger tetap A4 landscape 8mm');
+  assert.match(cetak,/else setPrintPageSize\(null\)/,'Cover, Perlengkapan, dan Kelengkapan tetap memakai @page app.css');
+  assert.match(cetak,/style\.textContent=`@media print\{@page\{size:A4 \$\{orientation\};margin:\$\{margin\}\}\}`/);
+});
+
+test('Ukuran halaman dan aturan Cover tidak ikut berubah',()=>{
+  const css=read('src/styles/app.css');
+  assert.match(css,/@media print\{@page\{size:A4 portrait;margin:10mm\}/,'@page bawaan A4 portrait tetap');
+  assert.match(css,/\.report-cover-a4\{min-height:0!important;padding:0!important;width:auto!important\}/,'Cover tetap seperti sebelumnya');
+  assert.match(css,/\.document-a4\{width:min\(100%,794px\);min-height:1123px/,'ukuran A4 layar tetap');
+  /* Aturan ringkas layar tidak boleh ikut aktif saat mencetak rapor. */
+  assert.match(css,/@media screen and \(max-width:767px\)\{\.report-cover-a4\{/,'aturan mobile Cover memang khusus layar');
+  assert.match(css,/\.report-a4 \.report-signatures\{grid-template-columns:repeat\(3,1fr\);gap:20px\}/,'tanda tangan tetap tiga kolom saat cetak');
+});
+
 test('Cetak tetap memutihkan seluruh latar dan tidak mengubah arsiran tabel',()=>{
   const css=read('src/styles/app.css');
   const blok=css.match(/@media print\{\n  html,body,\.print-workspace,[^}]*\}[^}]*\}/)[0];

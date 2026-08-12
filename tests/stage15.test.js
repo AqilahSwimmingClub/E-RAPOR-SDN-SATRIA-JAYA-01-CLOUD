@@ -282,5 +282,6 @@ test('Leger memakai A4 landscape melalui override ukuran halaman cetak',async()=
   assert.equal(styles.size,0,'override dilepas di luar tab Leger');
   delete globalThis.document;
   const page=read('src/pages/print.js');
-  assert.match(page,/setPrintPageSize\(tab==='leger'\?'landscape':null\)/);
+  assert.match(page,/if\(tab==='leger'\)setPrintPageSize\('landscape'\)/,'Leger tetap landscape 8mm');
+  assert.match(page,/else setPrintPageSize\(null\)/,'dokumen lain tetap memakai @page bawaan app.css');
 });

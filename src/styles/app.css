@@ -147,7 +147,11 @@ html[data-route="print"],html[data-route="print"] body,html[data-route="print"] 
 @media print{
   /* Baris tabel tidak terpotong, header tabel diulang di halaman berikutnya, dan
      bagian penutup dijaga tetap menyatu. */
-  .report-a4{padding:0!important}
+  /* Margin kiri-kanan kertas Rapor dibawa oleh lembarnya sendiri, bukan oleh @page. Sistem
+     cetak Android tidak menerapkan margin @page, sehingga saat Simpan PDF dari HP isi rapor
+     menempel ke tepi kertas dan halaman terlihat terpotong. Margin atas-bawah tetap dari
+     @page 10mm supaya tinggi area cetak dan jumlah halaman tidak berubah. */
+  .report-a4{padding:0 13mm!important}
   .report-a4 .document-table tr,.report-a4 .subject-group-row{break-inside:avoid}
   .report-a4 .report-learning-table thead{display:table-header-group}
   .report-a4 .report-lower-grid,.report-a4 .response-box,.report-a4 .report-signatures{break-inside:avoid}

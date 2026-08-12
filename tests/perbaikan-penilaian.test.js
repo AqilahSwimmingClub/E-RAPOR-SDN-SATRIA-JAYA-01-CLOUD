@@ -277,7 +277,7 @@ test('15-17. Preview, Simpan PDF, dan Cetak desktop memakai jalur yang benar',()
   assert.match(main,/webContents\.printToPDF\(\{printBackground:true,pageSize:'A4',preferCSSPageSize:true\}\)/,'Simpan PDF memakai printToPDF dengan ukuran halaman dari CSS');
   assert.match(main,/webContents\.print\(\{silent:false,printBackground:true\}/,'Cetak memakai dialog perangkat');
   /* Leger tetap A4 landscape lewat @page, dan cetak massal tidak berubah. */
-  assert.match(cetak,/setPrintPageSize\(orientation\)/);
+  assert.match(cetak,/setPrintPageSize\('landscape'\)/);
   assert.match(cetak,/data-bulk-toggle/,'Cetak Semua Rapor tetap tersedia');
   assert.equal(/Cetak Semua Leger/.test(cetak),false,'tidak ada Cetak Semua Leger');
 });

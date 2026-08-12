@@ -20,13 +20,15 @@ export const COVER_LOGO_DEFAULTS=Object.freeze({
 
 /* Leger memakai A4 landscape. Ukuran halaman default harus ditimpa sebelum cetak
    karena lebar layout cetak Chromium mengikuti @page default, bukan named page. */
-export function setPrintPageSize(orientation){
+/* Rapor memakai margin samping 0 pada @page karena lembar rapor sudah membawa margin sendiri;
+   dokumen lain tidak menyertakan margin sehingga tetap memakai @page 10mm dari app.css. */
+export function setPrintPageSize(orientation,margin='8mm'){
   const host=globalThis.document;if(!host?.head)return null;
   const existing=host.getElementById(PAGE_SIZE_STYLE_ID);
   if(!orientation){existing?.remove();return null;}
   const style=existing||host.createElement('style');
   style.id=PAGE_SIZE_STYLE_ID;
-  style.textContent=`@media print{@page{size:A4 ${orientation};margin:8mm}}`;
+  style.textContent=`@media print{@page{size:A4 ${orientation};margin:${margin}}}`;
   if(!existing)host.head.append(style);
   return style;
 }
@@ -315,7 +317,9 @@ export function renderPrint(session){
 
   function draw(){
     root.querySelectorAll('[data-tab]').forEach(button=>button.classList.toggle('active',button.dataset.tab===tab));
-    setPrintPageSize(tab==='leger'?'landscape':null);
+    if(tab==='leger')setPrintPageSize('landscape');
+    else if(tab==='report')setPrintPageSize('portrait','10mm 0');
+    else setPrintPageSize(null);
     if(tab==='leger'){drawLeger();bindActions('Leger');return;}
     if(tab==='cover'){drawCover();bindActions('Cover Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId)});return;}
     if(tab==='equipment'){drawEquipment();bindActions('Perlengkapan Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId)});return;}
