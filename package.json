@@ -15,7 +15,8 @@
     "open:ios": "cap open ios",
     "desktop:start": "npm run build && electron .",
     "desktop:package": "npm run build && electron-forge package",
-    "desktop:make": "npm run build && electron-forge make"
+    "desktop:make": "npm run build && electron-forge make",
+    "desktop:win": "npm run build && electron-builder --win nsis --x64 --publish never"
   },
   "main": "electron/main.cjs",
   "devDependencies": {
@@ -24,6 +25,7 @@
     "@electron-forge/maker-squirrel": "^7.11.2",
     "@electron-forge/maker-zip": "^7.11.2",
     "electron": "^43.3.0",
+    "electron-builder": "^26.15.3",
     "http-server": "^14.1.1"
   },
   "dependencies": {
@@ -35,5 +37,10 @@
   },
   "overrides": {
     "uuid": "^11.1.1"
+  },
+  "productName": "e-Rapor SDN Satria Jaya 01",
+  "description": "Aplikasi e-Rapor mandiri SDN Satria Jaya 01",
+  "author": {
+    "name": "SDN Satria Jaya 01"
   }
 }

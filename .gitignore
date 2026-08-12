@@ -12,6 +12,9 @@ android/signing.properties
 *.keystore
 *.p12
 release-signing/
+release/windows/win-unpacked/
+release/windows/builder-debug.yml
+release/**/*.blockmap
 KEYSTORE-CREDENTIALS.txt
 .DS_Store
 Thumbs.db

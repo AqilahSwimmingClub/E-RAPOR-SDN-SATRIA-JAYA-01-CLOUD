@@ -1,0 +1,50 @@
+# Installer Windows e-Rapor SDN Satria Jaya 01.
+#
+# appId dan productName WAJIB tetap sama di setiap rilis. NSIS memakai appId untuk mengenali
+# instalasi sebelumnya, sehingga installer versi baru memperbarui instalasi lama di tempat
+# tanpa perlu uninstall. Mengganti salah satunya akan membuat Windows menganggapnya aplikasi
+# berbeda sehingga terpasang dua kali dan data guru seolah hilang.
+appId: id.sch.sdn.satriajaya01.erapor
+productName: e-Rapor SDN Satria Jaya 01
+copyright: SDN Satria Jaya 01
+
+directories:
+  output: release/windows
+  buildResources: build
+
+# Hanya berkas aplikasi yang dipaketkan. Data guru tidak pernah ikut ke folder instalasi.
+files:
+  - electron/**/*
+  - dist/**/*
+  - package.json
+  - '!**/*.map'
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: E-RAPOR-SDN-SATRIA-JAYA-01-Setup-${version}.${ext}
+  # Tanpa signing: sesuai permintaan, tidak ada sertifikat yang dibuat pada tahap ini.
+  signAndEditExecutable: false
+
+nsis:
+  # Upgrade di tempat: installer mendeteksi versi lama lewat appId lalu menimpanya.
+  oneClick: true
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: false
+  # AppData (%APPDATA%/e-Rapor SDN Satria Jaya 01) TIDAK PERNAH dihapus, termasuk saat uninstall,
+  # sehingga data siswa, nilai, absensi, TP, bobot, mapping, dan profil guru selalu bertahan.
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: e-Rapor SDN Satria Jaya 01
+  # GUID dikunci agar kunci registri uninstall tetap sama antar versi. Inilah yang membuat
+  # installer baru mengenali instalasi lama dan memperbaruinya, bukan memasang salinan kedua.
+  guid: 9a3f0d21-6c4b-5e88-9d17-2f6a1b7c4e30
+  uninstallDisplayName: e-Rapor SDN Satria Jaya 01
+  differentialPackage: false
