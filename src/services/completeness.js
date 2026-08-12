@@ -63,10 +63,33 @@ function normalizeActivity(input){
   return record;
 }
 
-export function saveExtracurricularBulk(session,input){
-  assertTeacher(session);const predicate=clean(input?.predicate,50);if(!ACTIVITY_PREDICATES.includes(predicate))throw new Error('Predikat ekstrakurikuler tidak valid.');
-  const name=clean(input?.name||pramukaPresetForClass(session.classId),120);const description=clean(input?.description||pramukaDescriptionTemplates(session.classId,predicate)[0]||ACTIVITY_DESCRIPTIONS[predicate],1000);const saved=[];
-  listStudents(session,{classId:session.classId}).forEach(student=>{const existing=listExtracurriculars(session,student.id).find(item=>item.name.toLowerCase()===name.toLowerCase());saved.push(existing?updateExtracurricular(session,student.id,existing.id,{name,predicate,description}):createExtracurricular(session,student.id,{name,predicate,description}));});return saved;
+/* Terapkan ke Semua Siswa: kegiatan, predikat, dan deskripsi yang sama untuk seluruh siswa
+   rombel, ditulis dalam SATU commit. Data individual dengan kegiatan yang sama hanya ditimpa
+   bila pemanggil memang meminta overwrite, sehingga hasil edit per siswa tidak hilang diam-diam. */
+export function saveExtracurricularBulk(session,input,{overwrite=true}={}){
+  assertTeacher(session);
+  const predicate=clean(input?.predicate,50);
+  if(!ACTIVITY_PREDICATES.includes(predicate))throw new Error('Predikat ekstrakurikuler tidak valid.');
+  const name=clean(input?.name||pramukaPresetForClass(session.classId),120);
+  const description=clean(input?.description||pramukaDescriptionTemplates(session.classId,predicate)[0]||ACTIVITY_DESCRIPTIONS[predicate],1000);
+  if(!description)throw new Error('Deskripsi ekstrakurikuler wajib diisi.');
+  const students=listStudents(session,{classId:session.classId});
+  const saved=[];let dilewati=0;
+  updateDb(db=>{
+    const now=new Date().toISOString();
+    students.forEach(student=>{
+      const prefix=`${scopeKey(session)}|${student.id}|`;
+      const entri=Object.entries(db.extracurricularScores||{}).filter(([key])=>key.startsWith(prefix));
+      const cocok=entri.find(([,record])=>String(record.name||'').toLowerCase()===name.toLowerCase());
+      if(cocok&&!overwrite){dilewati+=1;saved.push(clone(cocok[1]));return;}
+      const id=cocok?cocok[1].id:newId('extra');
+      const record=scopedRecord(session,student.id,{id,name,predicate,description,order:cocok?cocok[1].order||entri.length+1:entri.length+1,createdAt:cocok?.[1]?.createdAt||now,updatedAt:now});
+      db.extracurricularScores[`${prefix}${id}`]=record;
+      saved.push(record);
+    });
+    return db;
+  });
+  return {saved:clone(saved),studentCount:students.length,skipped:dilewati};
 }
 
 function cocurricularKey(session,studentId){return `${scopeKey(session)}|${studentId}`;}
@@ -76,7 +99,27 @@ export function getStudentCocurricular(session,studentId){requireStudent(session
 
 export function saveStudentCocurricular(session,studentId,input){requireStudent(session,studentId);const value=normalizeCocurricular(input);let saved;updateDb(db=>{const key=cocurricularKey(session,studentId);const existing=db.cocurricularScores[key];const now=new Date().toISOString();saved=scopedRecord(session,studentId,{...value,createdAt:existing?.createdAt||now,updatedAt:now});db.cocurricularScores[key]=saved;return db;});return clone(saved);}
 
-export function saveCocurricularBulk(session,input){assertTeacher(session);const predicate=clean(input?.predicate,50);const value={...input,description:clean(input?.description,1200)||cocurricularDescriptionTemplates(session.classId,predicate,input?.activity)[0]};return listStudents(session,{classId:session.classId}).map(student=>saveStudentCocurricular(session,student.id,value));}
+/* Terapkan ke Semua Siswa untuk kokurikuler, juga dalam satu commit. */
+export function saveCocurricularBulk(session,input,{overwrite=true}={}){
+  assertTeacher(session);
+  const predicate=clean(input?.predicate,50);
+  const value=normalizeCocurricular({...input,description:clean(input?.description,1200)||cocurricularDescriptionTemplates(session.classId,predicate,input?.activity)[0]});
+  const students=listStudents(session,{classId:session.classId});
+  const saved=[];let dilewati=0;
+  updateDb(db=>{
+    const now=new Date().toISOString();
+    students.forEach(student=>{
+      const key=cocurricularKey(session,student.id);
+      const existing=db.cocurricularScores[key];
+      if(existing&&!overwrite){dilewati+=1;saved.push(clone(existing));return;}
+      const record=scopedRecord(session,student.id,{...value,createdAt:existing?.createdAt||now,updatedAt:now});
+      db.cocurricularScores[key]=record;
+      saved.push(record);
+    });
+    return db;
+  });
+  return {saved:clone(saved),studentCount:students.length,skipped:dilewati};
+}
 
 export function createExtracurricular(session,studentId,input){
   requireStudent(session,studentId);const value=normalizeActivity(input);let saved;

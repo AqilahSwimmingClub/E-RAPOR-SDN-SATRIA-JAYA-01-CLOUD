@@ -1,4 +1,4 @@
-import { ACTIVITY_PREDICATES, cocurricularDescriptionsForClass, createExtracurricular, deleteExtracurricular, getGraduationStatus, getHomeroomNote, getPromotionStatus, getStudentCocurricular, GRADUATION_STATUSES, listExtracurriculars, prepareGraduationStatus, pramukaDescriptionsForClass, pramukaPresetForClass, PROMOTION_STATUSES, saveCocurricularBulk, saveExtracurricularBulk, saveGraduationStatus, saveHomeroomNote, saveHomeroomNoteBulk, savePromotionStatus, saveStudentCocurricular, updateExtracurricular } from '../services/completeness.js';
+import { ACTIVITY_PREDICATES, cocurricularDescriptionsForClass, listCocurricularActivities, createExtracurricular, deleteExtracurricular, getGraduationStatus, getHomeroomNote, getPromotionStatus, getStudentCocurricular, GRADUATION_STATUSES, listExtracurriculars, prepareGraduationStatus, pramukaDescriptionsForClass, pramukaPresetForClass, PROMOTION_STATUSES, saveCocurricularBulk, saveExtracurricularBulk, saveGraduationStatus, saveHomeroomNote, saveHomeroomNoteBulk, savePromotionStatus, saveStudentCocurricular, updateExtracurricular } from '../services/completeness.js';
 import { getStudent, listStudents, updateStudent } from '../services/students.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
@@ -27,19 +27,111 @@ export function renderCompleteness(session){
     form.onsubmit=event=>{event.preventDefault();const errorBox=modal.querySelector('[data-error]');try{updateStudent(session,student.id,{...student,photo:photoData,nis:form.elements.nis.value,nisn:form.elements.nisn.value,name:form.elements.name.value,gender:form.elements.gender.value,birthPlace:form.elements.birthPlace.value,birthDate:form.elements.birthDate.value,fatherName:form.elements.fatherName.value,motherName:form.elements.motherName.value,phone:form.elements.phone.value,address:form.elements.address.value});close();drawStudents();toast('Data siswa berhasil diperbarui tanpa membuat duplikat.');}catch(error){errorBox.innerHTML=(error.errors||[error.message]).map(message=>`<div>${escapeHtml(message)}</div>`).join('');errorBox.classList.remove('hidden');}};
   }
   function studentFilter(items,title,description){return `<section class="card module-filter"><div class="field compact-field"><label for="completenessStudent">${escapeHtml(title)}</label><select class="input" id="completenessStudent" data-student>${studentOptions(items,selectedStudentId)}</select></div><div class="scope-note">Kelas ${escapeHtml(session.classId)}<span>${escapeHtml(description)}</span></div></section><div data-module></div>`;}
-  function drawExtracurricular(){
-    const items=students();ensureSelected(items);if(!items.length){empty();return;}view.innerHTML=studentFilter(items,'Siswa','Boleh menyimpan lebih dari satu kegiatan.');const module=view.querySelector('[data-module]');const drawList=()=>{const selected=items.find(student=>student.id===selectedStudentId);const records=listExtracurriculars(session,selectedStudentId);module.innerHTML=`<section class="card"><div class="section-head"><div><h3>Ekstrakurikuler ${escapeHtml(selected.name)}</h3><p>Predikat dan deskripsi tersimpan per siswa.</p></div><button class="btn btn-primary" data-add-activity>${icon('edit',16)} Tambah Kegiatan</button></div>${records.length?`<div class="activity-record-list">${records.map(record=>`<article><div><strong>${escapeHtml(record.name)}</strong><span class="badge badge-a">${escapeHtml(record.predicate)}</span><p>${escapeHtml(record.description)}</p></div><div class="row-actions"><button class="btn btn-light btn-small" data-edit-activity="${escapeHtml(record.id)}">Edit</button><button class="btn btn-danger btn-small" data-delete-activity="${escapeHtml(record.id)}">Hapus</button></div></article>`).join('')}</div>`:'<div class="empty-inline completeness-empty">Belum ada kegiatan ekstrakurikuler untuk siswa ini.</div>'}</section>`;module.querySelector('[data-add-activity]').onclick=()=>openActivityForm();module.querySelectorAll('[data-edit-activity]').forEach(button=>button.onclick=()=>openActivityForm(records.find(record=>record.id===button.dataset.editActivity)));module.querySelectorAll('[data-delete-activity]').forEach(button=>button.onclick=async()=>{const record=records.find(item=>item.id===button.dataset.deleteActivity);if(await confirmDialog({title:'Hapus Ekstrakurikuler',message:`Hapus ${record.name} dari siswa ini?`,confirmText:'Hapus',danger:true})){deleteExtracurricular(session,selectedStudentId,record.id);drawList();toast('Data ekstrakurikuler dihapus.','warning');}});};
-    const openActivityForm=(record=null)=>{const modal=el(`<div class="modal-backdrop"><form class="modal-card"><div class="modal-head"><div><h3>${record?'Edit':'Tambah'} Ekstrakurikuler</h3><p>Data khusus siswa dan scope aktif.</p></div><button type="button" class="btn btn-light btn-icon" data-close>${icon('x',17)}</button></div><div class="field"><label>Nama Ekstrakurikuler *</label><input class="input" name="name" value="${escapeHtml(record?.name||'')}" required/></div><div class="field"><label>Predikat *</label><input class="input" name="predicate" value="${escapeHtml(record?.predicate||'')}" placeholder="Contoh: Sangat Baik" required/></div><div class="field"><label>Deskripsi *</label><textarea class="input" name="description" rows="4" required>${escapeHtml(record?.description||'')}</textarea></div><div class="login-error hidden" data-error></div><div class="modal-actions"><button type="button" class="btn btn-light" data-cancel>Batal</button><button class="btn btn-primary" type="submit">Simpan</button></div></form></div>`);document.body.append(modal);const form=modal.querySelector('form');const close=()=>modal.remove();modal.querySelector('[data-close]').onclick=close;modal.querySelector('[data-cancel]').onclick=close;form.onsubmit=event=>{event.preventDefault();try{const input={name:form.elements.name.value,predicate:form.elements.predicate.value,description:form.elements.description.value};if(record)updateExtracurricular(session,selectedStudentId,record.id,input);else createExtracurricular(session,selectedStudentId,input);close();drawList();toast('Data ekstrakurikuler berhasil disimpan.');}catch(error){const box=modal.querySelector('[data-error]');box.textContent=error.message;box.classList.remove('hidden');}};};
-    view.querySelector('[data-student]').onchange=event=>{selectedStudentId=event.target.value;drawExtracurricular();};drawList();
-    const bulkActions=el(`<div class="actions">${ACTIVITY_PREDICATES.map(predicate=>`<button class="btn btn-light btn-small" data-extra-bulk="${escapeHtml(predicate)}">Isi Semua ${escapeHtml(predicate)}</button>`).join('')}</div>`);module.querySelector('.section-head').append(bulkActions);bulkActions.querySelectorAll('[data-extra-bulk]').forEach(button=>button.onclick=async()=>{const predicate=button.dataset.extraBulk;if(!await confirmDialog({title:'Ekstrakurikuler Pramuka Massal',message:`Terapkan ${pramukaPresetForClass(session.classId)} dengan predikat ${predicate} ke seluruh siswa?`,confirmText:'Terapkan Semua'}))return;try{saveExtracurricularBulk(session,{name:pramukaPresetForClass(session.classId),predicate,description:pramukaDescriptionsForClass(session.classId)[ACTIVITY_PREDICATES.indexOf(predicate)]});drawExtracurricular();toast(`Pramuka diterapkan ke ${items.length} siswa.`);}catch(error){toast(error.message,'error');}});
+  /* Pilihan kegiatan, predikat, dan deskripsi disediakan otomatis. Guru tidak lagi mengetik
+     nama Pramuka maupun deskripsinya; kegiatan Pramuka sudah terpilih sesuai tingkat kelas
+     dan deskripsinya berasal dari lima preset tingkat tersebut. Kegiatan lain tetap dapat
+     ditambahkan manual bila sekolah memiliki ekstrakurikuler selain Pramuka. */
+  const LAINNYA='__lainnya__';
+  function extraActivityOptions(selected){
+    const preset=pramukaPresetForClass(session.classId);
+    const daftar=[preset,...(selected&&selected!==preset?[selected]:[])];
+    return `${daftar.map(nama=>`<option value="${escapeHtml(nama)}" ${nama===selected?'selected':''}>${escapeHtml(nama)}</option>`).join('')}<option value="${LAINNYA}">Kegiatan lain (ketik sendiri)…</option>`;
   }
+  function predicateOptions(selected){return ACTIVITY_PREDICATES.map(value=>`<option value="${escapeHtml(value)}" ${value===selected?'selected':''}>${escapeHtml(value)}</option>`).join('');}
+  function descriptionOptions(daftar,selected){
+    const pilihan=[...daftar,...(selected&&!daftar.includes(selected)?[selected]:[])];
+    return `${pilihan.map(text=>`<option value="${escapeHtml(text)}" ${text===selected?'selected':''}>${escapeHtml(text)}</option>`).join('')}<option value="${LAINNYA}">Tulis deskripsi sendiri…</option>`;
+  }
+
+  function drawExtracurricular(){
+    const items=students();ensureSelected(items);if(!items.length){empty();return;}
+    view.innerHTML=studentFilter(items,'Siswa','Kegiatan Pramuka otomatis mengikuti tingkat kelas.');
+    const module=view.querySelector('[data-module]');
+    const drawList=()=>{
+      const selected=items.find(student=>student.id===selectedStudentId);
+      const records=listExtracurriculars(session,selectedStudentId);
+      module.innerHTML=`<section class="card"><div class="section-head"><div><h3>Ekstrakurikuler ${escapeHtml(selected.name)}</h3><p>Pramuka ${escapeHtml(pramukaPresetForClass(session.classId))} sudah tersedia otomatis untuk Kelas ${escapeHtml(session.classId)}.</p></div><div class="actions"><button class="btn btn-light" data-extra-bulk>Terapkan ke Semua Siswa</button><button class="btn btn-primary" data-add-activity>${icon('edit',16)} Tambah Ekstrakurikuler</button></div></div>${records.length?`<div class="activity-record-list">${records.map(record=>`<article><div><strong>${escapeHtml(record.name)}</strong><span class="badge badge-a">${escapeHtml(record.predicate)}</span><p>${escapeHtml(record.description)}</p></div><div class="row-actions"><button class="btn btn-light btn-small" data-edit-activity="${escapeHtml(record.id)}">Edit</button><button class="btn btn-danger btn-small" data-delete-activity="${escapeHtml(record.id)}">Hapus</button></div></article>`).join('')}</div>`:'<div class="empty-inline completeness-empty">Belum ada kegiatan ekstrakurikuler untuk siswa ini.</div>'}</section>`;
+      module.querySelector('[data-add-activity]').onclick=()=>openActivityForm();
+      module.querySelector('[data-extra-bulk]').onclick=()=>openActivityForm(null,{bulk:true});
+      module.querySelectorAll('[data-edit-activity]').forEach(button=>button.onclick=()=>openActivityForm(records.find(record=>record.id===button.dataset.editActivity)));
+      module.querySelectorAll('[data-delete-activity]').forEach(button=>button.onclick=async()=>{
+        const record=records.find(item=>item.id===button.dataset.deleteActivity);
+        if(await confirmDialog({title:'Hapus Ekstrakurikuler',message:`Hapus ${record.name} dari siswa ini?`,confirmText:'Hapus',danger:true})){deleteExtracurricular(session,selectedStudentId,record.id);drawList();toast('Data ekstrakurikuler dihapus.','warning');}
+      });
+    };
+
+    const openActivityForm=(record=null,{bulk=false}={})=>{
+      const namaAwal=record?.name||pramukaPresetForClass(session.classId);
+      const predikatAwal=record?.predicate||ACTIVITY_PREDICATES[0];
+      const modal=el(`<div class="modal-backdrop"><form class="modal-card modal-wide"><div class="modal-head"><div><h3>${bulk?'Terapkan Ekstrakurikuler ke Semua Siswa':`${record?'Edit':'Tambah'} Ekstrakurikuler`}</h3><p>${bulk?`Seluruh siswa Kelas ${escapeHtml(session.classId)} menerima kegiatan, predikat, dan deskripsi yang sama.`:'Pilih kegiatan, predikat, lalu salah satu deskripsi otomatis.'}</p></div><button type="button" class="btn btn-light btn-icon" data-close>${icon('x',17)}</button></div><div class="form-grid"><div class="field form-span-2"><label>Kegiatan *</label><select class="input" data-activity>${extraActivityOptions(namaAwal)}</select><input class="input hidden" data-activity-custom placeholder="Nama ekstrakurikuler lain" value=""/></div><div class="field"><label>Predikat *</label><select class="input" data-predicate>${predicateOptions(predikatAwal)}</select></div><div class="field form-span-2"><label>Deskripsi *</label><select class="input" data-description></select><textarea class="input hidden" rows="3" data-description-custom placeholder="Tulis deskripsi sendiri"></textarea></div></div><div class="login-error hidden" data-error></div><div class="modal-actions"><button type="button" class="btn btn-light" data-cancel>Batal</button><button class="btn btn-primary" type="submit">${bulk?'Terapkan ke Semua Siswa':'Simpan'}</button></div></form></div>`);
+      document.body.append(modal);
+      const form=modal.querySelector('form'),close=()=>modal.remove();
+      modal.querySelector('[data-close]').onclick=close;modal.querySelector('[data-cancel]').onclick=close;
+      const activity=modal.querySelector('[data-activity]'),activityCustom=modal.querySelector('[data-activity-custom]');
+      const description=modal.querySelector('[data-description]'),descriptionCustom=modal.querySelector('[data-description-custom]');
+      const namaKegiatan=()=>activity.value===LAINNYA?activityCustom.value.trim():activity.value;
+      /* Deskripsi Pramuka mengikuti tingkat kelas; kegiatan lain memakai deskripsi bebas. */
+      const refreshDescriptions=(terpilih='')=>{
+        const nama=namaKegiatan();
+        const daftar=/pramuka/i.test(nama)?pramukaDescriptionsForClass(session.classId):[];
+        description.innerHTML=descriptionOptions(daftar,terpilih);
+        if(!daftar.length)description.value=LAINNYA;
+        description.dispatchEvent(new Event('change'));
+      };
+      activity.onchange=()=>{activityCustom.classList.toggle('hidden',activity.value!==LAINNYA);refreshDescriptions();};
+      description.onchange=()=>descriptionCustom.classList.toggle('hidden',description.value!==LAINNYA);
+      refreshDescriptions(record?.description||'');
+      if(record?.description&&description.value===LAINNYA)descriptionCustom.value=record.description;
+
+      form.onsubmit=async event=>{
+        event.preventDefault();
+        const box=modal.querySelector('[data-error]');box.classList.add('hidden');
+        const input={name:namaKegiatan(),predicate:modal.querySelector('[data-predicate]').value,description:description.value===LAINNYA?descriptionCustom.value.trim():description.value};
+        try{
+          if(bulk){
+            const punyaData=items.filter(student=>listExtracurriculars(session,student.id).some(item=>item.name.toLowerCase()===input.name.toLowerCase())).length;
+            /* Data individual yang sudah ada hanya ditimpa setelah guru menyetujuinya. */
+            if(punyaData&&!await confirmDialog({title:'Timpa Data Individual',message:`${punyaData} siswa sudah memiliki kegiatan ${input.name}. Timpa dengan predikat dan deskripsi yang baru?`,confirmText:'Timpa Semua',danger:true}))return;
+            const hasil=saveExtracurricularBulk(session,input);
+            close();drawList();toast(`${input.name} diterapkan ke ${hasil.studentCount} siswa.`);
+            return;
+          }
+          if(record)updateExtracurricular(session,selectedStudentId,record.id,input);
+          else createExtracurricular(session,selectedStudentId,input);
+          close();drawList();toast('Data ekstrakurikuler berhasil disimpan.');
+        }catch(error){box.textContent=error.message;box.classList.remove('hidden');}
+      };
+    };
+
+    view.querySelector('[data-student]').onchange=event=>{selectedStudentId=event.target.value;drawList();};
+    drawList();
+  }
+
   function drawCocurricular(){
     const items=students();ensureSelected(items);if(!items.length){empty();return;}
-    const current=getStudentCocurricular(session,selectedStudentId);const student=items.find(item=>item.id===selectedStudentId);
-    const descriptions=cocurricularDescriptionsForClass(session.classId);view.innerHTML=`${studentFilter(items,'Siswa','Kokurikuler tersimpan per rombel, semester, dan tahun pelajaran.')}<section class="card"><div class="section-head"><div><h3>Kokurikuler ${escapeHtml(student.name)}</h3><p>Isi individual atau terapkan predikat ke seluruh siswa.</p></div></div><div class="form-grid"><div class="field form-span-2"><label>Kegiatan *</label><input class="input" data-coco-activity value="${escapeHtml(current?.activity||current?.projectTitle||current?.theme||'')}"/></div><div class="field"><label>Predikat *</label><select class="input" data-coco-predicate><option value="">Pilih predikat</option>${ACTIVITY_PREDICATES.map(value=>`<option ${current?.predicate===value?'selected':''}>${escapeHtml(value)}</option>`).join('')}</select></div><div class="field form-span-2"><label>Deskripsi *</label><select class="input" data-coco-description>${descriptions.map(value=>`<option ${current?.description===value?'selected':''}>${escapeHtml(value)}</option>`).join('')}</select></div></div><div class="actions">${ACTIVITY_PREDICATES.map(predicate=>`<button class="btn btn-light" data-coco-bulk="${escapeHtml(predicate)}">Isi Semua ${escapeHtml(predicate)}</button>`).join('')}<button class="btn btn-primary" data-coco-save>${icon('save',16)} Simpan Siswa Ini</button></div></section>`;
-    const input=(predicateOverride=null)=>({activity:view.querySelector('[data-coco-activity]').value,predicate:predicateOverride||view.querySelector('[data-coco-predicate]').value,description:view.querySelector('[data-coco-description]').value});
+    const current=getStudentCocurricular(session,selectedStudentId);
+    const student=items.find(item=>item.id===selectedStudentId);
+    const kegiatan=listCocurricularActivities();
+    const kegiatanAwal=current?.activity||current?.projectTitle||current?.theme||kegiatan[0];
+    /* Kegiatan kokurikuler dipilih dari preset, bukan diketik. Deskripsi mengikuti kegiatan
+       yang dipilih DAN tingkat kelas, sehingga kelas rendah dan kelas tinggi berbeda. */
+    view.innerHTML=`${studentFilter(items,'Siswa','Kokurikuler tersimpan per rombel, semester, dan tahun pelajaran.')}<section class="card"><div class="section-head"><div><h3>Kokurikuler ${escapeHtml(student.name)}</h3><p>Kegiatan dan deskripsi otomatis mengikuti tingkat Kelas ${escapeHtml(session.classId)}.</p></div></div><div class="form-grid"><div class="field form-span-2"><label>Kegiatan *</label><select class="input" data-coco-activity>${kegiatan.map(nama=>`<option value="${escapeHtml(nama)}" ${nama===kegiatanAwal?'selected':''}>${escapeHtml(nama)}</option>`).join('')}${kegiatanAwal&&!kegiatan.includes(kegiatanAwal)?`<option value="${escapeHtml(kegiatanAwal)}" selected>${escapeHtml(kegiatanAwal)}</option>`:''}</select></div><div class="field"><label>Predikat *</label><select class="input" data-coco-predicate>${predicateOptions(current?.predicate||ACTIVITY_PREDICATES[0])}</select></div><div class="field form-span-2"><label>Deskripsi *</label><select class="input" data-coco-description></select></div></div><div class="actions"><button class="btn btn-light" data-coco-bulk>Terapkan ke Semua Siswa</button><button class="btn btn-primary" data-coco-save>${icon('save',16)} Simpan Siswa Ini</button></div></section>`;
+    const activity=view.querySelector('[data-coco-activity]'),description=view.querySelector('[data-coco-description]');
+    const refreshDescriptions=(terpilih='')=>{
+      const daftar=cocurricularDescriptionsForClass(session.classId,activity.value);
+      description.innerHTML=daftar.map(text=>`<option value="${escapeHtml(text)}" ${text===terpilih?'selected':''}>${escapeHtml(text)}</option>`).join('');
+    };
+    activity.onchange=()=>refreshDescriptions();
+    refreshDescriptions(current?.description||'');
+    const input=()=>({activity:activity.value,predicate:view.querySelector('[data-coco-predicate]').value,description:description.value});
     view.querySelector('[data-coco-save]').onclick=()=>{try{saveStudentCocurricular(session,selectedStudentId,input());drawCocurricular();toast('Kokurikuler siswa berhasil disimpan.');}catch(error){toast(error.message,'error');}};
-    view.querySelectorAll('[data-coco-bulk]').forEach(button=>button.onclick=async()=>{if(!await confirmDialog({title:'Terapkan Kokurikuler Massal',message:`Terapkan predikat ${button.dataset.cocoBulk} ke ${items.length} siswa?`,confirmText:'Terapkan Semua'}))return;try{saveCocurricularBulk(session,input(button.dataset.cocoBulk));drawCocurricular();toast(`Kokurikuler diterapkan ke ${items.length} siswa.`);}catch(error){toast(error.message,'error');}});
+    view.querySelector('[data-coco-bulk]').onclick=async()=>{
+      const nilai=input();
+      const punyaData=items.filter(item=>getStudentCocurricular(session,item.id)).length;
+      if(punyaData&&!await confirmDialog({title:'Timpa Data Individual',message:`${punyaData} siswa sudah memiliki data kokurikuler. Timpa dengan kegiatan, predikat, dan deskripsi yang baru?`,confirmText:'Timpa Semua',danger:true}))return;
+      try{const hasil=saveCocurricularBulk(session,nilai);drawCocurricular();toast(`${nilai.activity} diterapkan ke ${hasil.studentCount} siswa.`);}
+      catch(error){toast(error.message,'error');}
+    };
     view.querySelector('[data-student]').onchange=event=>{selectedStudentId=event.target.value;drawCocurricular();};
   }
   function drawNote(){

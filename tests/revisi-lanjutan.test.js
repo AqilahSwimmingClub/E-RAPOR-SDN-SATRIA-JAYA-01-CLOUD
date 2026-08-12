@@ -20,7 +20,7 @@ const read=path=>readFileSync(new URL(path,root),'utf8');
 function useMemoryStorage(){const values=new Map();globalThis.localStorage={getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};}
 const guru=(classId='5B')=>({role:'teacher',classId,academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`});
 function aktifkan(session,ids){saveSubjectMapping(session,SUBJECTS_DEFAULT.map((item,index)=>({...item,active:ids.includes(item.id),order:index+1})));}
-function siswa(session,suffix,extra={}){return createStudent(session,{classId:session.classId,nis:`NIS-${suffix}`,nisn:`NISN-${suffix}`,name:`Siswa ${suffix}`,gender:'L',birthPlace:'Bekasi',birthDate:'2015-01-02',parentName:'Orang Tua',phone:'0812',address:'Satria Jaya',photo:'',...extra});}
+function siswa(session,suffix,extra={}){return createStudent(session,{classId:session.classId,nis:`NIS-${suffix}`,nisn:`NISN-${suffix}`,name:`Siswa ${suffix}`,gender:'L',religion:'Islam',birthPlace:'Bekasi',birthDate:'2015-01-02',parentName:'Orang Tua',phone:'0812',address:'Satria Jaya',photo:'',...extra});}
 
 /* -------------------------------------------------- 1. Optimasi simpan nilai rapor */
 
@@ -54,7 +54,7 @@ test('Batch simpan tidak mencampur scope semester, tahun pelajaran, dan rombel',
   assert.equal(getStoredReportRows(ganjil).find(row=>row.student.id===a.id).score.finalScore,80);
   assert.equal(getStoredReportRows(genap).find(row=>row.student.id===b.id).score.finalScore,90);
   assert.equal(getStoredReportRows(lain).find(row=>row.student.id===c.id).score.finalScore,70);
-  assert.equal(getStoredReportRows(ganjil).length,1,'scope Ganjil hanya memuat siswanya sendiri');
+  assert.deepEqual([...new Set(getStoredReportRows(ganjil).map(row=>row.student.id))],[a.id],'scope Ganjil hanya memuat siswanya sendiri');
 });
 
 test('Batch dan simpan satuan menghasilkan nilai akhir yang sama',()=>{
@@ -188,11 +188,13 @@ test('Aturan ringkas layar tidak meruntuhkan tata letak cetak rapor',()=>{
 test('Kokurikuler dan ekstrakurikuler kosong tidak menahan cetak rapor',()=>{
   useMemoryStorage();
   const session=guru('5B');
-  aktifkan(session,['mtk']);
+  aktifkan(session,['mtk','agama']);
   const anak=siswa(session,'A',{religion:'Islam'});
-  saveManualReportScoresBulk(session,[{subjectId:'mtk',studentId:anak.id,value:85}]);
-  const tp=createLearningObjective(session,'mtk',{code:'TP-1',description:'memahami pecahan.'});
-  saveReportDescription(session,'mtk',anak.id,generateReportDescription(session,'mtk',anak.id,{bestObjectiveId:tp.id,improvementObjectiveId:tp.id}));
+  saveManualReportScoresBulk(session,[{subjectId:'mtk',studentId:anak.id,value:85},{subjectId:'agama',studentId:anak.id,value:88}]);
+  for(const mapel of ['mtk','agama']){
+    const tp=createLearningObjective(session,mapel,{code:`TP-${mapel}`,description:'memahami pecahan.'});
+    saveReportDescription(session,mapel,anak.id,generateReportDescription(session,mapel,anak.id,{bestObjectiveId:tp.id,improvementObjectiveId:tp.id}));
+  }
   saveAttendance(session,'2026-08-10',{[anak.id]:'Hadir'});
   saveHomeroomNote(session,anak.id,'Pertahankan semangat belajar.');
 
@@ -215,7 +217,7 @@ test('Mapel agama mengikuti agama masing-masing siswa',()=>{
   aktifkan(session,['agama','agama_kristen','mtk']);
   const islam=siswa(session,'ISL',{religion:'Islam'});
   const kristen=siswa(session,'KRS',{religion:'Kristen'});
-  const tanpa=siswa(session,'NON');
+  const tanpa=siswa(session,'NON',{religion:''});
 
   const mapelIslam=listSubjectsForStudent(session,islam).map(item=>item.id);
   const mapelKristen=listSubjectsForStudent(session,kristen).map(item=>item.id);

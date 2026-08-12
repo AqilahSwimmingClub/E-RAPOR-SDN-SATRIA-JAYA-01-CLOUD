@@ -168,16 +168,17 @@ test('9-11. Nilai rapor dihitung dari komponen yang terisi saja',()=>{
 
   saveAssessmentScores(session,'mtk','daily',{[anak.id]:90});
   hasil=calculateReportScore(session,'mtk',anak.id);
-  assert.equal(hasil.rawScore,85,'(80+90)/2 = 85');
+  /* Bobot formative 30 dan daily 20 dinormalisasi: (80x30 + 90x20) / (30+20). */
+  assert.equal(+hasil.rawScore.toFixed(4),+((80*30+90*20)/50).toFixed(4),'bobot komponen terisi dinormalisasi');
 
   saveAssessmentScores(session,'mtk','practice',{[anak.id]:70});
   hasil=calculateReportScore(session,'mtk',anak.id);
-  assert.equal(hasil.rawScore,80,'(80+90+70)/3 = 80');
+  assert.equal(+hasil.rawScore.toFixed(4),+((80*30+90*20+70*20)/70).toFixed(4),'tiga komponen memakai bobotnya masing-masing');
 
   saveAssessmentScores(session,'mtk','scopeSummative',{[anak.id]:60});
   saveAssessmentScores(session,'mtk','semesterSummative',{[anak.id]:100});
   hasil=calculateReportScore(session,'mtk',anak.id);
-  assert.equal(hasil.rawScore,80,'(80+90+70+60+100)/5 = 80');
+  assert.equal(+hasil.rawScore.toFixed(4),+((80*30+90*20+70*20+60*15+100*15)/100).toFixed(4),'kelima komponen memakai bobot penuh');
   assert.equal(hasil.completionStatus,'COMPLETE');
   assert.equal(hasil.completionLabel,'LENGKAP');
 });
@@ -197,8 +198,8 @@ test('12. Komponen kosong tidak pernah dianggap nol dan dibedakan dari belum ada
   saveAssessmentScores(session,'mtk','formative',{[sebagian.id]:80});
   saveAssessmentScores(session,'mtk','daily',{[sebagian.id]:90});
   const separuh=calculateReportScore(session,'mtk',sebagian.id);
-  assert.equal(separuh.rawScore,85,'tiga komponen kosong tidak ikut membagi');
-  assert.notEqual(separuh.rawScore,(80+90)/5,'tidak boleh dibagi lima');
+  assert.equal(+separuh.rawScore.toFixed(4),+((80*30+90*20)/50).toFixed(4),'bobot komponen kosong tidak ikut penyebut');
+  assert.notEqual(separuh.rawScore,(80*30+90*20)/100,'penyebut bukan total seluruh bobot');
   assert.equal(separuh.completionStatus,'PARTIAL');
   assert.equal(separuh.completionLabel,'SEBAGIAN 2/5');
 });

@@ -1,15 +1,17 @@
-import { RELIGION_SUBJECTS, isReligionSubject } from '../data/constants.js';
+import { RELIGION_SUBJECTS, SUBJECTS_DEFAULT, isReligionSubject, religionMatches, religionOfSubject } from '../data/constants.js';
 import { getSubjectMapping } from './storage.js';
 
 function assertTeacherSession(session){
   if(!session || session.role!=='teacher' || !session.classId) throw new Error('Session Guru tidak valid.');
 }
 
+function bySubjectOrder(a,b){return (a.group==='A'?0:1)-(b.group==='A'?0:1)||a.order-b.order;}
+
 export function listActiveSubjects(session){
   assertTeacherSession(session);
   return getSubjectMapping(session)
     .filter(subject=>subject.active)
-    .sort((a,b)=>(a.group==='A'?0:1)-(b.group==='A'?0:1)||a.order-b.order)
+    .sort(bySubjectOrder)
     .map(subject=>({...subject}));
 }
 
@@ -23,19 +25,39 @@ export function requireActiveSubject(session,subjectId){
    dipilihkan untuk siswa tersebut. Pemetaan agama ke mapel diambil dari RELIGION_SUBJECTS,
    sehingga menambah mapel agama baru cukup dengan menambah satu entri di sana. */
 export function religionSubjectIdFor(student){
-  const religion=String(student?.religion||'').trim().toLowerCase();
+  const religion=String(student?.religion||'').trim();
   if(!religion)return null;
-  return Object.keys(RELIGION_SUBJECTS).find(id=>RELIGION_SUBJECTS[id].toLowerCase()===religion)||null;
+  return Object.keys(RELIGION_SUBJECTS).find(id=>religionMatches(RELIGION_SUBJECTS[id],religion))||null;
 }
 
 /* Status pengisian agama siswa, dipakai Cek Kelengkapan untuk menuntun guru ke Data Siswa. */
 export function hasStudentReligion(student){return Boolean(String(student?.religion||'').trim());}
 
-/* Mapel agama yang tidak sesuai benar-benar dikeluarkan dari daftar, bukan disembunyikan CSS.
-   Agama kosong maupun agama yang belum punya mapel khusus tidak menerima mapel agama sama
-   sekali. Mapping global tidak disentuh sehingga seluruh mapel agama tetap tersedia untuk
-   siswa lain, dan nilai agama yang terlanjur tersimpan tidak dihapus, hanya tidak ditampilkan. */
-export function listSubjectsForStudent(session,student){
-  const dipakai=religionSubjectIdFor(student);
-  return listActiveSubjects(session).filter(subject=>!isReligionSubject(subject.id)||subject.id===dipakai);
+/* Mapel agama milik satu siswa dicari berlapis: mapel aktif lebih dulu, lalu seluruh Mapping
+   walau statusnya nonaktif, terakhir master mapel bawaan. Mapel agama memang bersifat per
+   siswa, bukan per rombel, sehingga tidak boleh hilang dari rapor hanya karena guru belum
+   mengaktifkannya di Mapping atau memakai id yang berbeda. */
+export function religionSubjectForStudent(session,student){
+  const religion=String(student?.religion||'').trim();
+  if(!religion)return null;
+  const mapping=getSubjectMapping(session);
+  const sumber=[
+    ...mapping.filter(subject=>subject.active),
+    ...mapping,
+    ...SUBJECTS_DEFAULT,
+  ];
+  const cocok=sumber.find(subject=>religionMatches(religionOfSubject(subject),religion));
+  return cocok?{...cocok,active:true}:null;
 }
+
+/* Mapel agama yang tidak sesuai benar-benar dikeluarkan dari daftar, bukan disembunyikan CSS.
+   Nilai agama yang terlanjur tersimpan tidak dihapus, hanya tidak ditampilkan. */
+export function listSubjectsForStudent(session,student){
+  const aktif=listActiveSubjects(session);
+  const bukanAgama=aktif.filter(subject=>!religionOfSubject(subject));
+  const agama=religionSubjectForStudent(session,student);
+  if(!agama)return bukanAgama;
+  return [...bukanAgama,agama].sort(bySubjectOrder);
+}
+
+export { isReligionSubject };

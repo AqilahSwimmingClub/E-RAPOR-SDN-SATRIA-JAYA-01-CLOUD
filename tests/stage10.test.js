@@ -14,7 +14,7 @@ function useMemoryStorage(){const values=new Map();globalThis.localStorage={getI
 const ganjil=`Ganjil ${ACADEMIC_YEAR}`,genap=`Genap ${ACADEMIC_YEAR}`;
 const admin={role:'admin',classId:null,accountId:'admin',academicYear:ACADEMIC_YEAR,semester:ganjil};
 function teacher(classId='1A',semester=ganjil,academicYear=ACADEMIC_YEAR){return {role:'teacher',classId,accountId:`teacher:${classId}`,academicYear,semester};}
-function addStudent(session,id='stage10-student'){return createStudent(session,{id,classId:session.classId,nis:`NIS-${id}`,nisn:`NISN-${id}`,name:`Siswa ${id}`,gender:'L',birthPlace:'Bekasi',birthDate:'2016-01-02',fatherName:'Ayah',motherName:'Ibu',phone:'0812',address:'Satria Jaya',photo:''});}
+function addStudent(session,id='stage10-student'){return createStudent(session,{id,classId:session.classId,nis:`NIS-${id}`,nisn:`NISN-${id}`,name:`Siswa ${id}`,gender:'L',religion:'Islam',birthPlace:'Bekasi',birthDate:'2016-01-02',fatherName:'Ayah',motherName:'Ibu',phone:'0812',address:'Satria Jaya',photo:''});}
 function onlyAgama(session){saveSubjectMapping(session,SUBJECTS_DEFAULT.map(subject=>({...subject,active:subject.id==='agama'})));}
 
 test('Data Referensi tidak membuat tahun, semester, rombel, atau mapel duplikat',()=>{

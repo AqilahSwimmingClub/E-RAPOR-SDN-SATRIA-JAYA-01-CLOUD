@@ -7,7 +7,7 @@ import { createStudent } from '../src/services/students.js';
 function useMemoryStorage(){const values=new Map();globalThis.localStorage={getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};}
 const base={role:'teacher',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
 const teacher5b={...base,classId:'5B'};const teacher5c={...base,classId:'5C'};const teacher6a={...base,classId:'6A'};const teacher5bGenap={...teacher5b,semester:`Genap ${ACADEMIC_YEAR}`};
-function addStudent(session,index=1,overrides={}){return createStudent(session,{classId:session.classId,nis:`${session.classId}-K-${index}`,nisn:`77${session.classId.replace(/\D/g,'')}${String(index).padStart(7,'0')}`,name:`Siswa Kelengkapan ${session.classId}-${index}`,gender:index%2?'L':'P',photo:'',...overrides});}
+function addStudent(session,index=1,overrides={}){return createStudent(session,{classId:session.classId,nis:`${session.classId}-K-${index}`,nisn:`77${session.classId.replace(/\D/g,'')}${String(index).padStart(7,'0')}`,name:`Siswa Kelengkapan ${session.classId}-${index}`,gender:index%2?'L':'P',religion:'Islam',photo:'',...overrides});}
 
 test('Extracurricular records are isolated between students and classes and support multiple activities',()=>{
   useMemoryStorage();const first=addStudent(teacher5b,1);const second=addStudent(teacher5b,2);const otherClass=addStudent(teacher5c,1);

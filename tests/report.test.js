@@ -15,7 +15,7 @@ function useMemoryStorage(){
 }
 const base={role:'teacher',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
 const teacher5b={...base,classId:'5B'};const teacher5c={...base,classId:'5C'};const teacher5bGenap={...teacher5b,semester:`Genap ${ACADEMIC_YEAR}`};
-function addStudent(session,index=1,id){return createStudent(session,{id,classId:session.classId,nis:`${session.classId}-R-${index}`,nisn:`88${session.classId.replace(/\D/g,'')}${String(index).padStart(7,'0')}`,name:`Siswa Rapor ${session.classId}-${index}`,gender:index%2?'L':'P',photo:''});}
+function addStudent(session,index=1,id){return createStudent(session,{id,classId:session.classId,nis:`${session.classId}-R-${index}`,nisn:`88${session.classId.replace(/\D/g,'')}${String(index).padStart(7,'0')}`,name:`Siswa Rapor ${session.classId}-${index}`,gender:index%2?'L':'P',religion:'Islam',photo:''});}
 function scores(session,subjectId,student,values){for(const [type,value] of Object.entries(values))saveAssessmentScores(session,subjectId,type,{[student.id]:value});}
 const completeValues={formative:80,daily:70,practice:90,scopeSummative:60,semesterSummative:100};
 function addTwoObjectives(session,subjectId){const best=createLearningObjective(session,subjectId,{code:'TP-B',description:'memahami konsep utama dengan sangat baik.'});const improve=createLearningObjective(session,subjectId,{code:'TP-I',description:'menerapkan konsep pada situasi baru.'});return {best,improve};}
@@ -31,26 +31,28 @@ test('A blank component is never zero and never divides the report score',()=>{
   const result=calculateReportScore(teacher5b,'agama',student.id);const daily=result.components.find(component=>component.id==='daily');
   assert.equal(daily.score,null,'komponen kosong tetap null, bukan 0');
   /* Rata-rata hanya dari empat komponen yang terisi: (80+90+60+100)/4 = 82,5. */
-  assert.equal(result.rawScore,82.5);assert.equal(result.roundedScore,83);
+  /* Empat komponen terisi, bobot daily dikeluarkan dari penyebut. */
+  assert.equal(+result.rawScore.toFixed(4),+((80*30+90*20+60*15+100*15)/80).toFixed(4));
   assert.equal(result.filledCount,4);assert.equal(result.completionStatus,'PARTIAL');assert.equal(result.completionLabel,'SEBAGIAN 4/5');
 });
 
-test('Report score is the plain average of filled components only',()=>{
+test('Report score uses weights normalized over filled components only',()=>{
   useMemoryStorage();const student=addStudent(teacher5b);
   scores(teacher5b,'agama',student,{formative:80,daily:'',practice:'',scopeSummative:'',semesterSummative:''});
   assert.equal(calculateReportScore(teacher5b,'agama',student.id).rawScore,80,'satu nilai terisi dihitung apa adanya');
   scores(teacher5b,'agama',student,{formative:80,daily:90,practice:'',scopeSummative:'',semesterSummative:''});
-  assert.equal(calculateReportScore(teacher5b,'agama',student.id).rawScore,85,'(80+90)/2 = 85, bukan dibagi lima');
+  /* Bobot bawaan formative 40 dan daily 15: (80x40 + 90x15) / (40+15). */
+  assert.equal(+calculateReportScore(teacher5b,'agama',student.id).rawScore.toFixed(4),+((80*30+90*20)/50).toFixed(4),'bobot dinormalisasi terhadap komponen terisi');
   scores(teacher5b,'agama',student,{formative:80,daily:90,practice:70,scopeSummative:'',semesterSummative:''});
-  assert.equal(calculateReportScore(teacher5b,'agama',student.id).rawScore,80,'(80+90+70)/3 = 80');
+  assert.equal(+calculateReportScore(teacher5b,'agama',student.id).rawScore.toFixed(4),+((80*30+90*20+70*20)/70).toFixed(4),'tiga komponen memakai bobotnya masing-masing');
 });
 
-test('Bobot tidak lagi mengubah nilai rapor, tetapi KKTP tetap menentukan ketuntasan',()=>{
+test('Bobot mengubah nilai rapor dan KKTP tetap menentukan ketuntasan',()=>{
   useMemoryStorage();const student=addStudent(teacher5b);const values={formative:100,daily:0,practice:0,scopeSummative:0,semesterSummative:0};scores(teacher5b,'agama',student,values);scores(teacher5b,'mtk',student,values);
   saveAssessmentSettings(teacher5b,'mtk',{formative:50,daily:10,practice:10,scopeSummative:15,semesterSummative:15,kktp:75});
-  /* Nilai rapor adalah rata-rata polos komponen terisi: (100+0+0+0+0)/5 = 20 pada kedua mapel. */
-  assert.equal(calculateReportScore(teacher5b,'agama',student.id).rawScore,20);
-  assert.equal(calculateReportScore(teacher5b,'mtk',student.id).rawScore,20);
+  /* Kelima komponen terisi sehingga bobot penuh dipakai: bobot formative berbeda antar mapel. */
+  assert.equal(calculateReportScore(teacher5b,'agama',student.id).rawScore,30);
+  assert.equal(calculateReportScore(teacher5b,'mtk',student.id).rawScore,50);
   assert.equal(calculateReportScore(teacher5b,'mtk',student.id).kktp,75,'KKTP mapel tetap dipakai');
   assert.equal(calculateReportScore(teacher5b,'mtk',student.id).masteryStatus,'BELUM TUNTAS');
 });

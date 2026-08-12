@@ -10,7 +10,7 @@ import { saveSubjectMapping } from '../src/services/storage.js';
 
 function useMemoryStorage(){const values=new Map();globalThis.localStorage={getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};}
 const base={role:'teacher',classId:'5B',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};const genap={...base,semester:`Genap ${ACADEMIC_YEAR}`};
-function addStudent(session,index=1,overrides={}){return createStudent(session,{classId:session.classId,nis:`5B-A-${index}`,nisn:`660000000${index}`,name:`Siswa Analitik ${index}`,gender:index%2?'L':'P',photo:'',...overrides});}
+function addStudent(session,index=1,overrides={}){return createStudent(session,{classId:session.classId,nis:`5B-A-${index}`,nisn:`660000000${index}`,religion:'Islam',name:`Siswa Analitik ${index}`,gender:index%2?'L':'P',photo:'',...overrides});}
 function onlyAgama(session){saveSubjectMapping(session,SUBJECTS_DEFAULT.map(subject=>({...subject,active:subject.id==='agama'})));}
 function description(session,student){const suffix=student.id.slice(-8);const best=createLearningObjective(session,'agama',{code:`TP-B-${suffix}`,description:'memahami konsep pembelajaran.'});const improve=createLearningObjective(session,'agama',{code:`TP-I-${suffix}`,description:'menerapkan konsep secara mandiri.'});const generated=generateReportDescription(session,'agama',student.id,{bestObjectiveId:best.id,improvementObjectiveId:improve.id});return saveReportDescription(session,'agama',student.id,generated);}
 

@@ -57,10 +57,18 @@ function baseDb(){
   };
 }
 
+/* Hasil pembacaan database disimpan di memori dan dipakai ulang selama teks mentahnya belum
+   berubah. Setiap penulisan mengganti teks itu sehingga cache otomatis kedaluwarsa; tidak ada
+   data basi yang bisa terbaca. Tanpa ini, satu kali pindah mata pelajaran memicu puluhan
+   JSON.parse database penuh sehingga terasa lambat. */
+let cacheRaw=null,cacheDb=null;
+export function invalidateDbCache(){cacheRaw=null;cacheDb=null;}
+
 export function loadDb(){
   try {
     const raw = localStorage.getItem(DB_KEY);
     if (!raw) return baseDb();
+    if(raw===cacheRaw&&cacheDb)return cacheDb;
     const parsed = JSON.parse(raw);
     const db={...baseDb(), ...parsed};
     const defaults=defaultMasterData();
@@ -68,15 +76,20 @@ export function loadDb(){
     db.subjectMappings=Object.fromEntries(Object.entries(db.subjectMappings||{}).map(([key,mapping])=>[
       key,Array.isArray(mapping)?normalizeMappingGroups(mapping):mapping
     ]));
+    cacheRaw=raw;cacheDb=db;
     return db;
   } catch (error) {
+    invalidateDbCache();
     throw new Error(`Database lokal tidak dapat dibaca: ${error.message}`);
   }
 }
 
 export function saveDb(db){
   const next = {...db, updatedAt:new Date().toISOString()};
-  localStorage.setItem(DB_KEY, JSON.stringify(next));
+  const raw=JSON.stringify(next);
+  localStorage.setItem(DB_KEY, raw);
+  /* Cache diperbarui bersama penulisan agar pembacaan berikutnya tetap mutakhir. */
+  invalidateDbCache();
   return next;
 }
 

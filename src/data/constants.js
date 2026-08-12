@@ -72,3 +72,28 @@ export const MENU_TEACHER = [
 export const RELIGIONS=['Islam','Kristen','Katolik','Hindu','Buddha','Konghucu'];
 export const RELIGION_SUBJECTS=Object.freeze({agama:'Islam',agama_kristen:'Kristen'});
 export function isReligionSubject(subjectId){return Object.hasOwn(RELIGION_SUBJECTS,subjectId);}
+
+function normalizeReligionText(value){return String(value||'').trim().toLowerCase();}
+
+/* Agama sebuah mapel dikenali dari id bawaan maupun dari namanya, sehingga Mapping lama yang
+   memakai id berbeda (misalnya "pai" atau "agama_katolik") tetap dikenali sebagai mapel agama
+   dan tidak pernah hilang dari rapor siswa. */
+export function religionOfSubject(subject){
+  if(!subject)return null;
+  const id=normalizeReligionText(subject.id);
+  if(Object.hasOwn(RELIGION_SUBJECTS,id))return RELIGION_SUBJECTS[id];
+  const name=normalizeReligionText(subject.name);
+  if(!/agama/.test(`${id} ${name}`)&&!/^(pai|pak)\b/.test(id))return null;
+  if(/^pai\b/.test(id))return 'Islam';
+  if(/^pak\b/.test(id))return 'Kristen';
+  const cocok=RELIGIONS.find(religion=>new RegExp(`\\b${normalizeReligionText(religion)}`).test(`${id} ${name}`));
+  return cocok||null;
+}
+
+/* Agama siswa dan agama mapel dicocokkan longgar agar penulisan seperti "Kristen Protestan"
+   tetap mendapat mapel Pendidikan Agama Kristen. */
+export function religionMatches(subjectReligion,studentReligion){
+  const mapel=normalizeReligionText(subjectReligion),siswa=normalizeReligionText(studentReligion);
+  if(!mapel||!siswa)return false;
+  return mapel===siswa||siswa.includes(mapel)||mapel.includes(siswa);
+}

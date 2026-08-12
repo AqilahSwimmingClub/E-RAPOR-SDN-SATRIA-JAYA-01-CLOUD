@@ -2,7 +2,7 @@ import { ASSESSMENT_TYPES, getAssessmentSettings, getAssessmentSheet } from './a
 import { semesterAttendanceRecap } from './attendance.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
-import { listActiveSubjects, requireActiveSubject } from './subjects.js';
+import { listActiveSubjects, listSubjectsForStudent, requireActiveSubject } from './subjects.js';
 
 export const ATTENDANCE_CONVERSION_DEFAULT={Hadir:100,Sakit:80,Izin:80,Alpa:0};
 
@@ -70,15 +70,20 @@ function reportContext(session,subjectId){
   return {subject,settings,attendanceMode,attendanceById,sheetByType,studentById};
 }
 
-/* Nilai rapor adalah rata-rata polos dari komponen yang TERISI saja. Komponen kosong tidak
-   pernah dianggap nol dan tidak ikut membagi: 80 dan 90 dengan tiga komponen kosong
-   menghasilkan 85, bukan dibagi lima. Aturan ini berlaku sama untuk 1 sampai 5 komponen.
-   Bobot Penilaian tetap tersimpan sebagai keterangan komponen, tetapi tidak lagi menentukan
-   nilai rapor; KKTP tetap dipakai untuk menentukan ketuntasan. */
+/* Nilai rapor memakai Bobot Penilaian, dinormalisasi terhadap komponen yang TERISI saja.
+   Komponen kosong tidak dianggap nol, tidak ikut pembilang, dan bobotnya tidak ikut penyebut:
+   bobot 40 dan 20 dengan nilai 80 dan 90 menghasilkan (80x40 + 90x20) / (40+20), bukan dibagi
+   100. Satu komponen terisi menghasilkan nilai komponen itu sendiri, dan kelima komponen
+   terisi menghasilkan nilai berbobot penuh seperti biasa. Bila seluruh bobot komponen terisi
+   bernilai 0 atau tidak valid, dipakai rata-rata polos sebagai pengaman agar tidak NaN. */
 function composeScore(components){
   const filled=components.filter(component=>component.score!==null);
-  if(!filled.length)return {rawScore:null,filledCount:0};
-  return {rawScore:filled.reduce((sum,component)=>sum+component.score,0)/filled.length,filledCount:filled.length};
+  if(!filled.length)return {rawScore:null,filledCount:0,weightTotal:0,weightValid:true};
+  const bobot=filled.map(component=>{const value=Number(component.weight);return Number.isFinite(value)&&value>0?value:0;});
+  const weightTotal=bobot.reduce((sum,value)=>sum+value,0);
+  if(weightTotal<=0)return {rawScore:filled.reduce((sum,component)=>sum+component.score,0)/filled.length,filledCount:filled.length,weightTotal:0,weightValid:false};
+  const rawScore=filled.reduce((sum,component,index)=>sum+component.score*bobot[index],0)/weightTotal;
+  return {rawScore,filledCount:filled.length,weightTotal,weightValid:true};
 }
 
 export function calculateReportScore(session,subjectId,studentId,context=null){
@@ -92,14 +97,15 @@ export function calculateReportScore(session,subjectId,studentId,context=null){
     return {id:type.id,label:type.label,score,weight,source:fromAttendance?'attendance':'manual',weightedValue:score===null?null:score*weight/100};
   });
   const total=components.length;
-  const {rawScore,filledCount}=composeScore(components);
+  const {rawScore,filledCount,weightTotal,weightValid}=composeScore(components);
   const roundedScore=rawScore===null?null:Math.round(rawScore);
   const complete=filledCount===total;
   return {
     studentId,studentName:student.name,nis:student.nis,nisn:student.nisn,classId:session.classId,subjectId,subjectName:ctx.subject.name,
     semester:session.semester,academicYear:session.academicYear,components,kktp:ctx.settings.kktp,
     rawScore,roundedScore,finalScore:roundedScore,
-    filledCount,componentCount:total,
+    filledCount,componentCount:total,weightTotal,weightValid,
+    weightWarning:weightValid?'':'Total bobot komponen terisi tidak valid. Nilai memakai rata-rata polos; perbaiki Bobot Penilaian mapel ini.',
     completionStatus:complete?'COMPLETE':filledCount?'PARTIAL':'EMPTY',
     completionLabel:complete?'LENGKAP':filledCount?`SEBAGIAN ${filledCount}/${total}`:'BELUM ADA NILAI',
     masteryStatus:roundedScore===null?null:(roundedScore>=ctx.settings.kktp?'TUNTAS':'BELUM TUNTAS'),
@@ -186,16 +192,27 @@ export function saveManualReportScoresBulk(session,entries,{source='MANUAL'}={})
   return {saved:rows.length,rows:clone(rows)};
 }
 
+/* Baris memakai mapel milik masing-masing siswa, sehingga mapel agama tetap ikut walau di
+   Mapping rombel statusnya nonaktif. Mapel agama bersifat per siswa, bukan per rombel. */
 export function getStoredReportRows(session){
-  assertTeacher(session);const db=loadDb();const students=listStudents(session,{classId:session.classId});const subjects=listActiveSubjects(session);
-  return subjects.flatMap(subject=>students.map(student=>{
+  assertTeacher(session);const db=loadDb();const students=listStudents(session,{classId:session.classId});
+  const subjectsByStudent=new Map(students.map(student=>[student.id,listSubjectsForStudent(session,student)]));
+  const urutan=listActiveSubjects(session).map(subject=>subject.id);
+  const semuaMapel=[...new Set([...urutan,...[...subjectsByStudent.values()].flat().map(subject=>subject.id)])];
+  return semuaMapel.flatMap(subjectId=>students.flatMap(student=>{
+    const subject=subjectsByStudent.get(student.id).find(item=>item.id===subjectId);
+    if(!subject)return [];
+    return [buildStoredRow(db,session,student,subject)];
+  }));
+}
+
+function buildStoredRow(db,session,student,subject){
     const score=db.reportScores[reportKey(session,subject.id,student.id)]||null;
     const description=db.reportDescriptions[reportKey(session,subject.id,student.id)]||null;
     /* Nilai dianggap tersedia begitu ada nilai akhir, termasuk hasil dari komponen yang baru
        terisi sebagian. Yang belum punya nilai sama sekali tetap dibedakan. */
     const scoreComplete=Boolean(score&&score.finalScore!==null);const descriptionComplete=Boolean(description?.text);
-    return {student,subject,score:score?clone(score):null,description:description?clone(description):null,scoreComplete,descriptionComplete,complete:scoreComplete&&descriptionComplete};
-  }));
+  return {student,subject,score:score?clone(score):null,description:description?clone(description):null,scoreComplete,descriptionComplete,complete:scoreComplete&&descriptionComplete};
 }
 
 export function getCompletionSummary(session){
