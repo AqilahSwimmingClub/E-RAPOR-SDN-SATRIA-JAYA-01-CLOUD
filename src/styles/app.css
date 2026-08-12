@@ -107,6 +107,18 @@ html,body{max-width:100%;overflow-x:hidden}button,input,select,textarea{max-widt
 .report-a4 .report-lower-grid{gap:14px;margin-top:16px}
 .report-a4 .report-signatures{margin-top:30px;font-size:10.5px}
 .report-a4 .document-foot{margin-top:20px;padding-top:8px;font-size:9.5px}
+/* Kolom Nilai Akhir rata tengah horizontal dan vertikal, termasuk tanda "—" saat nilai
+   belum ada. Berlaku sama pada Preview, Cetak, dan Simpan PDF karena tidak dibungkus
+   media query mana pun. Ukuran dan struktur tabel rapor tidak diubah. */
+.report-learning-table th:nth-child(3),.report-learning-table .subject-score-cell{text-align:center;vertical-align:middle}
+/* Branding pembuat e-Rapor pada sidebar: foto di atas, lalu "e-Rapor" dan nama sekolah.
+   Foto ini milik aplikasi, bukan foto profil guru, sehingga tidak pernah ikut berubah. */
+.sidebar .brand{flex-direction:column;align-items:center;gap:9px;text-align:center;padding:8px 8px 20px}
+.brand-photo{width:78px;height:78px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.4);box-shadow:0 5px 16px rgba(0,0,0,.28)}
+/* Guru yang belum mengunggah foto profil memakai inisial, bukan foto orang lain. */
+.avatar-placeholder{display:grid;place-items:center;background:rgba(160,32,52,.14);color:var(--maroon,#7a1327);font-weight:800;font-size:13px}
+/* Foto antarmuka tidak pernah ikut tercetak pada dokumen apa pun. */
+@media print{.brand-photo,.avatar,.avatar-placeholder,.profile-mini{display:none!important}}
 @media print{
   /* Baris tabel tidak terpotong, header tabel diulang di halaman berikutnya, dan
      bagian penutup dijaga tetap menyatu. */

@@ -1,4 +1,4 @@
-import { CLASSES } from '../data/constants.js';
+import { CLASSES, RELIGIONS } from '../data/constants.js';
 import { commitStudentImport, createStudent, deleteStudent, filterStudents, getStudent, listStudents, previewStudentImport, previewStudentWorkbookImport, studentTemplateWorkbook, updateStudent } from '../services/students.js';
 import { pickFile, saveFile } from '../services/file-io.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
@@ -76,6 +76,7 @@ export function renderStudents(session){
         <div class="field"><label>NISN *</label><input class="input" name="nisn" value="${escapeHtml(student?.nisn||'')}" required/></div>
         <div class="field form-span-2"><label>Nama *</label><input class="input" name="name" value="${escapeHtml(student?.name||'')}" required/></div>
         <div class="field"><label>JK *</label><select class="input" name="gender" required><option value="">Pilih</option><option value="L" ${student?.gender==='L'?'selected':''}>Laki-laki</option><option value="P" ${student?.gender==='P'?'selected':''}>Perempuan</option></select></div>
+        <div class="field"><label>Agama</label><select class="input" name="religion">${['',...RELIGIONS].map(item=>`<option value="${escapeHtml(item)}" ${String(student?.religion||'')===item?'selected':''}>${item?escapeHtml(item):'Pilih'}</option>`).join('')}</select></div>
         <div class="field"><label>Tempat Lahir</label><input class="input" name="birthPlace" value="${escapeHtml(student?.birthPlace||'')}"/></div>
         <div class="field"><label>Tanggal Lahir</label><input class="input" type="date" name="birthDate" value="${escapeHtml(student?.birthDate||'')}"/></div>
         <div class="field"><label>Nama Orang Tua</label><input class="input" name="parentName" value="${escapeHtml(student?.parentName||student?.fatherName||student?.motherName||'')}"/></div>
@@ -93,13 +94,13 @@ export function renderStudents(session){
     };
     form.onsubmit=event=>{
       event.preventDefault();const errorBox=modal.querySelector('[data-error]');errorBox.classList.add('hidden');
-      const input={photo:photoData,classId:form.elements.classId.value,nis:form.elements.nis.value,nisn:form.elements.nisn.value,name:form.elements.name.value,gender:form.elements.gender.value,birthPlace:form.elements.birthPlace.value,birthDate:form.elements.birthDate.value,parentName:form.elements.parentName.value,phone:form.elements.phone.value,address:form.elements.address.value};
+      const input={photo:photoData,classId:form.elements.classId.value,nis:form.elements.nis.value,nisn:form.elements.nisn.value,name:form.elements.name.value,gender:form.elements.gender.value,religion:form.elements.religion.value,birthPlace:form.elements.birthPlace.value,birthDate:form.elements.birthDate.value,parentName:form.elements.parentName.value,phone:form.elements.phone.value,address:form.elements.address.value};
       try{if(student)updateStudent(session,student.id,input);else createStudent(session,input);closeModal(modal);draw();toast(student?'Data siswa berhasil diperbarui.':'Siswa berhasil ditambahkan.');}
       catch(error){errorBox.innerHTML=(error.errors||[error.message]).map(message=>`<div>${escapeHtml(message)}</div>`).join('');errorBox.classList.remove('hidden');}
     };
   }
   function openDetail(student){
-    const fields=[['NIS',student.nis],['NISN',student.nisn],['Rombel',student.classId],['JK',student.gender==='L'?'Laki-laki':'Perempuan'],['Tempat Lahir',student.birthPlace||'—'],['Tanggal Lahir',displayDate(student.birthDate)],['Nama Orang Tua',student.parentName||student.fatherName||student.motherName||'—'],['No. Telepon',student.phone||'—'],['Alamat',student.address||'—']];
+    const fields=[['NIS',student.nis],['NISN',student.nisn],['Rombel',student.classId],['JK',student.gender==='L'?'Laki-laki':'Perempuan'],['Agama',student.religion||'—'],['Tempat Lahir',student.birthPlace||'—'],['Tanggal Lahir',displayDate(student.birthDate)],['Nama Orang Tua',student.parentName||student.fatherName||student.motherName||'—'],['No. Telepon',student.phone||'—'],['Alamat',student.address||'—']];
     const modal=el(`<div class="modal-backdrop"><div class="modal-card modal-wide"><div class="modal-head"><div><h3>Detail Siswa</h3><p>Scope Kelas ${escapeHtml(student.classId)} · ${escapeHtml(student.semester)}</p></div><button class="btn btn-light btn-icon" data-close aria-label="Tutup">${icon('x',17)}</button></div><div class="student-detail-head">${avatar(student,'form')}<div><h2>${escapeHtml(student.name)}</h2><span class="badge badge-a">Kelas ${escapeHtml(student.classId)}</span></div></div><div class="detail-grid">${fields.map(([label,value])=>`<div><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}</div><div class="modal-actions"><button class="btn btn-light" data-ok>Tutup</button></div></div></div>`);
     document.body.append(modal);modal.querySelector('[data-close]').onclick=()=>closeModal(modal);modal.querySelector('[data-ok]').onclick=()=>closeModal(modal);
   }

@@ -221,7 +221,10 @@ test('Mapel agama mengikuti agama masing-masing siswa',()=>{
   const mapelKristen=listSubjectsForStudent(session,kristen).map(item=>item.id);
   assert.ok(mapelIslam.includes('agama')&&!mapelIslam.includes('agama_kristen'),'siswa Islam hanya Agama Islam');
   assert.ok(mapelKristen.includes('agama_kristen')&&!mapelKristen.includes('agama'),'siswa Kristen hanya Agama Kristen');
-  assert.equal(listSubjectsForStudent(session,tanpa).length,listActiveSubjects(session).length,'agama kosong tidak mengubah perilaku data lama');
+  /* Agama kosong tidak boleh meloloskan dua mapel agama sekaligus; dipakai mapel bawaan. */
+  const mapelTanpa=listSubjectsForStudent(session,tanpa).map(item=>item.id);
+  assert.ok(mapelTanpa.includes('agama')&&!mapelTanpa.includes('agama_kristen'),'agama kosong memakai mapel agama bawaan, bukan keduanya');
+  assert.equal(listSubjectsForStudent(session,tanpa).length,listActiveSubjects(session).length-1,'tepat satu mapel agama yang tersisa');
   assert.deepEqual(RELIGION_SUBJECTS,{agama:'Islam',agama_kristen:'Kristen'});
   assert.equal(isReligionSubject('mtk'),false);
   assert.ok(SUBJECTS_DEFAULT.some(item=>item.id==='agama_kristen'),'master mapel agama tidak dihapus');

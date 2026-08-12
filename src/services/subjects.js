@@ -19,17 +19,21 @@ export function requireActiveSubject(session,subjectId){
   return subject;
 }
 
-/* Daftar mapel untuk satu siswa: mapel agama yang tidak sesuai agama siswa disaring keluar.
-   Bila agama siswa belum diisi, seluruh mapel aktif tetap tampil seperti sebelumnya agar
-   data lama tidak berubah perilakunya. */
+/* Mapel agama yang dipakai bila agama siswa belum diisi pada Data Siswa. */
+export const DEFAULT_RELIGION_SUBJECT='agama';
+
+/* Satu siswa hanya boleh menerima SATU mapel agama, yaitu yang sesuai agamanya pada Data Siswa.
+   Sebelumnya agama kosong membuat seluruh mapel aktif diloloskan, sehingga rapor memuat
+   PAI BP dan PAK BP sekaligus. Agama yang belum punya mapel khusus juga jatuh ke mapel
+   bawaan, bukan menampilkan keduanya. */
+export function religionSubjectIdFor(student){
+  const religion=String(student?.religion||'').trim().toLowerCase();
+  return Object.keys(RELIGION_SUBJECTS).find(id=>RELIGION_SUBJECTS[id].toLowerCase()===religion)||DEFAULT_RELIGION_SUBJECT;
+}
+
+/* Mapel agama yang tidak sesuai benar-benar dikeluarkan dari daftar, bukan disembunyikan CSS.
+   Mapping global tidak disentuh sehingga PAI BP dan PAK BP tetap tersedia untuk siswa lain. */
 export function listSubjectsForStudent(session,student){
-  const subjects=listActiveSubjects(session);
-  const religion=String(student?.religion||'').trim();
-  if(!religion)return subjects;
-  const cocok=Object.entries(RELIGION_SUBJECTS).filter(([,nama])=>nama.toLowerCase()===religion.toLowerCase()).map(([id])=>id);
-  return subjects.filter(subject=>{
-    if(!isReligionSubject(subject.id))return true;
-    if(!cocok.length)return true;
-    return cocok.includes(subject.id);
-  });
+  const dipakai=religionSubjectIdFor(student);
+  return listActiveSubjects(session).filter(subject=>!isReligionSubject(subject.id)||subject.id===dipakai);
 }

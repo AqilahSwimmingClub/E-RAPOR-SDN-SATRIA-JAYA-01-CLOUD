@@ -244,7 +244,7 @@ export function renderPrint(session){
     return ['A','B'].map(group=>{
       const rows=doc.subjects.filter(row=>(row.subject.group||'B')===group);
       if(!rows.length)return '';
-      return `<tr class="subject-group-row"><td colspan="4">Kelompok ${group}</td></tr>${rows.map((row,index)=>`<tr><td>${index+1}</td><td class="subject-name-cell">${escapeHtml(row.subject.name)}</td><td>${row.score??'—'}</td><td class="subject-description-cell">${escapeHtml(row.description||'')}</td></tr>`).join('')}`;
+      return `<tr class="subject-group-row"><td colspan="4">Kelompok ${group}</td></tr>${rows.map((row,index)=>`<tr><td>${index+1}</td><td class="subject-name-cell">${escapeHtml(row.subject.name)}</td><td class="subject-score-cell">${row.score??'—'}</td><td class="subject-description-cell">${escapeHtml(row.description||'')}</td></tr>`).join('')}`;
     }).join('');
   }
 

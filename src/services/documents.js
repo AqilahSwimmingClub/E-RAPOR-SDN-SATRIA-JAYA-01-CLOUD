@@ -51,7 +51,10 @@ export function legerWorkbookBytes(session){
 }
 
 export function getDocumentIdentity(session){
-  assertTeacher(session);const printSettings=getPrintSettings(session);const schoolMaster=getSchoolMaster();const teacherMaster=getTeacherProfile(session.classId);
+  assertTeacher(session);const printSettings=getPrintSettings(session);const schoolMaster=getSchoolMaster();
+  /* Foto profil guru hanya untuk antarmuka aplikasi. Foto tidak pernah ikut ke dokumen agar
+     kertas Rapor, Cover, Perlengkapan, Leger, dan Transkrip tetap bersih sesuai format final. */
+  const {photo:_fotoGuru,...teacherMaster}=getTeacherProfile(session.classId);
   return {
     school:{...schoolMaster,principalName:printSettings.principalName||schoolMaster.principalName,principalNip:printSettings.principalNip||schoolMaster.principalNip},
     teacher:{...teacherMaster,name:printSettings.teacherName||teacherMaster.name,nip:printSettings.teacherNip||teacherMaster.nip},
