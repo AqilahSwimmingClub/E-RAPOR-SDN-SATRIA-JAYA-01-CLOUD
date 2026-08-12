@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { SUBJECTS_DEFAULT } from '../src/data/constants.js';
-import { APP_SCHEMA_VERSION, APP_VERSION, VERSION_CODE } from '../src/data/version.js';
+import { APP_SCHEMA_VERSION, APP_VERSION, PREVIOUS_RELEASE, VERSION_CODE } from '../src/data/version.js';
 import { runAppMigrations } from '../src/services/migrations.js';
 import { ensureDefaultSubjects, seedInitialStudents, seedStatus, SEED_FLAG_KEY } from '../src/services/seed.js';
 import { STUDENTS_5B, SEED_ACADEMIC_YEAR, SEED_CLASS_ID, SEED_SEMESTER } from '../src/data/seed-5b.js';
@@ -24,7 +24,7 @@ function databaseLama({appSchemaVersion=3,appVersion='1.1.0',students={}}={}){
   return {
     schemaVersion:1,appSchemaVersion,appVersion,
     createdAt:'2026-07-01T00:00:00.000Z',updatedAt:'2026-07-01T00:00:00.000Z',
-    settings:{},
+    settings:{[`${SCOPE}|konversi-absensi`]:{values:{Sakit:1,Izin:2,Alpa:3},classId:KELAS,semester:SEM,academicYear:TAHUN}},
     masterData:{
       school:{name:'SDN Satria Jaya 01',principalName:'Misan, S.Pd',principalNip:'196604171992031008'},
       admin:{name:'Fahmi Djawas, S.Pd.',nip:'',phone:'',email:'',photo:''},
@@ -46,7 +46,10 @@ function databaseLama({appSchemaVersion=3,appVersion='1.1.0',students={}}={}){
     reportScores:{[`${SCOPE}|mtk|lama-1`]:{finalScore:77}},
     reportDescriptions:{},
     extracurricularScores:{[`${SCOPE}|lama-1|ex1`]:{id:'ex1',studentId:'lama-1',name:'Pramuka Penggalang',predicate:'Cukup',description:'Deskripsi lama.',order:1}},
-    cocurricularActivities:{},cocurricularScores:{},attitudeProfiles:{},printSettings:{},
+    cocurricularActivities:{[`${SCOPE}|keg-lama`]:{id:'keg-lama',name:'Kegiatan Kokurikuler Lama',order:1}},
+    cocurricularScores:{[`${SCOPE}|lama-1`]:{studentId:'lama-1',activity:'Kegiatan Kokurikuler Lama',predicate:'Cukup',description:'Deskripsi kokurikuler lama.'}},
+    attitudeProfiles:{[`${SCOPE}|lama-1`]:{studentId:'lama-1',entries:[{id:'beriman',status:'FILLED',description:'Sikap lama.'}]}},
+    printSettings:{[SCOPE]:{classId:KELAS,semester:SEM,academicYear:TAHUN,principalName:'Misan, S.Pd',principalNip:'196604171992031008',teacherName:'Wali Lama, S.Pd.',teacherNip:'197001012000011001',city:'Bekasi',printDate:'2026-12-19'}},
     homeroomNotes:{[`${SCOPE}|lama-1`]:{studentId:'lama-1',text:'Catatan individual lama.'}},
     promotionStatus:{},graduationStatus:{},transcriptScores:{},
     backupHistory:[],migrationHistory:[],
@@ -75,6 +78,13 @@ function dataLamaUtuh(){
   assert.equal(db.homeroomNotes[`${SCOPE}|lama-1`].text,'Catatan individual lama.','catatan wali kelas utuh');
   assert.equal(db.extracurricularScores[`${SCOPE}|lama-1|ex1`].predicate,'Cukup','predikat lama tetap terbaca');
   assert.equal(db.userAccounts['teacher:5B'].username,'Guru5B','akun guru utuh');
+  assert.equal(db.cocurricularActivities[`${SCOPE}|keg-lama`].name,'Kegiatan Kokurikuler Lama','kegiatan kokurikuler utuh');
+  assert.equal(db.cocurricularScores[`${SCOPE}|lama-1`].description,'Deskripsi kokurikuler lama.','nilai kokurikuler utuh');
+  assert.equal(db.attitudeProfiles[`${SCOPE}|lama-1`].entries[0].description,'Sikap lama.','profil sikap utuh');
+  assert.equal(db.printSettings[SCOPE].teacherName,'Wali Lama, S.Pd.','pengaturan cetak utuh');
+  assert.deepEqual(db.settings[`${SCOPE}|konversi-absensi`].values,{Sakit:1,Izin:2,Alpa:3},'pengaturan konversi absensi utuh');
+  assert.equal(db.masterData.admin.name,'Fahmi Djawas, S.Pd.','profil admin utuh');
+  assert.equal(db.masterData.school.principalNip,'196604171992031008','master sekolah utuh');
 }
 
 for(const schemaLama of [1,2,3]){
@@ -214,4 +224,83 @@ test('Aplikasi mengaktifkan service worker baru dan memuat ulang sekali setelah 
   assert.match(app,/registration\.update\(\)/);
   assert.ok(app.indexOf('runAppMigrations()')<app.indexOf('ensureDefaultSubjects()'),'migration dijalankan sebelum pengaman');
   assert.ok(app.indexOf('ensureDefaultSubjects()')<app.indexOf('seedInitialStudents()'));
+});
+
+/* ---------------------------------------------------------------------------------------
+   Finalisasi update APK tanpa uninstall: rilis baru dipasang menimpa rilis sebelumnya.
+   --------------------------------------------------------------------------------------- */
+
+test('Update dari rilis sebelumnya: penanda versi naik dan seluruh data pengguna utuh',()=>{
+  /* Instalasi lama yang sudah memakai rilis terakhir: schema sudah terbaru dan seed 5B
+     sudah masuk, sehingga update berikutnya tidak boleh menyentuh data apa pun. */
+  pasangDatabaseLama({appSchemaVersion:APP_SCHEMA_VERSION,appVersion:PREVIOUS_RELEASE.version});
+  const db=loadDb();
+  db.settings[SEED_FLAG_KEY]={seededIds:STUDENTS_5B.map((row,index)=>`seed-5b-${String(row.nisn||row.nis||index+1).trim()}`)};
+  STUDENTS_5B.forEach((row,index)=>{
+    const id=`seed-5b-${String(row.nisn||row.nis||index+1).trim()}`;
+    db.students[`${SCOPE}|${id}`]={...row,id,classId:KELAS,academicYear:TAHUN,semester:SEM};
+  });
+  localStorage.setItem(storageKey(),JSON.stringify(db));
+  const sebelum=JSON.parse(localStorage.getItem(storageKey()));
+
+  const hasil=jalankanUpdate();
+
+  dataLamaUtuh();
+  assert.equal(loadDb().appVersion,APP_VERSION,'penanda versi naik ke rilis baru');
+  assert.equal(loadDb().appSchemaVersion,APP_SCHEMA_VERSION,'schema tetap, tidak ada migrasi paksa');
+  assert.equal(hasil.seed.seeded,0,'seed 5B tidak digandakan pada update berikutnya');
+  const siswa=listStudents(sesi,{classId:KELAS});
+  assert.equal(siswa.length,STUDENTS_5B.length+1,'jumlah siswa tidak berubah setelah update');
+  assert.equal(new Set(siswa.map(item=>item.nisn)).size,siswa.length,'tidak ada NISN duplikat');
+  const sesudah=loadDb();
+  for(const bagian of ['students','attendance','assessmentScores','reportScores','reportDescriptions','learningObjectives','assessmentSettings','homeroomNotes','extracurricularScores','cocurricularActivities','cocurricularScores','attitudeProfiles','printSettings','transcriptScores','userAccounts'])
+    assert.deepEqual(sesudah[bagian],sebelum[bagian],`${bagian} tidak berubah sedikit pun oleh update`);
+  assert.deepEqual(sesudah.settings[`${SCOPE}|konversi-absensi`],sebelum.settings[`${SCOPE}|konversi-absensi`],'pengaturan tidak berubah');
+});
+
+test('versionCode rilis baru lebih tinggi dari APK sebelumnya dan seragam di semua berkas',()=>{
+  assert.ok(VERSION_CODE>PREVIOUS_RELEASE.versionCode,`versionCode ${VERSION_CODE} wajib lebih tinggi dari rilis sebelumnya ${PREVIOUS_RELEASE.versionCode}`);
+  assert.notEqual(APP_VERSION,PREVIOUS_RELEASE.version,'versionName wajib berbeda dari rilis sebelumnya');
+  const gradle=read('android/app/build.gradle');
+  assert.match(gradle,new RegExp(`ERAPOR_VERSION_CODE'\\) \\?: '${VERSION_CODE}'`),'default versionCode gradle mengikuti src/data/version.js');
+  assert.match(gradle,new RegExp(`ERAPOR_VERSION_NAME'\\) \\?: '${APP_VERSION.replace(/\./g,'\\.')}'`),'default versionName gradle mengikuti src/data/version.js');
+  assert.equal(JSON.parse(read('package.json')).version,APP_VERSION,'versi package.json mengikuti rilis');
+});
+
+test('Seluruh berkas src ikut di-precache service worker',()=>{
+  /* src/data/cocurricular.js sempat tertinggal dari APP_SHELL sehingga preset kokurikuler
+     tidak tersedia saat aplikasi dibuka tanpa jaringan setelah update. */
+  const sw=read('sw.js');
+  const daftar=new Set([...sw.matchAll(/'\.\/([^']+)'/g)].map(match=>match[1]));
+  const berkas=[];
+  (function telusuri(folder){
+    for(const entri of readdirSync(new URL(folder,root),{withFileTypes:true})){
+      const jalur=`${folder}/${entri.name}`;
+      if(entri.isDirectory())telusuri(jalur);else berkas.push(jalur);
+    }
+  })('src');
+  const tertinggal=berkas.filter(item=>!daftar.has(item));
+  assert.deepEqual(tertinggal,[],'setiap berkas src wajib terdaftar di APP_SHELL');
+});
+
+test('Satu aset gagal tidak menggagalkan install sehingga worker rilis baru selalu aktif',()=>{
+  const sw=read('sw.js');
+  assert.match(sw,/catch\{await Promise\.allSettled\(APP_SHELL\.map\(url=>cache\.add\(url\)\)\)/,'kegagalan diturunkan menjadi per-aset');
+  assert.match(sw,/await self\.skipWaiting\(\)/,'worker baru tetap mengambil alih walau ada aset gagal');
+  assert.match(sw,/keys\.filter\(key=>key!==CACHE\)\.map\(key=>caches\.delete\(key\)\)/,'cache rilis lama dihapus saat aktivasi');
+  assert.match(read('src/app.js'),/updateViaCache:'none'/,'berkas sw.js sendiri tidak diambil dari HTTP cache lama');
+});
+
+test('Penanda versi rilis dicatat sekali dan membuka aplikasi berulang tidak mengubah data',()=>{
+  pasangDatabaseLama({appSchemaVersion:APP_SCHEMA_VERSION,appVersion:PREVIOUS_RELEASE.version});
+  const pertama=runAppMigrations();
+  assert.equal(pertama.migrated,false,'tanpa perubahan schema tidak ada migrasi');
+  assert.equal(pertama.appVersionUpdated,true,'penanda versi rilis lama diperbarui satu kali');
+  assert.equal(loadDb().appVersion,APP_VERSION);
+  const setelahPertama=localStorage.getItem(storageKey());
+
+  const kedua=runAppMigrations();
+  assert.equal(kedua.appVersionUpdated,false,'membuka aplikasi lagi tidak menulis ulang apa pun');
+  assert.equal(localStorage.getItem(storageKey()),setelahPertama,'database identik byte per byte setelah dibuka berulang');
+  dataLamaUtuh();
 });

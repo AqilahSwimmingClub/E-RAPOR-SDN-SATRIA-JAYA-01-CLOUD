@@ -111,7 +111,9 @@ if('serviceWorker' in navigator && location.protocol!=='file:'){
     reloadedForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register('./sw.js').then(registration=>{
+  /* updateViaCache:'none' memaksa berkas sw.js sendiri diambil ulang, bukan dari HTTP cache,
+     sehingga pemeriksaan versi service worker tidak memakai salinan rilis lama. */
+  navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(registration=>{
     const activate=worker=>{if(worker?.state==='installed'&&navigator.serviceWorker.controller)worker.postMessage({type:'SKIP_WAITING'});};
     activate(registration.waiting);
     registration.addEventListener('updatefound',()=>{

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { APP_VERSION, VERSION_CODE } from '../src/data/version.js';
 
 const root=new URL('../',import.meta.url);
 function read(path){return readFileSync(new URL(path,root),'utf8');}
@@ -29,7 +30,10 @@ test('Android project is build-ready with app ID, web assets, icon, splash, and 
 test('Android release uses stable identity, production versioning, and external signing credentials',()=>{
   const gradle=read('android/app/build.gradle'),ignore=read('.gitignore'),example=read('android/signing.properties.example');
   assert.match(gradle,/applicationId "id\.sch\.sdn\.satriajaya01\.erapor"/);
-  assert.match(gradle,/ERAPOR_VERSION_CODE[\s\S]*'4'/);assert.match(gradle,/ERAPOR_VERSION_NAME[\s\S]*'1\.1\.0'/);
+  /* Default gradle wajib mengikuti src/data/version.js supaya versionCode APK tidak pernah
+     tertinggal dari rilis dan APK baru selalu bisa menimpa instalasi lama. */
+  assert.match(gradle,new RegExp(`ERAPOR_VERSION_CODE'\\) \\?: '${VERSION_CODE}'`));
+  assert.match(gradle,new RegExp(`ERAPOR_VERSION_NAME'\\) \\?: '${APP_VERSION.replace(/\./g,'\\.')}'`));
   assert.match(gradle,/signingConfig signingConfigs\.release/);assert.doesNotMatch(gradle,/signingConfig signingConfigs\.debug/);
   assert.match(gradle,/Release signing belum dikonfigurasi/);assert.match(ignore,/android\/signing\.properties/);assert.match(ignore,/\*\.jks/);
   assert.match(example,/storePassword=ISI_DARI_PASSWORD_MANAGER/);assert.doesNotMatch(example,/storePassword=(?!ISI_DARI_)/);

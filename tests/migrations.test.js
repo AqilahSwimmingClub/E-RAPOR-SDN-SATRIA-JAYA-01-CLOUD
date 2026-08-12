@@ -34,8 +34,8 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('identitas versi revisi 1.1.0 memakai versionCode 4 dan schema 4',()=>{
-  assert.equal(APP_VERSION,'1.1.0');assert.equal(VERSION_CODE,4);assert.equal(APP_SCHEMA_VERSION,4);
+test('identitas versi rilis memakai versionCode yang naik dan schema 4',()=>{
+  assert.equal(APP_VERSION,'1.1.1');assert.equal(VERSION_CODE,5);assert.equal(APP_SCHEMA_VERSION,4);
 });
 
 test('data siswa bertahan setelah migration tanpa mengganti field lama',()=>{
@@ -64,7 +64,7 @@ test('field koleksi baru ditambahkan tanpa mengganti record database lama',()=>{
 test('migration membuat safety snapshot lengkap beserta metadata versi',()=>{
   const {result,after}=migrateFixture();const snapshots=listMigrationSafetySnapshots();
   assert.equal(result.migrated,true);assert.equal(after.appSchemaVersion,APP_SCHEMA_VERSION);assert.equal(after.appVersion,APP_VERSION);
-  assert.equal(snapshots[0].fromAppVersion,'0.9.0');assert.equal(snapshots[0].toAppVersion,'1.1.0');assert.equal(snapshots[0].fromSchemaVersion,1);assert.equal(snapshots[0].toSchemaVersion,APP_SCHEMA_VERSION);assert.equal(snapshots[0].status,'SUCCESS');assert.ok(snapshots[0].migratedAt);
+  assert.equal(snapshots[0].fromAppVersion,'0.9.0');assert.equal(snapshots[0].toAppVersion,APP_VERSION);assert.equal(snapshots[0].fromSchemaVersion,1);assert.equal(snapshots[0].toSchemaVersion,APP_SCHEMA_VERSION);assert.equal(snapshots[0].status,'SUCCESS');assert.ok(snapshots[0].migratedAt);
 });
 
 test('migration failure mengembalikan snapshot database lama persis tanpa reset data',()=>{
