@@ -15,7 +15,10 @@ const ROUTES_BY_ROLE = {
   ]),
 };
 
-function cleanRoute(route){ return String(route||'').replace(/^#/,'').trim() || 'login'; }
+/* Garis miring di depan ikut dibuang supaya penulisan "#/students" tidak jatuh ke Dashboard.
+   Tautan indikator kelengkapan sempat memakai bentuk itu sehingga tujuannya tidak pernah
+   sampai ke halaman yang dimaksud. */
+function cleanRoute(route){ return String(route||'').replace(/^#/,'').replace(/^\/+/,'').trim() || 'login'; }
 
 export function resolveRoute(route,session){
   const requested=cleanRoute(route);

@@ -238,7 +238,7 @@ export function renderPrint(session){
       const route=COMPLETENESS_ROUTES[button.dataset.goto];
       if(!route){toast('Bagian ini tidak memiliki halaman input khusus.','warning');return;}
       try{sessionStorage.setItem('erapor-focus-student',button.dataset.gotoStudent);}catch{}
-      globalThis.location.hash=`#/${route}`;
+      globalThis.location.hash=`#${route}`;
     });
   }
 
@@ -290,6 +290,14 @@ export function renderPrint(session){
     return `<section class="document-a4 document-sheet report-a4">${head}<h2 class="document-heading">LAPORAN HASIL BELAJAR</h2>${attitudeBlock(doc)}<h3 class="document-section">B. Pengetahuan dan Keterampilan</h3><table class="document-table report-learning-table"><thead><tr><th>No</th><th>Mata Pelajaran</th><th>Nilai Akhir</th><th>Capaian Kompetensi</th></tr></thead><tbody>${subjectRows(doc)}</tbody></table>${extracurricularTable(doc)}${cocurricularBlock(doc)}<div class="report-lower-grid"><section class="document-box"><div class="document-box-head">Ketidakhadiran</div><div class="document-box-body"><table class="absence-document-table"><tbody><tr><th>Sakit</th><td>: ${doc.attendance.Sakit} hari</td></tr><tr><th>Izin</th><td>: ${doc.attendance.Izin} hari</td></tr><tr><th>Tanpa Keterangan</th><td>: ${doc.attendance.Alpa} hari</td></tr></tbody></table></div></section><section class="document-box"><div class="document-box-head">Catatan Wali Kelas</div><div class="document-box-body"><p>${escapeHtml(doc.homeroomNote||'')}</p></div></section></div>${finalStatusBlock(doc)}<section class="document-box response-box"><div class="document-box-head">Tanggapan Orang Tua/Wali Murid</div><div class="document-box-body"></div></section>${signatures}<div class="document-foot">${escapeHtml(doc.classLabel)} | ${escapeHtml(student.name)} | ${escapeHtml(student.nis)}</div></section>`;
   }
 
+  /* Mapel agama hanya bisa ditentukan dari agama siswa dan tidak pernah ditebak. Ketika kolom
+     Agama masih kosong, rapor memang tampil tanpa PAI maupun PAK, sehingga penyebabnya
+     disampaikan langsung di atas lembar preview beserta tombol menuju Data Siswa siswa itu. */
+  function religionNotice(doc){
+    if(doc.categories?.religion!==false)return '';
+    return `<div class="source-banner warning-banner no-print religion-banner"><span>Mata pelajaran agama belum tampil karena <strong>Agama ${escapeHtml(doc.student.name)} belum diisi</strong> pada Data Siswa. Isi agamanya, lalu rapor otomatis memakai PAI BP atau PAK BP sesuai agama siswa.</span><button class="btn btn-light btn-small" data-goto="religion" data-goto-student="${escapeHtml(doc.student.id)}">Isi Agama Siswa</button></div>`;
+  }
+
   function drawReport(){
     const students=refresh();if(!students.length){emptyClass();return;}
     const doc=getReportDocument(scope,studentId);
@@ -297,8 +305,8 @@ export function renderPrint(session){
       view.innerHTML=`${bulkToolbar('Cetak Semua Rapor',students.length)}${bulkSheets(students,reportA4)}`;
       bindBulkToggle();return;
     }
-    view.innerHTML=`${toolbar(studentPicker(students),{bulk:true})}${doc.complete?'<div class="source-banner no-print">Rapor lengkap dan siap dicetak final.</div>':`<div class="source-banner warning-banner no-print">Catatan: masih kurang ${escapeHtml(doc.missing.join(', '))}. Rapor tetap dapat dicetak.</div>`}${previewed?reportA4(doc):'<section class="card empty-state no-print"><h3>Preview belum dibuka</h3><p>Pilih siswa lalu klik Preview untuk menampilkan lembar A4.</p></section>'}`;
-    bindStudentPicker();bindBulkToggle();
+    view.innerHTML=`${toolbar(studentPicker(students),{bulk:true})}${religionNotice(doc)}${doc.complete?'<div class="source-banner no-print">Rapor lengkap dan siap dicetak final.</div>':`<div class="source-banner warning-banner no-print">Catatan: masih kurang ${escapeHtml(doc.missing.join(', '))}. Rapor tetap dapat dicetak.</div>`}${previewed?reportA4(doc):'<section class="card empty-state no-print"><h3>Preview belum dibuka</h3><p>Pilih siswa lalu klik Preview untuk menampilkan lembar A4.</p></section>'}`;
+    bindStudentPicker();bindBulkToggle();bindCompletenessNavigation();
   }
 
   function openPreview(){previewed=true;draw();}

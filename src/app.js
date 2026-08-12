@@ -48,6 +48,9 @@ function mount(requestedRoute){
   scheduleSessionExpiry(session);
   const route=resolveRoute(requestedRoute,session);
   if(route!==requestedRoute){navigate(route);return;}
+  /* Halaman aktif ditandai di <html> supaya latar halaman Cetak Nilai bisa diputihkan sampai
+     ke tepi layar tanpa bergantung pada :has() yang belum tentu didukung WebView lama. */
+  document.documentElement.dataset.route=route;
   app.innerHTML='';
   if(route==='login'){
     app.append(renderLogin({onSuccess:(s)=>{session=s;navigate('dashboard')},onActivate:()=>navigate('activation')}));
