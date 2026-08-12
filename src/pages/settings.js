@@ -4,6 +4,7 @@ import { changeOwnPassword } from '../services/auth.js';
 import { getPrintSettings, savePrintSettings } from '../services/print-settings.js';
 import { createRecoverySnapshot, listRecoverySnapshots, previewRecoverySnapshot, restoreRecoverySnapshot } from '../services/snapshots.js';
 import { getApplicationInfo } from '../services/migrations.js';
+import { BUILD_TAG } from '../data/version.js';
 import { canReorderWithinGroup, moveSubjectToGroup, normalizeMappingGroups, reorderWithinGroup } from '../services/mapping.js';
 import { icon } from '../ui/icons.js';
 import { el, toast, confirmDialog, escapeHtml } from '../ui/dom.js';
@@ -11,7 +12,9 @@ import { pickFile, saveFile } from '../services/file-io.js';
 
 function aboutApplicationCard(){
   const info=getApplicationInfo();
-  return el(`<section class="card" style="margin-top:16px"><h3>Tentang Aplikasi</h3><p class="muted" style="font-size:13px">Identitas versi instalasi dan format data lokal.</p><div class="preview-grid"><div class="preview-item"><span>Aplikasi</span><strong>${escapeHtml(info.name)}</strong></div><div class="preview-item"><span>Versi</span><strong>${escapeHtml(info.versionName)}</strong></div><div class="preview-item"><span>versionCode</span><strong>${info.versionCode}</strong></div><div class="preview-item"><span>schemaVersion</span><strong>${info.schemaVersion}</strong></div></div></section>`);
+  /* Penanda build sementara ditaruh paling atas pada kartu Tentang Aplikasi. Bila baris ini
+     tidak terlihat, aplikasi yang sedang dibuka bukan hasil build terbaru. */
+  return el(`<section class="card" style="margin-top:16px"><h3>Tentang Aplikasi</h3><p class="muted" style="font-size:13px">Identitas versi instalasi dan format data lokal.</p><div class="build-verification" data-build-tag>BUILD VERIFIKASI: ${escapeHtml(BUILD_TAG)}</div><div class="preview-grid"><div class="preview-item"><span>Aplikasi</span><strong>${escapeHtml(info.name)}</strong></div><div class="preview-item"><span>Versi</span><strong>${escapeHtml(info.versionName)}</strong></div><div class="preview-item"><span>versionCode</span><strong>${info.versionCode}</strong></div><div class="preview-item"><span>schemaVersion</span><strong>${info.schemaVersion}</strong></div></div></section>`);
 }
 
 export function renderSubjectMapping(session){

@@ -133,6 +133,33 @@ test('Mapel agama tidak hilang walau statusnya nonaktif pada Mapping',()=>{
   assert.ok(mapelRapor(session,anak.id).includes(PAK));
 });
 
+/* --------------------------------------------------------------- Penanda build di UI */
+
+test('Penanda BUILD VERIFIKASI tampil di halaman Pengaturan dan ikut ke hasil build',()=>{
+  const halaman=read('src/pages/settings.js');
+  assert.match(read('src/data/version.js'),/export const BUILD_TAG='1\.1\.5-FIX-AGAMA-PUTIH';/,'penanda build tersimpan bersama identitas versi');
+  assert.match(halaman,/import \{ BUILD_TAG \} from '\.\.\/data\/version\.js';/);
+  assert.match(halaman,/BUILD VERIFIKASI: \$\{escapeHtml\(BUILD_TAG\)\}/,'penanda dirender pada kartu Tentang Aplikasi');
+  assert.match(halaman,/data-build-tag/);
+  assert.match(read('src/styles/app.css'),/\.build-verification\{/,'penanda punya gaya sendiri agar mudah terlihat');
+  /* Hasil build web dan aset Android wajib membawa penanda yang sama. */
+  for(const berkas of ['dist/src/pages/settings.js','android/app/src/main/assets/public/src/pages/settings.js']){
+    assert.match(read(berkas),/BUILD VERIFIKASI/,`${berkas} membawa penanda build`);
+  }
+  for(const berkas of ['dist/src/data/version.js','android/app/src/main/assets/public/src/data/version.js']){
+    assert.match(read(berkas),/BUILD_TAG='1\.1\.5-FIX-AGAMA-PUTIH'/,`${berkas} membawa BUILD_TAG`);
+  }
+});
+
+test('Hasil build web dan aset Android membawa perbaikan agama serta latar putih',()=>{
+  for(const akar of ['','dist/','android/app/src/main/assets/public/']){
+    assert.match(read(`${akar}src/pages/print.js`),/globalThis\.location\.hash=`#\$\{route\}`/,`${akar||'src/'} membawa perbaikan tautan indikator`);
+    assert.match(read(`${akar}src/core/router.js`),/replace\(\/\^\\\/\+\/,''\)/,`${akar||'src/'} membawa router yang menerima "#/rute"`);
+    assert.match(read(`${akar}src/styles/app.css`),/html\[data-route="print"\]/,`${akar||'src/'} membawa latar putih tanpa :has\(\)`);
+    assert.match(read(`${akar}src/styles/app.css`),/\.print-workspace \.card\{box-shadow:none\}/,`${akar||'src/'} membawa penghapus bayangan kartu`);
+  }
+});
+
 /* ------------------------------------------------------------- Warna area luar kertas */
 
 test('Latar halaman Cetak Nilai putih sampai tepi tanpa bergantung pada :has()',()=>{
