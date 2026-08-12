@@ -124,6 +124,16 @@ html,body{max-width:100%;overflow-x:hidden}button,input,select,textarea{max-widt
 .avatar-placeholder{display:grid;place-items:center;background:rgba(160,32,52,.14);color:var(--maroon,#7a1327);font-weight:800;font-size:13px}
 /* Foto antarmuka tidak pernah ikut tercetak pada dokumen apa pun. */
 @media print{.brand-photo,.avatar,.avatar-placeholder,.profile-mini{display:none!important}}
+/* Area kerja Cetak Nilai berlatar putih supaya pinggiran kertas menyatu dengan warna kertas,
+   baik pada Preview, Simpan PDF, maupun Cetak. Hanya WARNA yang diubah: ukuran A4, margin isi,
+   tabel, font, posisi identitas, dan jumlah halaman tetap sama persis. */
+.print-workspace{background:#fff}
+.content:has(.print-workspace){background:#fff}
+.print-workspace .report-a4,.print-workspace .report-cover-a4{background:#fff;border-color:#fff;box-shadow:none}
+@media print{
+  html,body,.print-workspace,.document-a4,.document-sheet,.report-a4,.report-cover-a4{background:#fff!important}
+  .report-a4,.report-cover-a4{border:0!important;box-shadow:none!important}
+}
 @media print{
   /* Baris tabel tidak terpotong, header tabel diulang di halaman berikutnya, dan
      bagian penutup dijaga tetap menyatu. */

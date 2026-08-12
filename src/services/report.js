@@ -1,7 +1,8 @@
+import { SUBJECTS_DEFAULT } from '../data/constants.js';
 import { ASSESSMENT_TYPES, getAssessmentSettings, getAssessmentSheet } from './assessment.js';
 import { semesterAttendanceRecap } from './attendance.js';
 import { listStudents } from './students.js';
-import { loadDb, scopeKey, updateDb } from './storage.js';
+import { getSubjectMapping, loadDb, scopeKey, updateDb } from './storage.js';
 import { listActiveSubjects, listSubjectsForStudent, requireActiveSubject } from './subjects.js';
 
 export const ATTENDANCE_CONVERSION_DEFAULT={Hadir:100,Sakit:80,Izin:80,Alpa:0};
@@ -192,15 +193,41 @@ export function saveManualReportScoresBulk(session,entries,{source='MANUAL'}={})
   return {saved:rows.length,rows:clone(rows)};
 }
 
-/* Baris memakai mapel milik masing-masing siswa, sehingga mapel agama tetap ikut walau di
-   Mapping rombel statusnya nonaktif. Mapel agama bersifat per siswa, bukan per rombel. */
+/* Baris memakai mapel milik masing-masing siswa, DITAMBAH setiap mapel yang benar-benar sudah
+   punya nilai atau deskripsi tersimpan untuk siswa itu.
+
+   Tanpa tambahan tersebut, nilai yang terlanjur disimpan menjadi tidak terlihat sama sekali di
+   Nilai Tersimpan begitu mapelnya bukan mapel siswa itu, misalnya nilai Pendidikan Agama pada
+   siswa yang kolom agamanya masih kosong. Nilainya tetap ada di database, hanya barisnya yang
+   tidak pernah dibuat. Penyaringan agama tetap berlaku pada dokumen rapor dan kelengkapan,
+   yang memang menyaring ulang memakai mapel milik siswa. */
+function subjectLookup(session){
+  const mapping=getSubjectMapping(session);
+  const byId=new Map();
+  for(const subject of [...mapping,...SUBJECTS_DEFAULT])if(!byId.has(subject.id))byId.set(subject.id,subject);
+  return byId;
+}
+
 export function getStoredReportRows(session){
   assertTeacher(session);const db=loadDb();const students=listStudents(session,{classId:session.classId});
   const subjectsByStudent=new Map(students.map(student=>[student.id,listSubjectsForStudent(session,student)]));
+  const katalog=subjectLookup(session);
+  const prefix=`${scopeKey(session)}|`;
+  /* Mapel yang punya data tersimpan, dikelompokkan per siswa, dibaca dari kunci penyimpanan. */
+  const tersimpan=new Map(students.map(student=>[student.id,new Set()]));
+  for(const kunci of [...Object.keys(db.reportScores||{}),...Object.keys(db.reportDescriptions||{})]){
+    if(!kunci.startsWith(prefix))continue;
+    const sisa=kunci.slice(prefix.length);
+    const pemisah=sisa.indexOf('|');
+    if(pemisah<0)continue;
+    const subjectId=sisa.slice(0,pemisah),studentId=sisa.slice(pemisah+1);
+    if(tersimpan.has(studentId))tersimpan.get(studentId).add(subjectId);
+  }
   const urutan=listActiveSubjects(session).map(subject=>subject.id);
-  const semuaMapel=[...new Set([...urutan,...[...subjectsByStudent.values()].flat().map(subject=>subject.id)])];
+  const semuaMapel=[...new Set([...urutan,...[...subjectsByStudent.values()].flat().map(subject=>subject.id),...[...tersimpan.values()].flatMap(set=>[...set])])];
   return semuaMapel.flatMap(subjectId=>students.flatMap(student=>{
-    const subject=subjectsByStudent.get(student.id).find(item=>item.id===subjectId);
+    const milikSiswa=subjectsByStudent.get(student.id).find(item=>item.id===subjectId);
+    const subject=milikSiswa||(tersimpan.get(student.id).has(subjectId)?katalog.get(subjectId):null);
     if(!subject)return [];
     return [buildStoredRow(db,session,student,subject)];
   }));
