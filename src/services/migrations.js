@@ -15,10 +15,12 @@ function recordCounts(db){return Object.fromEntries(PRESERVED_COLLECTIONS.map(co
 function assertPreserved(before,after){const counts=recordCounts(before);Object.entries(counts).forEach(([collection,count])=>{if(Object.keys(after?.[collection]||{}).length<count)throw new Error(`Migration mengurangi data ${collection}.`);});const oldYears=before?.masterData?.references?.academicYears||[],newYears=after?.masterData?.references?.academicYears||[];if(newYears.length<oldYears.length)throw new Error('Migration mengurangi arsip tahun pelajaran.');}
 export function validateMigratedDatabase(db,{expectedSchemaVersion=APP_SCHEMA_VERSION,before=null}={}){if(!isObject(db))throw new Error('Database hasil migration tidak valid.');if(db.appSchemaVersion!==expectedSchemaVersion)throw new Error('appSchemaVersion hasil migration tidak sesuai.');REQUIRED_OBJECT_COLLECTIONS.forEach(collection=>{if(!isObject(db[collection]))throw new Error(`Koleksi ${collection} hasil migration tidak valid.`);});if(!Array.isArray(db.migrationHistory))throw new Error('Riwayat migration tidak valid.');const refs=db.masterData?.references;if(!isObject(refs)||!Array.isArray(refs.academicYears)||!Array.isArray(refs.semesters))throw new Error('Data Referensi hasil migration tidak valid.');for(const records of [refs.academicYears,refs.semesters]){const ids=records.map(item=>item?.id);if(new Set(ids).size!==ids.length)throw new Error('Migration membuat Data Referensi duplikat.');}const studentIds=Object.values(db.students).map(item=>item?.id).filter(Boolean);if(new Set(studentIds).size!==studentIds.length)throw new Error('Migration membuat siswa duplikat.');if(before)assertPreserved(before,db);return true;}
 function migrate1To2(db){const next=clone(db);REQUIRED_OBJECT_COLLECTIONS.filter(collection=>collection!=='masterData').forEach(collection=>{if(!Object.hasOwn(next,collection))next[collection]={};});Object.values(next.students||{}).forEach(student=>{if(!Object.hasOwn(student,'parentName'))student.parentName=String(student.fatherName||student.motherName||'');});if(!Object.hasOwn(next,'migrationHistory'))next.migrationHistory=[];next.appSchemaVersion=2;return next;}
-function mergeSchema3Subjects(subjects){const saved=new Map((Array.isArray(subjects)?subjects:[]).map(item=>[item?.id,item]));return normalizeMappingGroups(SUBJECTS_DEFAULT.map(subject=>({...subject,...(saved.get(subject.id)||{}),id:subject.id,name:subject.id==='agama'?subject.name:String(saved.get(subject.id)?.name||subject.name),active:saved.get(subject.id)?.active!==false})));}
+/* Mapel yang belum ada pada daftar tersimpan diperlakukan sama seperti pada schema 4:
+   masuk nonaktif untuk Mapping rombel, dan memakai status bawaan untuk master referensi. */
+function mergeSchema3Subjects(subjects,{activateNew=false}={}){const saved=new Map((Array.isArray(subjects)?subjects:[]).map(item=>[item?.id,item]));return normalizeMappingGroups(SUBJECTS_DEFAULT.map(subject=>{const lama=saved.get(subject.id);return {...subject,...(lama||{}),id:subject.id,name:subject.id==='agama'?subject.name:String(lama?.name||subject.name),active:lama?lama.active!==false:(activateNew?subject.active!==false:false)};}));}
 function migrate2To3(db){
   const next=clone(db);next.masterData=next.masterData||{};next.masterData.references=next.masterData.references||{};
-  next.masterData.references.subjects=mergeSchema3Subjects(next.masterData.references.subjects);
+  next.masterData.references.subjects=mergeSchema3Subjects(next.masterData.references.subjects,{activateNew:true});
   next.subjectMappings=Object.fromEntries(Object.entries(next.subjectMappings||{}).map(([key,mapping])=>[key,mergeSchema3Subjects(mapping)]));
   const grouped=new Map();Object.entries(next.learningObjectives||{}).forEach(([key,record])=>{const scope=key.split('|').slice(0,-1).join('|');if(!grouped.has(scope))grouped.set(scope,[]);grouped.get(scope).push([key,record]);});
   grouped.forEach(records=>records.sort((a,b)=>(Number(a[1].order)||0)-(Number(b[1].order)||0)).forEach(([key,record],index)=>{next.learningObjectives[key]={...record,code:String(record?.code||'').trim()||`TP-${index+1}`,order:index+1};}));
@@ -26,16 +28,22 @@ function migrate2To3(db){
 }
 /* Schema 4: mapel baru pada SUBJECTS_DEFAULT (mis. Seni Rupa) disisipkan ke master dan ke
    setiap Mapping rombel yang sudah tersimpan, tanpa mengubah nama, urutan, kelompok, atau
-   status aktif mapel yang sudah diatur guru. */
-function mergeNewDefaultSubjects(subjects){
+   status aktif mapel yang sudah diatur guru.
+
+   Pada Mapping yang sudah ada, mapel baru masuk dalam keadaan NONAKTIF. Bila langsung aktif,
+   Leger rombel berjalan akan bertambah kolom kosong dan kelengkapan rapor seluruh siswa
+   berubah menjadi belum lengkap sehingga cetak final terblokir. Guru cukup mengaktifkannya
+   lewat Mapping saat siap. Master referensi tetap memakai status bawaan. */
+function mergeNewDefaultSubjects(subjects,{activateNew=false}={}){
   const saved=Array.isArray(subjects)?subjects.filter(item=>item&&item.id):[];
   const known=new Set(saved.map(item=>item.id));
-  const tambahan=SUBJECTS_DEFAULT.filter(subject=>!known.has(subject.id)).map(subject=>({...subject}));
+  const tambahan=SUBJECTS_DEFAULT.filter(subject=>!known.has(subject.id))
+    .map(subject=>({...subject,active:activateNew?subject.active:false}));
   return normalizeMappingGroups([...saved,...tambahan]);
 }
 function migrate3To4(db){
   const next=clone(db);next.masterData=next.masterData||{};next.masterData.references=next.masterData.references||{};
-  next.masterData.references.subjects=mergeNewDefaultSubjects(next.masterData.references.subjects);
+  next.masterData.references.subjects=mergeNewDefaultSubjects(next.masterData.references.subjects,{activateNew:true});
   next.subjectMappings=Object.fromEntries(Object.entries(next.subjectMappings||{}).map(([key,mapping])=>[key,Array.isArray(mapping)?mergeNewDefaultSubjects(mapping):mapping]));
   next.appSchemaVersion=4;return next;
 }

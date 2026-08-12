@@ -24,11 +24,15 @@ import { renderPlaceholder } from './pages/placeholder.js';
 import { renderSubjectMapping, renderBackupRestore, renderAccountSettings } from './pages/settings.js';
 import { renderLayout } from './ui/layout.js';
 import { runAppMigrations } from './services/migrations.js';
-import { seedInitialStudents } from './services/seed.js';
+import { ensureDefaultSubjects, seedInitialStudents } from './services/seed.js';
 
 const app=document.querySelector('#app');
 let startupError=null;
-try{runAppMigrations();seedInitialStudents();}catch(error){startupError=error;}
+/* Migration dijalankan lebih dulu, lalu dua pengaman idempotent: mapel bawaan baru
+   dipastikan ada pada Mapping lama, dan data awal 5B dilengkapi bila belum masuk.
+   Kegagalan pengaman tidak boleh membuat aplikasi gagal dibuka. */
+try{runAppMigrations();}catch(error){startupError=error;}
+if(!startupError){try{ensureDefaultSubjects();}catch{}try{seedInitialStudents();}catch{}}
 let session=startupError?null:getSession();
 let expiryTimer=null;
 
@@ -97,4 +101,23 @@ if(startupError){
   initRouter(session?'dashboard':'login');
 }
 
-if('serviceWorker' in navigator && location.protocol!=='file:') navigator.serviceWorker.register('./sw.js').catch(()=>{});
+/* Setelah APK diperbarui, service worker versi baru tidak boleh menunggu tab lama ditutup.
+   Worker baru langsung diaktifkan lalu halaman dimuat ulang satu kali agar revisi terbaru
+   benar-benar dipakai, bukan JavaScript lama dari cache rilis sebelumnya. */
+if('serviceWorker' in navigator && location.protocol!=='file:'){
+  let reloadedForUpdate=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(reloadedForUpdate)return;
+    reloadedForUpdate=true;
+    location.reload();
+  });
+  navigator.serviceWorker.register('./sw.js').then(registration=>{
+    const activate=worker=>{if(worker?.state==='installed'&&navigator.serviceWorker.controller)worker.postMessage({type:'SKIP_WAITING'});};
+    activate(registration.waiting);
+    registration.addEventListener('updatefound',()=>{
+      const installing=registration.installing;
+      installing?.addEventListener('statechange',()=>activate(installing));
+    });
+    registration.update().catch(()=>{});
+  }).catch(()=>{});
+}

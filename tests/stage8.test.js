@@ -44,5 +44,5 @@ test('PWA memiliki manifest, ikon, offline shell, dan cache version final',()=>{
   assert.equal(manifest.display,'standalone');assert.equal(manifest.scope,'./');assert.ok(manifest.start_url.startsWith('./'));
   assert.ok(manifest.icons.some(icon=>icon.sizes==='192x192'));assert.ok(manifest.icons.some(icon=>icon.sizes==='512x512'));
   for(const icon of manifest.icons)assert.equal(existsSync(new URL(`../${icon.src.replace('./','')}`,import.meta.url)),true);
-  const sw=readFileSync(new URL('../sw.js',import.meta.url),'utf8');assert.match(sw,/erapor-satria-v\d+-/);assert.match(sw,/OFFLINE_SHELL/);assert.match(sw,/caches\.match\(OFFLINE_SHELL\)/);
+  const sw=readFileSync(new URL('../sw.js',import.meta.url),'utf8');assert.match(sw,/const CACHE=`erapor-satria-\$\{APP_CACHE_VERSION\}`/,'nama cache mengikuti versi aplikasi');assert.match(sw,/OFFLINE_SHELL/);assert.match(sw,/caches\.match\(OFFLINE_SHELL\)/);
 });
