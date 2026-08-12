@@ -1,3 +1,4 @@
+import { COCURRICULAR_ACTIVITY_PRESETS, cocurricularActivityNames, findCocurricularPreset } from '../data/cocurricular.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
 
@@ -22,10 +23,16 @@ export const PRAMUKA_DESCRIPTIONS={siaga:['Aktif mengikuti latihan dasar kepramu
 export const COCURRICULAR_DESCRIPTIONS={lower:['Aktif mengikuti kegiatan bersama dan mampu bekerja sama.','Menunjukkan rasa ingin tahu dan semangat belajar.','Mampu menyelesaikan tugas sederhana dengan tanggung jawab.','Menunjukkan kepedulian terhadap kebersihan dan lingkungan.','Mampu menyampaikan ide dan berpartisipasi dalam kelompok.'],upper:['Aktif berkolaborasi dan menyelesaikan tugas dengan tanggung jawab.','Mampu mengembangkan ide dan memecahkan masalah.','Menunjukkan kemandirian, disiplin, dan kemampuan berkomunikasi.','Menunjukkan kepedulian lingkungan dan gotong royong.','Mampu mengembangkan kreativitas, bernalar kritis, dan bekerja sama.']};
 export function pramukaPresetForClass(classId){const grade=gradeOf(classId);return grade<=3?'Pramuka Siaga':'Pramuka Penggalang';}
 export function pramukaDescriptionsForClass(classId){return [...(gradeOf(classId)<=3?PRAMUKA_DESCRIPTIONS.siaga:PRAMUKA_DESCRIPTIONS.penggalang)];}
-export function cocurricularDescriptionsForClass(classId){return [...(gradeOf(classId)<=3?COCURRICULAR_DESCRIPTIONS.lower:COCURRICULAR_DESCRIPTIONS.upper)];}
+export function cocurricularDescriptionsForClass(classId,activity){
+  const preset=findCocurricularPreset(activity);
+  if(preset)return [...(gradeOf(classId)<=3?preset.lower:preset.upper)];
+  return [...(gradeOf(classId)<=3?COCURRICULAR_DESCRIPTIONS.lower:COCURRICULAR_DESCRIPTIONS.upper)];
+}
+export function listCocurricularActivities(){return cocurricularActivityNames();}
+export function cocurricularPresets(){return COCURRICULAR_ACTIVITY_PRESETS;}
 function predicatePrefix(predicate){return {'Cukup':'Cukup','Baik':'Baik','Sangat Baik':'Sangat baik'}[predicate]||'Baik';}
 export function pramukaDescriptionTemplates(classId,predicate){if(!knownPredicate(predicate))throw new Error('Predikat ekstrakurikuler tidak valid.');return pramukaDescriptionsForClass(classId).map(text=>`${predicatePrefix(predicate)} dalam ${text.charAt(0).toLowerCase()}${text.slice(1)}`);}
-export function cocurricularDescriptionTemplates(classId,predicate){if(!knownPredicate(predicate))throw new Error('Predikat kokurikuler tidak valid.');return cocurricularDescriptionsForClass(classId).map(text=>`${predicatePrefix(predicate)} dalam ${text.charAt(0).toLowerCase()}${text.slice(1)}`);}
+export function cocurricularDescriptionTemplates(classId,predicate,activity){if(!knownPredicate(predicate))throw new Error('Predikat kokurikuler tidak valid.');return cocurricularDescriptionsForClass(classId,activity);}
 
 function clone(value){return JSON.parse(JSON.stringify(value));}
 function newId(prefix){return globalThis.crypto?.randomUUID?.()||`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;}
@@ -69,7 +76,7 @@ export function getStudentCocurricular(session,studentId){requireStudent(session
 
 export function saveStudentCocurricular(session,studentId,input){requireStudent(session,studentId);const value=normalizeCocurricular(input);let saved;updateDb(db=>{const key=cocurricularKey(session,studentId);const existing=db.cocurricularScores[key];const now=new Date().toISOString();saved=scopedRecord(session,studentId,{...value,createdAt:existing?.createdAt||now,updatedAt:now});db.cocurricularScores[key]=saved;return db;});return clone(saved);}
 
-export function saveCocurricularBulk(session,input){assertTeacher(session);const predicate=clean(input?.predicate,50);const value={...input,description:cocurricularDescriptionTemplates(session.classId,predicate)[0]};return listStudents(session,{classId:session.classId}).map(student=>saveStudentCocurricular(session,student.id,value));}
+export function saveCocurricularBulk(session,input){assertTeacher(session);const predicate=clean(input?.predicate,50);const value={...input,description:clean(input?.description,1200)||cocurricularDescriptionTemplates(session.classId,predicate,input?.activity)[0]};return listStudents(session,{classId:session.classId}).map(student=>saveStudentCocurricular(session,student.id,value));}
 
 export function createExtracurricular(session,studentId,input){
   requireStudent(session,studentId);const value=normalizeActivity(input);let saved;

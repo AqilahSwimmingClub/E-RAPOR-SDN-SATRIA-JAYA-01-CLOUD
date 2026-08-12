@@ -74,8 +74,24 @@ export function renderPrint(session){
     });
   }
 
+  /* Cetak massal: seluruh siswa rombel aktif dirender sekaligus, tiap siswa mulai di halaman
+     baru. Pilihan cetak satu siswa tetap tersedia lewat pemilih siswa di atas. */
+  let bulkMode=false;
+  function bulkToolbar(label,count){
+    return `<section class="card report-print-control bulk-print-control no-print"><span>${escapeHtml(label)} · ${count} siswa</span><button class="btn btn-light" data-bulk-toggle>${bulkMode?'Kembali ke Satu Siswa':'Semua Siswa'}</button><button class="btn btn-light" data-print>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-pdf>${icon('download',16)} Simpan PDF</button></section>`;
+  }
+  function bindBulkToggle(){
+    view.querySelector('[data-bulk-toggle]')?.addEventListener('click',()=>{bulkMode=!bulkMode;previewed=bulkMode;draw();});
+  }
+  function bulkSheets(students,builder){
+    return students.map(student=>{
+      try{return builder(getReportDocument(scope,student.id));}
+      catch{return '';}
+    }).join('');
+  }
+
   function studentPicker(students){return `<div class="field compact-field"><label>Pilih Siswa</label><select class="input" data-student>${students.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===studentId?'selected':''}>${escapeHtml(item.name)} · ${escapeHtml(item.nisn)}</option>`).join('')}</select></div>`;}
-  function toolbar(lead,{disabled=false}={}){return `<section class="card report-print-control no-print">${lead}<button class="btn btn-light" data-preview>${icon('file',16)} Preview</button><button class="btn btn-light" data-print ${disabled?'disabled':''}>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-pdf ${disabled?'disabled':''}>${icon('download',16)} Simpan PDF</button></section>`;}
+  function toolbar(lead,{disabled=false,bulk=false}={}){return `<section class="card report-print-control no-print">${lead}${bulk?`<button class="btn btn-light" data-bulk-toggle>Semua Siswa</button>`:''}<button class="btn btn-light" data-preview>${icon('file',16)} Preview</button><button class="btn btn-light" data-print ${disabled?'disabled':''}>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-pdf ${disabled?'disabled':''}>${icon('download',16)} Simpan PDF</button></section>`;}
   function bindStudentPicker(){const picker=view.querySelector('[data-student]');if(picker)picker.onchange=event=>{studentId=event.target.value;previewed=false;draw();};}
   function emptyClass(){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan Data Siswa pada rombel ini sebelum mencetak dokumen rapor.</p></section>';}
 
@@ -93,7 +109,7 @@ export function renderPrint(session){
 
   function drawLeger(){
     refresh();const data=getLeger(scope);
-    view.innerHTML=`${toolbar('<span>Leger Kelas</span>')}<div class="assessment-summary leger-summary no-print"><article class="stat-card"><div class="stat-label">Jumlah Siswa</div><div class="stat-value">${data.students.length}</div></article><article class="stat-card"><div class="stat-label">Mapel Aktif</div><div class="stat-value">${data.subjects.length}</div></article><article class="stat-card"><div class="stat-label">Rata-rata Kelas</div><div class="stat-value">${number(data.classAverage)}</div></article></div><div class="print-toolbar no-print"><span>Urutan kolom mengikuti Mapping Mata Pelajaran.</span><div class="actions"><button class="btn btn-light" data-excel>${icon('download',16)} Unduh Excel</button><button class="btn btn-light" data-landscape>${showLandscape?'Sembunyikan Tabel Landscape':'Tampilkan Tabel Landscape'}</button></div></div><div class="document-sheet document-leger">${legerHeading(data)}${legerTable(data)}</div><div class="leger-card-list">${data.students.map(row=>`<article class="card"><div><strong>${escapeHtml(row.student.name)}</strong><span>${escapeHtml(row.student.nisn)}</span></div><b>${number(row.average)}</b><small>${row.completeCount}/${data.subjects.length} nilai tersedia · Rank ${row.rank??'—'}</small></article>`).join('')}</div>`;
+    view.innerHTML=`${toolbar('<span>Leger Kelas · seluruh siswa rombel</span>')}<div class="assessment-summary leger-summary no-print"><article class="stat-card"><div class="stat-label">Jumlah Siswa</div><div class="stat-value">${data.students.length}</div></article><article class="stat-card"><div class="stat-label">Mapel Aktif</div><div class="stat-value">${data.subjects.length}</div></article><article class="stat-card"><div class="stat-label">Rata-rata Kelas</div><div class="stat-value">${number(data.classAverage)}</div></article></div><div class="print-toolbar no-print"><span>Urutan kolom mengikuti Mapping Mata Pelajaran.</span><div class="actions"><button class="btn btn-light" data-excel>${icon('download',16)} Unduh Excel</button><button class="btn btn-light" data-landscape>${showLandscape?'Sembunyikan Tabel Landscape':'Tampilkan Tabel Landscape'}</button></div></div><div class="document-sheet document-leger">${legerHeading(data)}${legerTable(data)}</div><div class="leger-card-list">${data.students.map(row=>`<article class="card"><div><strong>${escapeHtml(row.student.name)}</strong><span>${escapeHtml(row.student.nisn)}</span></div><b>${number(row.average)}</b><small>${row.completeCount}/${data.subjects.length} nilai tersedia · Rank ${row.rank??'—'}</small></article>`).join('')}</div>`;
     view.querySelector('[data-landscape]').onclick=()=>{showLandscape=!showLandscape;draw();};
     view.querySelector('[data-excel]').onclick=async()=>{
       try{await saveFile({name:`${documentTitle('Leger')}.xlsx`,mime:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',data:legerWorkbookBytes(scope)});toast('Leger Excel berhasil disimpan.');}
@@ -126,9 +142,13 @@ export function renderPrint(session){
 
   function drawCover(){
     const students=refresh();if(!students.length){emptyClass();return;}
+    if(bulkMode){
+      view.innerHTML=`${bulkToolbar('Cetak Semua Cover',students.length)}${bulkSheets(students,coverSheet)}`;
+      bindCoverLogos();bindBulkToggle();return;
+    }
     const doc=getReportDocument(scope,studentId);
-    view.innerHTML=`${toolbar(studentPicker(students))}${coverSheet(doc)}`;
-    bindCoverLogos();bindStudentPicker();
+    view.innerHTML=`${toolbar(studentPicker(students),{bulk:true})}${coverSheet(doc)}`;
+    bindCoverLogos();bindStudentPicker();bindBulkToggle();
   }
 
   /* -------------------------------------------------- Perlengkapan Rapor */
@@ -184,16 +204,32 @@ export function renderPrint(session){
 
   function drawEquipment(){
     const students=refresh();if(!students.length){emptyClass();return;}
+    if(bulkMode){
+      view.innerHTML=`${bulkToolbar('Cetak Semua Perlengkapan Rapor',students.length)}${bulkSheets(students,doc=>`${schoolSheet(doc)}${studentIdentitySheet(doc)}${transferOutSheet(doc)}${transferInSheet(doc)}`)}`;
+      bindBulkToggle();return;
+    }
     const doc=getReportDocument(scope,studentId);
-    view.innerHTML=`${toolbar(studentPicker(students))}${schoolSheet(doc)}${studentIdentitySheet(doc)}${transferOutSheet(doc)}${transferInSheet(doc)}`;
-    bindStudentPicker();
+    view.innerHTML=`${toolbar(studentPicker(students),{bulk:true})}${schoolSheet(doc)}${studentIdentitySheet(doc)}${transferOutSheet(doc)}${transferInSheet(doc)}`;
+    bindStudentPicker();bindBulkToggle();
   }
 
   /* ------------------------------------------------------- Kelengkapan */
 
   function drawCompleteness(){
     refresh();const data=getReportCompleteness(scope);
-    view.innerHTML=`<div class="assessment-summary completeness-report-summary"><article class="stat-card"><div class="stat-label">Siswa Lengkap</div><div class="stat-value">${data.completeStudents}</div><div class="stat-foot">dari ${data.studentCount} siswa</div></article><article class="stat-card"><div class="stat-label">Belum Lengkap</div><div class="stat-value">${data.incompleteStudents}</div></article><article class="stat-card"><div class="stat-label">Progress Seluruh Kelas</div><div class="stat-value">${data.overallPercentage}%</div><div class="bar"><span style="width:${data.overallPercentage}%"></span></div></article></div>${data.students.length?`<div class="report-completeness-list">${data.students.map(row=>`<article class="card"><div class="completion-student-head"><div><strong>${escapeHtml(row.student.name)}</strong><span>${escapeHtml(row.student.nis)} · ${escapeHtml(row.student.nisn)}</span></div>${badge(row.status==='COMPLETE')}</div><div class="completion-progress"><div class="bar"><span style="width:${row.percentage}%"></span></div><b>${row.percentage}%</b></div><div class="completion-category-grid">${Object.entries(row.categories).map(([key,complete])=>`<span class="${complete?'complete':'missing'}">${complete?'✓':'!'} ${escapeHtml({identity:'Identitas',scores:'Nilai Mapel',descriptions:'Deskripsi',attendance:'Absensi',extracurricular:'Ekstrakurikuler',homeroomNote:'Catatan',finalStatus:'Status Akhir'}[key])}</span>`).join('')}</div>${row.missing.length?`<p>Kurang: ${escapeHtml(row.missing.join(', '))}</p>`:'<p class="complete-text">Semua komponen rapor sudah lengkap.</p>'}</article>`).join('')}</div>`:'<section class="card empty-state"><h3>Belum ada Data Siswa</h3></section>'}`;
+    view.innerHTML=`<div class="assessment-summary completeness-report-summary"><article class="stat-card"><div class="stat-label">Siswa Lengkap</div><div class="stat-value">${data.completeStudents}</div><div class="stat-foot">dari ${data.studentCount} siswa</div></article><article class="stat-card"><div class="stat-label">Belum Lengkap</div><div class="stat-value">${data.incompleteStudents}</div></article><article class="stat-card"><div class="stat-label">Progress Seluruh Kelas</div><div class="stat-value">${data.overallPercentage}%</div><div class="bar"><span style="width:${data.overallPercentage}%"></span></div></article></div>${data.students.length?`<div class="report-completeness-list">${data.students.map(row=>`<article class="card"><div class="completion-student-head"><div><strong>${escapeHtml(row.student.name)}</strong><span>${escapeHtml(row.student.nis)} · ${escapeHtml(row.student.nisn)}</span></div>${badge(row.status==='COMPLETE')}</div><div class="completion-progress"><div class="bar"><span style="width:${row.percentage}%"></span></div><b>${row.percentage}%</b></div><div class="completion-category-grid">${Object.entries(row.categories).map(([key,complete])=>{const label={identity:'Identitas',scores:'Nilai Mapel',descriptions:'Deskripsi',attendance:'Absensi',homeroomNote:'Catatan'}[key]||key;return complete?`<span class="complete">✓ ${escapeHtml(label)}</span>`:`<button type="button" class="missing" data-goto="${escapeHtml(key)}" data-goto-student="${escapeHtml(row.student.id)}" title="Buka halaman ${escapeHtml(label)}">! ${escapeHtml(label)}</button>`;}).join('')}</div>${row.missing.length?`<p>Kurang: ${escapeHtml(row.missing.join(', '))}</p>`:'<p class="complete-text">Semua komponen rapor sudah lengkap.</p>'}</article>`).join('')}</div>`:'<section class="card empty-state"><h3>Belum ada Data Siswa</h3></section>'}`;
+  }
+
+  /* Indikator merah menjadi tombol yang langsung membuka halaman sumber ketidaklengkapan,
+     lengkap dengan siswa yang bersangkutan, sehingga guru tidak perlu mencari manual. */
+  const COMPLETENESS_ROUTES={identity:'students',scores:'report-input',descriptions:'report-input',attendance:'attendance',homeroomNote:'completeness-input'};
+  function bindCompletenessNavigation(){
+    view.querySelectorAll('[data-goto]').forEach(button=>button.onclick=()=>{
+      const route=COMPLETENESS_ROUTES[button.dataset.goto];
+      if(!route){toast('Bagian ini tidak memiliki halaman input khusus.','warning');return;}
+      try{sessionStorage.setItem('erapor-focus-student',button.dataset.gotoStudent);}catch{}
+      globalThis.location.hash=`#/${route}`;
+    });
   }
 
   function completenessHeading(){
@@ -219,9 +255,11 @@ export function renderPrint(session){
     return `<h3 class="document-section">A. Sikap</h3><section class="document-box"><div class="document-box-head">Deskripsi Capaian Profil Lulusan</div><div class="document-box-body attitude-body">${body}</div></section>`;
   }
 
+  /* Ekstrakurikuler opsional: bagian ini tidak dicetak bila memang belum diisi. */
   function extracurricularTable(doc){
     const items=doc.extracurricular||[];
-    const rows=Math.max(items.length,2);
+    if(!items.length)return '';
+    const rows=items.length;
     return `<table class="document-table extracurricular-table"><thead><tr><th>No</th><th>Ekstrakurikuler</th><th>Keterangan</th></tr></thead><tbody>${Array.from({length:rows},(_,index)=>{const item=items[index];return `<tr><td>${index+1}</td><td class="subject-name-cell">${item?escapeHtml(item.name):''}</td><td class="subject-description-cell">${item?escapeHtml([item.predicate,item.description].filter(Boolean).join('. ')):''}</td></tr>`;}).join('')}</tbody></table>`;
   }
 
@@ -231,7 +269,7 @@ export function renderPrint(session){
   }
 
   function finalStatusBlock(doc){
-    if(doc.semesterNumber!==2)return '';
+    if(!doc.finalStatusLabel)return '';
     return `<section class="document-box"><div class="document-box-head">${Number.parseInt(classId,10)===6?'Kelulusan':'Kenaikan Kelas'}</div><div class="document-box-body"><p>${escapeHtml(doc.finalStatusLabel)}</p></div></section>`;
   }
 
@@ -245,8 +283,12 @@ export function renderPrint(session){
   function drawReport(){
     const students=refresh();if(!students.length){emptyClass();return;}
     const doc=getReportDocument(scope,studentId);
-    view.innerHTML=`${toolbar(studentPicker(students),{disabled:!doc.complete})}${doc.complete?'<div class="source-banner no-print">Rapor lengkap dan siap dicetak final.</div>':`<div class="source-banner warning-banner no-print">Cetak final ditolak. Masih kurang: ${escapeHtml(doc.missing.join(', '))}.</div>`}${previewed?reportA4(doc):'<section class="card empty-state no-print"><h3>Preview belum dibuka</h3><p>Pilih siswa lalu klik Preview untuk menampilkan lembar A4.</p></section>'}`;
-    bindStudentPicker();
+    if(bulkMode){
+      view.innerHTML=`${bulkToolbar('Cetak Semua Rapor',students.length)}${bulkSheets(students,reportA4)}`;
+      bindBulkToggle();return;
+    }
+    view.innerHTML=`${toolbar(studentPicker(students),{bulk:true})}${doc.complete?'<div class="source-banner no-print">Rapor lengkap dan siap dicetak final.</div>':`<div class="source-banner warning-banner no-print">Catatan: masih kurang ${escapeHtml(doc.missing.join(', '))}. Rapor tetap dapat dicetak.</div>`}${previewed?reportA4(doc):'<section class="card empty-state no-print"><h3>Preview belum dibuka</h3><p>Pilih siswa lalu klik Preview untuk menampilkan lembar A4.</p></section>'}`;
+    bindStudentPicker();bindBulkToggle();
   }
 
   function openPreview(){previewed=true;draw();}
@@ -259,12 +301,12 @@ export function renderPrint(session){
     if(tab==='leger'){drawLeger();bindActions('Leger');return;}
     if(tab==='cover'){drawCover();bindActions('Cover Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId)});return;}
     if(tab==='equipment'){drawEquipment();bindActions('Perlengkapan Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId)});return;}
-    if(tab==='completeness'){drawCompleteness();completenessHeading();bindActions('Kelengkapan Rapor');return;}
-    drawReport();bindActions('Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId),requireComplete:true,onPreview:openPreview});
+    if(tab==='completeness'){drawCompleteness();completenessHeading();bindCompletenessNavigation();bindActions('Kelengkapan Rapor');return;}
+    drawReport();bindActions('Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId),onPreview:openPreview});
   }
 
   if(session.role==='admin')root.querySelector('[data-class]').onchange=event=>{classId=event.target.value;studentId='';previewed=false;draw();};
-  root.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{tab=button.dataset.tab;previewed=false;draw();});
+  root.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{tab=button.dataset.tab;previewed=false;bulkMode=false;draw();});
   globalThis.addEventListener?.('hashchange',()=>setPrintPageSize(null),{once:true});
   draw();return root;
 }

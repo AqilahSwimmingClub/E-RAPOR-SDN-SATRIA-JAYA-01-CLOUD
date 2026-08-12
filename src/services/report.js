@@ -119,6 +119,42 @@ export function saveManualReportScore(session,subjectId,studentId,value,{source=
   });return clone(saved);
 }
 
+/* Simpan banyak nilai rapor dalam SATU commit. Sebelumnya tiap sel memanggil updateDb
+   sendiri sehingga seluruh database dibaca, disalin, dan ditulis ulang ratusan kali untuk
+   satu rombel penuh dan membuat UI membeku. Di sini perhitungan dikerjakan lebih dulu,
+   baru seluruh hasil ditulis sekali.
+
+   Kunci penyimpanan tetap memakai scope yang sama persis, sehingga nilai tidak mungkin
+   tertukar antar siswa, mapel, semester, tahun pelajaran, maupun rombel. */
+export function saveManualReportScoresBulk(session,entries,{source='MANUAL'}={}){
+  assertTeacher(session);
+  const list=(Array.isArray(entries)?entries:[]).filter(item=>item&&item.subjectId&&item.studentId);
+  if(!list.length)return {saved:0,rows:[]};
+  const prepared=list.map(entry=>{
+    const subject=requireActiveSubject(session,entry.subjectId);
+    const manualScore=scoreValue(entry.value,`Nilai rapor manual ${subject.name}`);
+    return {subjectId:subject.id,studentId:entry.studentId,manualScore,automatic:calculateReportScore(session,subject.id,entry.studentId)};
+  });
+  const rows=[];
+  updateDb(db=>{
+    const now=new Date().toISOString();
+    prepared.forEach(({subjectId,studentId,manualScore,automatic})=>{
+      const key=reportKey(session,subjectId,studentId);
+      const previous=db.reportScores[key];
+      const roundedScore=Math.round(manualScore);
+      const saved={...automatic,rawScore:manualScore,roundedScore,finalScore:roundedScore,completionStatus:'COMPLETE',completionLabel:'LENGKAP',
+        masteryStatus:roundedScore>=automatic.kktp?'TUNTAS':'BELUM TUNTAS',isManualOverride:true,
+        previousScoreReference:referenceFrom(previous)||referenceFrom(automatic),
+        automaticReference:{rawScore:automatic.rawScore,roundedScore:automatic.roundedScore,completionStatus:automatic.completionStatus,components:automatic.components},
+        calculationMethod:source,createdAt:previous?.createdAt||now,updatedAt:now};
+      db.reportScores[key]=saved;
+      rows.push(saved);
+    });
+    return db;
+  });
+  return {saved:rows.length,rows:clone(rows)};
+}
+
 export function getStoredReportRows(session){
   assertTeacher(session);const db=loadDb();const students=listStudents(session,{classId:session.classId});const subjects=listActiveSubjects(session);
   return subjects.flatMap(subject=>students.map(student=>{

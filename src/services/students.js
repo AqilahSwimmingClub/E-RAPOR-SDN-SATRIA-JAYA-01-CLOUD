@@ -37,7 +37,7 @@ const HEADER_FIELDS={
   rombel:'classId',kelas:'classId',foto:'photo',nis:'nis',nisn:'nisn',nama:'name',
   jk:'gender','jenis kelamin':'gender','tempat lahir':'birthPlace','tanggal lahir':'birthDate',
   'tempat/tanggal lahir':'birthPlaceDate','tempat tanggal lahir':'birthPlaceDate','ttl':'birthPlaceDate',
-  'orang tua':'parentName','nama orang tua':'parentName','nama orangtua':'parentName','nama ayah':'parentName','nama ibu':'parentName',
+  agama:'religion','orang tua':'parentName','nama orang tua':'parentName','nama orangtua':'parentName','nama ayah':'parentName','nama ibu':'parentName',
   'no telepon':'phone','nomor telepon':'phone',telepon:'phone',alamat:'address'
 };
 
@@ -104,6 +104,7 @@ export function normalizeStudentInput(input,classId){
     gender:clean(input.gender,1).toUpperCase(),
     birthPlace:clean(combined?combined.birthPlace:input.birthPlace,100),
     birthDate:clean(combined?combined.birthDate:input.birthDate,10),
+    religion:clean(input.religion,30),
     parentName,
     phone:clean(input.phone,40),
     address:clean(input.address,500),

@@ -34,7 +34,7 @@ test('Final report printing is rejected while any required item is incomplete',(
 });
 
 test('Stored attendance and descriptions are included in the report document',()=>{
-  useMemoryStorage();saveSubjectMapping(teacher,mapping());const student=addStudent(1);completeStudent(student,1);const document=getReportDocument(teacher,student.id);assert.equal(document.attendance.Sakit,1);assert.equal(document.attendance.Izin,0);assert.match(document.subjects[0].description,/memahami mtk/);assert.match(document.subjects[1].description,/memahami agama/);assert.equal(document.finalStatusLabel,'Tidak diperlukan pada semester Ganjil');
+  useMemoryStorage();saveSubjectMapping(teacher,mapping());const student=addStudent(1);completeStudent(student,1);const document=getReportDocument(teacher,student.id);assert.equal(document.attendance.Sakit,1);assert.equal(document.attendance.Izin,0);assert.match(document.subjects[0].description,/memahami mtk/);assert.match(document.subjects[1].description,/memahami agama/);assert.equal(document.finalStatusLabel,'Naik ke Kelas 6B','status kenaikan tersedia tanpa menunggu semester Genap');
 });
 
 test('Attendance completeness is evaluated for each student, including students added later',()=>{

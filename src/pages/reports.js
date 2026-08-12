@@ -2,7 +2,7 @@ import { getAssessmentSettings } from '../services/assessment.js';
 import { generateReportDescription, getReportDescription, lockReportDescription, saveReportDescription } from '../services/descriptions.js';
 import { listLearningObjectives } from '../services/objectives.js';
 import { commitReportImport, previewReportImport, reportTemplateCsv } from '../services/report-import.js';
-import { calculateReportSheet, getCompletionSummary, getReportScore, getStoredReportRows, saveAutomaticReportScores, saveManualReportScore } from '../services/report.js';
+import { calculateReportSheet, getCompletionSummary, getReportScore, getStoredReportRows, saveAutomaticReportScores, saveManualReportScore, saveManualReportScoresBulk } from '../services/report.js';
 import { saveAllAutomaticReports } from '../services/report-bulk.js';
 import { listStudents } from '../services/students.js';
 import { listActiveSubjects } from '../services/subjects.js';
@@ -45,7 +45,20 @@ export function renderReportInput(session){
     const tableRows=rows.map(row=>{const saved=getReportScore(session,subjectId,row.studentId);return `<tr><td><strong>${escapeHtml(row.studentName)}</strong><span>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</span></td><td>${number(row.roundedScore,0)}<span>${row.completionLabel}</span></td><td><input class="input score-input" type="number" min="0" max="100" step="0.01" data-manual data-id="${escapeHtml(row.studentId)}" value="${saved?.isManualOverride?saved.finalScore:''}" aria-label="Override ${escapeHtml(row.studentName)}"/></td><td>${saved?.isManualOverride?statusBadge(true,`Override ${saved.finalScore}`):'<span class="muted">Belum override</span>'}</td></tr>`;}).join('');
     const cards=rows.map(row=>{const saved=getReportScore(session,subjectId,row.studentId);return `<article class="card report-mobile-card"><div class="student-card-head"><div><h3>${escapeHtml(row.studentName)}</h3><p>Referensi otomatis: ${number(row.roundedScore,0)} · ${row.completionLabel}</p></div></div><div class="field compact-field"><label>Nilai Override 0–100</label><input class="input" type="number" min="0" max="100" step="0.01" data-manual data-id="${escapeHtml(row.studentId)}" value="${saved?.isManualOverride?saved.finalScore:''}" aria-label="Override ${escapeHtml(row.studentName)}"/></div></article>`;}).join('');
     view.innerHTML=`<div class="source-banner warning-banner">Override manual menyimpan nilai otomatis atau nilai tersimpan sebelumnya sebagai referensi.</div><section class="card report-table-card"><div class="table-scroll"><table class="data-table manual-report-table"><thead><tr><th>Siswa</th><th>Referensi Otomatis</th><th>Nilai Override</th><th>Status</th></tr></thead><tbody>${tableRows}</tbody></table></div></section><div class="report-card-list">${cards}</div>`;bindMirroredInputs('[data-manual]');
-    actions.querySelector('[data-save-manual]').onclick=()=>{const values=[...view.querySelectorAll('.report-table-card [data-manual]')].filter(input=>input.value.trim()!=='');if(!values.length){toast('Isi minimal satu nilai override.','warning');return;}try{values.forEach(input=>saveManualReportScore(session,subjectId,input.dataset.id,input.value));drawManual();toast(`${values.length} nilai override berhasil disimpan.`);}catch(error){toast(error.message,'error');}};
+    /* Seluruh nilai dikumpulkan dulu lalu ditulis dalam satu commit, bukan satu penyimpanan
+   per sel, sehingga simpan satu rombel penuh cepat dan UI tidak membeku. */
+    actions.querySelector('[data-save-manual]').onclick=async()=>{
+      const values=[...view.querySelectorAll('.report-table-card [data-manual]')].filter(input=>input.value.trim()!=='');
+      if(!values.length){toast('Isi minimal satu nilai override.','warning');return;}
+      const button=actions.querySelector('[data-save-manual]');
+      const label=button.innerHTML;
+      button.disabled=true;button.textContent='Menyimpan…';
+      await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));
+      try{
+        const hasil=saveManualReportScoresBulk(session,values.map(input=>({subjectId,studentId:input.dataset.id,value:input.value})));
+        drawManual();toast(`${hasil.saved} nilai berhasil disimpan sekaligus.`);
+      }catch(error){toast(error.message,'error');button.disabled=false;button.innerHTML=label;}
+    };
   }
   function bindMirroredInputs(selector){view.querySelectorAll(selector).forEach(input=>input.oninput=()=>view.querySelectorAll(`${selector}[data-id="${CSS.escape(input.dataset.id)}"]`).forEach(other=>{if(other!==input)other.value=input.value;}));}
   function drawImport(){

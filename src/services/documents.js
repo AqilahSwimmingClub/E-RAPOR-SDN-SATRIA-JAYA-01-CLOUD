@@ -4,7 +4,7 @@ import { listStudentAttitudes } from './attitudes.js';
 import { getPrintSettings } from './print-settings.js';
 import { getStoredReportRows } from './report.js';
 import { listStudents } from './students.js';
-import { listActiveSubjects } from './subjects.js';
+import { listActiveSubjects, listSubjectsForStudent } from './subjects.js';
 import { getSchoolMaster, getTeacherProfile } from './master.js';
 import { createWorkbookBytes } from './excel.js';
 
@@ -14,7 +14,6 @@ function semesterNumber(session){return String(session?.semester||'').startsWith
 function average(values){const valid=values.filter(value=>Number.isFinite(value));return valid.length?Math.round((valid.reduce((sum,value)=>sum+value,0)/valid.length+Number.EPSILON)*100)/100:null;}
 function gradeOf(classId){return Number.parseInt(String(classId||''),10);}
 function identityComplete(student){return ['nis','nisn','name','gender','birthPlace','birthDate','address'].every(field=>String(student[field]||'').trim())&&Boolean(String(student.parentName||student.fatherName||student.motherName||'').trim());}
-function requiresFinalStatus(session){return String(session.semester||'').startsWith('Genap ');}
 
 export function getLeger(session){
   assertTeacher(session);const students=listStudents(session,{classId:session.classId});const subjects=listActiveSubjects(session);const reportRows=getStoredReportRows(session);const attendance=semesterAttendanceRecap(session,{classId:session.classId});
@@ -61,14 +60,21 @@ export function getDocumentIdentity(session){
   };
 }
 
-function finalStatus(session,studentId){if(!requiresFinalStatus(session))return null;return gradeOf(session.classId)===6?getGraduationStatus(session,studentId):getPromotionStatus(session,studentId);}
+function finalStatus(session,studentId){return gradeOf(session.classId)===6?getGraduationStatus(session,studentId):getPromotionStatus(session,studentId);}
 
 export function getReportCompleteness(session){
-  assertTeacher(session);const students=listStudents(session,{classId:session.classId});const subjects=listActiveSubjects(session);const reportRows=getStoredReportRows(session);const attendance=semesterAttendanceRecap(session,{classId:session.classId});const finalRequired=requiresFinalStatus(session);
+  assertTeacher(session);const students=listStudents(session,{classId:session.classId});const subjects=listActiveSubjects(session);const reportRows=getStoredReportRows(session);const attendance=semesterAttendanceRecap(session,{classId:session.classId});
   const rows=students.map(student=>{
     const studentReports=reportRows.filter(row=>row.student.id===student.id);const studentAttendance=attendance.students.find(item=>item.id===student.id);const attendanceCount=studentAttendance?studentAttendance.Hadir+studentAttendance.Sakit+studentAttendance.Izin+studentAttendance.Alpa:0;
-    const categories={identity:identityComplete(student),scores:subjects.length>0&&studentReports.filter(row=>row.scoreComplete).length===subjects.length,descriptions:subjects.length>0&&studentReports.filter(row=>row.descriptionComplete).length===subjects.length,attendance:attendanceCount>0,extracurricular:listExtracurriculars(session,student.id).length>0,homeroomNote:Boolean(getHomeroomNote(session,student.id)?.text),...(finalRequired?{finalStatus:Boolean(finalStatus(session,student.id)?.status)}:{})};
-    const labels={identity:'Identitas peserta didik',scores:'Nilai seluruh mapel',descriptions:'Deskripsi seluruh mapel',attendance:'Absensi semester',extracurricular:'Ekstrakurikuler',homeroomNote:'Catatan wali kelas',finalStatus:gradeOf(session.classId)===6?'Status kelulusan':'Kenaikan kelas'};
+    /* Mapel agama disaring sesuai agama siswa, sehingga siswa Kristen tidak dinilai belum
+       lengkap karena nilai Pendidikan Agama Islam kosong, dan sebaliknya. */
+    const studentSubjects=listSubjectsForStudent(session,student);
+    const studentSubjectIds=new Set(studentSubjects.map(item=>item.id));
+    const relevanReports=studentReports.filter(row=>studentSubjectIds.has(row.subject.id));
+    /* Ekstrakurikuler dan kokurikuler bersifat opsional sehingga tidak pernah menahan cetak.
+       Status kenaikan/kelulusan juga tidak diwajibkan; guru menentukan sendiri kapan mengisinya. */
+    const categories={identity:identityComplete(student),scores:studentSubjects.length>0&&relevanReports.filter(row=>row.scoreComplete).length===studentSubjects.length,descriptions:studentSubjects.length>0&&relevanReports.filter(row=>row.descriptionComplete).length===studentSubjects.length,attendance:attendanceCount>0,homeroomNote:Boolean(getHomeroomNote(session,student.id)?.text)};
+    const labels={identity:'Identitas peserta didik',scores:'Nilai seluruh mapel',descriptions:'Deskripsi seluruh mapel',attendance:'Absensi semester',homeroomNote:'Catatan wali kelas'};
     const missing=Object.entries(categories).filter(([,complete])=>!complete).map(([key])=>labels[key]);const completed=Object.values(categories).filter(Boolean).length;const total=Object.keys(categories).length;
     return {student,categories,missing,completed,total,percentage:Math.round(completed/total*100),status:missing.length?'INCOMPLETE':'COMPLETE'};
   });
@@ -78,8 +84,12 @@ export function getReportCompleteness(session){
 
 export function getReportDocument(session,studentId){
   assertTeacher(session);const completeness=getReportCompleteness(session);const summary=completeness.students.find(item=>item.student.id===studentId);if(!summary)throw new Error('Siswa tidak ditemukan pada scope rombel aktif.');
-  const reportRows=getStoredReportRows(session).filter(row=>row.student.id===studentId);const attendance=semesterAttendanceRecap(session,{classId:session.classId}).students.find(item=>item.id===studentId)||{Hadir:0,Sakit:0,Izin:0,Alpa:0};const extracurricular=listExtracurriculars(session,studentId);const cocurricular=getStudentCocurricular(session,studentId);const attitudes=listStudentAttitudes(session,studentId).filter(item=>item.status!=='EMPTY');const homeroomNote=getHomeroomNote(session,studentId);const status=finalStatus(session,studentId);
-  const statusLabel=!requiresFinalStatus(session)?'Tidak diperlukan pada semester Ganjil':gradeOf(session.classId)===6?(status?.status==='GRADUATED'?'Lulus':status?.status==='NOT_GRADUATED'?'Tidak Lulus':'Belum ditentukan'):(status?.status==='PROMOTED'?`Naik ke Kelas ${status.targetClass}`:status?.status==='RETAINED'?'Tinggal di kelas':'Belum ditentukan');
+  const studentSubjectIds=new Set(listSubjectsForStudent(session,summary.student).map(item=>item.id));
+  const reportRows=getStoredReportRows(session).filter(row=>row.student.id===studentId&&studentSubjectIds.has(row.subject.id));const attendance=semesterAttendanceRecap(session,{classId:session.classId}).students.find(item=>item.id===studentId)||{Hadir:0,Sakit:0,Izin:0,Alpa:0};const extracurricular=listExtracurriculars(session,studentId);const cocurricular=getStudentCocurricular(session,studentId);const attitudes=listStudentAttitudes(session,studentId).filter(item=>item.status!=='EMPTY');const homeroomNote=getHomeroomNote(session,studentId);const status=finalStatus(session,studentId);
+  /* Tanpa keterangan "tidak diperlukan". Bila guru belum menentukan, bagian ini tidak dicetak. */
+  const statusLabel=gradeOf(session.classId)===6
+    ?(status?.status==='GRADUATED'?'Lulus':status?.status==='NOT_GRADUATED'?'Tidak Lulus':'')
+    :(status?.status==='PROMOTED'?`Naik ke Kelas ${status.targetClass}`:status?.status==='RETAINED'?'Tinggal di kelas':'');
   const identity=getDocumentIdentity(session);const {school,teacher,printSettings}=identity;
   return {session:clone(session),master:{school,teacher},printSettings,student:clone(summary.student),attitudes,
     classId:identity.classId,classLabel:identity.classLabel,semester:identity.semester,semesterNumber:identity.semesterNumber,academicYear:identity.academicYear,subjects:reportRows.map(row=>({subject:clone(row.subject),score:row.score?.finalScore??null,kktp:row.score?.kktp??null,masteryStatus:row.score?.masteryStatus??null,description:row.description?.text||''})),attendance:{Hadir:attendance.Hadir,Sakit:attendance.Sakit,Izin:attendance.Izin,Alpa:attendance.Alpa},extracurricular,cocurricular,homeroomNote:homeroomNote?.text||'',finalStatus:status?clone(status):null,finalStatusLabel:statusLabel,complete:summary.status==='COMPLETE',missing:clone(summary.missing),percentage:summary.percentage};

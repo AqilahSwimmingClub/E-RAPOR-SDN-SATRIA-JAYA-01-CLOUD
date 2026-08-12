@@ -88,3 +88,41 @@ html,body{max-width:100%;overflow-x:hidden}button,input,select,textarea{max-widt
 /* Bobot penilaian massal: seluruh mapel dan lima komponennya dalam satu tabel. */
 .weights-tabs{margin-bottom:16px}.weights-bulk-card{padding:0}.weights-bulk-card>.section-head{padding:18px;border-bottom:1px solid var(--line)}.weights-bulk-card>.actions{padding:16px 18px;border-top:1px solid var(--line);justify-content:flex-end}.weights-bulk-table{min-width:900px}.weights-bulk-table th{text-align:center}.weights-bulk-table th:first-child{text-align:left;min-width:210px}.weights-bulk-table td{text-align:center}.weights-bulk-table td:first-child{text-align:left}.weights-bulk-table .score-input{max-width:82px;margin:0 auto;text-align:center;padding:7px}
 @media(max-width:767px){.weights-tabs{display:grid;grid-template-columns:1fr 1fr}.weights-bulk-card>.actions .btn{width:100%}}
+/* Cetak massal: tiap lembar siswa dimulai pada halaman baru. */
+.bulk-print-control{grid-template-columns:minmax(220px,1fr) auto auto auto}
+@media print{.report-a4+.report-a4,.report-cover-a4+.report-cover-a4{break-before:page}}
+/* Revisi cetak rapor: margin dan spacing lebih lega, tabel mapel mengalir wajar ke halaman
+   berikutnya, dan isi tidak dikecilkan hanya agar muat satu halaman. */
+.report-a4{padding:14mm 13mm}
+.report-a4 .report-head-table{margin-bottom:18px;padding-bottom:12px}
+.report-a4 .report-head-table td{font-size:10.5px;padding:3px 4px;line-height:1.5}
+.report-a4 .document-heading{font-size:15px;margin:0 0 20px;letter-spacing:.03em}
+.report-a4 .document-section{font-size:12px;margin:20px 0 10px}
+.report-a4 .document-box{margin-bottom:16px}
+.report-a4 .document-box-head{font-size:11px;padding:8px}
+.report-a4 .document-box-body{font-size:10.5px;line-height:1.7;padding:11px 12px}
+.report-a4 .document-table th,.report-a4 .document-table td{padding:8px 7px;font-size:10.5px;line-height:1.55}
+.report-a4 .report-learning-table td:nth-child(4){line-height:1.6}
+.report-a4 .subject-group-row td{padding:7px 8px;font-size:10.5px}
+.report-a4 .report-lower-grid{gap:14px;margin-top:16px}
+.report-a4 .report-signatures{margin-top:30px;font-size:10.5px}
+.report-a4 .document-foot{margin-top:20px;padding-top:8px;font-size:9.5px}
+@media print{
+  /* Baris tabel tidak terpotong, header tabel diulang di halaman berikutnya, dan
+     bagian penutup dijaga tetap menyatu. */
+  .report-a4{padding:0!important}
+  .report-a4 .document-table tr,.report-a4 .subject-group-row{break-inside:avoid}
+  .report-a4 .report-learning-table thead{display:table-header-group}
+  .report-a4 .report-lower-grid,.report-a4 .response-box,.report-a4 .report-signatures{break-inside:avoid}
+  .report-a4 .document-foot{break-before:avoid}
+  .report-a4+.report-a4{break-before:page}
+  /* Lebar area cetak A4 potret hanya 718px sehingga aturan ringkas layar ikut terpakai saat
+     mencetak dan membuat blok tanda tangan menumpuk satu kolom. Tata letak kertas dikembalikan
+     ke tiga kolom dengan ukuran huruf identitas yang utuh. */
+  .report-a4 .report-head-table td{font-size:10.5px}
+  .report-a4 .report-signatures{grid-template-columns:repeat(3,1fr);gap:20px}
+  .report-a4 .report-signatures .signature-spacer{height:52px}
+}
+/* Indikator kelengkapan yang belum lengkap berupa tombol menuju halaman sumbernya. */
+.completion-category-grid button.missing{border:0;font:inherit;font-size:9.5px;padding:5px 7px;border-radius:8px;background:#fff1f2;color:var(--danger);cursor:pointer;text-decoration:underline}
+.completion-category-grid button.missing:hover{background:#ffe3e6}

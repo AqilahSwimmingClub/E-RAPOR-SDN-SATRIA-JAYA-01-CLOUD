@@ -66,3 +66,9 @@ export const MENU_TEACHER = [
   ['backup','Backup & Restore','database'],
   ['account-settings','Pengaturan Akun','settings'],
 ];
+
+/* Mapel agama dipetakan ke agama siswa. Master mapel tidak dihapus; hanya disaring per siswa
+   sehingga siswa Kristen tidak dianggap belum lengkap karena nilai Agama Islam kosong. */
+export const RELIGIONS=['Islam','Kristen','Katolik','Hindu','Buddha','Konghucu'];
+export const RELIGION_SUBJECTS=Object.freeze({agama:'Islam',agama_kristen:'Kristen'});
+export function isReligionSubject(subjectId){return Object.hasOwn(RELIGION_SUBJECTS,subjectId);}
