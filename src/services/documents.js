@@ -4,7 +4,7 @@ import { listStudentAttitudes } from './attitudes.js';
 import { getPrintSettings } from './print-settings.js';
 import { getStoredReportRows } from './report.js';
 import { listStudents } from './students.js';
-import { listActiveSubjects, listSubjectsForStudent } from './subjects.js';
+import { hasStudentReligion, listActiveSubjects, listSubjectsForStudent } from './subjects.js';
 import { getSchoolMaster, getTeacherProfile } from './master.js';
 import { createWorkbookBytes } from './excel.js';
 
@@ -76,8 +76,10 @@ export function getReportCompleteness(session){
     const relevanReports=studentReports.filter(row=>studentSubjectIds.has(row.subject.id));
     /* Ekstrakurikuler dan kokurikuler bersifat opsional sehingga tidak pernah menahan cetak.
        Status kenaikan/kelulusan juga tidak diwajibkan; guru menentukan sendiri kapan mengisinya. */
-    const categories={identity:identityComplete(student),scores:studentSubjects.length>0&&relevanReports.filter(row=>row.scoreComplete).length===studentSubjects.length,descriptions:studentSubjects.length>0&&relevanReports.filter(row=>row.descriptionComplete).length===studentSubjects.length,attendance:attendanceCount>0,homeroomNote:Boolean(getHomeroomNote(session,student.id)?.text)};
-    const labels={identity:'Identitas peserta didik',scores:'Nilai seluruh mapel',descriptions:'Deskripsi seluruh mapel',attendance:'Absensi semester',homeroomNote:'Catatan wali kelas'};
+    /* Agama wajib diisi lebih dulu karena menentukan mapel agama mana yang dipakai siswa.
+       Selama kosong, tidak ada mapel agama yang ditebak dan guru dituntun ke Data Siswa. */
+    const categories={identity:identityComplete(student),religion:hasStudentReligion(student),scores:studentSubjects.length>0&&relevanReports.filter(row=>row.scoreComplete).length===studentSubjects.length,descriptions:studentSubjects.length>0&&relevanReports.filter(row=>row.descriptionComplete).length===studentSubjects.length,attendance:attendanceCount>0,homeroomNote:Boolean(getHomeroomNote(session,student.id)?.text)};
+    const labels={identity:'Identitas peserta didik',religion:'Agama belum diisi',scores:'Nilai seluruh mapel',descriptions:'Deskripsi seluruh mapel',attendance:'Absensi semester',homeroomNote:'Catatan wali kelas'};
     const missing=Object.entries(categories).filter(([,complete])=>!complete).map(([key])=>labels[key]);const completed=Object.values(categories).filter(Boolean).length;const total=Object.keys(categories).length;
     return {student,categories,missing,completed,total,percentage:Math.round(completed/total*100),status:missing.length?'INCOMPLETE':'COMPLETE'};
   });

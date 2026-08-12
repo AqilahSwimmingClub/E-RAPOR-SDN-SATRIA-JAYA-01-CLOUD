@@ -128,5 +128,15 @@ export function renderStudents(session){
   if(isAdmin)root.querySelector('[data-class]').onchange=event=>{selectedClass=event.target.value;draw();};
   root.querySelector('[data-add]').onclick=()=>openForm();root.querySelector('[data-template]').onclick=()=>downloadTemplate().catch(error=>toast(error.message,'error'));
   root.querySelector('[data-import]').onclick=async()=>{if(isAdmin&&selectedClass==='ALL'){toast('Pilih satu rombel sebelum import siswa.','warning');return;}try{const file=await pickFile({accept:'.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'});if(!file)return;const preview=/\.csv$/i.test(file.name)?previewStudentImport(session,file.text,{classId:selectedClass}):previewStudentWorkbookImport(session,file.arrayBuffer,{classId:selectedClass});openImportPreview(preview,file.name);}catch(error){toast(error.message,'error');}};
-  draw();return root;
+  draw();
+
+  /* Datang dari indikator "Agama belum diisi" pada Cek Kelengkapan: form Edit siswa yang
+     bersangkutan langsung dibuka agar guru tinggal memilih agamanya. */
+  let fokus='';
+  try{fokus=sessionStorage.getItem('erapor-focus-student')||'';sessionStorage.removeItem('erapor-focus-student');}catch{}
+  if(fokus){
+    const siswaFokus=getStudent(session,fokus,{classId:selectedClass});
+    if(siswaFokus)openForm(siswaFokus);
+  }
+  return root;
 }

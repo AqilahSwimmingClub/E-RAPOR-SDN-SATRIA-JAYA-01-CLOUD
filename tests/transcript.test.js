@@ -8,7 +8,7 @@ import { saveSubjectMapping } from '../src/services/storage.js';
 
 function useMemoryStorage(){const values=new Map();globalThis.localStorage={getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};}
 const ganjil={role:'teacher',classId:'5B',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};const genap={...ganjil,semester:`Genap ${ACADEMIC_YEAR}`};const otherClass={...ganjil,classId:'5C'};const otherYear={...ganjil,academicYear:'2027/2028',semester:'Ganjil 2027/2028'};
-function addStudent(session,id,nisn='5500000001'){return createStudent(session,{id,classId:session.classId,nis:`${session.classId}-${id}`,nisn,name:'Siswa Transkrip',gender:'L',birthPlace:'Bekasi',birthDate:'2015-01-01',fatherName:'Ayah',motherName:'Ibu',address:'Bekasi',photo:''});}
+function addStudent(session,id,nisn='5500000001'){return createStudent(session,{id,classId:session.classId,nis:`${session.classId}-${id}`,nisn,name:'Siswa Transkrip',gender:'L',religion:'Islam',birthPlace:'Bekasi',birthDate:'2015-01-01',fatherName:'Ayah',motherName:'Ibu',address:'Bekasi',photo:''});}
 function mapped(session){const first=['mtk','agama'];const ordered=[...first.map(id=>SUBJECTS_DEFAULT.find(item=>item.id===id)),...SUBJECTS_DEFAULT.filter(item=>!first.includes(item.id))].map((item,index)=>({...item,active:first.includes(item.id),order:index+1}));saveSubjectMapping(session,ordered);}
 
 test('Transcript is isolated by class and academic year but shared across semesters of the same year',()=>{

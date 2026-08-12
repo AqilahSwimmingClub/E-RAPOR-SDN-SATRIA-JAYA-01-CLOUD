@@ -155,7 +155,7 @@ test('Cetak massal tersedia untuk rapor, cover, dan perlengkapan',()=>{
 test('Indikator kelengkapan yang belum lengkap menjadi tombol menuju halaman sumbernya',()=>{
   const page=read('src/pages/print.js');
   assert.match(page,/data-goto="\$\{escapeHtml\(key\)\}"/,'indikator merah berupa tombol');
-  assert.match(page,/COMPLETENESS_ROUTES=\{identity:'students',scores:'report-input',descriptions:'report-input',attendance:'attendance',homeroomNote:'completeness-input'\}/);
+  assert.match(page,/COMPLETENESS_ROUTES=\{identity:'students',religion:'students',scores:'report-input',descriptions:'report-input',attendance:'attendance',homeroomNote:'completeness-input'\}/);
   assert.match(page,/erapor-focus-student/,'siswa yang bersangkutan ikut dibawa');
   assert.match(page,/bindCompletenessNavigation\(\)/);
 });
@@ -189,7 +189,7 @@ test('Kokurikuler dan ekstrakurikuler kosong tidak menahan cetak rapor',()=>{
   useMemoryStorage();
   const session=guru('5B');
   aktifkan(session,['mtk']);
-  const anak=siswa(session,'A');
+  const anak=siswa(session,'A',{religion:'Islam'});
   saveManualReportScoresBulk(session,[{subjectId:'mtk',studentId:anak.id,value:85}]);
   const tp=createLearningObjective(session,'mtk',{code:'TP-1',description:'memahami pecahan.'});
   saveReportDescription(session,'mtk',anak.id,generateReportDescription(session,'mtk',anak.id,{bestObjectiveId:tp.id,improvementObjectiveId:tp.id}));
@@ -221,10 +221,10 @@ test('Mapel agama mengikuti agama masing-masing siswa',()=>{
   const mapelKristen=listSubjectsForStudent(session,kristen).map(item=>item.id);
   assert.ok(mapelIslam.includes('agama')&&!mapelIslam.includes('agama_kristen'),'siswa Islam hanya Agama Islam');
   assert.ok(mapelKristen.includes('agama_kristen')&&!mapelKristen.includes('agama'),'siswa Kristen hanya Agama Kristen');
-  /* Agama kosong tidak boleh meloloskan dua mapel agama sekaligus; dipakai mapel bawaan. */
+  /* Agama kosong tidak ditebak: tidak ada mapel agama yang dipilihkan untuk siswa itu. */
   const mapelTanpa=listSubjectsForStudent(session,tanpa).map(item=>item.id);
-  assert.ok(mapelTanpa.includes('agama')&&!mapelTanpa.includes('agama_kristen'),'agama kosong memakai mapel agama bawaan, bukan keduanya');
-  assert.equal(listSubjectsForStudent(session,tanpa).length,listActiveSubjects(session).length-1,'tepat satu mapel agama yang tersisa');
+  assert.equal(mapelTanpa.includes('agama')||mapelTanpa.includes('agama_kristen'),false,'agama kosong tidak menampilkan PAI maupun PAK');
+  assert.equal(listSubjectsForStudent(session,tanpa).length,listActiveSubjects(session).length-2,'kedua mapel agama dikeluarkan');
   assert.deepEqual(RELIGION_SUBJECTS,{agama:'Islam',agama_kristen:'Kristen'});
   assert.equal(isReligionSubject('mtk'),false);
   assert.ok(SUBJECTS_DEFAULT.some(item=>item.id==='agama_kristen'),'master mapel agama tidak dihapus');

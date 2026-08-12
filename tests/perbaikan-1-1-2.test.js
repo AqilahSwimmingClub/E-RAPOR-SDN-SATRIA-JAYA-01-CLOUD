@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, RELIGIONS, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { APP_SCHEMA_VERSION, APP_VERSION, PREVIOUS_RELEASE, VERSION_CODE } from '../src/data/version.js';
-import { DEFAULT_RELIGION_SUBJECT, listActiveSubjects, listSubjectsForStudent, religionSubjectIdFor } from '../src/services/subjects.js';
+import { hasStudentReligion, listActiveSubjects, listSubjectsForStudent, religionSubjectIdFor } from '../src/services/subjects.js';
 import { getReportCompleteness, getReportDocument } from '../src/services/documents.js';
-import { saveManualReportScoresBulk } from '../src/services/report.js';
+import { getStoredReportRows, saveManualReportScoresBulk } from '../src/services/report.js';
 import { getTranscriptRows, transcriptTemplateCsv } from '../src/services/transcript.js';
 import { createStudent, updateStudent } from '../src/services/students.js';
 import { saveSubjectMapping, loadDb, storageKey } from '../src/services/storage.js';
@@ -72,15 +72,19 @@ test('Tidak ada siswa yang pernah menerima dua mapel agama sekaligus',()=>{
   useMemoryStorage();
   const session=guru('5B');
   aktifkan(session,['agama','agama_kristen','mtk']);
-  /* Termasuk agama kosong dan agama yang belum punya mapel khusus. */
+  /* Agama kosong maupun agama yang belum punya mapel khusus tidak pernah menerima PAI/PAK. */
   const daftar=['',...RELIGIONS].map((religion,index)=>siswa(session,`AG${index}`,religion?{religion}:{}));
   daftar.forEach(anak=>{
     const agama=listSubjectsForStudent(session,anak).filter(item=>item.id==='agama'||item.id==='agama_kristen');
-    assert.equal(agama.length,1,`siswa dengan agama "${anak.religion||'(kosong)'}" menerima tepat satu mapel agama`);
+    const harapan=anak.religion==='Islam'?['agama']:anak.religion==='Kristen'?['agama_kristen']:[];
+    assert.deepEqual(agama.map(item=>item.id),harapan,`siswa dengan agama "${anak.religion||'(kosong)'}" hanya menerima mapel yang sesuai`);
   });
   assert.equal(religionSubjectIdFor({religion:'Islam'}),'agama');
   assert.equal(religionSubjectIdFor({religion:'Kristen'}),'agama_kristen');
-  assert.equal(religionSubjectIdFor({}),DEFAULT_RELIGION_SUBJECT,'agama kosong memakai mapel bawaan');
+  assert.equal(religionSubjectIdFor({}),null,'agama kosong tidak ditebak');
+  assert.equal(religionSubjectIdFor({religion:'Katolik'}),null,'agama tanpa mapel khusus tidak memakai PAI/PAK');
+  assert.equal(hasStudentReligion({religion:'Islam'}),true);
+  assert.equal(hasStudentReligion({}),false);
 });
 
 test('Kelengkapan rapor memakai mapel sesuai agama siswa',()=>{
@@ -241,5 +245,129 @@ test('E. Tidak ada kode yang menghapus atau mereset data pengguna',()=>{
     const isi=read(berkas);
     assert.equal(/localStorage\.clear\(\)/.test(isi),false,`${berkas} tidak boleh mengosongkan localStorage`);
     assert.equal(/removeItem\(storageKey\(\)\)/.test(isi),false,`${berkas} tidak boleh menghapus database`);
+  }
+});
+
+/* =========================================================================================
+   Agama kosong tidak pernah ditebak: tidak ada PAI/PAK, dan guru dituntun ke Data Siswa.
+   ========================================================================================= */
+
+test('Agama kosong: PAI BP dan PAK BP sama-sama tidak muncul',()=>{
+  useMemoryStorage();
+  const session=guru('5B');
+  aktifkan(session,['agama','agama_kristen','mtk']);
+  const anak=siswa(session,'KOSONG');
+  saveManualReportScoresBulk(session,[{subjectId:'mtk',studentId:anak.id,value:80}]);
+
+  const mapel=listSubjectsForStudent(session,anak).map(item=>item.id);
+  assert.deepEqual(mapel,['mtk'],'tidak ada mapel agama yang dipilihkan');
+
+  const nama=getReportDocument(session,anak.id).subjects.map(item=>item.subject.name);
+  assert.equal(nama.includes(PAI),false,'PAI BP tidak ditampilkan');
+  assert.equal(nama.includes(PAK),false,'PAK BP tidak ditampilkan');
+
+  const transkrip=getTranscriptRows(session,anak.id).map(row=>row.subject.id);
+  assert.deepEqual(transkrip,['mtk'],'Transkrip Nilai juga tidak menebak agama');
+  assert.equal(religionSubjectIdFor(anak),null,'aplikasi tidak menebak agama siswa');
+});
+
+test('Agama kosong ditandai "Agama belum diisi" dan dapat diklik ke Data Siswa',()=>{
+  useMemoryStorage();
+  const session=guru('5B');
+  aktifkan(session,['agama','agama_kristen','mtk']);
+  const kosong=siswa(session,'TANPA');
+  const islam=siswa(session,'DENGAN',{religion:'Islam'});
+
+  const ringkasan=getReportCompleteness(session).students;
+  const barisKosong=ringkasan.find(row=>row.student.id===kosong.id);
+  const barisIslam=ringkasan.find(row=>row.student.id===islam.id);
+  assert.equal(barisKosong.categories.religion,false,'siswa tanpa agama ditandai belum lengkap');
+  assert.ok(barisKosong.missing.includes('Agama belum diisi'),'status "Agama belum diisi" tampil pada daftar kekurangan');
+  assert.equal(barisIslam.categories.religion,true,'siswa yang agamanya sudah diisi tidak ikut ditandai');
+  assert.equal(barisIslam.missing.includes('Agama belum diisi'),false);
+
+  /* Indikator mengarah ke Data Siswa dan membuka form Edit siswa yang bersangkutan. */
+  const cetak=read('src/pages/print.js');
+  assert.match(cetak,/COMPLETENESS_ROUTES=\{identity:'students',religion:'students'/,'indikator agama menuju Data Siswa');
+  assert.match(cetak,/sessionStorage\.setItem\('erapor-focus-student',button\.dataset\.gotoStudent\)/,'siswa terkait ikut dikirim');
+  const halaman=read('src/pages/students.js');
+  assert.match(halaman,/sessionStorage\.getItem\('erapor-focus-student'\)/,'Data Siswa membaca siswa yang dituju');
+  assert.match(halaman,/if\(siswaFokus\)openForm\(siswaFokus\)/,'form Edit siswa terkait langsung dibuka');
+});
+
+test('Agama kosong tidak memblokir akses bagian aplikasi lain',()=>{
+  useMemoryStorage();
+  const session=guru('5B');
+  aktifkan(session,['agama','agama_kristen','mtk']);
+  const anak=siswa(session,'BEBAS');
+  /* Nilai, deskripsi, absensi, dan catatan tetap dapat diisi walau agama belum diisi. */
+  assert.doesNotThrow(()=>saveManualReportScoresBulk(session,[{subjectId:'mtk',studentId:anak.id,value:82}]));
+  assert.doesNotThrow(()=>getReportCompleteness(session));
+  assert.doesNotThrow(()=>getReportDocument(session,anak.id));
+  assert.doesNotThrow(()=>getTranscriptRows(session,anak.id));
+  assert.equal(getStoredReportRows(session).find(row=>row.student.id===anak.id&&row.subject.id==='mtk').score.finalScore,82);
+});
+
+test('Nilai agama lama tidak terhapus, hanya visibilitasnya yang diatur',()=>{
+  useMemoryStorage();
+  const session=guru('5B');
+  aktifkan(session,['agama','agama_kristen','mtk']);
+  /* Siswa sempat dinilai sebagai Islam, lalu agamanya dikosongkan kembali. */
+  const anak=siswa(session,'LAMA',{religion:'Islam'});
+  saveManualReportScoresBulk(session,[
+    {subjectId:'agama',studentId:anak.id,value:91},
+    {subjectId:'agama_kristen',studentId:anak.id,value:77},
+    {subjectId:'mtk',studentId:anak.id,value:80},
+  ]);
+  const kunci=`${session.academicYear}|${session.semester}|5B`;
+  const sebelum=JSON.parse(JSON.stringify(loadDb().reportScores));
+
+  const dikosongkan=updateStudent(session,anak.id,{...anak,religion:''});
+  assert.equal(listSubjectsForStudent(session,dikosongkan).map(item=>item.id).join(','),'mtk','mapel agama tidak lagi ditampilkan');
+  assert.deepEqual(loadDb().reportScores,sebelum,'seluruh nilai tersimpan tetap utuh, termasuk nilai agama');
+  assert.equal(loadDb().reportScores[`${kunci}|agama|${anak.id}`].finalScore,91,'nilai Agama Islam lama tidak terhapus');
+  assert.equal(loadDb().reportScores[`${kunci}|agama_kristen|${anak.id}`].finalScore,77,'nilai Agama Kristen lama tidak terhapus');
+
+  /* Begitu agama diisi lagi, nilai lama langsung terpakai kembali tanpa input ulang. */
+  const kembali=updateStudent(session,anak.id,{...anak,religion:'Islam'});
+  const dokumen=getReportDocument(session,kembali.id);
+  assert.equal(dokumen.subjects.find(item=>item.subject.id==='agama').score,91,'nilai agama lama muncul kembali apa adanya');
+  assert.equal(dokumen.subjects.some(item=>item.subject.id==='agama_kristen'),false,'mapel agama yang tidak sesuai tetap disembunyikan');
+});
+
+test('Update dari 1.1.1/1.1.2 tetap mempertahankan data lama termasuk agama dan nilainya',()=>{
+  for(const versiLama of ['1.1.1','1.1.2']){
+    useMemoryStorage();
+    const session=guru('5B');
+    aktifkan(session,['agama','agama_kristen','mtk']);
+    const islam=siswa(session,`I-${versiLama}`,{religion:'Islam'});
+    const kristen=siswa(session,`K-${versiLama}`,{religion:'Kristen'});
+    const kosong=siswa(session,`N-${versiLama}`);
+    saveManualReportScoresBulk(session,[
+      {subjectId:'agama',studentId:islam.id,value:85},
+      {subjectId:'agama_kristen',studentId:kristen.id,value:88},
+      {subjectId:'agama',studentId:kosong.id,value:70},
+      {subjectId:'mtk',studentId:kosong.id,value:75},
+    ]);
+
+    const db=loadDb();db.appVersion=versiLama;db.appSchemaVersion=APP_SCHEMA_VERSION;
+    localStorage.setItem(storageKey(),JSON.stringify(db));
+    const sebelum=JSON.parse(localStorage.getItem(storageKey()));
+
+    const hasil=runAppMigrations();
+    assert.equal(hasil.migrated,false,`update dari ${versiLama} tidak memaksa migrasi schema`);
+
+    const sesudah=loadDb();
+    for(const bagian of ['students','reportScores','reportDescriptions','attendance','learningObjectives','assessmentSettings','subjectMappings','homeroomNotes','extracurricularScores','cocurricularScores','printSettings','transcriptScores'])
+      assert.deepEqual(sesudah[bagian],sebelum[bagian],`${bagian} tidak berubah saat update dari ${versiLama}`);
+
+    const kunci=`${session.academicYear}|${session.semester}|5B`;
+    assert.equal(sesudah.students[`${kunci}|${islam.id}`].religion,'Islam',`agama Islam bertahan setelah update dari ${versiLama}`);
+    assert.equal(sesudah.students[`${kunci}|${kristen.id}`].religion,'Kristen',`agama Kristen bertahan setelah update dari ${versiLama}`);
+    assert.equal(sesudah.reportScores[`${kunci}|agama|${kosong.id}`].finalScore,70,`nilai agama siswa tanpa agama tidak terhapus (${versiLama})`);
+
+    assert.deepEqual(listSubjectsForStudent(session,islam).map(item=>item.id),['agama','mtk']);
+    assert.deepEqual(listSubjectsForStudent(session,kristen).map(item=>item.id),['agama_kristen','mtk']);
+    assert.deepEqual(listSubjectsForStudent(session,kosong).map(item=>item.id),['mtk'],`agama kosong tetap tidak ditebak setelah update dari ${versiLama}`);
   }
 });
