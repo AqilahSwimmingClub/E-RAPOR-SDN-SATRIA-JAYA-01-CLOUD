@@ -56,33 +56,62 @@ export function attendanceDerivedSheet(session,subjectId){
   return {subjectId,rows,conversion,daysRecorded:recap.daysRecorded,filledCount:filled.length,pendingCount:rows.length-filled.length,average:filled.length?filled.reduce((sum,row)=>sum+row.score,0)/filled.length:null};
 }
 
-export function calculateReportScore(session,subjectId,studentId){
-  const subject=requireActiveSubject(session,subjectId);const settings=getAssessmentSettings(session,subjectId);
-  const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);
-  if(!student)throw new Error('Siswa tidak ditemukan pada scope rombel aktif.');
+/* Konteks perhitungan satu mapel disiapkan SEKALI lalu dipakai ulang untuk seluruh siswa.
+   Sebelumnya setiap siswa memuat lima lembar penilaian sendiri-sendiri, sehingga satu rombel
+   penuh membaca database ratusan kali dan tombol Simpan Otomatis terasa tidak bisa diklik
+   karena UI membeku belasan detik. */
+function reportContext(session,subjectId){
+  const subject=requireActiveSubject(session,subjectId);
+  const settings=getAssessmentSettings(session,subjectId);
   const attendanceMode=getDailyAttendanceMode(session,subjectId);
-  const attendanceRow=attendanceMode?attendanceDerivedSheet(session,subjectId).rows.find(row=>row.studentId===studentId):null;
+  const attendanceById=new Map(attendanceMode?attendanceDerivedSheet(session,subjectId).rows.map(row=>[row.studentId,row]):[]);
+  const sheetByType=new Map(ASSESSMENT_TYPES.map(type=>[type.id,new Map(getAssessmentSheet(session,subjectId,type.id).rows.map(row=>[row.studentId,row]))]));
+  const studentById=new Map(listStudents(session,{classId:session.classId}).map(student=>[student.id,student]));
+  return {subject,settings,attendanceMode,attendanceById,sheetByType,studentById};
+}
+
+/* Nilai rapor adalah rata-rata polos dari komponen yang TERISI saja. Komponen kosong tidak
+   pernah dianggap nol dan tidak ikut membagi: 80 dan 90 dengan tiga komponen kosong
+   menghasilkan 85, bukan dibagi lima. Aturan ini berlaku sama untuk 1 sampai 5 komponen.
+   Bobot Penilaian tetap tersimpan sebagai keterangan komponen, tetapi tidak lagi menentukan
+   nilai rapor; KKTP tetap dipakai untuk menentukan ketuntasan. */
+function composeScore(components){
+  const filled=components.filter(component=>component.score!==null);
+  if(!filled.length)return {rawScore:null,filledCount:0};
+  return {rawScore:filled.reduce((sum,component)=>sum+component.score,0)/filled.length,filledCount:filled.length};
+}
+
+export function calculateReportScore(session,subjectId,studentId,context=null){
+  const ctx=context||reportContext(session,subjectId);
+  const student=ctx.studentById.get(studentId);
+  if(!student)throw new Error('Siswa tidak ditemukan pada scope rombel aktif.');
   const components=ASSESSMENT_TYPES.map(type=>{
-    const manualRow=getAssessmentSheet(session,subjectId,type.id).rows.find(row=>row.studentId===studentId);
-    const fromAttendance=type.id==='daily'&&attendanceMode;
-    const score=fromAttendance?(attendanceRow?.score??null):(manualRow?.score??null);
-    return {id:type.id,label:type.label,score,weight:settings[type.id],source:fromAttendance?'attendance':'manual',weightedValue:score===null?null:score*settings[type.id]/100};
+    const fromAttendance=type.id==='daily'&&ctx.attendanceMode;
+    const score=fromAttendance?(ctx.attendanceById.get(studentId)?.score??null):(ctx.sheetByType.get(type.id).get(studentId)?.score??null);
+    const weight=ctx.settings[type.id];
+    return {id:type.id,label:type.label,score,weight,source:fromAttendance?'attendance':'manual',weightedValue:score===null?null:score*weight/100};
   });
-  const complete=components.every(component=>component.score!==null);
-  const rawScore=complete?components.reduce((sum,component)=>sum+component.weightedValue,0):null;
+  const total=components.length;
+  const {rawScore,filledCount}=composeScore(components);
   const roundedScore=rawScore===null?null:Math.round(rawScore);
+  const complete=filledCount===total;
   return {
-    studentId,studentName:student.name,nis:student.nis,nisn:student.nisn,classId:session.classId,subjectId,subjectName:subject.name,
-    semester:session.semester,academicYear:session.academicYear,components,kktp:settings.kktp,
-    rawScore,roundedScore,finalScore:roundedScore,completionStatus:complete?'COMPLETE':'INCOMPLETE',
-    completionLabel:complete?'LENGKAP':'BELUM LENGKAP',masteryStatus:complete?(roundedScore>=settings.kktp?'TUNTAS':'BELUM TUNTAS'):null,
-    dailyFromAttendance:attendanceMode,
+    studentId,studentName:student.name,nis:student.nis,nisn:student.nisn,classId:session.classId,subjectId,subjectName:ctx.subject.name,
+    semester:session.semester,academicYear:session.academicYear,components,kktp:ctx.settings.kktp,
+    rawScore,roundedScore,finalScore:roundedScore,
+    filledCount,componentCount:total,
+    completionStatus:complete?'COMPLETE':filledCount?'PARTIAL':'EMPTY',
+    completionLabel:complete?'LENGKAP':filledCount?`SEBAGIAN ${filledCount}/${total}`:'BELUM ADA NILAI',
+    masteryStatus:roundedScore===null?null:(roundedScore>=ctx.settings.kktp?'TUNTAS':'BELUM TUNTAS'),
+    dailyFromAttendance:ctx.attendanceMode,
   };
 }
 
+/* Seluruh siswa rombel selalu ikut, tanpa memandang agama maupun kelengkapan identitasnya.
+   Penyaringan agama hanya menentukan MAPEL milik siswa, bukan keberadaan siswanya. */
 export function calculateReportSheet(session,subjectId){
-  requireActiveSubject(session,subjectId);
-  return listStudents(session,{classId:session.classId}).map(student=>calculateReportScore(session,subjectId,student.id));
+  const ctx=reportContext(session,subjectId);
+  return [...ctx.studentById.values()].map(student=>calculateReportScore(session,subjectId,student.id,ctx));
 }
 
 function automaticRecord(calculation,previous=null){
@@ -130,10 +159,12 @@ export function saveManualReportScoresBulk(session,entries,{source='MANUAL'}={})
   assertTeacher(session);
   const list=(Array.isArray(entries)?entries:[]).filter(item=>item&&item.subjectId&&item.studentId);
   if(!list.length)return {saved:0,rows:[]};
+  const contextBySubject=new Map();
   const prepared=list.map(entry=>{
     const subject=requireActiveSubject(session,entry.subjectId);
     const manualScore=scoreValue(entry.value,`Nilai rapor manual ${subject.name}`);
-    return {subjectId:subject.id,studentId:entry.studentId,manualScore,automatic:calculateReportScore(session,subject.id,entry.studentId)};
+    if(!contextBySubject.has(subject.id))contextBySubject.set(subject.id,reportContext(session,subject.id));
+    return {subjectId:subject.id,studentId:entry.studentId,manualScore,automatic:calculateReportScore(session,subject.id,entry.studentId,contextBySubject.get(subject.id))};
   });
   const rows=[];
   updateDb(db=>{
@@ -160,7 +191,9 @@ export function getStoredReportRows(session){
   return subjects.flatMap(subject=>students.map(student=>{
     const score=db.reportScores[reportKey(session,subject.id,student.id)]||null;
     const description=db.reportDescriptions[reportKey(session,subject.id,student.id)]||null;
-    const scoreComplete=Boolean(score&&score.finalScore!==null&&score.completionStatus==='COMPLETE');const descriptionComplete=Boolean(description?.text);
+    /* Nilai dianggap tersedia begitu ada nilai akhir, termasuk hasil dari komponen yang baru
+       terisi sebagian. Yang belum punya nilai sama sekali tetap dibedakan. */
+    const scoreComplete=Boolean(score&&score.finalScore!==null);const descriptionComplete=Boolean(description?.text);
     return {student,subject,score:score?clone(score):null,description:description?clone(description):null,scoreComplete,descriptionComplete,complete:scoreComplete&&descriptionComplete};
   }));
 }

@@ -26,16 +26,33 @@ test('Weighted report formula returns raw and rounded values',()=>{
   assert.equal(result.rawScore,80);assert.equal(result.roundedScore,80);assert.equal(result.completionStatus,'COMPLETE');assert.equal(result.masteryStatus,'TUNTAS');
 });
 
-test('A blank required component is not zero and keeps report incomplete',()=>{
+test('A blank component is never zero and never divides the report score',()=>{
   useMemoryStorage();const student=addStudent(teacher5b);scores(teacher5b,'agama',student,{formative:80,daily:'',practice:90,scopeSummative:60,semesterSummative:100});
   const result=calculateReportScore(teacher5b,'agama',student.id);const daily=result.components.find(component=>component.id==='daily');
-  assert.equal(daily.score,null);assert.equal(result.rawScore,null);assert.equal(result.roundedScore,null);assert.equal(result.completionLabel,'BELUM LENGKAP');
+  assert.equal(daily.score,null,'komponen kosong tetap null, bukan 0');
+  /* Rata-rata hanya dari empat komponen yang terisi: (80+90+60+100)/4 = 82,5. */
+  assert.equal(result.rawScore,82.5);assert.equal(result.roundedScore,83);
+  assert.equal(result.filledCount,4);assert.equal(result.completionStatus,'PARTIAL');assert.equal(result.completionLabel,'SEBAGIAN 4/5');
 });
 
-test('Different subject weights produce different report scores',()=>{
+test('Report score is the plain average of filled components only',()=>{
+  useMemoryStorage();const student=addStudent(teacher5b);
+  scores(teacher5b,'agama',student,{formative:80,daily:'',practice:'',scopeSummative:'',semesterSummative:''});
+  assert.equal(calculateReportScore(teacher5b,'agama',student.id).rawScore,80,'satu nilai terisi dihitung apa adanya');
+  scores(teacher5b,'agama',student,{formative:80,daily:90,practice:'',scopeSummative:'',semesterSummative:''});
+  assert.equal(calculateReportScore(teacher5b,'agama',student.id).rawScore,85,'(80+90)/2 = 85, bukan dibagi lima');
+  scores(teacher5b,'agama',student,{formative:80,daily:90,practice:70,scopeSummative:'',semesterSummative:''});
+  assert.equal(calculateReportScore(teacher5b,'agama',student.id).rawScore,80,'(80+90+70)/3 = 80');
+});
+
+test('Bobot tidak lagi mengubah nilai rapor, tetapi KKTP tetap menentukan ketuntasan',()=>{
   useMemoryStorage();const student=addStudent(teacher5b);const values={formative:100,daily:0,practice:0,scopeSummative:0,semesterSummative:0};scores(teacher5b,'agama',student,values);scores(teacher5b,'mtk',student,values);
   saveAssessmentSettings(teacher5b,'mtk',{formative:50,daily:10,practice:10,scopeSummative:15,semesterSummative:15,kktp:75});
-  assert.equal(calculateReportScore(teacher5b,'agama',student.id).rawScore,30);assert.equal(calculateReportScore(teacher5b,'mtk',student.id).rawScore,50);
+  /* Nilai rapor adalah rata-rata polos komponen terisi: (100+0+0+0+0)/5 = 20 pada kedua mapel. */
+  assert.equal(calculateReportScore(teacher5b,'agama',student.id).rawScore,20);
+  assert.equal(calculateReportScore(teacher5b,'mtk',student.id).rawScore,20);
+  assert.equal(calculateReportScore(teacher5b,'mtk',student.id).kktp,75,'KKTP mapel tetap dipakai');
+  assert.equal(calculateReportScore(teacher5b,'mtk',student.id).masteryStatus,'BELUM TUNTAS');
 });
 
 test('Daily score switches between manual assessment and attendance conversion without changing attendance',()=>{

@@ -2,10 +2,10 @@ import { CLASSES } from '../data/constants.js';
 import { assertReportPrintable, getDocumentIdentity, getLeger, getReportCompleteness, getReportDocument, legerWorkbookBytes } from '../services/documents.js';
 import { listStudents } from '../services/students.js';
 import { saveFile } from '../services/file-io.js';
-import { el, escapeHtml, toast } from '../ui/dom.js';
+import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { digitalGauge } from '../ui/digital-gauge.js';
-import { printCurrentDocument } from '../services/print-service.js';
+import { isDesktop, printCurrentDocument, showDocumentPreview } from '../services/print-service.js';
 
 const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const DOTS='..................................';
@@ -61,8 +61,17 @@ export function renderPrint(session){
     const run=async savePdf=>{
       try{
         if(requireComplete)assertReportPrintable(scope,studentId);
+        /* Pada desktop, dialog cetak Windows tidak menyediakan preview. Dokumen ditampilkan
+           dan dikonfirmasi lebih dulu di aplikasi agar guru tetap memeriksa sebelum mencetak. */
+        if(!savePdf&&isDesktop()){
+          showDocumentPreview();
+          const lanjut=await confirmDialog({title:`Preview ${label}`,message:'Dokumen sudah tampil di layar. Periksa hasilnya, lalu lanjutkan ke dialog cetak Windows. Dialog Windows memang tidak menampilkan preview, jadi pemeriksaan dilakukan di aplikasi ini.',confirmText:'Lanjut Cetak'});
+          if(!lanjut)return;
+        }
         if(savePdf&&!globalThis.desktopBridge)toast('Pilih tujuan “Save as PDF” pada dialog cetak perangkat.');
-        await printCurrentDocument({title:documentTitle(label,student),savePdf});
+        const hasil=await printCurrentDocument({title:documentTitle(label,student),savePdf});
+        if(savePdf&&hasil?.saved)toast(`PDF berhasil disimpan: ${hasil.path}`);
+        else if(savePdf&&hasil?.canceled)toast('Penyimpanan PDF dibatalkan.','warning');
       }catch(error){toast(error.message,'error');}
     };
     view.querySelector('[data-print]')?.addEventListener('click',()=>run(false));

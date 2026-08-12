@@ -28,7 +28,31 @@ export function renderReportInput(session){
     const rows=calculateReportSheet(session,subjectId);const complete=rows.filter(row=>row.completionStatus==='COMPLETE').length;actions.innerHTML=`<button class="btn btn-light" data-save-all-auto>Simpan Otomatis Semua Mapel</button><button class="btn btn-primary" data-save-auto>${icon('save',17)} Simpan Hasil Otomatis</button>`;
     if(!rows.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan siswa sebelum menghitung Nilai Rapor.</p></section>';actions.querySelector('[data-save-auto]').disabled=true;return;}
     view.innerHTML=`<div class="report-summary"><article class="stat-card"><div class="stat-label">Nilai Lengkap</div><div class="stat-value">${complete}</div><div class="stat-foot">dari ${rows.length} siswa</div></article><article class="stat-card"><div class="stat-label">Belum Lengkap</div><div class="stat-value">${rows.length-complete}</div><div class="stat-foot">komponen kosong bukan 0</div></article><article class="stat-card"><div class="stat-label">KKTP Mapel</div><div class="stat-value">${getAssessmentSettings(session,subjectId).kktp}</div><div class="stat-foot">mengikuti Bobot Penilaian</div></article></div><section class="card report-table-card"><div class="table-scroll"><table class="data-table report-table"><thead><tr><th>Siswa</th><th>5 Komponen</th><th>Mentah</th><th>Pembulatan</th><th>KKTP</th><th>Status</th><th>Deskripsi</th></tr></thead><tbody>${rows.map(row=>automaticRow(row)).join('')}</tbody></table></div></section><div class="report-card-list">${rows.map(row=>automaticCard(row)).join('')}</div>`;
-    bindDescriptionButtons();actions.querySelector('[data-save-auto]').onclick=()=>{const saved=saveAutomaticReportScores(session,subjectId);drawAutomatic();toast(`${saved.length} hasil diproses. Override manual yang ada tetap dipertahankan.`);};actions.querySelector('[data-save-all-auto]').onclick=async()=>{if(!await confirmDialog({title:'Simpan Otomatis Semua Mapel',message:'Hitung nilai rapor dan buat deskripsi untuk seluruh mapel aktif? Override manual dan deskripsi terkunci tetap dipertahankan.',confirmText:'Proses Semua'}))return;const button=actions.querySelector('[data-save-all-auto]');button.disabled=true;button.textContent='Memproses…';const result=saveAllAutomaticReports(session);drawAutomatic();toast(result.errors.length?`Proses selesai dengan ${result.errors.length} kendala. Periksa TP dan nilai yang belum lengkap.`:`${result.scoreCount} nilai dan ${result.descriptionCount} deskripsi berhasil diproses.`,result.errors.length?'warning':'success');};
+    bindDescriptionButtons();
+    /* Kedua tombol diberi status sibuk, penanganan galat, dan umpan balik. Sebelumnya galat
+       apa pun membuat tombol seolah tidak bisa diklik karena tidak ada reaksi sama sekali. */
+    const jalankan=async(button,label,kerja)=>{
+      const semula=button.innerHTML;
+      button.disabled=true;button.textContent=label;
+      await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));
+      try{await kerja();}
+      catch(error){toast(error.message,'error');}
+      finally{if(button.isConnected){button.disabled=false;button.innerHTML=semula;}}
+    };
+    actions.querySelector('[data-save-auto]').onclick=()=>jalankan(actions.querySelector('[data-save-auto]'),'Menyimpan…',()=>{
+      const saved=saveAutomaticReportScores(session,subjectId);
+      const bernilai=saved.filter(item=>item.finalScore!==null).length;
+      drawAutomatic();
+      toast(`${bernilai} dari ${saved.length} siswa memperoleh nilai rapor. Override manual tetap dipertahankan.`);
+    });
+    actions.querySelector('[data-save-all-auto]').onclick=async()=>{
+      if(!await confirmDialog({title:'Simpan Otomatis Semua Mapel',message:'Hitung nilai rapor dan buat deskripsi untuk seluruh mapel aktif? Override manual dan deskripsi terkunci tetap dipertahankan.',confirmText:'Proses Semua'}))return;
+      await jalankan(actions.querySelector('[data-save-all-auto]'),'Memproses…',()=>{
+        const result=saveAllAutomaticReports(session);
+        drawAutomatic();
+        toast(result.errors.length?`${result.scoreCount} nilai tersimpan, ${result.errors.length} mapel belum dapat dibuatkan deskripsi. Periksa TP mapel tersebut.`:`${result.scoreCount} nilai dan ${result.descriptionCount} deskripsi berhasil diproses.`,result.errors.length?'warning':'success');
+      });
+    };
   }
   function componentsHtml(row){return `<div class="component-pills">${row.components.map(component=>`<span class="${component.score===null?'component-missing':''}" title="${escapeHtml(component.label)} · Bobot ${component.weight}% · ${component.source==='attendance'?'Absensi':'Manual'}"><b>${component.label.split(' ').map(word=>word[0]).join('')}</b>${number(component.score)}${component.source==='attendance'?'<i>A</i>':''}</span>`).join('')}</div>`;}
   function automaticRow(row){

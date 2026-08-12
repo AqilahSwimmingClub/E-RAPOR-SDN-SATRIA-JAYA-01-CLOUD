@@ -35,7 +35,7 @@ function legacyFixture(){
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
 test('identitas versi rilis memakai versionCode yang naik dan schema 4',()=>{
-  assert.equal(APP_VERSION,'1.1.2');assert.equal(VERSION_CODE,6);assert.equal(APP_SCHEMA_VERSION,4);
+  assert.equal(APP_VERSION,'1.1.3');assert.equal(VERSION_CODE,7);assert.equal(APP_SCHEMA_VERSION,4);
 });
 
 test('data siswa bertahan setelah migration tanpa mengganti field lama',()=>{

@@ -114,8 +114,9 @@ export function normalizeStudentInput(input,classId){
 
 function validateFields(student){
   const errors=[];
-  if(!student.nis) errors.push('NIS wajib diisi.');
-  if(!student.nisn) errors.push('NISN wajib diisi.');
+  /* NIS dan NISN adalah data identitas, bukan syarat agar siswa dapat dinilai. Siswa yang
+     NIS-nya belum terbit tetap boleh disimpan dan tetap menerima nilai lewat ID internalnya. */
+  if(!student.nis && !student.nisn) errors.push('Isi minimal salah satu dari NIS atau NISN.');
   if(!student.name) errors.push('Nama siswa wajib diisi.');
   if(!['L','P'].includes(student.gender)) errors.push('JK harus L atau P.');
   if(student.birthDate && !isValidDate(student.birthDate)) errors.push('Tanggal lahir harus menggunakan format YYYY-MM-DD yang valid.');
@@ -126,8 +127,10 @@ function validateFields(student){
 
 function validateDuplicates(student,records,excludeId=null){
   const errors=[];
-  if(records.some(record=>record.id!==excludeId && record.nis===student.nis)) errors.push(`NIS ${student.nis} sudah digunakan dalam scope rombel ini.`);
-  if(records.some(record=>record.id!==excludeId && record.nisn===student.nisn)) errors.push(`NISN ${student.nisn} sudah digunakan dalam scope rombel ini.`);
+  /* Nomor kosong tidak pernah dianggap duplikat, sehingga beberapa siswa boleh sama-sama
+     belum memiliki NIS tanpa saling menolak. */
+  if(student.nis && records.some(record=>record.id!==excludeId && record.nis===student.nis)) errors.push(`NIS ${student.nis} sudah digunakan dalam scope rombel ini.`);
+  if(student.nisn && records.some(record=>record.id!==excludeId && record.nisn===student.nisn)) errors.push(`NISN ${student.nisn} sudah digunakan dalam scope rombel ini.`);
   return errors;
 }
 

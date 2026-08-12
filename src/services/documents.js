@@ -13,7 +13,9 @@ function assertTeacher(session){if(!session||session.role!=='teacher'||!session.
 function semesterNumber(session){return String(session?.semester||'').startsWith('Genap ')?2:1;}
 function average(values){const valid=values.filter(value=>Number.isFinite(value));return valid.length?Math.round((valid.reduce((sum,value)=>sum+value,0)/valid.length+Number.EPSILON)*100)/100:null;}
 function gradeOf(classId){return Number.parseInt(String(classId||''),10);}
-function identityComplete(student){return ['nis','nisn','name','gender','birthPlace','birthDate','address'].every(field=>String(student[field]||'').trim())&&Boolean(String(student.parentName||student.fatherName||student.motherName||'').trim());}
+/* NIS dan NISN adalah data identitas: cukup salah satu terisi. Siswa yang NIS-nya belum
+   terbit tetap dapat dinilai, dicetak, dan masuk seluruh dokumen. */
+function identityComplete(student){return ['name','gender','birthPlace','birthDate','address'].every(field=>String(student[field]||'').trim())&&Boolean(String(student.nis||student.nisn||'').trim())&&Boolean(String(student.parentName||student.fatherName||student.motherName||'').trim());}
 
 export function getLeger(session){
   assertTeacher(session);const students=listStudents(session,{classId:session.classId});const subjects=listActiveSubjects(session);const reportRows=getStoredReportRows(session);const attendance=semesterAttendanceRecap(session,{classId:session.classId});

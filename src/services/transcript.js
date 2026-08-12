@@ -10,20 +10,39 @@ function clone(value){return JSON.parse(JSON.stringify(value));}
 function assertTeacher(session){if(!session||session.role!=='teacher'||!session.classId)throw new Error('Session Transkrip tidak valid.');}
 function clean(value,max=200){return String(value??'').trim().slice(0,max);}
 function scoreValue(value){if(value===''||value===null||value===undefined)return null;const number=Number(value);if(!Number.isFinite(number)||number<0||number>100)throw new Error('Nilai transkrip harus berupa angka 0 sampai 100.');return number;}
-export function transcriptStudentIdentity(student){return student.nisn?`NISN-${student.nisn}`:`NIS-${student.nis}`;}
+/* Transkrip sengaja dibagi antar semester pada tahun pelajaran yang sama, sehingga identitasnya
+   memakai NISN lalu NIS agar catatan siswa yang sama tetap menyatu. Bila keduanya belum terbit,
+   dipakai ID internal siswa yang selalu ada dan unik. Sebelumnya siswa tanpa NISN dan NIS
+   sama-sama memakai kunci "NIS-" sehingga nilainya saling menimpa. */
+export function transcriptStudentIdentity(student){
+  const nisn=String(student?.nisn||'').trim();
+  if(nisn)return `NISN-${nisn}`;
+  const nis=String(student?.nis||'').trim();
+  if(nis)return `NIS-${nis}`;
+  return `ID-${student.id}`;
+}
+/* Kunci rilis lama tetap dibaca supaya transkrip yang sudah tersimpan tidak hilang. */
+export function legacyTranscriptIdentity(student){return student.nisn?`NISN-${student.nisn}`:`NIS-${student.nis}`;}
 export function transcriptScope(session){assertTeacher(session);return `${session.academicYear}|${session.classId}`;}
 function transcriptKey(session,student,subjectId){return `${transcriptScope(session)}|${transcriptStudentIdentity(student)}|${subjectId}`;}
+function legacyTranscriptKey(session,student,subjectId){const identity=legacyTranscriptIdentity(student);return identity&&identity!==transcriptStudentIdentity(student)?`${transcriptScope(session)}|${identity}|${subjectId}`:'';}
+function readTranscript(db,session,student,subjectId){
+  const current=db.transcriptScores[transcriptKey(session,student,subjectId)];
+  if(current)return current;
+  const legacy=legacyTranscriptKey(session,student,subjectId);
+  return legacy?db.transcriptScores[legacy]||null:null;
+}
 function requireStudent(session,studentId){assertTeacher(session);const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);if(!student)throw new Error('Siswa tidak ditemukan pada scope rombel aktif.');return student;}
 
 export function getTranscriptRows(session,studentId){
-  const student=requireStudent(session,studentId);const db=loadDb();return listSubjectsForStudent(session,student).map(subject=>{const record=db.transcriptScores[transcriptKey(session,student,subject.id)]||null;return {student:clone(student),subject,score:record?.score??null,saved:Boolean(record),record:record?clone(record):null};});
+  const student=requireStudent(session,studentId);const db=loadDb();return listSubjectsForStudent(session,student).map(subject=>{const record=readTranscript(db,session,student,subject.id);return {student:clone(student),subject,score:record?.score??null,saved:Boolean(record),record:record?clone(record):null};});
 }
 
 export function getTranscriptScore(session,studentId,subjectId){return getTranscriptRows(session,studentId).find(row=>row.subject.id===subjectId)?.record||null;}
 
 export function saveTranscriptScores(session,studentId,values,{partial=false}={}){
   const student=requireStudent(session,studentId);const subjects=listSubjectsForStudent(session,student);const input=values&&typeof values==='object'?values:{};const allowed=new Set(subjects.map(subject=>subject.id));const unknown=Object.keys(input).filter(id=>!allowed.has(id));if(unknown.length)throw new Error('Transkrip memuat mata pelajaran di luar Mapping aktif.');const targets=partial?subjects.filter(subject=>Object.hasOwn(input,subject.id)):subjects;const normalized={};targets.forEach(subject=>{normalized[subject.id]=scoreValue(input[subject.id]);});
-  updateDb(db=>{const now=new Date().toISOString();targets.forEach(subject=>{const key=transcriptKey(session,student,subject.id);const value=normalized[subject.id];if(value===null){delete db.transcriptScores[key];return;}const existing=db.transcriptScores[key];db.transcriptScores[key]={academicYear:session.academicYear,classId:session.classId,studentIdentity:transcriptStudentIdentity(student),studentId:student.id,nis:student.nis,nisn:student.nisn,name:student.name,subjectId:subject.id,score:value,createdAt:existing?.createdAt||now,updatedAt:now};});return db;});return getTranscriptRows(session,studentId);
+  updateDb(db=>{const now=new Date().toISOString();targets.forEach(subject=>{const key=transcriptKey(session,student,subject.id);const value=normalized[subject.id];if(value===null){delete db.transcriptScores[key];return;}const existing=readTranscript(db,session,student,subject.id);db.transcriptScores[key]={academicYear:session.academicYear,classId:session.classId,studentIdentity:transcriptStudentIdentity(student),studentId:student.id,nis:student.nis,nisn:student.nisn,name:student.name,subjectId:subject.id,score:value,createdAt:existing?.createdAt||now,updatedAt:now};});return db;});return getTranscriptRows(session,studentId);
 }
 
 export function transcriptTemplateCsv(session){
