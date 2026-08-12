@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { fillAllAssessmentScores } from '../src/services/assessment-bulk.js';
 import { saveAssessmentScores } from '../src/services/assessment.js';
-import { getStoredReportRows, saveAutomaticReportScores } from '../src/services/report.js';
+import { createLearningObjective } from '../src/services/objectives.js';
+import { getStoredReportRows, saveAutomaticReportScores, visibleStoredReportRows } from '../src/services/report.js';
 import { saveAllAutomaticReports } from '../src/services/report-bulk.js';
 import { getLeger, getReportDocument } from '../src/services/documents.js';
 import { createStudent } from '../src/services/students.js';
@@ -21,6 +22,13 @@ function siswa(session,suffix,extra={}){return createStudent(session,{classId:se
 const PAI='Pendidikan Agama Islam dan Budi Pekerti';
 const PAK='Pendidikan Agama Kristen dan Budi Pekerti';
 const barisMapel=(session,subjectId)=>getStoredReportRows(session).filter(row=>row.subject.id===subjectId);
+/* Baris yang benar-benar digambar halaman Nilai Tersimpan. */
+const tampil=session=>visibleStoredReportRows(getStoredReportRows(session));
+const adaBaris=(rows,studentId,subjectId)=>rows.some(row=>row.student.id===studentId&&row.subject.id===subjectId);
+function tp(session,subjectId){
+  createLearningObjective(session,subjectId,{code:`TP-B-${subjectId}`,description:`memahami ${subjectId} dengan baik.`});
+  createLearningObjective(session,subjectId,{code:`TP-I-${subjectId}`,description:`menerapkan ${subjectId} secara mandiri.`});
+}
 
 /* ------------------------------------------------- Nilai agama masuk ke Nilai Tersimpan */
 
@@ -69,7 +77,7 @@ test('Nilai agama yang sudah tersimpan tidak pernah hilang dari Nilai Tersimpan'
   assert.equal(loadDb().reportScores[kunci].finalScore,85,'nilai memang tersimpan di database');
   const baris=barisMapel(session,'agama');
   assert.ok(baris.some(row=>row.student.id===kosong.id&&row.score?.finalScore===85),'nilai tetap terlihat walau agama siswa masih kosong');
-  assert.ok(baris.some(row=>row.student.id===kristen.id),'nilai PAI siswa Kristen yang terlanjur tersimpan tetap terlihat');
+  assert.ok(baris.some(row=>row.student.id===kristen.id),'record nilai PAI siswa Kristen yang terlanjur tersimpan tidak dihapus');
   /* Penyaringan agama tetap berlaku pada dokumen rapor. */
   assert.equal(getReportDocument(session,kosong.id).subjects.some(item=>item.subject.name===PAI),false,'agama kosong tidak menampilkan PAI di rapor');
   assert.equal(getReportDocument(session,kristen.id).subjects.some(item=>item.subject.name===PAI),false,'siswa Kristen tidak menerima PAI di rapor');
@@ -145,6 +153,88 @@ test('Siswa tanpa NIS tetap dapat mempunyai nilai agama',()=>{
   assert.equal(baris.score.finalScore,88,'nilai agama siswa tanpa NIS terbaca di Nilai Tersimpan');
   assert.equal(getReportDocument(session,tanpaNis.id).subjects.find(item=>item.subject.id==='agama').score,88,'nilai agama masuk rapor');
   assert.equal(getLeger(session).students.find(row=>row.student.id===tanpaNis.id).scores.find(item=>item.subject.id==='agama').score,88,'nilai agama masuk Leger');
+});
+
+/* ------------------------------------------ Penyaringan tampilan halaman Nilai Tersimpan */
+
+test('Nilai Tersimpan menyembunyikan baris mapel agama yang tidak sesuai agama siswa',()=>{
+  useMemoryStorage();
+  const session=guru('5B');
+  aktifkan(session,['agama','agama_kristen','mtk']);
+  const islam=siswa(session,'ISL',{religion:'Islam'});
+  const kristen=siswa(session,'KRS',{religion:'Kristen'});
+  ['agama','agama_kristen','mtk'].forEach(id=>tp(session,id));
+  saveAssessmentScores(session,'agama','formative',{[islam.id]:85});
+  saveAssessmentScores(session,'agama_kristen','formative',{[kristen.id]:90});
+  /* Simpan Semua Nilai Otomatis menulis record nilai dan deskripsi untuk semua mapel aktif x
+     semua siswa, termasuk baris PAK milik siswa Islam dan sebaliknya. */
+  saveAllAutomaticReports(session);
+
+  const rows=tampil(session);
+  assert.equal(adaBaris(rows,islam.id,'agama'),true,'siswa Islam melihat baris PAI');
+  assert.equal(adaBaris(rows,islam.id,'agama_kristen'),false,'baris PAK tidak muncul pada siswa Islam');
+  assert.equal(adaBaris(rows,kristen.id,'agama_kristen'),true,'siswa Kristen melihat baris PAK');
+  assert.equal(adaBaris(rows,kristen.id,'agama'),false,'baris PAI tidak muncul pada siswa Kristen');
+  assert.equal(adaBaris(rows,islam.id,'mtk')&&adaBaris(rows,kristen.id,'mtk'),true,'mapel non-agama tidak ikut disaring');
+});
+
+test('Baris mapel agama kosong tanpa nilai dan deskripsi tidak ditampilkan',()=>{
+  useMemoryStorage();
+  const session=guru('5B');
+  aktifkan(session,['agama','agama_kristen','mtk']);
+  const islam=siswa(session,'ISL',{religion:'Islam'});
+  fillAllAssessmentScores(session,'agama','85');
+  saveAutomaticReportScores(session,'agama');
+  saveAutomaticReportScores(session,'agama_kristen');
+  saveAutomaticReportScores(session,'mtk');
+
+  const kunciPak=`${session.academicYear}|${session.semester}|5B|agama_kristen|${islam.id}`;
+  assert.equal(loadDb().reportScores[kunciPak].finalScore,null,'record PAK kosong memang terbentuk');
+  const rows=tampil(session);
+  assert.equal(adaBaris(rows,islam.id,'agama_kristen'),false,'baris PAK kosong disembunyikan');
+  assert.equal(adaBaris(rows,islam.id,'agama'),true,'baris PAI yang berisi nilai tetap tampil');
+  assert.equal(adaBaris(rows,islam.id,'mtk'),true,'mapel non-agama tanpa nilai tetap tampil sebagai penanda belum lengkap');
+});
+
+test('Penyaringan Nilai Tersimpan tidak menghapus record apa pun dari database',()=>{
+  useMemoryStorage();
+  const session=guru('5B');
+  aktifkan(session,['agama','agama_kristen','mtk']);
+  const kristen=siswa(session,'KRS',{religion:'Kristen'});
+  ['agama','agama_kristen'].forEach(id=>tp(session,id));
+  fillAllAssessmentScores(session,'agama','85');
+  saveAllAutomaticReports(session);
+
+  const kunciPai=`${session.academicYear}|${session.semester}|5B|agama|${kristen.id}`;
+  const rows=tampil(session);
+  assert.equal(adaBaris(rows,kristen.id,'agama'),false,'baris PAI siswa Kristen tidak ditampilkan');
+  /* Hanya TAMPILAN yang disaring: nilai dan deskripsi lama tetap utuh di penyimpanan. */
+  const db=loadDb();
+  assert.equal(db.reportScores[kunciPai].finalScore,85,'nilai PAI lama tetap tersimpan');
+  assert.ok(db.reportDescriptions[kunciPai].text,'deskripsi PAI lama tetap tersimpan');
+  assert.equal(barisMapel(session,'agama').some(row=>row.student.id===kristen.id),true,'record tetap terbaca di lapisan data');
+});
+
+test('Nilai agama tetap tampil saat kolom Agama siswa masih kosong',()=>{
+  useMemoryStorage();
+  const session=guru('5B');
+  aktifkan(session,['agama','agama_kristen','mtk']);
+  /* Kondisi nyata siswa seed 5B: kolom agama belum diisi. Agama tidak boleh ditebak, dan nilai
+     yang sudah diinput guru tidak boleh hilang dari layar. */
+  const kosong=siswa(session,'KOSONG',{religion:''});
+  fillAllAssessmentScores(session,'agama','85');
+  saveAutomaticReportScores(session,'agama');
+  saveAutomaticReportScores(session,'agama_kristen');
+
+  const rows=tampil(session);
+  assert.equal(adaBaris(rows,kosong.id,'agama'),true,'nilai PAI yang sudah tersimpan tetap terlihat');
+  assert.equal(adaBaris(rows,kosong.id,'agama_kristen'),false,'baris PAK kosong tetap disembunyikan');
+});
+
+test('Halaman Nilai Tersimpan memakai penyaringan tampilan, bukan penghapusan data',()=>{
+  const page=read('src/pages/reports.js');
+  assert.match(page,/visibleStoredReportRows\(getStoredReportRows\(session\)\)/,'daftar Nilai Tersimpan disaring saat digambar');
+  assert.doesNotMatch(read('src/services/report.js'),/delete db\.reportScores|delete db\.reportDescriptions/,'tidak ada penghapusan record nilai atau deskripsi');
 });
 
 /* ------------------------------------------------------------ Warna latar area cetak */

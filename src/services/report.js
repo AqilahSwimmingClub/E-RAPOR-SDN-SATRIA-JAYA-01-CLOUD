@@ -1,4 +1,4 @@
-import { SUBJECTS_DEFAULT } from '../data/constants.js';
+import { religionMatches, religionOfSubject, SUBJECTS_DEFAULT } from '../data/constants.js';
 import { ASSESSMENT_TYPES, getAssessmentSettings, getAssessmentSheet } from './assessment.js';
 import { semesterAttendanceRecap } from './attendance.js';
 import { listStudents } from './students.js';
@@ -231,6 +231,22 @@ export function getStoredReportRows(session){
     if(!subject)return [];
     return [buildStoredRow(db,session,student,subject)];
   }));
+}
+
+/* Penyaringan TAMPILAN untuk halaman Nilai Tersimpan. Simpan Semua Nilai Otomatis menulis
+   record untuk seluruh mapel aktif x seluruh siswa, sehingga siswa Islam ikut mendapat baris PAK
+   kosong dan sebaliknya. Baris mapel agama hanya ditampilkan bila berisi nilai atau deskripsi dan
+   sesuai agama siswa. Bila agama siswa masih kosong, agama tidak ditebak: baris yang sudah berisi
+   nilai tetap ditampilkan agar hasil kerja guru tidak hilang dari layar. Tidak ada record yang
+   dihapus dari database; mengisi/memperbaiki kolom Agama siswa memunculkannya kembali. */
+export function visibleStoredReportRows(rows){
+  return rows.filter(row=>{
+    const agamaMapel=religionOfSubject(row.subject);
+    if(!agamaMapel)return true;
+    if(!row.scoreComplete&&!row.descriptionComplete)return false;
+    const agamaSiswa=row.student?.religion||'';
+    return agamaSiswa?religionMatches(agamaMapel,agamaSiswa):true;
+  });
 }
 
 function buildStoredRow(db,session,student,subject){
