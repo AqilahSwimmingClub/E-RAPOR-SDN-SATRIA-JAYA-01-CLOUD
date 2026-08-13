@@ -273,9 +273,13 @@ test('15-17. Preview, Simpan PDF, dan Cetak desktop memakai jalur yang benar',()
   assert.match(cetak,/confirmText:'Lanjut Cetak'/);
   assert.match(cetak,/PDF berhasil disimpan/,'hasil Simpan PDF dilaporkan ke guru');
 
+  /* Mode Windows kini membuka aplikasi di browser default, sehingga Preview, Cetak, dan
+     Simpan PDF memakai kemampuan browser. Jalur desktopBridge tetap ada sebagai cadangan
+     bila aplikasi dijalankan di dalam Electron. */
   const main=read('electron/main.cjs');
-  assert.match(main,/webContents\.printToPDF\(\{printBackground:true,pageSize:'A4',preferCSSPageSize:true\}\)/,'Simpan PDF memakai printToPDF dengan ukuran halaman dari CSS');
-  assert.match(main,/webContents\.print\(\{silent:false,printBackground:true\}/,'Cetak memakai dialog perangkat');
+  assert.match(main,/shell\.openExternal\(appUrl\(\)\)/,'UI dibuka di browser default, bukan jendela Electron');
+  assert.equal(/webContents\.print\(/.test(main),false,'dialog cetak Electron tidak lagi menjadi jalur utama');
+  assert.match(service,/globalThis\.print\(\)/,'browser memakai dialog cetak dan Save as PDF bawaan');
   /* Leger tetap A4 landscape lewat @page, dan cetak massal tidak berubah. */
   assert.match(cetak,/setPrintPageSize\('landscape'\)/);
   assert.match(cetak,/data-bulk-toggle/,'Cetak Semua Rapor tetap tersedia');

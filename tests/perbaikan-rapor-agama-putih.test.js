@@ -137,7 +137,7 @@ test('Mapel agama tidak hilang walau statusnya nonaktif pada Mapping',()=>{
 
 test('Penanda BUILD VERIFIKASI tampil di halaman Pengaturan dan ikut ke hasil build',()=>{
   const halaman=read('src/pages/settings.js');
-  assert.match(read('src/data/version.js'),/export const BUILD_TAG='1\.1\.5-FIX-AGAMA-PUTIH';/,'penanda build tersimpan bersama identitas versi');
+  assert.match(read('src/data/version.js'),/export const BUILD_TAG='1\.1\.6-WINDOWS-BROWSER';/,'penanda build tersimpan bersama identitas versi');
   assert.match(halaman,/import \{ BUILD_TAG \} from '\.\.\/data\/version\.js';/);
   assert.match(halaman,/BUILD VERIFIKASI: \$\{escapeHtml\(BUILD_TAG\)\}/,'penanda dirender pada kartu Tentang Aplikasi');
   assert.match(halaman,/data-build-tag/);
@@ -147,7 +147,7 @@ test('Penanda BUILD VERIFIKASI tampil di halaman Pengaturan dan ikut ke hasil bu
     assert.match(read(berkas),/BUILD VERIFIKASI/,`${berkas} membawa penanda build`);
   }
   for(const berkas of ['dist/src/data/version.js','android/app/src/main/assets/public/src/data/version.js']){
-    assert.match(read(berkas),/BUILD_TAG='1\.1\.5-FIX-AGAMA-PUTIH'/,`${berkas} membawa BUILD_TAG`);
+    assert.match(read(berkas),/BUILD_TAG='1\.1\.6-WINDOWS-BROWSER'/,`${berkas} membawa BUILD_TAG`);
   }
 });
 

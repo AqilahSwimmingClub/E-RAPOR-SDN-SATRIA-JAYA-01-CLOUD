@@ -1,7 +1,7 @@
-version: 1.1.4
+version: 1.1.6
 files:
-  - url: E-RAPOR-SDN-SATRIA-JAYA-01-Setup-1.1.4.exe
-    sha512: 4BnivJtLVOUUF0alxgKnRQN39vlkitgIVx7r59GXmU0P0RTPytRSgyCoJG5SLsF5a1RaJlN1XnxbID/TJLbNKg==
-path: E-RAPOR-SDN-SATRIA-JAYA-01-Setup-1.1.4.exe
-sha512: 4BnivJtLVOUUF0alxgKnRQN39vlkitgIVx7r59GXmU0P0RTPytRSgyCoJG5SLsF5a1RaJlN1XnxbID/TJLbNKg==
-releaseDate: '2026-08-12T12:13:35.758Z'
+  - url: E-RAPOR-SDN-SATRIA-JAYA-01-Setup-1.1.6.exe
+    sha512: 9uSa6+B3UxlDZ1d15D4BemAi0nHXwr68HMeWNkBNxAM9eUBvmbd78hZDmHpp18uk0PPCofbmRcQ5cPjdJ+N2hQ==
+path: E-RAPOR-SDN-SATRIA-JAYA-01-Setup-1.1.6.exe
+sha512: 9uSa6+B3UxlDZ1d15D4BemAi0nHXwr68HMeWNkBNxAM9eUBvmbd78hZDmHpp18uk0PPCofbmRcQ5cPjdJ+N2hQ==
+releaseDate: '2026-08-13T05:13:57.709Z'

@@ -57,14 +57,12 @@ test('Berkas yang dipaketkan tidak membawa data guru maupun kunci rahasia',()=>{
 
 /* ------------------------------------------------------------------ Kesegaran kode setelah update */
 
-test('Cache rilis lama dibersihkan setelah update tanpa menyentuh data pengguna',()=>{
+test('Kode terbaru selalu dipakai karena server lokal melarang cache',()=>{
   const main=read('electron/main.cjs');
-  assert.match(main,/readLastRunVersion\(\)===current/,'pembersihan hanya berjalan saat versi berubah');
-  assert.match(main,/await target\.clearCache\(\)/,'cache HTTP rilis lama dibersihkan');
-  assert.match(main,/await target\.clearCodeCaches\(\{\}\)/,'cache kode JavaScript rilis lama dibersihkan');
-  assert.match(main,/writeLastRunVersion\(current\)/,'penanda versi diperbarui sehingga hanya sekali per rilis');
-  /* Yang boleh dibersihkan hanya cache. Data guru tidak boleh disentuh sama sekali. */
-  for(const berbahaya of ['clearStorageData','clearData(','localStorage.clear','removeItem'])
+  assert.match(main,/'Cache-Control':'no-store'/,'server lokal tidak pernah menyajikan berkas dari cache');
+  assert.match(main,/writeLastRunVersion\(app\.getVersion\(\)\)/,'penanda versi rilis desktop tetap dicatat');
+  /* Yang boleh disentuh hanya berkas aplikasi. Data guru tidak pernah dihapus launcher. */
+  for(const berbahaya of ['clearStorageData','clearData(','localStorage.clear','removeItem','rmSync','unlinkSync'])
     assert.equal(main.includes(berbahaya),false,`main.cjs tidak boleh memanggil ${berbahaya}`);
 });
 

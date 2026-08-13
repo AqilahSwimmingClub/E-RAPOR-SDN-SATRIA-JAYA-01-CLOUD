@@ -5,7 +5,7 @@
    diperbarui WebView masih menjalankan JavaScript lama dari cache dan revisi baru tidak
    pernah muncul. Kini kode aplikasi diambil network-first supaya berkas dari APK terbaru
    selalu menang, sedangkan aset berat tetap cache-first agar offline tetap ringan. */
-const APP_CACHE_VERSION='1.1.5-9';
+const APP_CACHE_VERSION='1.1.6-10';
 const CACHE=`erapor-satria-${APP_CACHE_VERSION}`;
 const OFFLINE_SHELL='./index.html';
 const APP_SHELL=[
