@@ -165,7 +165,7 @@ test('Indikator kelengkapan yang belum lengkap menjadi tombol menuju halaman sum
 test('Layout cetak rapor lega dan tidak memaksa seluruh tabel mapel satu halaman',()=>{
   const css=read('src/styles/app.css');
   assert.match(css,/\.report-a4\{padding:14mm 13mm\}/,'margin lebih lega');
-  assert.match(css,/\.report-a4 \.document-table th,\.report-a4 \.document-table td\{padding:8px 7px/,'spacing tabel lebih longgar');
+  assert.match(css,/\.report-a4 \.document-table th,\.report-a4 \.document-table td\{padding:5px 7px/,'spacing tabel mengikuti acuan format final');
   assert.match(css,/\.report-a4 \.report-learning-table thead\{display:table-header-group\}/,'header tabel diulang di halaman berikutnya');
   assert.match(css,/\.report-a4 \.document-table tr,\.report-a4 \.subject-group-row\{break-inside:avoid\}/,'baris mapel tidak terpotong');
   assert.equal(/\.report-a4[^{]*\{[^}]*transform:scale/.test(css),false,'isi tidak dikecilkan agar muat satu halaman');

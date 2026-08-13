@@ -245,7 +245,7 @@ test('Latar area cetak Rapor dan Cover putih pada Preview, PDF, dan Cetak',()=>{
   assert.match(css,/\.print-workspace\{background:#fff\}/,'area sekitar kertas putih');
   assert.match(css,/\.content:has\(\.print-workspace\)\{background:#fff\}/,'padding halaman ikut putih');
   assert.match(css,/\.print-workspace \.report-a4,\.print-workspace \.report-cover-a4\{background:#fff;border-color:#fff;box-shadow:none\}/,'pinggiran kertas menyatu dengan kertas');
-  const blokCetak=css.match(/@media print\{\n  html,body,\.print-workspace,[^}]*\}[^}]*\}/)[0];
+  const blokCetak=css.match(/@media print\{\n  html,body,\.print-workspace,\.document-a4,\.document-sheet,\.report-a4,\.report-cover-a4\{background:#fff!important\}[^}]*\}[^}]*\}/)[0];
   assert.match(blokCetak,/html,body,\.print-workspace,\.document-a4,\.document-sheet,\.report-a4,\.report-cover-a4\{background:#fff!important\}/,'saat mencetak seluruh latar putih');
   assert.match(blokCetak,/\.report-a4,\.report-cover-a4\{border:0!important;box-shadow:none!important\}/);
 });

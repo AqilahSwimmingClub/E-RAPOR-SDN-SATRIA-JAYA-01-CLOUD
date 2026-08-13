@@ -220,7 +220,7 @@ test('Ukuran halaman dan aturan Cover tidak ikut berubah',()=>{
 
 test('Cetak tetap memutihkan seluruh latar dan tidak mengubah arsiran tabel',()=>{
   const css=read('src/styles/app.css');
-  const blok=css.match(/@media print\{\n  html,body,\.print-workspace,[^}]*\}[^}]*\}/)[0];
+  const blok=css.match(/@media print\{\n  html,body,\.print-workspace,\.document-a4,\.document-sheet,\.report-a4,\.report-cover-a4\{background:#fff!important\}[^}]*\}[^}]*\}/)[0];
   assert.match(blok,/html,body,\.print-workspace,\.document-a4,\.document-sheet,\.report-a4,\.report-cover-a4\{background:#fff!important\}/);
   assert.match(blok,/\.report-a4,\.report-cover-a4\{border:0!important;box-shadow:none!important\}/);
   assert.doesNotMatch(blok,/document-table|document-box-head/,'arsiran isi dokumen tidak ikut diputihkan');

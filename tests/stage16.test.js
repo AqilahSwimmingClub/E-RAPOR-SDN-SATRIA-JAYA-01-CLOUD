@@ -222,7 +222,11 @@ test('Intro startup memakai audio asli dan berhenti setelah masuk Login',()=>{
   assert.match(intro,/paintBackgroundFromFirstFrame/,'latar diambil dari frame pertama agar tidak ada kedip putih');
   const capacitor=JSON.parse(read('capacitor.config.json'));
   assert.equal(capacitor.android.mediaPlaybackRequiresUserGesture,false,'Android boleh autoplay bersuara');
-  assert.equal(capacitor.backgroundColor,'#000000');
+  /* Latar WebView diputihkan karena warna hitamnya ikut tercetak sebagai pinggiran hitam pada
+     Simpan PDF Android. Layar intro tetap hitam lewat CSS-nya sendiri dan splash native. */
+  assert.equal(capacitor.backgroundColor,'#ffffff');
+  assert.match(read('src/styles/app.css'),/:root\{--intro-bg:#000\}/,'latar animasi intro tetap hitam');
+  assert.match(read('src/styles/app.css'),/\.intro-screen\{position:fixed;inset:0;z-index:10000;background:var\(--intro-bg\)/,'layar intro menutup penuh dengan latar hitam');
   const styles=read('android/app/src/main/res/values/styles.xml');
   assert.match(styles,/windowSplashScreenAnimatedIcon">@drawable\/splash_icon_transparent/,'tidak ada logo statis sebelum animasi');
   assert.match(styles,/windowSplashScreenBackground">#000000/);
