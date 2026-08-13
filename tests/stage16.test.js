@@ -26,7 +26,7 @@ function tambahSiswa(session,suffix){return createStudent(session,{classId:sessi
 /* ---------------------------------------- Tahap 16: format Data Siswa dan data awal 5B */
 
 test('Format kolom Data Siswa mengikuti berkas Kelas 5B untuk semua rombel',()=>{
-  assert.deepEqual(STUDENT_CSV_HEADERS,['NIS','NISN','Nama','JK','Tempat/Tanggal Lahir','Orang Tua','Telepon','Alamat']);
+  assert.deepEqual(STUDENT_CSV_HEADERS,['NIS','NISN','Nama','JK','Agama','Tempat/Tanggal Lahir','Orang Tua','Telepon','Alamat'],'kolom Agama ikut format baku');
   const rows=readWorkbookRows(studentTemplateWorkbook());
   assert.deepEqual(rows[0],STUDENT_CSV_HEADERS,'template unduhan memakai format baku yang sama');
 });
@@ -44,7 +44,7 @@ test('Import Excel menerima format baku termasuk baris judul di atas header',()=
   const bytes=createWorkbookBytes('Data Siswa',[
     ['Data Siswa Kelas 5B'],
     STUDENT_CSV_HEADERS,
-    ['222301035','3152513003','Adwa Habibi Rizky','L','Bekasi, 4 September 2015','Sumito','','Kp. Gebang'],
+    ['222301035','3152513003','Adwa Habibi Rizky','L','Islam','Bekasi, 4 September 2015','Sumito','','Kp. Gebang'],
   ]);
   const preview=previewStudentWorkbookImport(session,bytes,{classId:'5B'});
   assert.equal(preview.canCommit,true,preview.rows[0]?.errors?.join(', '));
@@ -54,6 +54,7 @@ test('Import Excel menerima format baku termasuk baris judul di atas header',()=
   assert.equal(siswa.birthPlace,'Bekasi');
   assert.equal(siswa.birthDate,'2015-09-04');
   assert.equal(siswa.parentName,'Sumito');
+  assert.equal(siswa.religion,'Islam','agama ikut terbaca dari berkas');
 });
 
 test('Ekspor Data Siswa memakai format kolom yang sama dengan template',()=>{

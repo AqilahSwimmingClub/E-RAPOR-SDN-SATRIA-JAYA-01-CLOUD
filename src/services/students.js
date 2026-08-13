@@ -3,8 +3,9 @@ import { loadDb, updateDb } from './storage.js';
 import { createWorkbookBytes, readWorkbookRows } from './excel.js';
 
 export const STUDENT_CSV_HEADERS=[
-  'NIS','NISN','Nama','JK','Tempat/Tanggal Lahir','Orang Tua','Telepon','Alamat'
+  'NIS','NISN','Nama','JK','Agama','Tempat/Tanggal Lahir','Orang Tua','Telepon','Alamat'
 ];
+const STUDENT_COLUMN_WIDTHS=[14,18,30,6,14,30,26,16,52];
 /* Tempat dan tanggal lahir ditulis satu kolom, contoh: "Bekasi, 4 September 2015". */
 const BIRTH_MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 export function formatBirthPlaceDate(student){
@@ -125,6 +126,18 @@ function validateFields(student){
   return errors;
 }
 
+/* Siswa lama dikenali dari NISN lebih dulu, lalu NIS. Nomor kosong tidak pernah dipakai
+   mencocokkan supaya siswa yang belum punya NIS tidak saling tertukar. Pembandingan
+   mengabaikan spasi dan besar kecil huruf agar selisih penulisan tidak membuat siswa ganda. */
+function kunciNomor(value){return String(value??'').trim().replace(/\s+/g,'').toUpperCase();}
+export function matchExistingStudent(student,records){
+  const nisn=kunciNomor(student.nisn);
+  if(nisn){const cocok=records.find(record=>kunciNomor(record.nisn)===nisn);if(cocok)return cocok;}
+  const nis=kunciNomor(student.nis);
+  if(nis){const cocok=records.find(record=>kunciNomor(record.nis)===nis);if(cocok)return cocok;}
+  return null;
+}
+
 function validateDuplicates(student,records,excludeId=null){
   const errors=[];
   /* Nomor kosong tidak pernah dianggap duplikat, sehingga beberapa siswa boleh sama-sama
@@ -189,11 +202,17 @@ export function filterStudents(students,{query='',gender='',classId='ALL'}={}){
       .some(value=>String(value||'').toLowerCase().includes(q))));
 }
 
-export function studentRow(student){return [student.nis,student.nisn,student.name,student.gender,formatBirthPlaceDate(student),student.parentName||'',student.phone||'',student.address||''];}
+export function studentRow(student){return [student.nis,student.nisn,student.name,student.gender,student.religion||'',formatBirthPlaceDate(student),student.parentName||'',student.phone||'',student.address||''];}
 export function studentTemplateCsv(){return `\uFEFF${STUDENT_CSV_HEADERS.join(',')}\r\n`;}
-export function studentWorkbookBytes(session,{classId='ALL'}={}){const rows=listStudents(session,{classId}).map(studentRow);return createWorkbookBytes('Data Siswa',[STUDENT_CSV_HEADERS,...rows],{columnWidths:[14,18,30,6,30,26,16,52]});}
+export function studentWorkbookBytes(session,{classId='ALL'}={}){const rows=listStudents(session,{classId}).map(studentRow);return createWorkbookBytes('Data Siswa',[STUDENT_CSV_HEADERS,...rows],{columnWidths:STUDENT_COLUMN_WIDTHS});}
 
-export function studentTemplateWorkbook(){return createWorkbookBytes('Data Siswa',[STUDENT_CSV_HEADERS],{columnWidths:[14,18,30,6,30,26,16,52]});}
+/* Template unduhan sekaligus menjadi salinan data siswa rombel aktif: guru mengunduh, mengedit
+   di Excel, lalu mengimpornya kembali tanpa mengetik ulang. Rombel yang belum punya siswa
+   tetap menghasilkan berkas berisi baris header lengkap. */
+export function studentTemplateWorkbook(session=null,{classId='ALL'}={}){
+  const rows=session?listStudents(session,{classId}).map(studentRow):[];
+  return createWorkbookBytes('Data Siswa',[STUDENT_CSV_HEADERS,...rows],{columnWidths:STUDENT_COLUMN_WIDTHS});
+}
 
 function xmlEscape(value){return String(value??'').replace(/[&<>"']/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[character]));}
 function xmlDecode(value){return String(value??'').replace(/&#(\d+);/g,(_,code)=>String.fromCharCode(Number(code))).replace(/&#x([0-9a-f]+);/gi,(_,code)=>String.fromCharCode(Number.parseInt(code,16))).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&');}
@@ -265,21 +284,35 @@ export function previewStudentImport(session,text,{classId='ALL'}={}){
   if(session.role==='admin' && classId==='ALL' && !mappedHeaders.includes('classId')) throw new Error('Kolom Rombel wajib tersedia untuk import Admin semua rombel.');
   const db=loadDb();
   const previous=[];
+  const dipakai=new Set();
+  /* Kolom yang benar-benar ada pada berkas. Saat memperbarui siswa lama, hanya kolom inilah
+     yang ditimpa sehingga data yang tidak ikut di Excel (misalnya foto) tetap utuh. */
+  const providedFields=[...new Set(mappedHeaders.filter(Boolean))];
   const rows=csvRows.slice(headerRow+1).map((cells,index)=>{
     const raw={};mappedHeaders.forEach((field,column)=>{if(field)raw[field]=cells[column]??'';});
     const errors=[];let targetClass='';
     try{targetClass=importClass(session,raw.classId,classId);}catch(error){errors.push(error.message);}
     const data=normalizeStudentInput(raw,targetClass);
     errors.push(...validateFields(data));
+    let existingId=null;
     if(targetClass){
       const existing=studentEntries(db,session,targetClass).map(([,record])=>record);
-      errors.push(...validateDuplicates(data,[...existing,...previous.filter(record=>record.classId===targetClass)]));
+      const cocok=matchExistingStudent(data,existing);
+      existingId=cocok?cocok.id:null;
+      if(existingId&&dipakai.has(existingId))errors.push('Siswa yang sama muncul lebih dari satu kali pada berkas.');
+      errors.push(...validateDuplicates(data,[...existing,...previous.filter(record=>record.classId===targetClass)],existingId));
     }
-    previous.push({...data,id:`preview-${index+1}`});
-    return {rowNumber:headerRow+index+2,data,valid:errors.length===0,errors:[...new Set(errors)]};
+    if(existingId)dipakai.add(existingId);
+    previous.push({...data,id:existingId||`preview-${index+1}`});
+    return {rowNumber:headerRow+index+2,data,existingId,mode:existingId?'update':'new',valid:errors.length===0,errors:[...new Set(errors)]};
   });
   const invalidCount=rows.filter(row=>!row.valid).length;
-  return {sourceText:String(text),selectedClass:classId,rows,validCount:rows.length-invalidCount,invalidCount,canCommit:rows.length>0 && invalidCount===0};
+  const valid=rows.filter(row=>row.valid);
+  return {sourceText:String(text),selectedClass:classId,rows,providedFields,
+    validCount:rows.length-invalidCount,invalidCount,
+    newCount:valid.filter(row=>row.mode==='new').length,
+    updateCount:valid.filter(row=>row.mode==='update').length,
+    canCommit:rows.length>0 && invalidCount===0};
 }
 
 export function commitStudentImport(session,preview){
@@ -287,15 +320,33 @@ export function commitStudentImport(session,preview){
   const checked=preview.format==='excel'?previewStudentExcelImport(session,preview.sourceText,{classId:preview.selectedClass}):previewStudentImport(session,preview.sourceText,{classId:preview.selectedClass});
   if(!checked.canCommit) throw new StudentValidationError(checked.rows.flatMap(row=>row.errors));
   const now=new Date().toISOString();
-  const created=[];
+  const tersimpan=[];const created=[];const updated=[];
+  const fields=new Set(checked.providedFields||[]);
   updateDb(db=>{
     checked.rows.forEach(row=>{
+      const scope=studentScope(session,row.data.classId);
+      const lama=row.existingId?Object.entries(db.students||{}).find(([key,record])=>key.startsWith(`${scope}|`)&&record.id===row.existingId):null;
+      if(lama){
+        /* Hanya kolom yang ada di berkas yang ditimpa; foto dan data lain tetap seperti semula. */
+        const patch={};
+        for(const field of ['nis','nisn','name','gender','religion','parentName','phone','address'])if(fields.has(field))patch[field]=row.data[field];
+        if(fields.has('birthPlaceDate')||fields.has('birthPlace'))patch.birthPlace=row.data.birthPlace;
+        if(fields.has('birthPlaceDate')||fields.has('birthDate'))patch.birthDate=row.data.birthDate;
+        if(fields.has('photo')&&row.data.photo)patch.photo=row.data.photo;
+        const student={...lama[1],...patch,updatedAt:now};
+        db.students[lama[0]]=student;updated.push(student);tersimpan.push(student);
+        return;
+      }
       const id=newId();
       const student={...row.data,id,academicYear:session.academicYear,semester:session.semester,createdAt:now,updatedAt:now};
-      db.students[`${studentScope(session,student.classId)}|${id}`]=student;
-      created.push(student);
+      db.students[`${scope}|${id}`]=student;
+      created.push(student);tersimpan.push(student);
     });
     return db;
   });
-  return clone(created);
+  /* Siswa yang tidak ada di berkas tidak pernah disentuh: import hanya menambah dan memperbarui. */
+  const hasil=clone(tersimpan);
+  Object.defineProperty(hasil,'created',{value:clone(created),enumerable:false});
+  Object.defineProperty(hasil,'updated',{value:clone(updated),enumerable:false});
+  return hasil;
 }
