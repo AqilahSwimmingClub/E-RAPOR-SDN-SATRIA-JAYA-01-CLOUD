@@ -1,5 +1,7 @@
 import { CLASSES, SUBJECTS_DEFAULT } from '../data/constants.js';
-import { exportDb, replaceDb, scopeKey, updateDb } from './storage.js';
+import { APP_SCHEMA_VERSION, APP_VERSION } from '../data/version.js';
+import { exportDb, invalidateDbCache, replaceDb, scopeKey, updateDb } from './storage.js';
+import { runAppMigrations } from './migrations.js';
 
 const APP_NAME='e-Rapor SDN Satria Jaya 01';
 const SCHEMA_VERSION=1;
@@ -9,6 +11,7 @@ const SCOPED_COLLECTIONS=[
   'learningObjectives','assessmentScores','reportScores','reportDescriptions',
   'extracurricularScores','cocurricularActivities','cocurricularScores','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'
 ];
+const LATER_COLLECTIONS=['cocurricularActivities','cocurricularScores','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
 const GLOBAL_COLLECTIONS=['masterData','userAccounts','security'];
 const DATA_KEYS=new Set(['schemaVersion','appSchemaVersion','appVersion','createdAt','updatedAt',...GLOBAL_COLLECTIONS,...SCOPED_COLLECTIONS,'backupHistory','migrationHistory']);
 const DANGEROUS_KEYS=new Set(['__proto__','prototype','constructor']);
@@ -70,8 +73,12 @@ function validateBackupData(data,teacherScope=null){
   if(!Object.hasOwn(data,'appSchemaVersion'))data.appSchemaVersion=1;
   if(!Object.hasOwn(data,'appVersion'))data.appVersion='legacy';
   if(!Object.hasOwn(data,'migrationHistory'))data.migrationHistory=[];
+  if(!Object.hasOwn(data,'backupHistory'))data.backupHistory=[];
   GLOBAL_COLLECTIONS.forEach(collection=>{if(!Object.hasOwn(data,collection))data[collection]={};});
-  ['cocurricularActivities','cocurricularScores','attitudeProfiles','printSettings'].forEach(collection=>{if(!Object.hasOwn(data,collection))data[collection]={};});
+  /* Koleksi yang baru ada pada rilis berikutnya boleh tidak tersedia pada backup lama sehingga
+     berkas lama tetap dapat direstore. Koleksi inti tetap wajib ada supaya berkas terpotong
+     tidak diterima dan tidak mengosongkan data. */
+  LATER_COLLECTIONS.forEach(collection=>{if(!Object.hasOwn(data,collection))data[collection]={};});
   Object.keys(data).forEach(key=>assert(DATA_KEYS.has(key),`Bagian data.${key} tidak dikenal.`));
   DATA_KEYS.forEach(key=>assert(Object.hasOwn(data,key),`Bagian data.${key} tidak tersedia.`));
   assert(data.schemaVersion===SCHEMA_VERSION,'Versi database pada backup tidak kompatibel.');
@@ -88,7 +95,19 @@ function validateBackupData(data,teacherScope=null){
       if(collection==='subjectMappings') validateSubjectMapping(value,`data.${collection}.${key}`);
     });
   });
-  GLOBAL_COLLECTIONS.forEach(collection=>{assert(isPlainObject(data[collection]),`Bagian data.${collection} harus berupa object.`);validateJsonValue(data[collection],`data.${collection}`);if(teacherScope)assert(Object.keys(data[collection]).length===0,`Backup Guru tidak boleh memuat data global ${collection}.`);});
+  GLOBAL_COLLECTIONS.forEach(collection=>{
+    assert(isPlainObject(data[collection]),`Bagian data.${collection} harus berupa object.`);
+    validateJsonValue(data[collection],`data.${collection}`);
+    /* Backup Guru boleh membawa identitas sekolah dan profil wali kelasnya sendiri, tetapi
+       tidak boleh membawa akun maupun pengaturan keamanan. */
+    if(teacherScope&&collection!=='masterData')assert(Object.keys(data[collection]).length===0,`Backup Guru tidak boleh memuat data global ${collection}.`);
+  });
+  if(teacherScope&&Object.keys(data.masterData).length){
+    const allowed=new Set(['school','references','teachers']);
+    Object.keys(data.masterData).forEach(key=>assert(allowed.has(key),`Backup Guru tidak boleh memuat masterData.${key}.`));
+    const classId=String(teacherScope).split('|')[2];
+    Object.keys(data.masterData.teachers||{}).forEach(key=>assert(key===classId,`Backup Guru hanya boleh memuat profil wali kelas ${classId}.`));
+  }
   assert(Array.isArray(data.backupHistory),'Bagian data.backupHistory harus berupa array.');
   validateJsonValue(data.backupHistory,'data.backupHistory');
   assert(Array.isArray(data.migrationHistory),'Bagian data.migrationHistory harus berupa array.');
@@ -109,6 +128,14 @@ function teacherDb(db,session){
     data[collection]=Object.fromEntries(Object.entries(db[collection]||{}).filter(([key])=>belongsToCollectionScope(collection,key,teacherScope)));
   });
   GLOBAL_COLLECTIONS.forEach(collection=>{data[collection]={};});
+  /* Identitas sekolah, kepala sekolah, Data Referensi, dan profil wali kelas ikut dicadangkan
+     karena termasuk data yang diisi pengguna. Akun dan credential tidak pernah ikut. */
+  const master=db.masterData||{};
+  data.masterData={
+    school:clone(master.school||{}),
+    references:clone(master.references||{}),
+    teachers:{[session.classId]:clone(master.teachers?.[session.classId]||{})},
+  };
   return data;
 }
 
@@ -120,8 +147,11 @@ export function buildBackup(session){
     app:APP_NAME,
     schemaVersion:SCHEMA_VERSION,
     backupVersion:BACKUP_VERSION,
+    appVersion:APP_VERSION,
+    appSchemaVersion:db.appSchemaVersion,
     exportedAt:new Date().toISOString(),
     scope:{ role:session.role, classId:session.classId, semester:session.semester, academicYear:session.academicYear },
+    counts:countData(data),
     data,
   };
   validateBackupPayload(payload);
@@ -148,8 +178,13 @@ export function downloadBackup(session){
 export function validateBackupPayload(payload){
   assert(isPlainObject(payload),'Struktur utama backup harus berupa object.');
   const envelopeKeys=new Set(['app','schemaVersion','backupVersion','exportedAt','scope','data']);
-  Object.keys(payload).forEach(key=>assert(envelopeKeys.has(key),`Bagian backup.${key} tidak dikenal.`));
+  /* Metadata tambahan bersifat opsional supaya berkas backup rilis lama tetap diterima. */
+  const optionalKeys=new Set(['appVersion','appSchemaVersion','counts']);
+  Object.keys(payload).forEach(key=>assert(envelopeKeys.has(key)||optionalKeys.has(key),`Bagian backup.${key} tidak dikenal.`));
   envelopeKeys.forEach(key=>assert(Object.hasOwn(payload,key),`Bagian backup.${key} tidak tersedia.`));
+  if(Object.hasOwn(payload,'appVersion'))assert(typeof payload.appVersion==='string'&&payload.appVersion.trim(),'Versi aplikasi pada backup tidak valid.');
+  if(Object.hasOwn(payload,'appSchemaVersion'))assert(Number.isInteger(payload.appSchemaVersion)&&payload.appSchemaVersion>=1,'appSchemaVersion pada backup tidak valid.');
+  if(Object.hasOwn(payload,'counts'))assert(isPlainObject(payload.counts),'Ringkasan jumlah data pada backup tidak valid.');
   assert(payload.app===APP_NAME,'File bukan backup e-Rapor SDN Satria Jaya 01.');
   assert(payload.schemaVersion===SCHEMA_VERSION && payload.backupVersion===BACKUP_VERSION,'Versi backup tidak kompatibel.');
   assert(isIsoDate(payload.exportedAt),'Waktu ekspor backup tidak valid.');
@@ -187,29 +222,85 @@ export function validateBackupForSession(payload,session){
   return payload;
 }
 
+function countData(data){
+  const count=obj=>Object.keys(obj||{}).length;
+  return {
+    students:count(data.students),
+    assessmentScores:count(data.assessmentScores),
+    reportScores:count(data.reportScores),
+    reportDescriptions:count(data.reportDescriptions),
+    attendance:count(data.attendance),
+    learningObjectives:count(data.learningObjectives),
+    assessmentSettings:count(data.assessmentSettings),
+    subjectMappings:count(data.subjectMappings),
+    extracurricularScores:count(data.extracurricularScores),
+    cocurricularScores:count(data.cocurricularScores),
+    attitudeProfiles:count(data.attitudeProfiles),
+    homeroomNotes:count(data.homeroomNotes),
+    promotionStatus:count(data.promotionStatus),
+    graduationStatus:count(data.graduationStatus),
+    transcriptScores:count(data.transcriptScores),
+    printSettings:count(data.printSettings),
+    settings:count(data.settings),
+  };
+}
+
 export function summarizeBackup(payload){
   const d=payload.data||{};
-  const count=(obj)=>Object.keys(obj||{}).length;
+  const counts=countData(d);
   return {
     classId:payload.scope?.classId || 'Semua Rombel',
     semester:payload.scope?.semester || '-',
     academicYear:payload.scope?.academicYear || '-',
-    students:count(d.students), attendance:count(d.attendance),
-    scores:count(d.assessmentScores)+count(d.reportScores),
-    objectives:count(d.learningObjectives), mappings:count(d.subjectMappings),
+    appVersion:payload.appVersion||d.appVersion||'-',
+    schemaVersion:payload.appSchemaVersion||d.appSchemaVersion||1,
+    backupVersion:payload.backupVersion||'-',
+    students:counts.students, attendance:counts.attendance,
+    scores:counts.assessmentScores+counts.reportScores,
+    assessmentScores:counts.assessmentScores, reportScores:counts.reportScores,
+    descriptions:counts.reportDescriptions,
+    objectives:counts.learningObjectives, mappings:counts.subjectMappings,
+    weights:counts.assessmentSettings,
+    extracurricular:counts.extracurricularScores, cocurricular:counts.cocurricularScores,
+    attitudes:counts.attitudeProfiles, homeroomNotes:counts.homeroomNotes,
+    transcripts:counts.transcriptScores,
+    counts,
     exportedAt:payload.exportedAt
   };
 }
 
+/* Backup dari rilis lama dibawa ke schema aplikasi sekarang lewat migration resmi, dengan
+   snapshot dan rollback bawaannya, sehingga berkas lama tetap dapat dipulihkan tanpa
+   menurunkan schema aplikasi. */
+function migrateAfterRestore(payload){
+  const schema=Number(payload.data?.appSchemaVersion||1);
+  if(!Number.isInteger(schema)||schema>=APP_SCHEMA_VERSION)return null;
+  invalidateDbCache();
+  return runAppMigrations();
+}
+
 export function restoreBackup(payload,session){
   validateBackupForSession(payload,session);
-  if(payload.scope.role==='admin') return replaceDb(clone(payload.data));
+  if(payload.scope.role==='admin'){const hasil=replaceDb(clone(payload.data));migrateAfterRestore(payload);return hasil;}
   const restoredScope=`${payload.scope.academicYear}|${payload.scope.semester}|${payload.scope.classId}`;
-  return updateDb(db=>{
+  const master=payload.data.masterData||{};
+  const hasil=updateDb(db=>{
     SCOPED_COLLECTIONS.forEach(collection=>{
       const preserved=Object.fromEntries(Object.entries(db[collection]||{}).filter(([key])=>!belongsToCollectionScope(collection,key,restoredScope)));
       db[collection]={...preserved,...clone(payload.data[collection])};
     });
+    /* Identitas sekolah, referensi, dan profil wali kelas rombel itu saja yang dipulihkan;
+       profil rombel lain serta akun tidak disentuh. */
+    if(Object.keys(master).length){
+      db.masterData={
+        ...db.masterData,
+        school:{...db.masterData.school,...clone(master.school||{})},
+        references:{...db.masterData.references,...clone(master.references||{})},
+        teachers:{...db.masterData.teachers,...clone(master.teachers||{})},
+      };
+    }
     return db;
   });
+  migrateAfterRestore(payload);
+  return hasil;
 }
