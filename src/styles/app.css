@@ -197,7 +197,7 @@ html,body{color-scheme:light}
    pelajaran. Sel kegiatan dibagi dua oleh garis yang menyambung dari tepi kiri sampai tepi kanan
    sel sehingga predikat mendapat kolomnya sendiri, dan keduanya rata tengah. */
 .activity-table{margin:14px 0 12px}
-.activity-table .activity-title{font-size:11px;letter-spacing:.05em}
+.activity-table th.activity-title{font-size:11px;letter-spacing:.05em}
 .activity-table th:nth-child(1){width:44px}
 .activity-table th:nth-child(2){width:31%}
 .activity-no{vertical-align:middle}
@@ -205,3 +205,12 @@ html,body{color-scheme:light}
 .activity-name-cell .activity-name,.activity-name-cell .activity-predicate{display:block;padding:6px 8px;font-weight:800}
 .activity-name-cell .activity-name:not(:last-child){border-bottom:1px solid #333}
 .activity-note-cell{text-align:left!important;vertical-align:middle;line-height:1.5}
+/* Pratinjau rapor pada layar sempit (HP). Margin lembar 14mm/13mm memakan hampir 100px sehingga
+   tabel rapor terpotong pada layar 360px. Pada layar kecil margin pratinjau dikecilkan dan lembar
+   boleh digeser mendatar bila masih kurang. Sengaja memakai "screen and" supaya aturan ini TIDAK
+   ikut aktif saat mencetak: lebar layout cetak A4 potret adalah 794px dan margin 13mm pada hasil
+   cetak tetap dibawa oleh @media print yang memakai !important. */
+@media screen and (max-width:767px){
+  .report-a4{padding:16px 12px}
+  .print-workspace .report-a4{overflow-x:auto;overflow-y:hidden}
+}

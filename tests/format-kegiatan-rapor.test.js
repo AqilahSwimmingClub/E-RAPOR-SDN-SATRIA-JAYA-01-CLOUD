@@ -133,7 +133,7 @@ test('12. Garis pemisah kegiatan dan predikat menyambung selebar sel, predikat r
   assert.match(t,/\.activity-name-cell \.activity-name,\.activity-name-cell \.activity-predicate\{display:block;padding:6px 8px;font-weight:800\}/,'nama dan predikat mengisi lebar penuh sel');
   assert.match(t,/\.activity-name-cell \.activity-name:not\(:last-child\)\{border-bottom:1px solid #333\}/,'garis pemisah selebar sel dan sewarna garis tabel');
   assert.match(t,/\.activity-note-cell\{text-align:left!important;vertical-align:middle;line-height:1\.5\}/,'kolom Keterangan rata kiri');
-  assert.match(t,/\.activity-table \.activity-title\{font-size:11px;letter-spacing:\.05em\}/,'baris judul bagian');
+  assert.match(t,/\.activity-table th\.activity-title\{font-size:11px;letter-spacing:\.05em\}/,'baris judul bagian lebih besar dari judul kolom');
   /* Tanpa predikat, garis pemisah tidak muncul sehingga tidak ada garis menggantung. */
   const tanpa=activityTable('Ekstrakurikuler',[{name:'Futsal',description:'Rajin berlatih.'}],{studentName:'Bayu'});
   assert.equal(tanpa.includes('activity-predicate'),false);
