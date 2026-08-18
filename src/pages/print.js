@@ -49,26 +49,38 @@ function signatureBlock(name,nip){
   return `<strong>${name?escapeHtml(name):DOTS}</strong>${nip?`<small>NIP. ${escapeHtml(nip)}</small>`:'<small>NIP.</small>'}`;
 }
 
-/* Ekstrakurikuler dan Kokurikuler memakai bentuk yang sama: tabel bernomor No | nama kegiatan |
-   Keterangan. Kolom Keterangan menaruh predikat pada baris pertama, lalu deskripsi yang dipilih
-   guru pada baris di bawahnya. Predikat dan deskripsi tidak lagi disatukan menjadi satu kalimat. */
-export function activityTable(label,items){
+/* Deskripsi kegiatan ditulis seperti contoh format dari guru: "Ananda <nama> mampu ...".
+   Nama panggilan diambil dari kata pertama nama murid dan tidak pernah ditambahkan dua kali
+   bila guru memang sudah menuliskannya sendiri. */
+export function activityDescription(description,studentName){
+  const text=String(description??'').trim();
+  const nickname=String(studentName??'').trim().split(/\s+/)[0]||'';
+  if(!text||!nickname||/^ananda\b/i.test(text))return text;
+  const body=/^[A-Z][a-z]/.test(text)?`${text.charAt(0).toLowerCase()}${text.slice(1)}`:text;
+  return `Ananda ${nickname} ${body}`;
+}
+
+/* Ekstrakurikuler dan Kokurikuler memakai bentuk yang sama persis: judul bagian dengan huruf
+   besar, lalu tabel tanpa garis kotak berisi No, nama kegiatan, dan Keterangan. Nama kegiatan
+   dan predikatnya berada pada kolom kegiatan (predikat tepat di bawah namanya), sedangkan kolom
+   Keterangan hanya memuat deskripsi yang dipilih guru. */
+export function activityTable(label,items,{studentName=''}={}){
   const rows=(items||[]).filter(item=>item?.name);
   if(!rows.length)return '';
-  return `<table class="document-table activity-table"><thead><tr><th>No</th><th>${escapeHtml(label)}</th><th>Keterangan</th></tr></thead><tbody>${rows.map((item,index)=>{
-    const note=`${item.predicate?`<b class="activity-predicate">${escapeHtml(String(item.predicate).toUpperCase())}</b>`:''}${item.description?`<span class="activity-description">${escapeHtml(item.description)}</span>`:''}`;
-    return `<tr><td>${index+1}</td><td class="activity-name-cell">${escapeHtml(item.name)}</td><td class="activity-note-cell">${note}</td></tr>`;
-  }).join('')}</tbody></table>`;
+  return `<section class="activity-section"><h3 class="activity-heading">${escapeHtml(label.toUpperCase())}</h3><table class="activity-table"><thead><tr><th>No</th><th>${escapeHtml(label)}</th><th>Keterangan</th></tr></thead><tbody>${rows.map((item,index)=>{
+    const kegiatan=`${escapeHtml(item.name)}${item.predicate?`<span class="activity-predicate">${escapeHtml(String(item.predicate).toUpperCase())}</span>`:''}`;
+    return `<tr><td class="activity-no">${index+1}</td><td class="activity-name-cell">${kegiatan}</td><td class="activity-note-cell">${escapeHtml(activityDescription(item.description,studentName))}</td></tr>`;
+  }).join('')}</tbody></table></section>`;
 }
 
 /* Kedua bagian ini opsional: tidak dicetak sama sekali bila memang belum diisi. */
 export function extracurricularTable(doc){
-  return activityTable('Ekstrakurikuler',doc?.extracurricular);
+  return activityTable('Ekstrakurikuler',doc?.extracurricular,{studentName:doc?.student?.name});
 }
 
 export function cocurricularTable(doc){
   const item=doc?.cocurricular;
-  return activityTable('Kokurikuler',item?[{name:item.activity,predicate:item.predicate,description:item.description}]:[]);
+  return activityTable('Kokurikuler',item?[{name:item.activity,predicate:item.predicate,description:item.description}]:[],{studentName:doc?.student?.name});
 }
 
 export function renderPrint(session){
