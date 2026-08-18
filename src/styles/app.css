@@ -192,17 +192,16 @@ html,body{color-scheme:light}
 /* Indikator kelengkapan yang belum lengkap berupa tombol menuju halaman sumbernya. */
 .completion-category-grid button.missing{border:0;font:inherit;font-size:9.5px;padding:5px 7px;border-radius:8px;background:#fff1f2;color:var(--danger);cursor:pointer;text-decoration:underline}
 .completion-category-grid button.missing:hover{background:#ffe3e6}
-/* Ekstrakurikuler dan Kokurikuler mengikuti contoh format dari guru: judul bagian dengan huruf
-   besar, lalu tabel tanpa garis kotak yang hanya memakai satu garis tipis di bawah judul kolom.
-   Nama kegiatan dan predikatnya berada pada kolom kegiatan, sedangkan kolom Keterangan hanya
-   memuat deskripsi. Tabel mata pelajaran di atasnya tetap memakai garis penuh seperti semula. */
-.activity-section{margin:16px 0 14px;break-inside:avoid}
-.activity-section .activity-heading{font-size:11.5px;font-weight:800;letter-spacing:.05em;margin:0 0 6px}
-.activity-table{width:100%;border-collapse:collapse}
-.activity-table th,.activity-table td{border:0;text-align:left;vertical-align:top;font-size:10.5px;line-height:1.65;padding:7px 14px 7px 0}
-.activity-table thead th{font-weight:600;border-bottom:1px solid #c9c2bb;padding-bottom:9px}
-.activity-table tbody tr:first-child td{padding-top:11px}
-.activity-table tbody tr{break-inside:avoid}
-.activity-table th:nth-child(1),.activity-no{width:44px}
-.activity-table th:nth-child(2),.activity-name-cell{width:29%}
-.activity-name-cell .activity-predicate{display:block;font-weight:800;letter-spacing:.03em;margin-top:1px}
+/* Ekstrakurikuler dan Kokurikuler mengikuti contoh format dari guru: satu baris judul bagian
+   selebar tabel, lalu kolom No, kegiatan, dan Keterangan dengan garis penuh seperti tabel mata
+   pelajaran. Sel kegiatan dibagi dua oleh garis yang menyambung dari tepi kiri sampai tepi kanan
+   sel sehingga predikat mendapat kolomnya sendiri, dan keduanya rata tengah. */
+.activity-table{margin:14px 0 12px}
+.activity-table .activity-title{font-size:11px;letter-spacing:.05em}
+.activity-table th:nth-child(1){width:44px}
+.activity-table th:nth-child(2){width:31%}
+.activity-no{vertical-align:middle}
+.activity-table td.activity-name-cell{padding:0!important;text-align:center;vertical-align:middle}
+.activity-name-cell .activity-name,.activity-name-cell .activity-predicate{display:block;padding:6px 8px;font-weight:800}
+.activity-name-cell .activity-name:not(:last-child){border-bottom:1px solid #333}
+.activity-note-cell{text-align:left!important;vertical-align:middle;line-height:1.5}

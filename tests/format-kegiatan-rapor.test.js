@@ -19,30 +19,32 @@ function siswa(session,suffix,extra={}){return createStudent(session,{classId:se
 function barisTabel(html){
   return [...html.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map(baris=>[...baris[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map(sel=>sel[1]));
 }
-const judulBagian=html=>html.match(/<h3 class="activity-heading">([^<]*)<\/h3>/)?.[1]||'';
+const judulBagian=html=>html.match(/<th colspan="3" class="activity-title">([^<]*)<\/th>/)?.[1]||'';
 const CONTOH='Mampu menjelaskan dampak menjaga kebersihan bagi kesehatan dan kenyamanan bersama.';
 
 /* -------------------------------------------- 1-4. Bentuk bagian sesuai contoh dari guru */
 
-test('1. Setiap bagian diawali judul huruf besar lalu kolom No, kegiatan, dan Keterangan',()=>{
+test('1. Setiap bagian diawali baris judul selebar tabel lalu kolom No, kegiatan, dan Keterangan',()=>{
   const eks=activityTable('Ekstrakurikuler',[{name:'Pramuka Penggalang',predicate:'Baik',description:'Deskripsi.'}],{studentName:'Bayu Saputra'});
   const koku=activityTable('Kokurikuler',[{name:'Proyek Peduli Lingkungan',predicate:'Baik',description:'Deskripsi.'}],{studentName:'Bayu Saputra'});
   assert.equal(judulBagian(eks),'EKSTRAKURIKULER','judul bagian ekstrakurikuler huruf besar');
   assert.equal(judulBagian(koku),'KOKURIKULER','judul bagian kokurikuler huruf besar');
-  assert.deepEqual(barisTabel(eks)[0],['No','Ekstrakurikuler','Keterangan']);
-  assert.deepEqual(barisTabel(koku)[0],['No','Kokurikuler','Keterangan']);
+  assert.deepEqual(barisTabel(eks)[1],['No','Ekstrakurikuler','Keterangan']);
+  assert.deepEqual(barisTabel(koku)[1],['No','Kokurikuler','Keterangan']);
+  /* Tabel kegiatan kembali memakai garis penuh seperti tabel mata pelajaran. */
+  for(const html of [eks,koku])assert.match(html,/<table class="document-table activity-table">/);
 });
 
 test('2. Predikat berada di kolom kegiatan, tepat di bawah nama kegiatannya',()=>{
   const html=activityTable('Kokurikuler',[{name:'Proyek Peduli Lingkungan',predicate:'Sangat Baik',description:CONTOH}],{studentName:'Bayu Saputra'});
-  const [,isi]=barisTabel(html);
+  const isi=barisTabel(html)[2];
   assert.equal(isi[0],'1','baris pertama bernomor 1');
-  assert.equal(isi[1],'Proyek Peduli Lingkungan<span class="activity-predicate">SANGAT BAIK</span>','nama kegiatan lalu predikat pada baris berikutnya');
+  assert.equal(isi[1],'<span class="activity-name">Proyek Peduli Lingkungan</span><span class="activity-predicate">SANGAT BAIK</span>','nama kegiatan lalu predikat pada baris berikutnya');
 });
 
 test('3. Kolom Keterangan hanya berisi deskripsi pilihan guru, tanpa predikat',()=>{
   const html=activityTable('Kokurikuler',[{name:'Proyek Peduli Lingkungan',predicate:'Baik',description:CONTOH}],{studentName:'Bayu Saputra'});
-  const keterangan=barisTabel(html)[1][2];
+  const keterangan=barisTabel(html)[2][2];
   assert.equal(keterangan,'Ananda Bayu mampu menjelaskan dampak menjaga kebersihan bagi kesehatan dan kenyamanan bersama.');
   assert.equal(/BAIK/.test(keterangan),false,'predikat tidak lagi ikut di kolom Keterangan');
 });
@@ -102,10 +104,10 @@ test('10. Ekstrakurikuler siswa tampil bernomor dengan predikat dan deskripsi pi
   const doc=getReportDocument(session,murid.id);
   const html=extracurricularTable(doc);
   assert.equal(judulBagian(html),'EKSTRAKURIKULER');
-  const baris=barisTabel(html).slice(1);
+  const baris=barisTabel(html).slice(2);
   assert.deepEqual(baris.map(item=>item[0]),['1','2'],'penomoran urut');
-  assert.equal(baris[0][1],`Pramuka Penggalang<span class="activity-predicate">SANGAT BAIK</span>`);
-  assert.equal(baris[1][1],`Futsal<span class="activity-predicate">BAIK</span>`);
+  assert.equal(baris[0][1],`<span class="activity-name">Pramuka Penggalang</span><span class="activity-predicate">SANGAT BAIK</span>`);
+  assert.equal(baris[1][1],`<span class="activity-name">Futsal</span><span class="activity-predicate">BAIK</span>`);
   assert.equal(baris[0][2],`Ananda Bayu ${deskripsi[3].charAt(0).toLowerCase()}${deskripsi[3].slice(1)}`,'deskripsi yang dipilih guru dengan nama murid di depannya');
   assert.equal(baris[1][2],'Ananda Bayu menunjukkan kerja sama dan sportivitas dalam latihan.');
 });
@@ -115,30 +117,35 @@ test('11. Kokurikuler pilihan guru tampil persis seperti contoh format',()=>{
   const session=guru('5B');aktifkan(session,['pai','bindo']);
   const murid=siswa(session,'KOKU',{name:'Bayu Saputra'});
   saveStudentCocurricular(session,murid.id,{activity:'Proyek Peduli Lingkungan',predicate:'Baik',description:CONTOH});
-  const isi=barisTabel(cocurricularTable(getReportDocument(session,murid.id)))[1];
+  const isi=barisTabel(cocurricularTable(getReportDocument(session,murid.id)))[2];
   assert.equal(isi[0],'1');
-  assert.equal(isi[1],'Proyek Peduli Lingkungan<span class="activity-predicate">BAIK</span>');
+  assert.equal(isi[1],'<span class="activity-name">Proyek Peduli Lingkungan</span><span class="activity-predicate">BAIK</span>');
   assert.equal(isi[2],'Ananda Bayu mampu menjelaskan dampak menjaga kebersihan bagi kesehatan dan kenyamanan bersama.');
 });
 
 /* ----------------------------------------------------------------- 12-13. Tata letak cetak */
 
-test('12. Tabel kegiatan tanpa garis kotak, hanya garis tipis di bawah judul kolom',()=>{
+test('12. Garis pemisah kegiatan dan predikat menyambung selebar sel, predikat rata tengah',()=>{
   const t=read('src/styles/app.css');
-  assert.match(t,/\.activity-table\{width:100%;border-collapse:collapse\}/);
-  assert.match(t,/\.activity-table th,\.activity-table td\{border:0;text-align:left;vertical-align:top;font-size:10\.5px;line-height:1\.65;padding:7px 14px 7px 0\}/,'sel tanpa garis dan rata kiri');
-  assert.match(t,/\.activity-table thead th\{font-weight:600;border-bottom:1px solid #c9c2bb;padding-bottom:9px\}/,'satu garis tipis di bawah judul kolom');
-  assert.match(t,/\.activity-section \.activity-heading\{font-size:11\.5px;font-weight:800;letter-spacing:\.05em;margin:0 0 6px\}/,'judul bagian tebal');
-  assert.match(t,/\.activity-name-cell \.activity-predicate\{display:block;font-weight:800;letter-spacing:\.03em;margin-top:1px\}/,'predikat satu baris di bawah nama kegiatan');
-  /* Tabel kegiatan tidak lagi memakai kelas tabel dokumen yang bergaris penuh. */
-  assert.equal(read('src/pages/print.js').includes('document-table activity-table'),false);
+  /* Padding sel dinolkan dan dipindah ke dalam supaya garis pemisah tidak menyisakan celah
+     di kiri dan kanan, sehingga predikat benar-benar mendapat kolomnya sendiri. */
+  assert.match(t,/\.activity-table td\.activity-name-cell\{padding:0!important;text-align:center;vertical-align:middle\}/,'sel kegiatan rata tengah tanpa padding luar');
+  assert.match(t,/\.activity-name-cell \.activity-name,\.activity-name-cell \.activity-predicate\{display:block;padding:6px 8px;font-weight:800\}/,'nama dan predikat mengisi lebar penuh sel');
+  assert.match(t,/\.activity-name-cell \.activity-name:not\(:last-child\)\{border-bottom:1px solid #333\}/,'garis pemisah selebar sel dan sewarna garis tabel');
+  assert.match(t,/\.activity-note-cell\{text-align:left!important;vertical-align:middle;line-height:1\.5\}/,'kolom Keterangan rata kiri');
+  assert.match(t,/\.activity-table \.activity-title\{font-size:11px;letter-spacing:\.05em\}/,'baris judul bagian');
+  /* Tanpa predikat, garis pemisah tidak muncul sehingga tidak ada garis menggantung. */
+  const tanpa=activityTable('Ekstrakurikuler',[{name:'Futsal',description:'Rajin berlatih.'}],{studentName:'Bayu'});
+  assert.equal(tanpa.includes('activity-predicate'),false);
+  assert.match(tanpa,/<span class="activity-name">Futsal<\/span><\/td>/,'nama kegiatan menjadi elemen terakhir sel');
 });
 
 test('13. Format rapor lain tidak ikut berubah',()=>{
   const t=read('src/styles/app.css');
   assert.equal(t.includes('extracurricular-table'),false,'kelas lama sudah tidak dipakai');
   assert.match(t,/\.report-learning-table th:nth-child\(1\)\{width:34px\}/,'kolom No tabel mapel tetap');
-  assert.match(t,/\.document-table th,\.document-table td\{border:1px solid #333/,'tabel mata pelajaran tetap bergaris penuh');
+  assert.match(t,/\.document-table th,\.document-table td\{border:1px solid #333/,'tabel dokumen tetap bergaris penuh');
+  assert.match(t,/\.document-table th\{text-align:center;background:#f3f0ed\}/,'baris judul kegiatan memakai arsiran header yang sama');
   assert.match(t,/\.report-a4\{padding:14mm 13mm\}/,'margin lembar rapor tetap');
   assert.match(t,/\.report-a4 \.document-table th,\.report-a4 \.document-table td\{padding:5px 7px;font-size:10\.5px;line-height:1\.4\}/,'ukuran baris tabel rapor tetap');
   const cetak=read('src/pages/print.js');

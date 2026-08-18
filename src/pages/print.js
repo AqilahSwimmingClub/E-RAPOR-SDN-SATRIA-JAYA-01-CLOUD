@@ -60,17 +60,18 @@ export function activityDescription(description,studentName){
   return `Ananda ${nickname} ${body}`;
 }
 
-/* Ekstrakurikuler dan Kokurikuler memakai bentuk yang sama persis: judul bagian dengan huruf
-   besar, lalu tabel tanpa garis kotak berisi No, nama kegiatan, dan Keterangan. Nama kegiatan
-   dan predikatnya berada pada kolom kegiatan (predikat tepat di bawah namanya), sedangkan kolom
+/* Ekstrakurikuler dan Kokurikuler memakai bentuk yang sama persis: satu baris judul bagian
+   selebar tabel, lalu kolom No, nama kegiatan, dan Keterangan dengan garis penuh seperti tabel
+   mata pelajaran. Sel kegiatan terbagi dua oleh garis yang menyambung dari tepi kiri sampai tepi
+   kanan sel: nama kegiatan di atas dan predikatnya di bawah, keduanya rata tengah. Kolom
    Keterangan hanya memuat deskripsi yang dipilih guru. */
 export function activityTable(label,items,{studentName=''}={}){
   const rows=(items||[]).filter(item=>item?.name);
   if(!rows.length)return '';
-  return `<section class="activity-section"><h3 class="activity-heading">${escapeHtml(label.toUpperCase())}</h3><table class="activity-table"><thead><tr><th>No</th><th>${escapeHtml(label)}</th><th>Keterangan</th></tr></thead><tbody>${rows.map((item,index)=>{
-    const kegiatan=`${escapeHtml(item.name)}${item.predicate?`<span class="activity-predicate">${escapeHtml(String(item.predicate).toUpperCase())}</span>`:''}`;
+  return `<table class="document-table activity-table"><thead><tr><th colspan="3" class="activity-title">${escapeHtml(label.toUpperCase())}</th></tr><tr><th>No</th><th>${escapeHtml(label)}</th><th>Keterangan</th></tr></thead><tbody>${rows.map((item,index)=>{
+    const kegiatan=`<span class="activity-name">${escapeHtml(item.name)}</span>${item.predicate?`<span class="activity-predicate">${escapeHtml(String(item.predicate).toUpperCase())}</span>`:''}`;
     return `<tr><td class="activity-no">${index+1}</td><td class="activity-name-cell">${kegiatan}</td><td class="activity-note-cell">${escapeHtml(activityDescription(item.description,studentName))}</td></tr>`;
-  }).join('')}</tbody></table></section>`;
+  }).join('')}</tbody></table>`;
 }
 
 /* Kedua bagian ini opsional: tidak dicetak sama sekali bila memang belum diisi. */
