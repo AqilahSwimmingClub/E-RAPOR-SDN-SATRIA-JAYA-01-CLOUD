@@ -11,6 +11,17 @@ export const ASSESSMENT_TYPES=[
   {id:'semesterSummative',label:'Sumatif Akhir Semester'},
 ];
 
+/* Sumatif Lingkup Materi diisi per bab seperti Daftar Nilai kertas: LM1 sampai LM5. Nilai tiap
+   lingkup materi disimpan apa adanya, lalu RATA-RATA lingkup yang terisi menjadi nilai komponen
+   Sumatif Lingkup Materi. Nilai komponen itulah yang digabung dengan empat komponen lain
+   memakai Bobot Penilaian sehingga menjadi nilai rapor. Lingkup yang kosong tidak dihitung dan
+   tidak pernah dianggap nol. Berlaku untuk seluruh mata pelajaran, Semester 1 dan Semester 2,
+   karena kunci penyimpanan sudah memuat tahun pelajaran, semester, dan rombel. */
+export const SCOPE_SUMMATIVE_TYPE='scopeSummative';
+export const SCOPE_SUMMATIVE_PARTS=Object.freeze([
+  {id:'lm1',label:'LM1'},{id:'lm2',label:'LM2'},{id:'lm3',label:'LM3'},{id:'lm4',label:'LM4'},{id:'lm5',label:'LM5'},
+]);
+
 const DEFAULT_KKTP=75;
 const EPSILON=0.000001;
 
@@ -38,6 +49,25 @@ function normalizeWeights(input){
 function parseScore(value){
   if(value===null || value===undefined || (typeof value==='string' && value.trim()==='')) return null;
   return numberInRange(value,'Nilai');
+}
+
+/* Nilai boleh dikirim sebagai satu angka, atau sebagai daftar nilai lingkup materi
+   {parts:{lm1:80,lm3:90}}. Bentuk kedua menghitung rata-rata lingkup yang terisi. */
+export function normalizeScopeSummativeParts(input){
+  const sumber=input&&typeof input==='object'&&!Array.isArray(input)?(input.parts??input):null;
+  if(!sumber||typeof sumber!=='object')return null;
+  const parts={};
+  SCOPE_SUMMATIVE_PARTS.forEach(part=>{
+    if(!Object.hasOwn(sumber,part.id))return;
+    const nilai=parseScore(sumber[part.id]);
+    if(nilai!==null)parts[part.id]=nilai;
+  });
+  return parts;
+}
+export function scopeSummativeAverage(parts){
+  const nilai=SCOPE_SUMMATIVE_PARTS.map(part=>parts?.[part.id]).filter(item=>item!==null&&item!==undefined);
+  if(!nilai.length)return null;
+  return Number((nilai.reduce((sum,item)=>sum+item,0)/nilai.length).toFixed(2));
 }
 
 export function defaultAssessmentSettings(){return {...ASSESSMENT_DEFAULT,kktp:DEFAULT_KKTP};}
@@ -95,7 +125,8 @@ export function getAssessmentSheet(session,subjectId,assessmentType){
   const byStudent=new Map(records.map(record=>[record.studentId,record]));
   const rows=students.map(student=>{
     const record=byStudent.get(student.id);
-    return {studentId:student.id,nis:student.nis,nisn:student.nisn,name:student.name,score:record?.score??null,saved:Boolean(record)};
+    const parts=assessmentType===SCOPE_SUMMATIVE_TYPE?clone(record?.parts||{}):null;
+    return {studentId:student.id,nis:student.nis,nisn:student.nisn,name:student.name,score:record?.score??null,parts,saved:Boolean(record)};
   });
   const filled=rows.filter(row=>row.score!==null);
   return {
@@ -112,16 +143,24 @@ export function saveAssessmentScores(session,subjectId,assessmentType,values){
   const studentById=new Map(students.map(student=>[student.id,student]));
   const unknown=Object.keys(values).filter(studentId=>!studentById.has(studentId));
   if(unknown.length) throw new Error('Data nilai memuat siswa di luar scope rombel aktif.');
-  const normalized=Object.entries(values).map(([studentId,value])=>[studentId,parseScore(value)]);
+  /* Khusus Sumatif Lingkup Materi, nilai boleh berupa daftar nilai per lingkup materi.
+     Angka tunggal tetap diterima dan menggantikan rincian lingkup materi sebelumnya. */
+  const normalized=Object.entries(values).map(([studentId,value])=>{
+    if(assessmentType!==SCOPE_SUMMATIVE_TYPE)return [studentId,parseScore(value),null];
+    const parts=normalizeScopeSummativeParts(value);
+    if(parts)return [studentId,scopeSummativeAverage(parts),parts];
+    return [studentId,parseScore(value),null];
+  });
   const now=new Date().toISOString();
   updateDb(db=>{
-    normalized.forEach(([studentId,score])=>{
+    normalized.forEach(([studentId,score,parts])=>{
       const key=scoreKey(session,subjectId,assessmentType,studentId);
       if(score===null){delete db.assessmentScores[key];return;}
       const previous=db.assessmentScores[key];
       db.assessmentScores[key]={
         studentId,classId:session.classId,subjectId,semester:session.semester,academicYear:session.academicYear,
         assessmentType,score,createdAt:previous?.createdAt||now,updatedAt:now,
+        ...(parts&&Object.keys(parts).length?{parts}:{}),
       };
     });
     return db;

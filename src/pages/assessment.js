@@ -1,4 +1,4 @@
-import { ASSESSMENT_TYPES, getAssessmentSheet, saveAssessmentScores } from '../services/assessment.js';
+import { ASSESSMENT_TYPES, SCOPE_SUMMATIVE_PARTS, SCOPE_SUMMATIVE_TYPE, getAssessmentSheet, saveAssessmentScores, scopeSummativeAverage } from '../services/assessment.js';
 import { fillAllAssessmentScores } from '../services/assessment-bulk.js';
 import { assessmentTemplateFilename, assessmentTemplateWorkbook, commitAssessmentImport, previewAssessmentImport } from '../services/assessment-import.js';
 import { pickFile, saveFile } from '../services/file-io.js';
@@ -68,6 +68,24 @@ export function renderAssessment(session){
   root.querySelector('[data-template]').onclick=unduhTemplate;
   root.querySelector('[data-import]').onclick=importNilai;
 
+  /* Sumatif Lingkup Materi diisi per bab: satu kolom untuk tiap Lingkup Materi ditambah kolom
+     rata-rata yang dihitung otomatis dari lingkup yang terisi. Rata-rata itulah yang dipakai
+     Bobot Penilaian bersama empat komponen lain untuk menjadi nilai rapor. */
+  const modeLingkup=()=>assessmentType===SCOPE_SUMMATIVE_TYPE;
+  const nilaiLingkup=input=>{const teks=String(input.value||'').trim();return teks===''?null:Number(teks);};
+  function rataBaris(studentId){
+    const parts={};
+    listHost.querySelectorAll(`.assessment-table-card [data-part][data-id="${CSS.escape(studentId)}"]`).forEach(input=>{
+      const nilai=nilaiLingkup(input);
+      if(nilai!==null&&Number.isFinite(nilai))parts[input.dataset.part]=nilai;
+    });
+    return scopeSummativeAverage(parts);
+  }
+  function segarkanRata(studentId){
+    const rata=rataBaris(studentId);
+    listHost.querySelectorAll(`[data-average-cell][data-id="${CSS.escape(studentId)}"]`).forEach(cell=>{cell.textContent=rata===null?'—':rata;});
+  }
+
   function draw(){
     const attendanceMode=assessmentType==='daily'&&getDailyAttendanceMode(session,subjectId);const sheet=attendanceMode?attendanceDerivedSheet(session,subjectId):getAssessmentSheet(session,subjectId,assessmentType);drawSummary(sheet.average,sheet.pendingCount,sheet.filledCount,sheet.rows.length,attendanceMode);
     saveButton.disabled=!sheet.rows.length||attendanceMode;saveButton.innerHTML=attendanceMode?`${icon('calendar',17)} Dihitung dari Absensi`:`${icon('save',17)} Simpan Nilai`;
@@ -80,6 +98,14 @@ export function renderAssessment(session){
     const tampil=dipilih?sheet.rows.filter(row=>row.studentId===dipilih):sheet.rows;
     if(!tampil.length&&sheet.rows.length){listHost.innerHTML='<section class="card empty-state"><h3>Siswa tidak ditemukan</h3><p>Pilih siswa lain atau kembali ke Semua Siswa.</p></section>';return;}
     if(!sheet.rows.length){listHost.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan Data Siswa sebelum mengisi Penilaian.</p></section>';return;}
+    if(modeLingkup()){
+      const kolom=SCOPE_SUMMATIVE_PARTS.map(part=>`<th>${escapeHtml(part.label)}</th>`).join('');
+      const inputLingkup=(row,part)=>`<input class="input score-input lm-input" type="number" min="0" max="100" step="0.01" data-part="${part.id}" data-id="${escapeHtml(row.studentId)}" value="${row.parts?.[part.id]??''}" aria-label="${escapeHtml(part.label)} ${escapeHtml(row.name)}"/>`;
+      const barisLingkup=tampil.map((row,index)=>`<tr><td>${index+1}</td><td><strong>${escapeHtml(row.name)}</strong><span>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</span></td>${SCOPE_SUMMATIVE_PARTS.map(part=>`<td>${inputLingkup(row,part)}</td>`).join('')}<td><strong data-average-cell data-id="${escapeHtml(row.studentId)}">${row.score??'—'}</strong></td><td><span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${row.saved?'Tersimpan':'Belum diisi'}</span></td></tr>`).join('');
+      const kartuLingkup=tampil.map((row,index)=>`<article class="card assessment-mobile-card"><div class="assessment-student"><span>${index+1}</span><div><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</small></div></div><div class="lm-mobile-grid">${SCOPE_SUMMATIVE_PARTS.map(part=>`<label>${escapeHtml(part.label)}${inputLingkup(row,part)}</label>`).join('')}</div><div class="score-mobile-input"><label>Rata-rata Lingkup Materi</label><strong data-average-cell data-id="${escapeHtml(row.studentId)}">${row.score??'—'}</strong><span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${row.saved?'Tersimpan':'Belum diisi'}</span></div></article>`).join('');
+      listHost.innerHTML=`<section class="card source-banner">Isi nilai tiap Lingkup Materi (bab). Rata-rata lingkup yang terisi menjadi nilai Sumatif Lingkup Materi, lalu digabung dengan empat komponen lain memakai Bobot Penilaian. Lingkup yang dikosongkan tidak dihitung.</section><section class="card assessment-table-card"><div class="table-scroll"><table class="data-table assessment-table lm-table"><thead><tr><th>No.</th><th>Siswa</th>${kolom}<th>Rata-rata</th><th>Status</th></tr></thead><tbody>${barisLingkup}</tbody></table></div></section><div class="assessment-card-list">${kartuLingkup}</div>`;
+      bindInputs();return;
+    }
     const rows=tampil.map((row,index)=>`<tr><td>${index+1}</td><td><strong>${escapeHtml(row.name)}</strong><span>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</span></td><td><input class="input score-input" type="number" min="0" max="100" step="0.01" data-score data-id="${escapeHtml(row.studentId)}" value="${row.score??''}" aria-label="Nilai ${escapeHtml(row.name)}" ${attendanceMode?'disabled':''}/></td><td><span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${attendanceMode?(row.saved?'Dari Absensi':'Belum ada absensi'):(row.saved?'Tersimpan':'Belum diisi')}</span></td></tr>`).join('');
     const cards=tampil.map((row,index)=>`<article class="card assessment-mobile-card"><div class="assessment-student"><span>${index+1}</span><div><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</small></div></div><div class="score-mobile-input"><label>Nilai 0–100</label><input class="input score-input" type="number" min="0" max="100" step="0.01" data-score data-id="${escapeHtml(row.studentId)}" value="${row.score??''}" aria-label="Nilai ${escapeHtml(row.name)}" ${attendanceMode?'disabled':''}/><span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${attendanceMode?(row.saved?'Dari Absensi':'Belum ada absensi'):(row.saved?'Tersimpan':'Belum diisi')}</span></div></article>`).join('');
     listHost.innerHTML=`<section class="card assessment-table-card"><div class="table-scroll"><table class="data-table assessment-table"><thead><tr><th>No.</th><th>Siswa</th><th>Nilai 0–100</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div></section><div class="assessment-card-list">${cards}</div>`;
@@ -89,11 +115,26 @@ export function renderAssessment(session){
     summaryHost.innerHTML=`${attendanceMode?'<div class="source-banner">Penilaian Harian dihitung dari absensi menggunakan konversi terpusat. Data nilai manual tetap tersimpan terpisah.</div>':''}<div class="assessment-summary"><article class="stat-card"><div class="stat-label">Rata-rata Kelas</div><div class="stat-value" data-average>${formatAverage(average)}</div><div class="stat-foot">Nilai kosong tidak dihitung</div></article><article class="stat-card"><div class="stat-label">Sudah Dinilai</div><div class="stat-value" data-filled>${filled}</div><div class="stat-foot">dari ${total} siswa</div></article><article class="stat-card"><div class="stat-label">Belum Dinilai</div><div class="stat-value" data-pending>${pending}</div><div class="stat-foot">nilai masih kosong</div></article></div>`;
   }
   function allInputs(){return [...listHost.querySelectorAll('.assessment-table-card [data-score]')];}
+  function idsTampil(){return [...new Set([...listHost.querySelectorAll('.assessment-table-card [data-part]')].map(input=>input.dataset.id))];}
   function updateLiveSummary(){
+    if(modeLingkup()){
+      const ids=idsTampil();const rata=ids.map(id=>rataBaris(id)).filter(value=>value!==null);
+      const nilai=rata.length?rata.reduce((sum,value)=>sum+value,0)/rata.length:null;
+      drawSummary(nilai,ids.length-rata.length,rata.length,ids.length);return;
+    }
     const inputs=allInputs();const filled=inputs.map(input=>input.value.trim()).filter(Boolean).map(Number).filter(value=>Number.isFinite(value)&&value>=0&&value<=100);
     const average=filled.length?filled.reduce((sum,value)=>sum+value,0)/filled.length:null;drawSummary(average,inputs.length-filled.length,filled.length,inputs.length);
   }
   function bindInputs(){
+    listHost.querySelectorAll('[data-part]').forEach(input=>input.oninput=()=>{
+      const kembar=[...listHost.querySelectorAll(`[data-part="${input.dataset.part}"][data-id="${CSS.escape(input.dataset.id)}"]`)];
+      kembar.forEach(other=>{if(other!==input)other.value=input.value;});
+      segarkanRata(input.dataset.id);
+      listHost.querySelectorAll(`[data-state]`).forEach(()=>{});
+      const status=input.closest('tr')?.querySelector('[data-state]')||input.closest('article')?.querySelector('[data-state]');
+      if(status){status.textContent='Belum disimpan';status.className='score-state muted';}
+      updateLiveSummary();
+    });
     listHost.querySelectorAll('[data-score]').forEach(input=>input.oninput=()=>{
       const matching=[...listHost.querySelectorAll(`[data-score][data-id="${CSS.escape(input.dataset.id)}"]`)];matching.forEach(other=>{if(other!==input)other.value=input.value;const state=other.parentElement.parentElement.querySelector('[data-state]')||other.parentElement.querySelector('[data-state]');if(state){state.textContent=input.value.trim()===''?'Belum diisi':'Belum disimpan';state.className='score-state muted';}});updateLiveSummary();
     });
@@ -101,8 +142,14 @@ export function renderAssessment(session){
   root.querySelector('[data-subject]').onchange=event=>{subjectId=event.target.value;draw();};root.querySelector('[data-type]').onchange=event=>{assessmentType=event.target.value;draw();};
 root.querySelector('[data-fill-target]').onchange=()=>draw();
   saveButton.onclick=()=>{
-    const values=Object.fromEntries(allInputs().map(input=>[input.dataset.id,input.value]));
-    try{saveAssessmentScores(session,subjectId,assessmentType,values);draw();toast('Nilai berhasil disimpan. Nilai kosong tetap tidak dinilai.');}catch(error){toast(error.message,'error');}
+    const values=modeLingkup()
+      ? Object.fromEntries(idsTampil().map(id=>{
+          const parts={};
+          listHost.querySelectorAll(`.assessment-table-card [data-part][data-id="${CSS.escape(id)}"]`).forEach(input=>{parts[input.dataset.part]=input.value;});
+          return [id,{parts}];
+        }))
+      : Object.fromEntries(allInputs().map(input=>[input.dataset.id,input.value]));
+    try{saveAssessmentScores(session,subjectId,assessmentType,values);draw();toast(modeLingkup()?'Nilai Lingkup Materi tersimpan. Rata-rata lingkup terisi menjadi nilai Sumatif Lingkup Materi.':'Nilai berhasil disimpan. Nilai kosong tetap tidak dinilai.');}catch(error){toast(error.message,'error');}
   };
   /* Sasaran mengikuti siswa yang sedang tampil: satu siswa terpilih hanya mengisi siswa itu,
      pilihan Semua Siswa mengisi seluruh siswa rombel. */

@@ -153,6 +153,14 @@ html,body{color-scheme:light}
 @media print{
   html,body,.print-workspace,.document-a4,.document-sheet,.report-a4,.report-cover-a4{-webkit-print-color-adjust:exact;print-color-adjust:exact;color-scheme:light;forced-color-adjust:none}
 }
+/* Sumatif Lingkup Materi: satu kolom per bab (LM1-LM5) beserta kolom rata-rata. */
+.lm-table th,.lm-table td{text-align:center}
+.lm-table td:nth-child(2){text-align:left}
+.lm-input{width:78px;min-width:70px;text-align:center;padding:8px 6px}
+.lm-mobile-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:10px 0}
+.lm-mobile-grid label{display:grid;gap:4px;font-size:10.5px;font-weight:700;color:var(--muted);text-align:center}
+.lm-mobile-grid .lm-input{width:100%;min-width:0}
+@media(max-width:520px){.lm-mobile-grid{grid-template-columns:repeat(3,1fr)}}
 /* Penanda build sementara pada kartu Tentang Aplikasi. */
 .build-verification{margin:12px 0 14px;padding:10px 12px;border-radius:10px;background:#1f7a4d;color:#fff;font-size:12.5px;font-weight:800;letter-spacing:.02em;text-align:center}
 /* Peringatan "Agama belum diisi" pada Preview Rapor beserta tombol menuju Data Siswa. */

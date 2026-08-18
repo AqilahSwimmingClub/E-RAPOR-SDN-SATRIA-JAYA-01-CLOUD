@@ -45,6 +45,9 @@ const potret=()=>JSON.parse(JSON.stringify(loadDb()));
 const templateRows=(session,subjectId)=>readWorkbookRows(assessmentTemplateWorkbook(session,subjectId));
 const importRows=(session,subjectId,rows)=>previewAssessmentImport(session,subjectId,createWorkbookBytes('Nilai',rows));
 const nilaiKomponen=(session,subjectId,type,studentId)=>getAssessmentSheet(session,subjectId,type).rows.find(row=>row.studentId===studentId)?.score??null;
+/* Kolom template nilai: NIS, NISN, Nama, Formatif, Harian, Praktik, LM1..LM5, Sumatif Akhir, ID. */
+const KOL={formative:3,daily:4,practice:5,lm1:6,lm2:7,lm3:8,lm4:9,lm5:10,semesterSummative:11,id:12};
+const barisSiswa=(rows,studentId)=>rows.find(row=>row[KOL.id]===studentId);
 
 /* =============================================================== BACKUP DAN RESTORE */
 
@@ -186,12 +189,13 @@ test('9-10. Template nilai berisi seluruh siswa rombel aktif beserta nilai yang 
   assert.deepEqual(rows[1],ASSESSMENT_HEADERS,'format kolom template nilai');
   assert.equal(rows.length,4,'baris info + header + 2 siswa');
   assert.match(rows[0].join(' | '),/Tahun Pelajaran: .*Semester: .*Rombel: 5B.*Mapel: Matematika.*Mapel ID: mtk/,'informasi scope tertulis di berkas');
-  const barisIslam=rows.find(row=>row[8]===islam.id);
-  assert.equal(barisIslam[3],80,'nilai Formatif yang sudah ada ikut terisi');
-  assert.equal(barisIslam[4],90,'nilai Harian yang sudah ada ikut terisi');
-  assert.equal(barisIslam[5],'','komponen yang belum dinilai tetap kosong');
-  const barisKristen=rows.find(row=>row[8]===kristen.id);
-  assert.equal(barisKristen[3],70);
+  const barisIslam=barisSiswa(rows,islam.id);
+  assert.equal(barisIslam[KOL.formative],80,'nilai Formatif yang sudah ada ikut terisi');
+  assert.equal(barisIslam[KOL.daily],90,'nilai Harian yang sudah ada ikut terisi');
+  assert.equal(barisIslam[KOL.practice],'','komponen yang belum dinilai tetap kosong');
+  assert.deepEqual(rows[1].slice(6,11),['Sumatif LM1','Sumatif LM2','Sumatif LM3','Sumatif LM4','Sumatif LM5'],'Sumatif Lingkup Materi dipecah per bab');
+  const barisKristen=barisSiswa(rows,kristen.id);
+  assert.equal(barisKristen[KOL.formative],70);
 });
 
 test('11. Rombel tanpa siswa menghasilkan template nilai berisi header saja',()=>{
@@ -220,10 +224,10 @@ test('12. Round-trip template nilai tidak mengubah nilai dan tidak menggandakan 
 test('13-14. Menambah dan mengubah nilai lewat Excel tersimpan ke Penilaian',()=>{
   const {session,islam,kristen}=siapkanData();
   const rows=templateRows(session,'mtk');
-  const barisIslam=rows.find(row=>row[8]===islam.id);
-  const barisKristen=rows.find(row=>row[8]===kristen.id);
-  barisIslam[3]=95;            /* nilai lama diperbarui */
-  barisKristen[5]=88;          /* nilai baru pada komponen Praktik */
+  const barisIslam=barisSiswa(rows,islam.id);
+  const barisKristen=barisSiswa(rows,kristen.id);
+  barisIslam[KOL.formative]=95;   /* nilai lama diperbarui */
+  barisKristen[KOL.practice]=88;  /* nilai baru pada komponen Praktik */
   const preview=importRows(session,'mtk',rows);
   assert.equal(preview.invalidCount,0);
   assert.equal(preview.newScoreCount,1,'satu nilai baru');
@@ -241,16 +245,19 @@ test('15. Import nilai seluruh siswa sekaligus berhasil',()=>{
   const daftar=[];
   for(let index=1;index<=33;index+=1)daftar.push(siswa(session,String(index).padStart(2,'0')));
   const rows=templateRows(session,'mtk');
-  rows.slice(2).forEach(row=>{ASSESSMENT_TYPES.forEach((type,index)=>{row[3+index]=80+index;});});
+  rows.slice(2).forEach(row=>{row[KOL.formative]=80;row[KOL.daily]=81;row[KOL.practice]=82;row[KOL.lm1]=83;row[KOL.lm2]=85;row[KOL.semesterSummative]=84;});
   const preview=importRows(session,'mtk',rows);
   assert.equal(preview.rows.length,33);
-  assert.equal(preview.newScoreCount,33*ASSESSMENT_TYPES.length);
+  assert.equal(preview.newScoreCount,33*ASSESSMENT_TYPES.length,'kelima komponen terisi, Sumatif Lingkup Materi dari rata-rata LM');
   commitAssessmentImport(session,preview);
-  ASSESSMENT_TYPES.forEach((type,index)=>{
+  const harapan={formative:80,daily:81,practice:82,scopeSummative:84,semesterSummative:84};
+  ASSESSMENT_TYPES.forEach(type=>{
     const sheet=getAssessmentSheet(session,'mtk',type.id);
     assert.equal(sheet.filledCount,33,`seluruh siswa punya nilai ${type.label}`);
-    assert.equal(sheet.rows[0].score,80+index);
+    assert.equal(sheet.rows[0].score,harapan[type.id],`${type.label} sesuai isian`);
   });
+  /* Sumatif Lingkup Materi = rata-rata LM1 dan LM2 yang terisi: (83+85)/2 = 84. */
+  assert.deepEqual(getAssessmentSheet(session,'mtk','scopeSummative').rows[0].parts,{lm1:83,lm2:85});
   assert.equal(listStudents(session,{classId:'5B'}).length,33,'import nilai tidak menambah atau menghapus siswa');
 });
 
@@ -261,7 +268,7 @@ test('16. Siswa tanpa NIS tetap menerima nilai dari Excel',()=>{
   const tanpaNis=siswa(session,'TANPA',{nis:''});
   const lain=siswa(session,'LAIN');
   const rows=templateRows(session,'mtk');
-  rows.find(row=>row[8]===tanpaNis.id)[3]=77;
+  barisSiswa(rows,tanpaNis.id)[KOL.formative]=77;
   const preview=importRows(session,'mtk',rows);
   assert.equal(preview.invalidCount,0,preview.rows.flatMap(row=>row.errors).join(' | '));
   commitAssessmentImport(session,preview);
@@ -276,8 +283,8 @@ test('17-18. Nilai parsial diterima dan sel kosong bukan nol',()=>{
   const anak=siswa(session,'PARSIAL');
   saveAssessmentSettings(session,'mtk',{formative:40,daily:20,practice:15,scopeSummative:15,semesterSummative:10,kktp:70});
   const rows=templateRows(session,'mtk');
-  const baris=rows.find(row=>row[8]===anak.id);
-  baris[3]=80;baris[4]=90;
+  const baris=barisSiswa(rows,anak.id);
+  baris[KOL.formative]=80;baris[KOL.daily]=90;
   const preview=importRows(session,'mtk',rows);
   assert.equal(preview.canCommit,true,preview.rows.flatMap(row=>row.errors).join(' | '));
   commitAssessmentImport(session,preview);
@@ -308,9 +315,9 @@ test('Nilai tidak wajar dan siswa asing ditolak dengan alasan yang jelas',()=>{
   const {session}=siapkanData();
   const rows=templateRows(session,'mtk');
   const rusak=rows.map(row=>[...row]);
-  rusak[2][3]='abc';
-  rusak[3][4]=150;
-  rusak.push(['NIS-ASING','NISN-ASING','Siswa Asing','','','','','','']);
+  rusak[2][KOL.formative]='abc';
+  rusak[3][KOL.daily]=150;
+  rusak.push(['NIS-ASING','NISN-ASING','Siswa Asing','','','','','','','','','','']);
   const preview=importRows(session,'mtk',rusak);
   assert.equal(preview.canCommit,false);
   assert.match(preview.rows[0].errors.join(' '),/bukan angka/);
@@ -321,10 +328,10 @@ test('Nilai tidak wajar dan siswa asing ditolak dengan alasan yang jelas',()=>{
 test('20. Import nilai agama tetap mengikuti agama siswa',()=>{
   const {session,islam,kristen}=siapkanData();
   const barisPai=templateRows(session,'agama');
-  barisPai.find(row=>row[8]===islam.id)[3]=95;
+  barisSiswa(barisPai,islam.id)[KOL.formative]=95;
   commitAssessmentImport(session,importRows(session,'agama',barisPai));
   const barisPak=templateRows(session,'agama_kristen');
-  barisPak.find(row=>row[8]===kristen.id)[3]=93;
+  barisSiswa(barisPak,kristen.id)[KOL.formative]=93;
   commitAssessmentImport(session,importRows(session,'agama_kristen',barisPak));
   saveAutomaticReportScores(session,'agama');
   saveAutomaticReportScores(session,'agama_kristen');
@@ -341,7 +348,7 @@ test('21-24. Hasil import terbaca Input Nilai Rapor, Nilai Tersimpan, Rapor, dan
   aktifkan(session,['mtk']);
   const anak=siswa(session,'ALUR');
   const rows=templateRows(session,'mtk');
-  const baris=rows.find(row=>row[8]===anak.id);
+  const baris=barisSiswa(rows,anak.id);
   ASSESSMENT_TYPES.forEach((type,index)=>{baris[3+index]=80+index;});
   commitAssessmentImport(session,importRows(session,'mtk',rows));
 

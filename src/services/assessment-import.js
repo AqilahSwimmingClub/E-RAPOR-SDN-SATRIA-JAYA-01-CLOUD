@@ -1,4 +1,4 @@
-import { ASSESSMENT_TYPES, getAssessmentSheet, saveAssessmentScores } from './assessment.js';
+import { ASSESSMENT_TYPES, SCOPE_SUMMATIVE_PARTS, SCOPE_SUMMATIVE_TYPE, getAssessmentSheet, saveAssessmentScores, scopeSummativeAverage } from './assessment.js';
 import { createWorkbookBytes, readWorkbookRows } from './excel.js';
 import { listStudents } from './students.js';
 import { requireActiveSubject } from './subjects.js';
@@ -10,7 +10,11 @@ import { requireActiveSubject } from './subjects.js';
    lain tidak bisa masuk ke mapel yang salah. */
 export const ASSESSMENT_IDENTITY_HEADERS=['NIS','NISN','Nama'];
 export const ASSESSMENT_ID_HEADER='ID Sistem (jangan diubah)';
-export const ASSESSMENT_SCORE_HEADERS=ASSESSMENT_TYPES.map(type=>type.label);
+/* Kolom nilai mengikuti Daftar Nilai kertas: Sumatif Lingkup Materi dipecah menjadi satu kolom
+   per bab (LM1-LM5). Rata-rata lingkup yang terisi menjadi nilai komponen tersebut. */
+export const ASSESSMENT_SCORE_HEADERS=ASSESSMENT_TYPES.flatMap(type=>type.id===SCOPE_SUMMATIVE_TYPE
+  ?SCOPE_SUMMATIVE_PARTS.map(part=>`Sumatif ${part.label}`)
+  :[type.label]);
 export const ASSESSMENT_HEADERS=[...ASSESSMENT_IDENTITY_HEADERS,...ASSESSMENT_SCORE_HEADERS,ASSESSMENT_ID_HEADER];
 const INFO_LABEL='Tahun Pelajaran';
 
@@ -18,6 +22,11 @@ function normalize(value){return String(value??'').trim();}
 function headerKey(value){return normalize(value).toLowerCase().replace(/[_.-]+/g,' ').replace(/\s+/g,' ');}
 function kunciNomor(value){return normalize(value).replace(/\s+/g,'').toUpperCase();}
 const TYPE_BY_HEADER=new Map(ASSESSMENT_TYPES.map(type=>[headerKey(type.label),type.id]));
+/* Kolom lingkup materi dikenali dari "Sumatif LM1" maupun penulisan singkat "LM1". */
+const PART_BY_HEADER=new Map();
+SCOPE_SUMMATIVE_PARTS.forEach(part=>{
+  [`sumatif ${part.label}`,part.label,`sumatif lingkup materi ${part.label}`,`${part.label} sumatif`].forEach(nama=>PART_BY_HEADER.set(headerKey(nama),part.id));
+});
 /* Penulisan pendek yang lazim dipakai guru tetap dikenali. */
 [['formatif','formative'],['harian','daily'],['praktik','practice'],['sumatif lingkup materi','scopeSummative'],['sumatif lingkup','scopeSummative'],['sumatif akhir','semesterSummative'],['sumatif akhir semester','semesterSummative']]
   .forEach(([label,id])=>TYPE_BY_HEADER.set(label,id));
@@ -29,17 +38,28 @@ function infoRow(session,subject){
 function sheetsOf(session,subjectId){
   return new Map(ASSESSMENT_TYPES.map(type=>[type.id,new Map(getAssessmentSheet(session,subjectId,type.id).rows.map(row=>[row.studentId,row.score]))]));
 }
+function scopePartsOf(session,subjectId){
+  return new Map(getAssessmentSheet(session,subjectId,SCOPE_SUMMATIVE_TYPE).rows.map(row=>[row.studentId,row.parts||{}]));
+}
 
 export function assessmentTemplateWorkbook(session,subjectId){
   const subject=requireActiveSubject(session,subjectId);
   const students=listStudents(session,{classId:session.classId});
   const nilai=sheetsOf(session,subjectId);
+  const lingkup=scopePartsOf(session,subjectId);
   const rows=students.map(student=>[
     student.nis,student.nisn,student.name,
-    ...ASSESSMENT_TYPES.map(type=>{const score=nilai.get(type.id).get(student.id);return score===null||score===undefined?'':score;}),
+    ...ASSESSMENT_TYPES.flatMap(type=>{
+      if(type.id===SCOPE_SUMMATIVE_TYPE){
+        const parts=lingkup.get(student.id)||{};
+        return SCOPE_SUMMATIVE_PARTS.map(part=>parts[part.id]??'');
+      }
+      const score=nilai.get(type.id).get(student.id);
+      return [score===null||score===undefined?'':score];
+    }),
     student.id,
   ]);
-  return createWorkbookBytes('Nilai',[infoRow(session,subject),ASSESSMENT_HEADERS,...rows],{columnWidths:[14,18,30,12,12,12,20,18,38]});
+  return createWorkbookBytes('Nilai',[infoRow(session,subject),ASSESSMENT_HEADERS,...rows],{columnWidths:[14,18,30,12,12,12,10,10,10,10,10,18,38]});
 }
 
 export function assessmentTemplateFilename(session,subjectId){
@@ -57,7 +77,7 @@ function bacaInfo(rows){
 function cariHeader(rows){
   return rows.findIndex(row=>{
     const kunci=row.map(headerKey);
-    return kunci.includes('nis')&&kunci.includes('nama')&&kunci.some(item=>TYPE_BY_HEADER.has(item));
+    return kunci.includes('nis')&&kunci.includes('nama')&&kunci.some(item=>TYPE_BY_HEADER.has(item)||PART_BY_HEADER.has(item));
   });
 }
 
@@ -100,7 +120,9 @@ export function previewAssessmentImport(session,subjectId,data){
   const kolom={nis:headers.indexOf('nis'),nisn:headers.indexOf('nisn'),name:headers.indexOf('nama'),
     studentId:headers.findIndex(item=>item.startsWith('id sistem'))};
   const komponen=ASSESSMENT_TYPES.map(type=>({type,column:headers.findIndex(item=>TYPE_BY_HEADER.get(item)===type.id)})).filter(item=>item.column>=0);
-  if(!komponen.length)throw new Error('Tidak ada kolom komponen penilaian pada berkas.');
+  /* Kolom Lingkup Materi dibaca terpisah lalu dirata-ratakan menjadi nilai komponen. */
+  const kolomLingkup=SCOPE_SUMMATIVE_PARTS.map(part=>({part,column:headers.findIndex(item=>PART_BY_HEADER.get(item)===part.id)})).filter(item=>item.column>=0);
+  if(!komponen.length&&!kolomLingkup.length)throw new Error('Tidak ada kolom komponen penilaian pada berkas.');
   const students=listStudents(session,{classId:session.classId});
   const sebelum=sheetsOf(session,subjectId);
   const dipakai=new Set();
@@ -112,24 +134,38 @@ export function previewAssessmentImport(session,subjectId,data){
     if(!student)errors.push(`Siswa ${raw.name||raw.nis||raw.nisn||'tanpa identitas'} tidak ditemukan pada rombel ${session.classId}.`);
     else if(dipakai.has(student.id))errors.push('Siswa muncul lebih dari satu kali pada berkas.');
     if(student)dipakai.add(student.id);
-    const scores={};let terisi=0,baru=0,diperbarui=0;
+    const scores={};const parts={};let terisi=0,baru=0,diperbarui=0;
+    const catat=(id,label,score)=>{
+      scores[id]=score;
+      if(score===null)return;
+      terisi+=1;
+      const lama=student?sebelum.get(id).get(student.id)??null:null;
+      if(lama===null)baru+=1;else if(lama!==score)diperbarui+=1;
+    };
     komponen.forEach(({type,column})=>{
       const {score,error}=bacaNilai(cells[column]);
       if(error){errors.push(`${type.label}: ${error}`);return;}
-      scores[type.id]=score;
-      if(score===null)return;
-      terisi+=1;
-      const lama=student?sebelum.get(type.id).get(student.id)??null:null;
-      if(lama===null)baru+=1;else if(lama!==score)diperbarui+=1;
+      catat(type.id,type.label,score);
     });
+    if(kolomLingkup.length){
+      let adaIsi=false;
+      kolomLingkup.forEach(({part,column})=>{
+        const {score,error}=bacaNilai(cells[column]);
+        if(error){errors.push(`Sumatif ${part.label}: ${error}`);return;}
+        parts[part.id]=score;
+        if(score!==null)adaIsi=true;
+      });
+      catat(SCOPE_SUMMATIVE_TYPE,'Sumatif Lingkup Materi',adaIsi?scopeSummativeAverage(parts):null);
+    }
     return {rowNumber:headerIndex+index+2,studentId:student?.id||null,studentName:student?.name||raw.name||'—',
-      nis:raw.nis,nisn:raw.nisn,scores,filledCount:terisi,newCount:baru,updatedCount:diperbarui,
+      nis:raw.nis,nisn:raw.nisn,scores,parts,filledCount:terisi,newCount:baru,updatedCount:diperbarui,
       valid:errors.length===0,errors:[...new Set(errors)]};
   });
   const invalidCount=daftar.filter(row=>!row.valid).length;
   const valid=daftar.filter(row=>row.valid);
   return {sourceRows:rows,subjectId,subjectName:subject.name,classId:session.classId,semester:session.semester,academicYear:session.academicYear,
-    components:komponen.map(item=>item.type.id),rows:daftar,studentCount:students.length,
+    components:[...komponen.map(item=>item.type.id),...(kolomLingkup.length?[SCOPE_SUMMATIVE_TYPE]:[])],
+    scopeParts:kolomLingkup.map(item=>item.part.id),rows:daftar,studentCount:students.length,
     validCount:daftar.length-invalidCount,invalidCount,
     newScoreCount:valid.reduce((sum,row)=>sum+row.newCount,0),
     updatedScoreCount:valid.reduce((sum,row)=>sum+row.updatedCount,0),
@@ -148,7 +184,9 @@ export function commitAssessmentImport(session,preview){
   checked.rows.forEach(row=>{
     checked.components.forEach(id=>{
       if(!Object.hasOwn(row.scores,id))return;
-      perKomponen.get(id)[row.studentId]=row.scores[id];
+      /* Sumatif Lingkup Materi disimpan beserta rincian tiap bab sehingga rata-ratanya
+         dihitung ulang oleh layanan penilaian yang sama dengan halaman Penilaian. */
+      perKomponen.get(id)[row.studentId]=id===SCOPE_SUMMATIVE_TYPE&&checked.scopeParts?.length?{parts:row.parts}:row.scores[id];
     });
   });
   const hasil=[];
