@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { APP_SCHEMA_VERSION, APP_VERSION, VERSION_CODE } from '../src/data/version.js';
+import { APP_SCHEMA_VERSION, APP_VERSION, PREVIOUS_RELEASE, VERSION_CODE } from '../src/data/version.js';
 import { listMigrationSafetySnapshots, runAppMigrations } from '../src/services/migrations.js';
 import { loadDb, storageKey } from '../src/services/storage.js';
 
@@ -34,8 +34,13 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
+/* Versi boleh naik kapan saja; yang dijaga adalah aturannya, bukan angkanya. Format data lokal
+   tetap schema 4 supaya rilis baru membaca database guru yang sudah ada tanpa migrasi paksa. */
 test('identitas versi rilis memakai versionCode yang naik dan schema 4',()=>{
-  assert.equal(APP_VERSION,'1.1.6');assert.equal(VERSION_CODE,10);assert.equal(APP_SCHEMA_VERSION,4);
+  assert.match(APP_VERSION,/^\d+\.\d+\.\d+$/,'versi memakai format x.y.z');
+  assert.ok(VERSION_CODE>PREVIOUS_RELEASE.versionCode,`versionCode ${VERSION_CODE} wajib lebih tinggi dari ${PREVIOUS_RELEASE.versionCode}`);
+  assert.notEqual(APP_VERSION,PREVIOUS_RELEASE.version,'nama versi ikut berubah bersama versionCode');
+  assert.equal(APP_SCHEMA_VERSION,4,'format data lokal tetap schema 4');
 });
 
 test('data siswa bertahan setelah migration tanpa mengganti field lama',()=>{

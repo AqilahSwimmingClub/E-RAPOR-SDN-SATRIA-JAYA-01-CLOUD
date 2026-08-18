@@ -9,6 +9,7 @@ import { createStudent, updateStudent } from '../src/services/students.js';
 import { listSubjectsForStudent } from '../src/services/subjects.js';
 import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
 import { resolveRoute } from '../src/core/router.js';
+import { BUILD_TAG } from '../src/data/version.js';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
@@ -137,7 +138,7 @@ test('Mapel agama tidak hilang walau statusnya nonaktif pada Mapping',()=>{
 
 test('Penanda BUILD VERIFIKASI tampil di halaman Pengaturan dan ikut ke hasil build',()=>{
   const halaman=read('src/pages/settings.js');
-  assert.match(read('src/data/version.js'),/export const BUILD_TAG='1\.1\.6-WINDOWS-BROWSER';/,'penanda build tersimpan bersama identitas versi');
+  assert.match(read('src/data/version.js'),new RegExp(`export const BUILD_TAG='${BUILD_TAG}';`),'penanda build tersimpan bersama identitas versi');
   assert.match(halaman,/import \{ BUILD_TAG \} from '\.\.\/data\/version\.js';/);
   assert.match(halaman,/BUILD VERIFIKASI: \$\{escapeHtml\(BUILD_TAG\)\}/,'penanda dirender pada kartu Tentang Aplikasi');
   assert.match(halaman,/data-build-tag/);
@@ -147,7 +148,7 @@ test('Penanda BUILD VERIFIKASI tampil di halaman Pengaturan dan ikut ke hasil bu
     assert.match(read(berkas),/BUILD VERIFIKASI/,`${berkas} membawa penanda build`);
   }
   for(const berkas of ['dist/src/data/version.js','android/app/src/main/assets/public/src/data/version.js']){
-    assert.match(read(berkas),/BUILD_TAG='1\.1\.6-WINDOWS-BROWSER'/,`${berkas} membawa BUILD_TAG`);
+    assert.match(read(berkas),new RegExp(`BUILD_TAG='${BUILD_TAG}'`),`${berkas} membawa BUILD_TAG yang sama dengan source`);
   }
 });
 
