@@ -14,6 +14,7 @@ import { createLearningObjective } from '../src/services/objectives.js';
 import { generateReportDescription, saveReportDescription } from '../src/services/descriptions.js';
 import { saveAttendance } from '../src/services/attendance.js';
 import { saveHomeroomNote } from '../src/services/completeness.js';
+import { cocurricularTable, extracurricularTable } from '../src/pages/print.js';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
@@ -206,7 +207,8 @@ test('Kokurikuler dan ekstrakurikuler kosong tidak menahan cetak rapor',()=>{
   const dokumen=getReportDocument(session,anak.id);
   assert.equal(dokumen.extracurricular.length,0);
   assert.equal(dokumen.cocurricular,null);
-  assert.match(read('src/pages/print.js'),/if\(!items\.length\)return '';/,'bagian kosong tidak dicetak');
+  assert.equal(extracurricularTable(dokumen),'','bagian ekstrakurikuler kosong tidak dicetak');
+  assert.equal(cocurricularTable(dokumen),'','bagian kokurikuler kosong tidak dicetak');
 });
 
 /* ------------------------------------------------- 9. Agama sesuai siswa */
