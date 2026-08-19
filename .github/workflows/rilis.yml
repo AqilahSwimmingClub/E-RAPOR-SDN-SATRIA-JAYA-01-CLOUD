@@ -120,6 +120,34 @@ jobs:
           } > android/signing.properties
           echo "Keystore siap (isi berkas tidak ditampilkan)."
 
+      # Diperiksa lebih dulu supaya secret yang keliru ketahuan dalam hitungan detik, bukan
+      # setelah Gradle berjalan beberapa menit. Pesannya menyebut secret mana yang harus dibetulkan.
+      - name: Periksa keempat secret benar-benar cocok
+        env:
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          KS="$RUNNER_TEMP/erapor-release.jks"
+          if [ ! -s "$KS" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 kosong atau bukan base64 yang utuh. Isi ulang secret itu."
+            exit 1
+          fi
+          if ! keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" >/dev/null 2>&1; then
+            echo "::error::Keystore tidak dapat dibuka. Periksa ANDROID_KEYSTORE_BASE64 dan ANDROID_KEYSTORE_PASSWORD."
+            exit 1
+          fi
+          if ! keytool -list -keystore "$KS" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null 2>&1; then
+            echo "::error::Alias tidak ada di dalam keystore. Periksa ANDROID_KEY_ALIAS (proyek ini memakai erapor-release)."
+            exit 1
+          fi
+          if ! keytool -certreq -alias "$KEY_ALIAS" -keystore "$KS" -storepass "$STORE_PASSWORD" -keypass "$KEY_PASSWORD" >/dev/null 2>&1; then
+            echo "::error::Kunci privat tidak dapat dibuka. Periksa ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+          echo "Keempat secret cocok. Sidik jari sertifikat penanda tangan:"
+          keytool -list -v -keystore "$KS" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" | grep -i 'SHA256:'
+
       - name: Bangun APK rilis
         run: ./gradlew --no-daemon assembleRelease
         working-directory: android

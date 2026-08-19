@@ -78,6 +78,27 @@ test('8. Isi secret tidak pernah ditampilkan ke log',()=>{
     assert.equal(t.includes(bocor),false,`workflow tidak boleh menampilkan ${bocor}`);
 });
 
+test('8b. Keempat secret diperiksa lebih dulu dengan pesan yang menunjuk secret keliru',()=>{
+  const t=alur();
+  /* Tanpa pemeriksaan awal, secret yang keliru baru ketahuan setelah Gradle berjalan beberapa
+     menit dan pesannya berupa error Java yang sulit dibaca guru. */
+  const bagian=t.slice(t.indexOf('Periksa keempat secret'),t.indexOf('Bangun APK rilis'));
+  assert.ok(bagian.indexOf('Periksa keempat secret')<bagian.length,'ada langkah pemeriksaan');
+  assert.ok(t.indexOf('Periksa keempat secret')<t.indexOf('./gradlew --no-daemon assembleRelease'),'dijalankan sebelum Gradle');
+  for(const [petunjuk,secret] of [
+    [/kosong atau bukan base64 yang utuh/,'ANDROID_KEYSTORE_BASE64'],
+    [/Keystore tidak dapat dibuka/,'ANDROID_KEYSTORE_PASSWORD'],
+    [/Alias tidak ada di dalam keystore/,'ANDROID_KEY_ALIAS'],
+    [/Kunci privat tidak dapat dibuka/,'ANDROID_KEY_PASSWORD'],
+  ]){
+    assert.match(bagian,petunjuk,`ada pesan untuk ${secret}`);
+    assert.ok(bagian.includes(secret),`pesan menyebut ${secret}`);
+  }
+  assert.match(bagian,/keytool -list -v .*grep -i 'SHA256:'/,'sidik jari penanda tangan ikut dicatat pada log');
+  /* Password tetap dibaca dari secret, tidak pernah ditulis apa adanya. */
+  assert.match(bagian,/-storepass "\$STORE_PASSWORD"/);
+});
+
 /* ---------------------------------------------------------- 9-10. Hasil build dan bukti */
 
 test('9. APK diperiksa tanda tangan dan versinya, lalu diunggah dengan nama berversi',()=>{
