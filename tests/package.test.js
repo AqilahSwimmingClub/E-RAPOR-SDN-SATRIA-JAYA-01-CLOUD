@@ -35,7 +35,7 @@ test('Android release uses stable identity, production versioning, and external 
   assert.match(gradle,new RegExp(`ERAPOR_VERSION_CODE'\\) \\?: '${VERSION_CODE}'`));
   assert.match(gradle,new RegExp(`ERAPOR_VERSION_NAME'\\) \\?: '${APP_VERSION.replace(/\./g,'\\.')}'`));
   assert.match(gradle,/signingConfig signingConfigs\.release/);assert.doesNotMatch(gradle,/signingConfig signingConfigs\.debug/);
-  assert.match(gradle,/Release signing belum dikonfigurasi/);assert.match(ignore,/android\/signing\.properties/);assert.match(ignore,/\*\.jks/);
+  assert.match(gradle,/Release signing belum dikonfigurasi/);assert.match(ignore,/^signing\.properties$/m);assert.match(ignore,/^\*\.jks$/m);
   assert.match(example,/storePassword=ISI_DARI_PASSWORD_MANAGER/);assert.doesNotMatch(example,/storePassword=(?!ISI_DARI_)/);
 });
 

@@ -7,14 +7,23 @@ android/build/
 android/app/build/
 ios/DerivedData/
 *.log
-android/signing.properties
+# Kunci penandatanganan dan turunannya tidak pernah boleh masuk repository: repository ini
+# publik, sehingga siapa pun yang melihatnya bisa menandatangani aplikasi atas nama sekolah.
+# Pola di bawah sengaja tidak diawali nama folder supaya berlaku di folder mana pun, termasuk
+# ketika berkasnya disalin ke folder utama proyek agar lebih mudah dicari.
+signing.properties
 *.jks
 *.keystore
 *.p12
+*.pfx
+KEYSTORE-CREDENTIALS.txt
+# Keluaran npm run signing:secrets --ke-berkas dan cara manual di docs/BUILD-OTOMATIS.md:
+# isinya keystore utuh dalam bentuk base64 dan password apa adanya.
+secret-*.txt
+keystore-base64.txt
 release-signing/
 release/windows/win-unpacked/
 release/windows/builder-debug.yml
 release/**/*.blockmap
-KEYSTORE-CREDENTIALS.txt
 .DS_Store
 Thumbs.db

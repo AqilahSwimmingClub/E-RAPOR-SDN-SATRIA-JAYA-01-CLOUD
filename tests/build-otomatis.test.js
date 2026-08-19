@@ -61,8 +61,8 @@ test('6. Keystore sementara berada di luar folder repository dan selalu dihapus'
   assert.match(t,/base64 -d > "\$RUNNER_TEMP\/erapor-release\.jks"/,'keystore ditulis ke folder sementara runner');
   assert.match(t,/storeFile=\$RUNNER_TEMP\/erapor-release\.jks/,'gradle menunjuk ke berkas sementara itu');
   assert.match(t,/if: always\(\)\n        run: rm -f "\$RUNNER_TEMP\/erapor-release\.jks" android\/signing\.properties/,'dihapus walaupun build gagal');
-  assert.match(read('.gitignore'),/android\/signing\.properties/,'signing.properties tidak pernah ikut ter-commit');
-  assert.match(read('.gitignore'),/\*\.jks/,'berkas keystore tidak pernah ikut ter-commit');
+  assert.match(read('.gitignore'),/^signing\.properties$/m,'signing.properties tidak pernah ikut ter-commit, di folder mana pun');
+  assert.match(read('.gitignore'),/^\*\.jks$/m,'berkas keystore tidak pernah ikut ter-commit');
 });
 
 test('7. Password bertanda garis miring terbalik tetap sampai utuh ke Gradle',()=>{
