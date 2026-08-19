@@ -128,7 +128,9 @@ test('12. Panduan menunjuk halaman secret yang benar, bukan halaman Environments
   assert.match(doc,/GAGAL: Berkas keystore tidak ada di/,'panduan mengenali pesan gagal yang muncul');
   assert.match(doc,/isi berkas keystore ikut berubah\*\*\. Jadi tiga Secret harus/,'panduan menegaskan tiga secret ikut diperbarui');
   assert.match(doc,/Pertimbangan keamanan/,'panduan menyampaikan risiko password pendek');
-  assert.match(doc,/Backup dulu\*\*/,'jalan keluar diawali backup data guru');
+  assert.match(doc,/Backup dulu, di setiap perangkat Android\.\*\*/,'jalan keluar diawali backup data guru');
+  assert.ok(doc.includes('npm run signing:baru'),'panduan menyebut cara membuat keystore baru');
+  assert.match(doc,/backup sebagai Guru hanya satu kelas, satu semester/,'panduan membedakan cakupan backup Admin dan Guru');
 });
 
 test('13. Panduan menaikkan versi menyebut seluruh berkas yang harus ikut berubah',()=>{

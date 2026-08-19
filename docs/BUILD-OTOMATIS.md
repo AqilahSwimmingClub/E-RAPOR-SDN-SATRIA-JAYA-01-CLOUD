@@ -127,15 +127,34 @@ Get-ChildItem -Path C:\ -Recurse -Filter "KEYSTORE-CREDENTIALS.txt" -ErrorAction
 passwordnya. Periksa juga flashdisk, Google Drive, atau folder cadangan.
 
 > **Kalau keystore benar-benar hilang, APK baru tidak akan bisa memasang menimpa aplikasi yang
-> sekarang** — Android menolak APK dengan tanda tangan berbeda. Yang harus dilakukan:
+> sekarang** — Android menolak APK dengan tanda tangan berbeda. Urutan yang aman:
 >
-> 1. **Backup dulu** dari dalam aplikasi di setiap perangkat: menu Pengaturan → Backup, simpan
->    berkasnya di tempat aman. Ini yang menyelamatkan seluruh data rapor.
-> 2. Buat keystore baru: `node scripts/generate-release-signing.mjs --output <folder-aman> --properties android/signing.properties --keytool <path-keytool>`
-> 3. Uninstall aplikasi lama di perangkat, pasang APK baru, lalu **Restore** dari berkas backup.
+> **1. Backup dulu, di setiap perangkat Android.** Login sebagai **Admin** → menu **Backup &
+> Restore** → **Download Backup**. Backup sebagai Admin mencakup seluruh database termasuk akun
+> dan status aktivasi; backup sebagai Guru hanya satu kelas, satu semester, satu tahun ajaran.
+> Salin berkasnya keluar dari perangkat, jangan hanya disimpan di perangkat yang akan dipasang
+> ulang.
 >
-> Simpan keystore baru dan `KEYSTORE-CREDENTIALS.txt` di dua tempat terpisah supaya kejadian ini
-> tidak terulang.
+> **2. Buat keystore baru:**
+>
+> ```powershell
+> npm run signing:baru 230191
+> ```
+>
+> Perintah ini menelusuri komputer lebih dulu. Bila keystore lama ternyata masih ada, pembuatan
+> dibatalkan dan penggunanya diarahkan memakai yang lama — karena memakai keystore lama berarti
+> perangkat tidak perlu dipasang ulang sama sekali. Keystore baru disimpan di
+> `%USERPROFILE%\e-Rapor-Keystore` yaitu **di luar folder proyek**, supaya tidak ikut hilang lagi
+> ketika folder proyek diunduh ulang.
+>
+> **3. Perbarui keempat GitHub Secrets** dengan `npm run signing:secrets` (kali ini termasuk
+> `ANDROID_KEY_ALIAS`), lalu jalankan workflow untuk membangun APK baru.
+>
+> **4. Di setiap perangkat:** uninstall aplikasi lama, pasang APK baru, lalu **Restore** dari
+> berkas backup langkah 1.
+>
+> Setelah selesai, salin folder `e-Rapor-Keystore` ke flashdisk atau Google Drive. Isinya
+> `erapor-release.jks` dan `KEYSTORE-CREDENTIALS.txt`; tanpa keduanya kejadian ini akan terulang.
 
 ### 1.1 Ubah berkas keystore menjadi teks base64
 
