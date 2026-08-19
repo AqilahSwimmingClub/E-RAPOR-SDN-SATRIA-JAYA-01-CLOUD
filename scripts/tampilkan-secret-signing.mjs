@@ -62,19 +62,28 @@ function samarkan(nilai,rahasia){
   return `${nilai.slice(0,3)}${'*'.repeat(Math.min(20,nilai.length-6))}${nilai.slice(-3)} (${nilai.length} karakter)`;
 }
 
-/* Clipboard bawaan sistem. Tidak ada berkas perantara supaya tidak ada salinan yang tertinggal. */
-function keClipboard(nilai){
-  const perintah=process.platform==='win32'?['clip']
-    :process.platform==='darwin'?['pbcopy']
-    :['xclip',['-selection','clipboard']];
+/* Clipboard bawaan sistem. Tidak ada berkas perantara supaya tidak ada salinan yang tertinggal.
+   Pada Windows nama berkasnya WAJIB ditulis lengkap "clip.exe": spawn tidak menambahkan sendiri
+   ekstensi dari PATHEXT, sehingga "clip" saja selalu gagal dengan ENOENT. PowerShell disiapkan
+   sebagai cadangan bila clip.exe tidak tersedia. */
+function kandidatClipboard(){
+  if(process.platform==='win32')return [['clip.exe',[]],['powershell.exe',['-NoProfile','-Command','$input | Set-Clipboard']]];
+  if(process.platform==='darwin')return [['pbcopy',[]]];
+  return [['xclip',['-selection','clipboard']],['xsel',['--clipboard','--input']],['wl-copy',[]]];
+}
+function coba(perintah,args,nilai){
   return new Promise(resolve=>{
     let anak;
-    try{anak=spawn(perintah[0],perintah[1]||[],{windowsHide:true});}catch{return resolve(false);}
+    try{anak=spawn(perintah,args,{windowsHide:true});}catch{return resolve(false);}
     anak.once('error',()=>resolve(false));
     anak.once('exit',kode=>resolve(kode===0));
     anak.stdin.on('error',()=>{});
     anak.stdin.end(nilai);
   });
+}
+async function keClipboard(nilai){
+  for(const [perintah,args] of kandidatClipboard())if(await coba(perintah,args,nilai))return true;
+  return false;
 }
 
 const pilihan=argumen[0]||'base64';

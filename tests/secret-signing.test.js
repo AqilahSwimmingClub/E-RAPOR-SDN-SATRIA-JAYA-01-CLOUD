@@ -127,7 +127,11 @@ test('9. Skrip aman dijalankan di Windows',()=>{
   /* URL.pathname pada Windows berbentuk "/C:/..." yang tidak dikenali path.resolve. */
   assert.match(isi,/fileURLToPath\(import\.meta\.url\)/,'lokasi proyek dihitung dengan fileURLToPath');
   assert.equal(/new URL\(import\.meta\.url\)\.pathname/.test(isi),false);
-  assert.match(isi,/process\.platform==='win32'\?\['clip'\]/,'clipboard Windows memakai clip');
+  /* spawn pada Windows tidak menambahkan ekstensi dari PATHEXT, jadi "clip" saja selalu ENOENT. */
+  assert.match(isi,/\['clip\.exe',\[\]\]/,'clipboard Windows memakai clip.exe lengkap dengan ekstensinya');
+  assert.equal(/\['clip'\]/.test(isi),false,'nama tanpa ekstensi tidak dipakai lagi');
+  assert.match(isi,/powershell\.exe.*Set-Clipboard/,'PowerShell disiapkan sebagai cadangan');
+  assert.match(isi,/for\(const \[perintah,args\] of kandidatClipboard\(\)\)if\(await coba\(/,'kandidat dicoba berurutan sampai ada yang berhasil');
   /* Skrip hanya membaca berkas lokal dan menyalin ke clipboard komputer sendiri: tidak pernah
      menghubungi jaringan, tidak menulis berkas, dan tidak menghapus apa pun. */
   for(const berbahaya of ['fetch(','node:http','node:https','node:net','XMLHttpRequest','writeFileSync','unlinkSync','rmSync'])
