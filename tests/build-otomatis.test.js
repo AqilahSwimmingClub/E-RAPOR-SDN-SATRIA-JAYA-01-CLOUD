@@ -116,6 +116,13 @@ test('12. Panduan menunjuk halaman secret yang benar, bukan halaman Environments
   /* Pemetaan dari signing.properties ke nama secret harus tertulis, supaya tidak menebak. */
   for(const baris of ['storePassword','keyAlias','keyPassword','storeFile'])
     assert.ok(doc.includes(baris),`panduan memetakan ${baris} ke secretnya`);
+  /* Jalan pintas yang menyiapkan nilainya sendiri, supaya tidak perlu mengetik base64 manual. */
+  for(const perintah of ['npm run signing:secrets','npm run signing:secrets storePassword','npm run signing:secrets keyAlias','npm run signing:secrets keyPassword'])
+    assert.ok(doc.includes(perintah),`panduan menyebut ${perintah}`);
+  assert.match(doc,/erapor-release\.jks/,'panduan menyebut nama berkas keystore yang harus dicari');
+  assert.match(doc,/KEYSTORE-CREDENTIALS\.txt/,'panduan menyebut berkas berisi alias dan password');
+  assert.match(doc,/keystore benar-benar hilang/,'panduan menjelaskan risiko dan jalan keluarnya');
+  assert.match(doc,/Backup dulu\*\*/,'jalan keluar diawali backup data guru');
 });
 
 test('13. Panduan menaikkan versi menyebut seluruh berkas yang harus ikut berubah',()=>{

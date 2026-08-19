@@ -47,6 +47,47 @@ keytool -list -v -keystore "C:\aman\erapor-release.jks"
 
 Cari baris `Alias name:` — itulah isi `ANDROID_KEY_ALIAS`.
 
+#### Cara termudah: biarkan proyek yang menyiapkannya
+
+Tidak perlu membuka berkas atau mengetik base64 sendiri. Di folder proyek, jalankan:
+
+```powershell
+npm run signing:secrets                       # ANDROID_KEYSTORE_BASE64
+npm run signing:secrets storePassword         # ANDROID_KEYSTORE_PASSWORD
+npm run signing:secrets keyAlias              # ANDROID_KEY_ALIAS
+npm run signing:secrets keyPassword           # ANDROID_KEY_PASSWORD
+```
+
+Setiap perintah membaca `android/signing.properties`, menyebutkan nama Secret yang harus dipakai,
+lalu **menyalin nilainya langsung ke clipboard**. Tinggal Ctrl+V pada kotak **Secret** di GitHub.
+
+Yang tampil di layar hanya bentuk tersamar seperti `Pw\*********3 x (15 karakter)`, jadi aman
+walaupun layarnya terlihat orang lain. Jumlah karakternya tetap ditampilkan supaya bisa dipastikan
+salinannya utuh. Tambahkan `--tampilkan` hanya bila memang perlu melihat nilai penuhnya.
+
+#### Kalau berkas keystore tidak ditemukan
+
+Cari dulu di seluruh komputer:
+
+```powershell
+Get-ChildItem -Path C:\ -Recurse -Filter "erapor-release.jks" -ErrorAction SilentlyContinue
+Get-ChildItem -Path C:\ -Recurse -Filter "KEYSTORE-CREDENTIALS.txt" -ErrorAction SilentlyContinue
+```
+
+`KEYSTORE-CREDENTIALS.txt` dibuat berbarengan dengan keystore dan memuat alias serta kedua
+passwordnya. Periksa juga flashdisk, Google Drive, atau folder cadangan.
+
+> **Kalau keystore benar-benar hilang, APK baru tidak akan bisa memasang menimpa aplikasi yang
+> sekarang** — Android menolak APK dengan tanda tangan berbeda. Yang harus dilakukan:
+>
+> 1. **Backup dulu** dari dalam aplikasi di setiap perangkat: menu Pengaturan → Backup, simpan
+>    berkasnya di tempat aman. Ini yang menyelamatkan seluruh data rapor.
+> 2. Buat keystore baru: `node scripts/generate-release-signing.mjs --output <folder-aman> --properties android/signing.properties --keytool <path-keytool>`
+> 3. Uninstall aplikasi lama di perangkat, pasang APK baru, lalu **Restore** dari berkas backup.
+>
+> Simpan keystore baru dan `KEYSTORE-CREDENTIALS.txt` di dua tempat terpisah supaya kejadian ini
+> tidak terulang.
+
 ### 1.1 Ubah berkas keystore menjadi teks base64
 
 Keystore adalah berkas biner, sedangkan GitHub Secrets hanya menyimpan teks. Ubah dulu ke base64.
