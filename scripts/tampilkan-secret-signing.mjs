@@ -78,7 +78,7 @@ function keClipboard(nilai){
 }
 
 const pilihan=argumen[0]||'base64';
-if(!BAGIAN[pilihan])berhenti(`Bagian "${pilihan}" tidak dikenal.`,['Pilihan yang tersedia: '+Object.keys(BAGIAN).join(', ')]);
+if(pilihan!=='semua'&&!BAGIAN[pilihan])berhenti(`Bagian "${pilihan}" tidak dikenal.`,['Pilihan yang tersedia: semua, '+Object.keys(BAGIAN).join(', ')]);
 
 if(!existsSync(berkasProperties))
   berhenti(`Berkas ${berkasProperties} tidak ditemukan.`,[
@@ -91,27 +91,56 @@ const properti=bacaProperties(readFileSync(berkasProperties,'utf8'));
 const kurang=['storeFile','storePassword','keyAlias','keyPassword'].filter(kunci=>!properti[kunci]?.trim());
 if(kurang.length)berhenti(`Baris berikut kosong pada ${berkasProperties}: ${kurang.join(', ')}.`);
 
-const bagian=BAGIAN[pilihan];
-let nilai;
-if(pilihan==='base64'){
+function nilaiBagian(kunci){
+  if(kunci!=='base64')return properti[BAGIAN[kunci].sumber];
   const keystore=path.resolve(path.dirname(berkasProperties),properti.storeFile);
   if(!existsSync(keystore))
     berhenti(`Berkas keystore tidak ada di ${keystore}.`,[
       'Baris storeFile pada signing.properties menunjuk ke lokasi itu.',
-      'Kalau keystore-nya dipindah, perbarui dulu baris storeFile tersebut.',
+      'Kalau keystore-nya dipindah, perbarui dulu baris storeFile tersebut:',
+      '  npm run signing:lokasi',
     ]);
-  nilai=readFileSync(keystore).toString('base64');
-  console.log(`\n  Keystore  : ${keystore}`);
-}else{
-  nilai=properti[bagian.sumber];
+  return readFileSync(keystore).toString('base64');
 }
 
-const tersalin=await keClipboard(nilai);
-console.log(`\n  Secret    : ${bagian.secret}`);
-console.log(`  Nilai     : ${samarkan(nilai,bagian.rahasia)}`);
-console.log(tersalin
-  ? '\n  Sudah disalin ke clipboard. Buka halaman New repository secret di GitHub,\n  isi Name dengan nama Secret di atas, lalu tempel dengan Ctrl+V pada kotak Secret.'
-  : '\n  Clipboard tidak tersedia pada sistem ini. Jalankan ulang dengan --tampilkan\n  untuk mencetak nilainya, lalu salin manual.');
-/* Nilai penuh hanya dicetak bila memang diminta, supaya tidak tidak sengaja ikut ter-screenshot. */
-if(process.argv.includes('--tampilkan'))console.log(`\n${nilai}\n`);
-console.log('');
+async function tampilkanSatu(kunci,urutan){
+  const bagian=BAGIAN[kunci];
+  const nilai=nilaiBagian(kunci);
+  const tersalin=await keClipboard(nilai);
+  /* Lebar label disamakan supaya kolom nilai tetap lurus pada kedua mode. */
+  const lebar=urutan?16:10;
+  console.log(`\n  ${(urutan?`Secret ${urutan} dari 4`:'Secret').padEnd(lebar)}: ${bagian.secret}`);
+  console.log(`  ${'Nilai'.padEnd(lebar)}: ${samarkan(nilai,bagian.rahasia)}`);
+  console.log(tersalin
+    ? '  Sudah disalin ke clipboard. Tempel dengan Ctrl+V pada kotak Secret di GitHub.'
+    : '  Clipboard tidak tersedia. Jalankan ulang dengan --tampilkan lalu salin manual.');
+  /* Nilai penuh hanya dicetak bila memang diminta, supaya tidak ikut ter-screenshot. */
+  if(process.argv.includes('--tampilkan'))console.log(`\n${nilai}\n`);
+  return tersalin;
+}
+
+/* Mode "semua" menuntun keempat secret satu per satu supaya tidak ada yang terlewat. */
+if(pilihan==='semua'){
+  console.log('\n  Buka halaman ini lebih dulu, lalu klik "New repository secret":');
+  console.log('    https://github.com/AqilahSwimmingClub/E-RAPOR-SDN-SATRIA-JAYA-01-CLOUD/settings/secrets/actions');
+  const daftar=Object.keys(BAGIAN);
+  const interaktif=process.stdin.isTTY&&process.stdout.isTTY;
+  const tunggu=async pesan=>{
+    if(!interaktif)return;
+    const readline=await import('node:readline/promises');
+    const rl=readline.createInterface({input:process.stdin,output:process.stdout});
+    await rl.question(pesan);
+    rl.close();
+  };
+  for(let i=0;i<daftar.length;i+=1){
+    await tampilkanSatu(daftar[i],i+1);
+    if(i<daftar.length-1)await tunggu('  Sudah ditempel dan disimpan? Tekan Enter untuk secret berikutnya ... ');
+  }
+  console.log('\n  Selesai. Periksa daftar secret di GitHub: harus ada tepat empat baris,');
+  console.log('  yaitu ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,');
+  console.log('  dan ANDROID_KEY_PASSWORD.\n');
+}else{
+  if(pilihan==='base64')console.log(`\n  Keystore  : ${path.resolve(path.dirname(berkasProperties),properti.storeFile)}`);
+  await tampilkanSatu(pilihan,0);
+  console.log('');
+}

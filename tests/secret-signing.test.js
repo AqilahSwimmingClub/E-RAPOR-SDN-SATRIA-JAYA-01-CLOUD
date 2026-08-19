@@ -107,13 +107,32 @@ test('7. Pesan gagal menuntun bila berkas tidak ditemukan',()=>{
   }finally{rmSync(folder,{recursive:true,force:true});}
 });
 
-test('8. Skrip aman dijalankan di Windows',()=>{
+test('8. Mode "semua" menuntun keempat secret berurutan tanpa ada yang terlewat',()=>{
+  const {folder,properties}=siapkan();
+  try{
+    const keluaran=jalankan(['semua'],properties);
+    /* Tanpa TTY, urutannya dicetak semua sekaligus sehingga tetap dapat diperiksa. */
+    for(const [urutan,nama] of [[1,'ANDROID_KEYSTORE_BASE64'],[2,'ANDROID_KEYSTORE_PASSWORD'],[3,'ANDROID_KEY_ALIAS'],[4,'ANDROID_KEY_PASSWORD']])
+      assert.match(keluaran,new RegExp(`Secret ${urutan} dari 4 : ${nama}`),`${nama} muncul pada urutan ${urutan}`);
+    assert.match(keluaran,/settings\/secrets\/actions/,'alamat halaman secret ikut ditunjukkan');
+    assert.match(keluaran,/harus ada tepat empat baris/,'cara memastikan sudah lengkap');
+    /* Nilai rahasia tetap tersamar walaupun keempatnya ditampilkan sekaligus. */
+    assert.equal(keluaran.includes(STORE_PASSWORD),false);
+    assert.equal(keluaran.includes(KEY_PASSWORD),false);
+  }finally{rmSync(folder,{recursive:true,force:true});}
+});
+
+test('9. Skrip aman dijalankan di Windows',()=>{
   const isi=read('scripts/tampilkan-secret-signing.mjs');
   /* URL.pathname pada Windows berbentuk "/C:/..." yang tidak dikenali path.resolve. */
   assert.match(isi,/fileURLToPath\(import\.meta\.url\)/,'lokasi proyek dihitung dengan fileURLToPath');
   assert.equal(/new URL\(import\.meta\.url\)\.pathname/.test(isi),false);
   assert.match(isi,/process\.platform==='win32'\?\['clip'\]/,'clipboard Windows memakai clip');
-  /* Skrip hanya membaca berkas lokal dan menyalin ke clipboard komputer sendiri. */
-  for(const berbahaya of ['fetch(','https:','http:','writeFileSync','unlinkSync','rmSync'])
+  /* Skrip hanya membaca berkas lokal dan menyalin ke clipboard komputer sendiri: tidak pernah
+     menghubungi jaringan, tidak menulis berkas, dan tidak menghapus apa pun. */
+  for(const berbahaya of ['fetch(','node:http','node:https','node:net','XMLHttpRequest','writeFileSync','unlinkSync','rmSync'])
     assert.equal(isi.includes(berbahaya),false,`skrip tidak boleh memakai ${berbahaya}`);
+  /* Satu-satunya alamat yang muncul hanyalah halaman secret yang ditunjukkan kepada pengguna. */
+  const alamat=[...isi.matchAll(/https?:\/\/\S+/g)].map(item=>item[0]);
+  assert.deepEqual(alamat,['https://github.com/AqilahSwimmingClub/E-RAPOR-SDN-SATRIA-JAYA-01-CLOUD/settings/secrets/actions\');'],'hanya alamat halaman secret yang dicetak');
 });

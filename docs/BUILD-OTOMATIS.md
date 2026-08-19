@@ -56,6 +56,12 @@ npm run signing:secrets keyAlias              # ANDROID_KEY_ALIAS
 npm run signing:secrets keyPassword           # ANDROID_KEY_PASSWORD
 ```
 
+Atau sekalian keempatnya, dituntun satu per satu supaya tidak ada yang terlewat:
+
+```powershell
+npm run signing:secrets semua
+```
+
 Setiap perintah membaca `android/signing.properties`, menyebutkan nama Secret yang harus dipakai,
 lalu **menyalin nilainya langsung ke clipboard**. Tinggal Ctrl+V pada kotak **Secret** di GitHub.
 
