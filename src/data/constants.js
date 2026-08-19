@@ -1,6 +1,37 @@
 export const SCHOOL = 'SDN Satria Jaya 01';
+/* Tahun pelajaran dasar. Nilai ini TIDAK boleh berubah mengikuti tanggal karena ikut menyusun
+   kunci penyimpanan data (tahun|semester|rombel). Mengubahnya membuat data guru yang sudah ada
+   berada pada scope lain dan seolah hilang dari layar. */
 export const ACADEMIC_YEAR = '2026/2027';
 export const SEMESTERS = [`Ganjil ${ACADEMIC_YEAR}`, `Genap ${ACADEMIC_YEAR}`];
+
+/* Tahun pelajaran berjalan menurut kalender: tahun ajaran baru dimulai bulan Juli. Dipakai untuk
+   menyediakan pilihan tahun berikutnya secara otomatis, bukan untuk mengganti data yang ada. */
+export function academicYearOf(date = new Date()){
+  const tanggal = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
+  const tahun = tanggal.getFullYear();
+  const mulai = tanggal.getMonth() >= 6 ? tahun : tahun - 1;
+  return `${mulai}/${mulai + 1}`;
+}
+
+export const semestersOf = year => [`Ganjil ${year}`, `Genap ${year}`];
+
+/* Semester yang sedang berlangsung: Juli sampai Desember Ganjil, Januari sampai Juni Genap.
+   Dipakai untuk menentukan pilihan awal pada halaman Masuk agar guru tidak tanpa sadar membuka
+   tahun pelajaran berikutnya yang datanya memang masih kosong. */
+export function currentSemesterLabel(date = new Date()){
+  const tanggal = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
+  return `${tanggal.getMonth() >= 6 ? 'Ganjil' : 'Genap'} ${academicYearOf(tanggal)}`;
+}
+
+/* Daftar tahun pelajaran yang selalu tersedia: tahun dasar, tahun berjalan, dan tahun berikutnya.
+   Dengan begitu ketika Juli tiba, semester tahun baru sudah muncul sendiri di halaman Masuk tanpa
+   guru perlu menambahkannya manual, sementara tahun-tahun lama tetap ada beserta datanya. */
+export function availableAcademicYears(date = new Date()){
+  const berjalan = academicYearOf(date);
+  const berikutnya = `${Number(berjalan.slice(0, 4)) + 1}/${Number(berjalan.slice(0, 4)) + 2}`;
+  return [...new Set([ACADEMIC_YEAR, berjalan, berikutnya])].sort();
+}
 
 export const CLASSES = Array.from({length: 6}, (_, gi) => gi + 1)
   .flatMap(grade => ['A','B','C','D'].map(letter => `${grade}${letter}`));

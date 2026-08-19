@@ -1,13 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
+import { ACADEMIC_YEAR, SUBJECTS_DEFAULT, availableAcademicYears } from '../src/data/constants.js';
 import { buildBackup } from '../src/services/backup.js';
 import { createStudent } from '../src/services/students.js';
 import { commitTranscriptImport, getTranscriptRows, previewTranscriptImport, saveTranscriptScores, transcriptTemplateCsv } from '../src/services/transcript.js';
 import { saveSubjectMapping } from '../src/services/storage.js';
 
+/* Tahun pelajaran untuk menguji isolasi antar tahun. Dipilih otomatis dari tahun yang BELUM
+   disediakan aplikasi, karena aplikasi kini selalu menyediakan tahun dasar, tahun berjalan, dan
+   tahun berikutnya. Dengan dihitung begini, test tidak akan bentrok lagi di tahun-tahun mendatang. */
+const TAHUN_LAIN=(()=>{const tersedia=new Set(availableAcademicYears());let mulai=Number(ACADEMIC_YEAR.slice(0,4))+9;while(tersedia.has(`${mulai}/${mulai+1}`))mulai+=1;return `${mulai}/${mulai+1}`;})();
+
 function useMemoryStorage(){const values=new Map();globalThis.localStorage={getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};}
-const ganjil={role:'teacher',classId:'5B',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};const genap={...ganjil,semester:`Genap ${ACADEMIC_YEAR}`};const otherClass={...ganjil,classId:'5C'};const otherYear={...ganjil,academicYear:'2027/2028',semester:'Ganjil 2027/2028'};
+const ganjil={role:'teacher',classId:'5B',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};const genap={...ganjil,semester:`Genap ${ACADEMIC_YEAR}`};const otherClass={...ganjil,classId:'5C'};const otherYear={...ganjil,academicYear:TAHUN_LAIN,semester:`Ganjil ${TAHUN_LAIN}`};
 function addStudent(session,id,nisn='5500000001'){return createStudent(session,{id,classId:session.classId,nis:`${session.classId}-${id}`,nisn,name:'Siswa Transkrip',gender:'L',religion:'Islam',birthPlace:'Bekasi',birthDate:'2015-01-01',fatherName:'Ayah',motherName:'Ibu',address:'Bekasi',photo:''});}
 function mapped(session){const first=['mtk','agama'];const ordered=[...first.map(id=>SUBJECTS_DEFAULT.find(item=>item.id===id)),...SUBJECTS_DEFAULT.filter(item=>!first.includes(item.id))].map((item,index)=>({...item,active:first.includes(item.id),order:index+1}));saveSubjectMapping(session,ordered);}
 

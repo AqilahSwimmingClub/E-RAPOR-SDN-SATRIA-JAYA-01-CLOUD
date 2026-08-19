@@ -1,4 +1,4 @@
-import { CLASSES } from '../data/constants.js';
+import { CLASSES, currentSemesterLabel } from '../data/constants.js';
 import { loadDb, updateDb } from './storage.js';
 
 function clone(value){return JSON.parse(JSON.stringify(value));}
@@ -57,8 +57,28 @@ export function updateReferenceSubject(session,subjectId,input){
   });return clone(saved);
 }
 
+/* Kunci urut kronologis sebuah semester: tahun pelajaran dulu, lalu Ganjil sebelum Genap. Nama
+   semester dibaca juga dari labelnya supaya data lama yang tidak menyimpan field "name" tetap
+   terbaca benar. */
+function semesterOrderKey(item){
+  const label=String(item?.label||item?.id||'');
+  const name=String(item?.name||label.split(' ')[0]||'');
+  return `${item?.academicYear||label.slice(-9)}|${/genap/i.test(name)?1:0}`;
+}
+
+/* Semester yang sedang berjalan diletakkan paling depan supaya menjadi pilihan awal di halaman
+   Masuk. Urutan daftar referensi menurun, jadi tanpa penataan ini tahun pelajaran berikutnya —
+   yang datanya memang masih kosong — akan terpilih sendiri dan guru bisa mengira datanya hilang.
+   Bila semester berjalan belum ada di Data Referensi, yang dipilih adalah semester terbaru yang
+   sudah lewat, bukan semester masa depan. Tidak ada semester yang dibuang dari daftar. */
 export function listLoginSemesters(){
-  return listReferenceSemesters().filter(item=>item.active!==false).map(item=>item.label);
+  const active=listReferenceSemesters().filter(item=>item.active!==false);
+  const runningLabel=currentSemesterLabel();
+  const runningKey=semesterOrderKey({label:runningLabel});
+  const preferred=active.find(item=>item.label===runningLabel)
+    ||active.filter(item=>semesterOrderKey(item)<=runningKey).sort((a,b)=>semesterOrderKey(b).localeCompare(semesterOrderKey(a)))[0];
+  const labels=active.map(item=>item.label);
+  return preferred?[preferred.label,...labels.filter(label=>label!==preferred.label)]:labels;
 }
 
 export function resolveSemesterAcademicYear(semester){

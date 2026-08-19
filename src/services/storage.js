@@ -1,4 +1,4 @@
-import { SUBJECTS_DEFAULT, ASSESSMENT_DEFAULT, CLASSES, SCHOOL, ACADEMIC_YEAR, SEMESTERS } from '../data/constants.js';
+import { SUBJECTS_DEFAULT, ASSESSMENT_DEFAULT, CLASSES, SCHOOL, ACADEMIC_YEAR, SEMESTERS, availableAcademicYears, semestersOf } from '../data/constants.js';
 import { normalizeMappingGroups } from './mapping.js';
 import { APP_SCHEMA_VERSION, APP_VERSION } from '../data/version.js';
 
@@ -8,8 +8,10 @@ function clone(value){ return JSON.parse(JSON.stringify(value)); }
 
 function defaultReferenceData(){
   return {
-    academicYears:[{id:ACADEMIC_YEAR,label:ACADEMIC_YEAR,active:true}],
-    semesters:SEMESTERS.map(label=>({id:label,label,name:label.split(' ')[0],academicYear:ACADEMIC_YEAR,active:true})),
+    /* Tahun dasar, tahun berjalan, dan tahun berikutnya selalu disediakan. Tahun pelajaran yang
+       sudah ada pada database guru tidak pernah dibuang: daftar ini hanya ditambahkan. */
+    academicYears:availableAcademicYears().map(year=>({id:year,label:year,active:true})),
+    semesters:availableAcademicYears().flatMap(year=>semestersOf(year).map(label=>({id:label,label,name:label.split(' ')[0],academicYear:year,active:true}))),
     subjects:clone(SUBJECTS_DEFAULT),
   };
 }

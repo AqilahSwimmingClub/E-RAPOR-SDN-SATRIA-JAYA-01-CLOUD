@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACADEMIC_YEAR, ASSESSMENT_DEFAULT, SUBJECTS_DEFAULT } from '../src/data/constants.js';
+import { ACADEMIC_YEAR, ASSESSMENT_DEFAULT, SUBJECTS_DEFAULT, availableAcademicYears } from '../src/data/constants.js';
 import { createLearningObjective, listLearningObjectives, phaseForClass } from '../src/services/objectives.js';
 import { copyAcademicYearData, createAcademicYear, setSemesterReferenceActive } from '../src/services/references.js';
 import { getAssessmentSettings, getAssessmentSheet, saveAssessmentSettings } from '../src/services/assessment.js';
@@ -17,6 +17,11 @@ import { createOwnerVerifier, getOwnerActivationStatus, verifyOwnerActivationKey
 import { getSubjectMapping, loadDb, saveSubjectMapping } from '../src/services/storage.js';
 import { resolveRoute } from '../src/core/router.js';
 
+/* Tahun pelajaran untuk menguji isolasi antar tahun. Dipilih otomatis dari tahun yang BELUM
+   disediakan aplikasi, karena aplikasi kini selalu menyediakan tahun dasar, tahun berjalan, dan
+   tahun berikutnya. Dengan dihitung begini, test tidak akan bentrok lagi di tahun-tahun mendatang. */
+const TAHUN_LAIN=(()=>{const tersedia=new Set(availableAcademicYears());let mulai=Number(ACADEMIC_YEAR.slice(0,4))+9;while(tersedia.has(`${mulai}/${mulai+1}`))mulai+=1;return `${mulai}/${mulai+1}`;})();
+
 function memoryStorage(){const values=new Map();return {getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};}
 function setup(){globalThis.localStorage=memoryStorage();globalThis.sessionStorage=memoryStorage();}
 const ganjil=`Ganjil ${ACADEMIC_YEAR}`;const admin={role:'admin',classId:null,accountId:'admin',academicYear:ACADEMIC_YEAR,semester:ganjil};
@@ -24,7 +29,7 @@ function teacher(classId='2A',semester=ganjil,academicYear=ACADEMIC_YEAR){return
 function addStudent(session,id='s12'){return createStudent(session,{id,classId:session.classId,nis:`NIS-${id}`,nisn:`NISN-${id}`,name:`Siswa ${id}`,gender:'L',religion:'Islam',birthPlace:'Bekasi',birthDate:'2017-01-02',parentName:'Orang Tua',phone:'',address:'Bekasi',photo:''});}
 function onlySubject(session,id='agama'){saveSubjectMapping(session,SUBJECTS_DEFAULT.map(subject=>({...subject,active:subject.id===id})));}
 
-test('tahun lama tetap arsip dan Mapping, Bobot, KKTP, serta TP dapat disalin tanpa ditimpa',()=>{setup();const old=teacher();onlySubject(old);saveAssessmentSettings(old,'agama',{...ASSESSMENT_DEFAULT,kktp:78});createLearningObjective(old,'agama',{description:'Tujuan tahun lama.'});createAcademicYear(admin,'2027/2028');const counts=copyAcademicYearData(admin,{fromAcademicYear:ACADEMIC_YEAR,toAcademicYear:'2027/2028'});const next=teacher('2A','Ganjil 2027/2028','2027/2028');assert.ok(counts.subjectMappings>0);assert.ok(counts.assessmentSettings>0);assert.ok(counts.learningObjectives>0);assert.equal(getAssessmentSettings(next,'agama').kktp,78);assert.equal(listLearningObjectives(next,'agama')[0].code,'TP-1');setSemesterReferenceActive(admin,ganjil,false);assert.equal(getSubjectMapping(old).find(item=>item.id==='agama').active,true);const again=copyAcademicYearData(admin,{fromAcademicYear:ACADEMIC_YEAR,toAcademicYear:'2027/2028'});assert.ok(again.skipped>0);});
+test('tahun lama tetap arsip dan Mapping, Bobot, KKTP, serta TP dapat disalin tanpa ditimpa',()=>{setup();const old=teacher();onlySubject(old);saveAssessmentSettings(old,'agama',{...ASSESSMENT_DEFAULT,kktp:78});createLearningObjective(old,'agama',{description:'Tujuan tahun lama.'});createAcademicYear(admin,TAHUN_LAIN);const counts=copyAcademicYearData(admin,{fromAcademicYear:ACADEMIC_YEAR,toAcademicYear:TAHUN_LAIN});const next=teacher('2A',`Ganjil ${TAHUN_LAIN}`,TAHUN_LAIN);assert.ok(counts.subjectMappings>0);assert.ok(counts.assessmentSettings>0);assert.ok(counts.learningObjectives>0);assert.equal(getAssessmentSettings(next,'agama').kktp,78);assert.equal(listLearningObjectives(next,'agama')[0].code,'TP-1');setSemesterReferenceActive(admin,ganjil,false);assert.equal(getSubjectMapping(old).find(item=>item.id==='agama').active,true);const again=copyAcademicYearData(admin,{fromAcademicYear:ACADEMIC_YEAR,toAcademicYear:TAHUN_LAIN});assert.ok(again.skipped>0);});
 
 test('import Excel siswa melalui preview, validasi, lalu simpan dengan satu Nama Orang Tua',()=>{setup();const session=teacher();const cells=['1201','001201','Alya Excel','P','Islam','Bekasi, 4 Maret 2017','Ibu Alya','','Jl. Satria'].map(value=>`<Cell><Data ss:Type="String">${value}</Data></Cell>`).join('');const xml=studentTemplateExcel().replace('</Table>',`<Row>${cells}</Row></Table>`);const preview=previewStudentExcelImport(session,xml,{classId:'2A'});assert.equal(preview.validCount,1);assert.equal(listStudents(session).length,0);commitStudentImport(session,preview);assert.equal(listStudents(session)[0].parentName,'Ibu Alya');assert.equal(listStudents(session)[0].phone,'');});
 
