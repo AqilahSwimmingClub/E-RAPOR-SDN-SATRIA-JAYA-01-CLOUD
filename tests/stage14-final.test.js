@@ -38,4 +38,17 @@ test('status kenaikan dan kelulusan tidak pernah menahan kelengkapan rapor',()=>
 
 test('intro video, gauge, Android bridge, dan Electron Forge tersedia dalam satu frontend',()=>{const html=read('index.html'),main=read('electron/main.cjs'),java=read('android/app/src/main/java/id/sch/sdn/satriajaya01/erapor/MainActivity.java'),pkg=JSON.parse(read('package.json'));assert.match(html,/assets\/intro-logo\.mp4/);assert.match(html,/data-intro-screen/);assert.equal(existsSync(new URL('../assets/intro-logo.mp4',import.meta.url)),true);assert.match(main,/const distPath=path\.join\(__dirname,'\.\.','dist'\)/);assert.match(java,/NativeFileIO/);assert.match(java,/NativePrint/);assert.match(pkg.scripts['desktop:make'],/electron-forge make/);});
 
-test('PIN Owner awal baru valid hanya bersama key eksternal dan tidak plaintext di source',async()=>{const key=JSON.parse(readFileSync(new URL('../../owner-credentials/owner-key.json',import.meta.url),'utf8'));const pin=String.fromCharCode(50,51,48,49,49,57,57,49);assert.equal(await verifyOwnerActivationKey(key,pin),true);assert.equal(await verifyOwnerActivationKey(key,'00000000'),false);assert.equal(read('src/data/owner-verifier.js').includes(pin),false);assert.equal(read('dist/src/data/owner-verifier.js').includes(pin),false);});
+/* Key aktivasi Owner memang disimpan di luar repository dan hanya ada pada mesin pemilik, jadi
+   pemeriksaan yang membutuhkan key dilewati bila berkasnya tidak tersedia (misalnya di GitHub
+   Actions). Pemeriksaan terpenting tetap dijalankan di mana pun: PIN tidak boleh pernah muncul
+   sebagai teks biasa di source maupun di hasil build. */
+const ownerKeyPath=new URL('../../owner-credentials/owner-key.json',import.meta.url);
+test('PIN Owner awal baru valid hanya bersama key eksternal dan tidak plaintext di source',async()=>{
+  const pin=String.fromCharCode(50,51,48,49,49,57,57,49);
+  assert.equal(read('src/data/owner-verifier.js').includes(pin),false,'PIN tidak boleh ada di source');
+  assert.equal(read('dist/src/data/owner-verifier.js').includes(pin),false,'PIN tidak boleh ada di hasil build');
+  if(!existsSync(ownerKeyPath)){console.log('  (key eksternal tidak tersedia di lingkungan ini, pemeriksaan PIN terhadap key dilewati)');return;}
+  const key=JSON.parse(readFileSync(ownerKeyPath,'utf8'));
+  assert.equal(await verifyOwnerActivationKey(key,pin),true,'PIN benar hanya valid bersama key eksternal');
+  assert.equal(await verifyOwnerActivationKey(key,'00000000'),false,'PIN salah tetap ditolak');
+});

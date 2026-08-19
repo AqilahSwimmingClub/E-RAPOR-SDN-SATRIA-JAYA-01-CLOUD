@@ -1,0 +1,173 @@
+# Build rilis e-Rapor SDN Satria Jaya 01: APK Android dan installer Windows.
+#
+# Dijalankan manual dari tab Actions (tombol "Run workflow"). Sengaja tidak otomatis pada setiap
+# push supaya keystore hanya dipakai ketika guru memang meminta rilis baru.
+#
+# Keystore TIDAK PERNAH disimpan di repository. Berkasnya dibuat sementara di folder kerja runner
+# dari secret, lalu dihapus setelah build selesai, baik build berhasil maupun gagal.
+name: Rilis Aplikasi
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Aplikasi yang ingin dibangun
+        type: choice
+        default: semua
+        options:
+          - semua
+          - android
+          - windows
+
+# Workflow ini hanya membaca isi repository dan mengunggah hasil build sebagai artifact.
+permissions:
+  contents: read
+
+jobs:
+  periksa:
+    name: Periksa kode dan jalankan test
+    runs-on: ubuntu-latest
+    outputs:
+      versi: ${{ steps.versi.outputs.versi }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Periksa sintaks seluruh berkas
+        run: npm run check
+      - name: Bangun aset web
+        run: npm run build
+      - name: Jalankan seluruh test
+        run: npm test
+      - name: Baca nomor versi aplikasi
+        id: versi
+        run: echo "versi=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+  android:
+    name: APK Android
+    needs: periksa
+    if: ${{ inputs.target == 'semua' || inputs.target == 'android' }}
+    runs-on: ubuntu-latest
+    env:
+      VERSI: ${{ needs.periksa.outputs.versi }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Pastikan Android SDK tersedia pada runner
+        run: |
+          if [ -z "${ANDROID_HOME:-}${ANDROID_SDK_ROOT:-}" ]; then
+            echo "::error::Android SDK tidak ditemukan pada runner ini."
+            exit 1
+          fi
+          echo "Android SDK: ${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+
+      # Semua credential dibaca dari secret repository. Bila salah satu belum diisi, build
+      # dihentikan dengan pesan yang jelas, bukan menghasilkan APK tanpa tanda tangan yang
+      # tidak akan bisa dipasang menimpa aplikasi guru.
+      - name: Pastikan credential penandatanganan sudah diisi
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          kurang=""
+          [ -n "$KEYSTORE_BASE64" ] || kurang="$kurang ANDROID_KEYSTORE_BASE64"
+          [ -n "$STORE_PASSWORD" ] || kurang="$kurang ANDROID_KEYSTORE_PASSWORD"
+          [ -n "$KEY_ALIAS" ] || kurang="$kurang ANDROID_KEY_ALIAS"
+          [ -n "$KEY_PASSWORD" ] || kurang="$kurang ANDROID_KEY_PASSWORD"
+          if [ -n "$kurang" ]; then
+            echo "::error::Secret berikut belum diisi:$kurang. Lihat docs/BUILD-OTOMATIS.md."
+            exit 1
+          fi
+
+      - run: npm ci
+      - name: Bangun aset web dan salin ke proyek Android
+        run: |
+          npm run build
+          npx cap sync android
+
+      # Keystore ditulis ke folder sementara runner, di luar folder repository, sehingga tidak
+      # mungkin ikut ter-commit. signing.properties sudah masuk .gitignore.
+      - name: Siapkan keystore sementara
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/erapor-release.jks"
+          # signing.properties dibaca Gradle memakai format Java Properties, dan di format itu
+          # tanda "\" berarti escape. Password yang mengandung "\" harus digandakan lebih dulu
+          # supaya sampai ke Gradle apa adanya. Nilainya tidak pernah ditampilkan ke log.
+          escape() { printf '%s' "$1" | sed 's/\\/\\\\/g'; }
+          {
+            echo "storeFile=$RUNNER_TEMP/erapor-release.jks"
+            echo "storePassword=$(escape "$STORE_PASSWORD")"
+            echo "keyAlias=$(escape "$KEY_ALIAS")"
+            echo "keyPassword=$(escape "$KEY_PASSWORD")"
+          } > android/signing.properties
+          echo "Keystore siap (isi berkas tidak ditampilkan)."
+
+      - name: Bangun APK rilis
+        run: ./gradlew --no-daemon assembleRelease
+        working-directory: android
+
+      - name: Beri nama berkas sesuai versi
+        run: |
+          mkdir -p keluaran
+          cp android/app/build/outputs/apk/release/app-release.apk \
+             "keluaran/E-RAPOR-SDN-SATRIA-JAYA-01-v$VERSI.apk"
+          ls -lh keluaran
+
+      # Bukti bahwa APK benar-benar tertandatangani dan versinya naik, bukan sekadar berkas jadi.
+      - name: Periksa tanda tangan dan versi APK
+        run: |
+          BUILD_TOOLS="$(ls -d "${ANDROID_HOME:-$ANDROID_SDK_ROOT}"/build-tools/* | sort -V | tail -1)"
+          "$BUILD_TOOLS/apksigner" verify --print-certs "keluaran/E-RAPOR-SDN-SATRIA-JAYA-01-v$VERSI.apk"
+          "$BUILD_TOOLS/aapt" dump badging "keluaran/E-RAPOR-SDN-SATRIA-JAYA-01-v$VERSI.apk" | head -1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk-android-v${{ needs.periksa.outputs.versi }}
+          path: keluaran/*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      # Dijalankan walaupun build gagal, supaya keystore tidak pernah tertinggal di runner.
+      - name: Hapus keystore sementara
+        if: always()
+        run: rm -f "$RUNNER_TEMP/erapor-release.jks" android/signing.properties
+
+  windows:
+    name: Installer Windows
+    needs: periksa
+    if: ${{ inputs.target == 'semua' || inputs.target == 'windows' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      # Installer tidak memerlukan secret apa pun: paket Windows memang tidak ditandatangani.
+      - name: Bangun installer NSIS
+        run: npm run desktop:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-windows-v${{ needs.periksa.outputs.versi }}
+          path: release/windows/*.exe
+          retention-days: 30
+          if-no-files-found: error
