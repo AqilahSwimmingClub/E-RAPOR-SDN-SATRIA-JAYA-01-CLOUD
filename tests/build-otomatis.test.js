@@ -96,7 +96,7 @@ test('10. Installer Windows dibangun dari perintah proyek yang sudah ada',()=>{
   assert.match(t,/path: release\/windows\/\*\.exe/);
 });
 
-/* -------------------------------------------------------------- 11-12. Panduan untuk guru */
+/* -------------------------------------------------------------- 11-13. Panduan untuk guru */
 
 test('11. Panduan build otomatis tersedia dan menyebut keempat secret',()=>{
   const doc=read('docs/BUILD-OTOMATIS.md');
@@ -106,7 +106,19 @@ test('11. Panduan build otomatis tersedia dan menyebut keempat secret',()=>{
   assert.match(doc,/BUILD VERIFIKASI/,'panduan menunjukkan cara memastikan build terbaru benar terpasang');
 });
 
-test('12. Panduan menaikkan versi menyebut seluruh berkas yang harus ikut berubah',()=>{
+test('12. Panduan menunjuk halaman secret yang benar, bukan halaman Environments',()=>{
+  const doc=read('docs/BUILD-OTOMATIS.md');
+  /* Menu Environments punya form "Name" yang mirip sehingga mudah tertukar. Panduan wajib
+     menyebut alamat halaman secret secara langsung agar guru tidak salah kamar. */
+  assert.match(doc,/settings\/secrets\/actions/,'panduan memuat alamat langsung halaman secret');
+  assert.match(doc,/BUKAN\*\* dibuat di menu \*\*Environments\*\*/,'panduan memperingatkan halaman yang salah');
+  assert.match(doc,/New repository secret/,'panduan menyebut tombol yang harus diklik');
+  /* Pemetaan dari signing.properties ke nama secret harus tertulis, supaya tidak menebak. */
+  for(const baris of ['storePassword','keyAlias','keyPassword','storeFile'])
+    assert.ok(doc.includes(baris),`panduan memetakan ${baris} ke secretnya`);
+});
+
+test('13. Panduan menaikkan versi menyebut seluruh berkas yang harus ikut berubah',()=>{
   const doc=read('docs/BUILD-OTOMATIS.md');
   for(const berkas of ['src/data/version.js','sw.js','package.json','android/app/build.gradle'])
     assert.ok(doc.includes(berkas),`panduan menyebut ${berkas}`);

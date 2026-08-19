@@ -18,6 +18,37 @@ jangan membuat yang baru.
 
 ### 1.1 Ubah keystore menjadi teks base64
 
+### 1.0 Ambil dulu nilainya dari `android/signing.properties`
+
+Keempat nilai yang dibutuhkan sudah ada di komputer Bapak/Ibu, di berkas
+`android/signing.properties` pada folder proyek. Buka dengan Notepad. Isinya seperti ini:
+
+```properties
+storeFile=C:/aman/erapor-release.jks
+storePassword=RahasiaKeystore123
+keyAlias=erapor-release
+keyPassword=RahasiaKunci456
+```
+
+Pemetaannya satu lawan satu — tidak perlu menebak apa pun:
+
+| Baris di `signing.properties` | Menjadi Secret              |
+| ----------------------------- | --------------------------- |
+| `storeFile=` (berkas `.jks`)  | diubah ke base64 → `ANDROID_KEYSTORE_BASE64` |
+| `storePassword=`              | `ANDROID_KEYSTORE_PASSWORD` |
+| `keyAlias=`                   | `ANDROID_KEY_ALIAS`         |
+| `keyPassword=`                | `ANDROID_KEY_PASSWORD`      |
+
+Kalau ragu dengan nama alias, periksa langsung ke keystore-nya:
+
+```powershell
+keytool -list -v -keystore "C:\aman\erapor-release.jks"
+```
+
+Cari baris `Alias name:` — itulah isi `ANDROID_KEY_ALIAS`.
+
+### 1.1 Ubah berkas keystore menjadi teks base64
+
 Keystore adalah berkas biner, sedangkan GitHub Secrets hanya menyimpan teks. Ubah dulu ke base64.
 
 **Windows (PowerShell):**
@@ -38,17 +69,43 @@ Lalu buka `keystore-base64.txt` dan salin seluruh isinya.
 
 ### 1.2 Masukkan sebagai Secret di GitHub
 
-Buka repository di GitHub → **Settings** → **Secrets and variables** → **Actions** → tombol
-**New repository secret**. Buat empat secret berikut:
+> ### ⚠️ Halaman yang benar
+>
+> Secret **BUKAN** dibuat di menu **Environments**. Kalau di layar tertulis
+> "Environments / Add" dengan tombol hijau **Configure environment**, itu halaman yang salah —
+> tekan tombol Back browser dan jangan lanjutkan.
+>
+> Cara paling aman: tempelkan alamat ini langsung ke address bar browser.
+>
+> ```
+> https://github.com/AqilahSwimmingClub/E-RAPOR-SDN-SATRIA-JAYA-01-CLOUD/settings/secrets/actions
+> ```
+>
+> Kalau ingin lewat menu: **Settings** → gulir sidebar kiri ke bawah sampai bagian
+> **Security** → **Secrets and variables** → **Actions**. Judul halamannya
+> "Actions secrets and variables" dan ada tombol hijau **New repository secret** di kanan atas.
 
-| Nama Secret                 | Isi                                                        |
-| --------------------------- | ---------------------------------------------------------- |
-| `ANDROID_KEYSTORE_BASE64`   | Teks base64 hasil langkah 1.1                               |
-| `ANDROID_KEYSTORE_PASSWORD` | Password keystore (`storePassword`)                         |
-| `ANDROID_KEY_ALIAS`         | Nama alias kunci, pada proyek ini `erapor-release`          |
-| `ANDROID_KEY_PASSWORD`      | Password kunci (`keyPassword`)                              |
+Di halaman itu, klik **New repository secret**, isi kotak **Name** dan **Secret**, lalu
+**Add secret**. Ulangi empat kali:
 
-Nilainya sama persis dengan isi `android/signing.properties` di komputer Bapak/Ibu.
+| Klik ke | Kotak **Name**              | Kotak **Secret** (contoh)                                   |
+| ------- | --------------------------- | ------------------------------------------------------------ |
+| ke-1    | `ANDROID_KEYSTORE_BASE64`   | `MIIKvgIBAzCCCngGCSqGSIb3DQEHAaCCCnkEggp1MIIKcTCCBe...` — teks panjang hasil langkah 1.1, satu baris tanpa spasi |
+| ke-2    | `ANDROID_KEYSTORE_PASSWORD` | `RahasiaKeystore123` — isi `storePassword`                   |
+| ke-3    | `ANDROID_KEY_ALIAS`         | `erapor-release` — isi `keyAlias`                            |
+| ke-4    | `ANDROID_KEY_PASSWORD`      | `RahasiaKunci456` — isi `keyPassword`                        |
+
+Nama harus ditulis persis seperti di kolom **Name** di atas: huruf besar semua, memakai garis
+bawah, tanpa spasi. Salah satu huruf saja berbeda, build akan berhenti dengan pesan
+"Secret berikut belum diisi".
+
+Kalau sudah benar, halaman **Actions secrets and variables** akan menampilkan daftar berisi
+tepat empat baris dengan keempat nama tersebut. Nilainya tidak ditampilkan — memang begitu
+seharusnya.
+
+> Kalau tadi sempat terbuat Environment bernama `ANDROID_KEYSTORE_BASE64`, hapus saja lewat
+> **Settings → Environments** → tiga titik di sebelah namanya → **Delete**. Environment itu tidak
+> dipakai workflow ini dan tidak berpengaruh apa-apa, hanya membingungkan nanti.
 
 > **Penting:** setelah disimpan, isi secret tidak bisa dilihat lagi oleh siapa pun, termasuk oleh
 > pemilik repository. GitHub juga menyensor nilainya bila sampai terbawa ke log. Jangan pernah
