@@ -155,8 +155,13 @@ jobs:
           echo "Keempat secret cocok. Sidik jari sertifikat penanda tangan:"
           keytool -list -v -keystore "$KS" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" | grep -i 'SHA256:'
 
+      # chmod tetap dijalankan sebagai pengaman: bit executable gradlew mudah hilang bila berkas
+      # itu pernah di-commit ulang dari Windows, dan tanpa bit itu runner Linux menolak
+      # menjalankannya dengan "Permission denied".
       - name: Bangun APK rilis
-        run: ./gradlew --no-daemon assembleRelease
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
         working-directory: android
 
       - name: Beri nama berkas sesuai versi

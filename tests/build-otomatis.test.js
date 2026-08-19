@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { APP_VERSION, VERSION_CODE } from '../src/data/version.js';
 
 const root=new URL('../',import.meta.url);
@@ -97,6 +99,14 @@ test('8b. Keempat secret diperiksa lebih dulu dengan pesan yang menunjuk secret 
   assert.match(bagian,/keytool -list -v .*grep -i 'SHA256:'/,'sidik jari penanda tangan ikut dicatat pada log');
   /* Password tetap dibaca dari secret, tidak pernah ditulis apa adanya. */
   assert.match(bagian,/-storepass "\$STORE_PASSWORD"/);
+});
+
+test('8c. gradlew dapat dijalankan di runner Linux',()=>{
+  /* Bit executable disimpan di dalam git sebagai mode 100755. Tanpa itu runner menolak
+     menjalankan ./gradlew dengan "Permission denied" dan build berhenti sebelum APK dibuat. */
+  const mode=execFileSync('git',['ls-files','-s','android/gradlew'],{cwd:fileURLToPath(root),encoding:'utf8'}).trim().split(/\s+/)[0];
+  assert.equal(mode,'100755','android/gradlew wajib bermode executable di git');
+  assert.match(alur(),/chmod \+x gradlew\n          \.\/gradlew --no-daemon assembleRelease/,'workflow tetap memasang bit executable sebagai pengaman');
 });
 
 /* ---------------------------------------------------------- 9-10. Hasil build dan bukti */
