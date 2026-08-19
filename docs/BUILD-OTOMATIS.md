@@ -16,8 +16,6 @@ keystore-nya berbeda, Android akan menolak memasang APK baru di atas aplikasi ya
 guru harus uninstall dulu — itu berarti seluruh data rapor terhapus. Jadi pakai keystore lama,
 jangan membuat yang baru.
 
-### 1.1 Ubah keystore menjadi teks base64
-
 ### 1.0 Ambil dulu nilainya dari `android/signing.properties`
 
 Keempat nilai yang dibutuhkan sudah ada di komputer Bapak/Ibu, di berkas
@@ -92,6 +90,29 @@ dikembalikan dari salinan itu. Minimal 6 karakter — itu syarat `keytool`, buka
 > sampai bocor, dan siapa pun yang memegangnya bisa menandatangani APK atas nama aplikasi ini.
 > Selama keystore hanya tersimpan di komputer sekolah dan di GitHub Secrets, risikonya kecil.
 > Jangan menyimpan keystore di folder yang ikut tersinkron ke layanan berbagi pakai.
+
+#### Kalau alamat keystore sudah tidak berlaku
+
+Ketika folder proyek diunduh ulang atau dipindah, baris `storeFile` pada `signing.properties`
+sering masih menunjuk ke folder proyek yang lama, sehingga muncul pesan
+`GAGAL: Berkas keystore tidak ada di ...`. Betulkan dengan:
+
+```powershell
+npm run signing:lokasi
+```
+
+Perintah ini mencari `erapor-release.jks` di folder pengguna, menampilkan lokasinya beserta sidik
+jari sertifikatnya, lalu memperbarui baris `storeFile` saja. Password dan alias tidak disentuh, dan
+berkas keystore-nya sendiri tidak pernah diubah.
+
+Kalau sudah tahu lokasinya, sebutkan langsung:
+
+```powershell
+npm run signing:lokasi "C:\Users\UsEr\Downloads\E-RAPOR-SDN-SATRIA-JAYA-01-CODEX-V1\release-signing\erapor-release.jks"
+```
+
+Keystore yang ternyata milik proyek lain akan ditolak, karena perintah ini memeriksa dulu apakah
+keystore itu benar-benar terbuka dengan password dan alias yang tercatat.
 
 #### Kalau berkas keystore tidak ditemukan
 

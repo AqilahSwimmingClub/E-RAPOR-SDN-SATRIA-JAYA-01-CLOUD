@@ -124,6 +124,8 @@ test('12. Panduan menunjuk halaman secret yang benar, bukan halaman Environments
   assert.match(doc,/keystore benar-benar hilang/,'panduan menjelaskan risiko dan jalan keluarnya');
   /* Mengganti password mengubah isi berkas keystore, jadi base64 wajib ikut diperbarui. */
   assert.ok(doc.includes('npm run signing:ganti-password'),'panduan menyebut cara menyamakan password');
+  assert.ok(doc.includes('npm run signing:lokasi'),'panduan menyebut cara membetulkan alamat keystore');
+  assert.match(doc,/GAGAL: Berkas keystore tidak ada di/,'panduan mengenali pesan gagal yang muncul');
   assert.match(doc,/isi berkas keystore ikut berubah\*\*\. Jadi tiga Secret harus/,'panduan menegaskan tiga secret ikut diperbarui');
   assert.match(doc,/Pertimbangan keamanan/,'panduan menyampaikan risiko password pendek');
   assert.match(doc,/Backup dulu\*\*/,'jalan keluar diawali backup data guru');
