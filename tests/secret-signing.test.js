@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -122,7 +122,30 @@ test('8. Mode "semua" menuntun keempat secret berurutan tanpa ada yang terlewat'
   }finally{rmSync(folder,{recursive:true,force:true});}
 });
 
-test('9. Skrip aman dijalankan di Windows',()=>{
+test('9. Nilai dapat ditulis ke satu berkas bila clipboard tidak tersedia',()=>{
+  const {folder,keystore,properties}=siapkan();
+  try{
+    const tujuan=path.join(folder,'base64.txt');
+    const keluaran=jalankan(['base64','--ke-berkas',tujuan],properties);
+    assert.match(keluaran,/Buka berkas itu, tekan Ctrl\+A lalu Ctrl\+C/);
+    assert.match(keluaran,/HAPUS berkas itu setelah selesai/,'pengguna diingatkan menghapusnya');
+    const isi=readFileSync(tujuan,'utf8');
+    /* Isinya wajib nilai murni: satu baris tanpa spasi maupun baris baru, supaya Ctrl+A Ctrl+C
+       menghasilkan nilai yang persis sama dengan yang dibutuhkan GitHub. */
+    assert.equal(/\s/.test(isi),false,'tidak ada spasi atau baris baru');
+    assert.deepEqual(Buffer.from(isi,'base64'),readFileSync(keystore),'decode kembali menjadi keystore asli');
+  }finally{rmSync(folder,{recursive:true,force:true});}
+});
+
+test('10. Berkas hanya ditulis bila memang diminta',()=>{
+  const {folder,properties}=siapkan();
+  try{
+    jalankan(['base64'],properties);
+    assert.equal(readdirSync(folder).some(nama=>nama.startsWith('secret-')),false,'tanpa --ke-berkas tidak ada berkas yang dibuat');
+  }finally{rmSync(folder,{recursive:true,force:true});}
+});
+
+test('11. Skrip aman dijalankan di Windows',()=>{
   const isi=read('scripts/tampilkan-secret-signing.mjs');
   /* URL.pathname pada Windows berbentuk "/C:/..." yang tidak dikenali path.resolve. */
   assert.match(isi,/fileURLToPath\(import\.meta\.url\)/,'lokasi proyek dihitung dengan fileURLToPath');
@@ -134,8 +157,11 @@ test('9. Skrip aman dijalankan di Windows',()=>{
   assert.match(isi,/for\(const \[perintah,args\] of kandidatClipboard\(\)\)if\(await coba\(/,'kandidat dicoba berurutan sampai ada yang berhasil');
   /* Skrip hanya membaca berkas lokal dan menyalin ke clipboard komputer sendiri: tidak pernah
      menghubungi jaringan, tidak menulis berkas, dan tidak menghapus apa pun. */
-  for(const berbahaya of ['fetch(','node:http','node:https','node:net','XMLHttpRequest','writeFileSync','unlinkSync','rmSync'])
+  for(const berbahaya of ['fetch(','node:http','node:https','node:net','XMLHttpRequest','unlinkSync','rmSync'])
     assert.equal(isi.includes(berbahaya),false,`skrip tidak boleh memakai ${berbahaya}`);
+  /* Menulis berkas hanya boleh terjadi di dalam cabang --ke-berkas, tidak pernah otomatis. */
+  assert.equal((isi.match(/writeFileSync\(/g)||[]).length,1,'hanya ada satu tempat yang menulis berkas');
+  assert.match(isi,/if\(opsiNilai\['ke-berkas'\]!==undefined\)\{[\s\S]{0,220}writeFileSync\(/,'penulisan berkas berada di dalam cabang --ke-berkas');
   /* Satu-satunya alamat yang muncul hanyalah halaman secret yang ditunjukkan kepada pengguna. */
   const alamat=[...isi.matchAll(/https?:\/\/\S+/g)].map(item=>item[0]);
   assert.deepEqual(alamat,['https://github.com/AqilahSwimmingClub/E-RAPOR-SDN-SATRIA-JAYA-01-CLOUD/settings/secrets/actions\');'],'hanya alamat halaman secret yang dicetak');

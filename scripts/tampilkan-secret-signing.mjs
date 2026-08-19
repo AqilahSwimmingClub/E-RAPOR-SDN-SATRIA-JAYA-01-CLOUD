@@ -9,7 +9,7 @@
      npm run signing:secrets keyPassword     -> ANDROID_KEY_PASSWORD ke clipboard
 */
 import { spawn } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -18,7 +18,7 @@ import path from 'node:path';
 const AKAR=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 /* --properties membawa nilai di belakangnya, sedangkan --tampilkan tidak. Keduanya harus
    dikeluarkan dari daftar argumen biasa supaya nilai path tidak terbaca sebagai nama bagian. */
-const BEROPSI=new Set(['--properties']);
+const BEROPSI=new Set(['--properties','--ke-berkas']);
 const masuk=process.argv.slice(2);
 const argumen=[];const opsiNilai={};
 for(let i=0;i<masuk.length;i+=1){
@@ -115,6 +115,18 @@ function nilaiBagian(kunci){
 async function tampilkanSatu(kunci,urutan){
   const bagian=BAGIAN[kunci];
   const nilai=nilaiBagian(kunci);
+  /* Jaring pengaman bila clipboard tidak tersedia: nilainya ditulis ke satu berkas yang isinya
+     HANYA nilai itu, sehingga tinggal dibuka, Ctrl+A, Ctrl+C. Ditulis tanpa baris baru di akhir
+     dan hanya bila memang diminta lewat --ke-berkas. */
+  if(opsiNilai['ke-berkas']!==undefined){
+    const tujuan=path.resolve(opsiNilai['ke-berkas']||`secret-${kunci}.txt`);
+    writeFileSync(tujuan,nilai,'utf8');
+    console.log(`\n  ${(urutan?`Secret ${urutan} dari 4`:'Secret').padEnd(urutan?16:10)}: ${bagian.secret}`);
+    console.log(`  ${'Berkas'.padEnd(urutan?16:10)}: ${tujuan}`);
+    console.log('  Buka berkas itu, tekan Ctrl+A lalu Ctrl+C, tempel di GitHub.');
+    console.log('  HAPUS berkas itu setelah selesai karena isinya rahasia.');
+    return true;
+  }
   const tersalin=await keClipboard(nilai);
   /* Lebar label disamakan supaya kolom nilai tetap lurus pada kedua mode. */
   const lebar=urutan?16:10;

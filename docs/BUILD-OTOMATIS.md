@@ -65,6 +65,17 @@ npm run signing:secrets semua
 Setiap perintah membaca `android/signing.properties`, menyebutkan nama Secret yang harus dipakai,
 lalu **menyalin nilainya langsung ke clipboard**. Tinggal Ctrl+V pada kotak **Secret** di GitHub.
 
+Kalau muncul pesan `Clipboard tidak tersedia`, nilainya bisa ditulis ke satu berkas lalu disalin
+dari sana:
+
+```powershell
+npm run signing:secrets base64 --ke-berkas base64.txt
+```
+
+Berkas itu berisi nilainya saja, tanpa spasi maupun baris baru, jadi tinggal dibuka lalu Ctrl+A
+dan Ctrl+C. **Hapus berkasnya setelah selesai** karena isinya setara dengan keystore. Tiga secret
+lainnya pendek dan bisa langsung diketik sendiri di GitHub.
+
 Yang tampil di layar hanya bentuk tersamar seperti `Pw\*********3 x (15 karakter)`, jadi aman
 walaupun layarnya terlihat orang lain. Jumlah karakternya tetap ditampilkan supaya bisa dipastikan
 salinannya utuh. Tambahkan `--tampilkan` hanya bila memang perlu melihat nilai penuhnya.
