@@ -65,6 +65,34 @@ Yang tampil di layar hanya bentuk tersamar seperti `Pw\*********3 x (15 karakter
 walaupun layarnya terlihat orang lain. Jumlah karakternya tetap ditampilkan supaya bisa dipastikan
 salinannya utuh. Tambahkan `--tampilkan` hanya bila memang perlu melihat nilai penuhnya.
 
+#### Menyamakan password keystore agar mudah diingat
+
+Password bawaan keystore ini dibuat acak sepanjang 28 karakter. Kalau ingin disamakan menjadi satu
+password yang mudah diingat, jalankan di folder proyek:
+
+```powershell
+npm run signing:ganti-password 230191
+```
+
+Perintah ini mengganti password keystore **dan** password kunci sekaligus. Yang berubah hanya
+passwordnya: kunci penandatanganan, alias, dan sertifikatnya tetap sama persis, sehingga APK hasil
+build berikutnya **tetap dapat dipasang menimpa aplikasi yang sudah ada tanpa kehilangan data**.
+
+Pengamannya: keystore lama disalin lebih dulu ke berkas `.cadangan-<waktu>`, password lama
+diperiksa dulu sebelum apa pun diubah, dan bila `keytool` gagal di tengah jalan keystore langsung
+dikembalikan dari salinan itu. Minimal 6 karakter — itu syarat `keytool`, bukan syarat aplikasi.
+
+> Setelah password diganti, **isi berkas keystore ikut berubah**. Jadi tiga Secret harus
+> diperbarui, bukan hanya dua: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, dan
+> `ANDROID_KEY_PASSWORD`. Cukup jalankan lagi ketiga perintah `npm run signing:secrets` di atas,
+> lalu tempel ulang di GitHub (klik nama secret yang sudah ada, isi nilai baru, Update secret).
+> `ANDROID_KEY_ALIAS` tidak berubah.
+
+> **Pertimbangan keamanan:** password pendek seperti enam digit mudah ditebak bila berkas `.jks`
+> sampai bocor, dan siapa pun yang memegangnya bisa menandatangani APK atas nama aplikasi ini.
+> Selama keystore hanya tersimpan di komputer sekolah dan di GitHub Secrets, risikonya kecil.
+> Jangan menyimpan keystore di folder yang ikut tersinkron ke layanan berbagi pakai.
+
 #### Kalau berkas keystore tidak ditemukan
 
 Cari dulu di seluruh komputer:
