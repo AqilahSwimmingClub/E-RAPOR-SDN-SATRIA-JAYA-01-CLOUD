@@ -38,8 +38,15 @@ jobs:
       - run: npm ci
       - name: Periksa sintaks seluruh berkas
         run: npm run check
-      - name: Bangun aset web
-        run: npm run build
+      # Aset web di dalam proyek Android dan iOS ada di .gitignore, jadi tidak ikut ter-checkout.
+      # Beberapa test memastikan aset itu benar-benar membawa kode terbaru, sehingga foldernya
+      # wajib dibuat dulu di runner supaya pemeriksaannya menguji keadaan yang sebenarnya.
+      # iOS cukup "copy" karena "sync" akan menjalankan CocoaPods yang hanya ada di macOS.
+      - name: Bangun aset web dan salin ke proyek Android serta iOS
+        run: |
+          npm run build
+          npx cap sync android
+          npx cap copy ios
       - name: Jalankan seluruh test
         run: npm test
       - name: Baca nomor versi aplikasi
