@@ -547,6 +547,7 @@ git commit -m "feat: expose a protected local Dapodik bridge"
 
 **Interfaces:**
 - Produces:
+  - `createBrowserDapodikBridge({readToken,fetchImpl}): BrowserDapodikBridge`
   - `dapodikPlatform(): {available:boolean,platform:'windows'|'web',reason:string}`
   - `getDapodikPublicConfig(): Promise<PublicConfig>`
   - `saveDapodikConfig(input): Promise<PublicConfig>`
