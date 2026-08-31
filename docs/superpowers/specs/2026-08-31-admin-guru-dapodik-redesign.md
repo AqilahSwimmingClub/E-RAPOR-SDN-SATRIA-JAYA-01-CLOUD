@@ -146,8 +146,9 @@ Integrasi terdiri dari:
 
 - halaman Admin untuk URL, NPSN, semester, status koneksi, pratinjau, hasil, dan log;
 - layanan aplikasi yang menormalisasi data sekolah, guru, siswa, rombel, mapel, dan pembelajaran;
-- bridge Electron melalui `preload` dan IPC;
+- bridge HTTP lokal same-origin pada launcher Electron melalui endpoint `/__erapor/dapodik/*`;
 - klien HTTP hanya di proses utama Electron agar pembatasan browser tidak mengganggu koneksi lokal;
+- setiap permintaan bridge wajib membawa token sesi acak yang disisipkan launcher ke halaman e-Rapor dan diverifikasi tanpa mengaktifkan CORS;
 - penyimpanan token terenkripsi dengan Electron `safeStorage`;
 - adapter respons yang menerima bentuk respons Dapodik yang didukung dan menolak bentuk yang belum dikenal sebelum mutasi data.
 
@@ -226,7 +227,8 @@ Guru/Wali Kelas dapat menambah siswa hanya ke rombel yang menjadi tugasnya. Form
 
 - hanya Admin dapat mengubah koneksi dan menjalankan Dapodik;
 - URL Dapodik dibatasi ke loopback/jaringan privat dan skema HTTP/HTTPS;
-- token ditampilkan tersamarkan dan tidak pernah dikirim ke renderer setelah disimpan;
+- token Dapodik ditampilkan tersamarkan dan tidak pernah dikirim kembali ke browser setelah disimpan;
+- bridge lokal menolak host asing, origin asing, metode yang tidak didukung, dan permintaan tanpa header token sesi;
 - setiap proses sinkronisasi memiliki timeout, pembatalan, progres, dan ringkasan;
 - respons tidak dikenal, NPSN berbeda, semester berbeda, atau validasi gagal menghentikan proses sebelum data berubah;
 - log menyimpan jenis operasi, waktu, pengguna, jumlah record, dan pesan aman;
