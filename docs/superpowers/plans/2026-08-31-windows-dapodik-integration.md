@@ -474,7 +474,7 @@ git commit -m "feat: connect only to private Dapodik hosts"
   - `createDapodikBridge({configStore,client,bridgeToken}): handleBridgeRequest`
 - Requires `X-ERapor-Bridge-Token` and loopback host; sends no CORS allow headers.
 
-- [ ] **Step 1: Add authentication and token-injection tests**
+- [x] **Step 1: Add authentication and token-injection tests**
 
 ```js
 test('bridge rejects missing or wrong launch token before reading configuration',async()=>{
@@ -498,12 +498,12 @@ test('desktop injects only launch token metadata and never Dapodik bearer token'
 });
 ```
 
-- [ ] **Step 2: Run bridge tests and confirm missing-module failures**
+- [x] **Step 2: Run bridge tests and confirm missing-module failures**
 
 Run: `node --test tests/dapodik-bridge.test.js tests/desktop-windows.test.js`  
 Expected: FAIL before bridge wiring.
 
-- [ ] **Step 3: Implement strict bridge dispatch**
+- [x] **Step 3: Implement strict bridge dispatch**
 
 ```js
 async function handleBridgeRequest(request){
@@ -526,12 +526,12 @@ async function handleBridgeRequest(request){
 
 Add bounded JSON body reading (256 KB for config/test, 5 MB for push), exact method checks, content-type checks, and safe error responses. In `main.cjs`, route bridge paths before static files and inject the launch meta tag beside the existing legacy bootstrap script.
 
-- [ ] **Step 4: Run bridge, client, config, and desktop tests**
+- [x] **Step 4: Run bridge, client, config, and desktop tests**
 
 Run: `node --test tests/dapodik-bridge.test.js tests/dapodik-client.test.js tests/dapodik-config.test.js tests/desktop-windows.test.js && npm run check`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit the Windows bridge**
+- [x] **Step 5: Commit the Windows bridge**
 
 ```bash
 git add electron/dapodik-bridge.cjs electron/main.cjs tests/dapodik-bridge.test.js tests/desktop-windows.test.js package.json

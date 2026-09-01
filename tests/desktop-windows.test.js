@@ -110,3 +110,16 @@ test('Perubahan desktop tidak menyentuh format dokumen yang sudah final',()=>{
   assert.match(cetak,/if\(tab==='leger'\)setPrintPageSize\('landscape',marginRule\('leger'\)\)/,'Leger A4 landscape tetap');
   assert.match(cetak,/return mode==='report'\?'10mm 0':'8mm';/,'margin leger bawaan tetap 8mm');
 });
+
+test('13. Bridge Dapodik dirutekan sebelum berkas statis dan tidak melonggarkan keamanan',()=>{
+  const main=read('electron/main.cjs');
+  /* Jalur bridge harus diperiksa sebelum safeFilePath, kalau tidak permintaannya jatuh ke
+     index.html dan bridge tidak pernah terpanggil. */
+  assert.ok(main.indexOf('DAPODIK_BRIDGE_PREFIX')<main.indexOf('let file=safeFilePath(url)'),'bridge dirutekan lebih dulu');
+  assert.match(main,/const bridgeToken=randomBytes\(32\)\.toString\('hex'\)/,'token bridge acak per peluncuran');
+  assert.match(main,/erapor-desktop-bridge-token/,'token disuntikkan ke index.html');
+  assert.doesNotMatch(main,/Access-Control-Allow-Origin/,'tidak ada header CORS');
+  /* Pemeriksaan host loopback yang sudah ada tidak boleh hilang. */
+  assert.match(main,/Akses hanya dari komputer ini/);
+  assert.match(main,/createDapodikConfigStore\({safeStorage,fs,path,userDataPath}\)/,'konfigurasi memakai userData Electron');
+});

@@ -7,6 +7,11 @@ const http=require('node:http');
 const net=require('node:net');
 const path=require('node:path');
 const fs=require('node:fs');
+const {randomBytes}=require('node:crypto');
+const {safeStorage}=require('electron');
+const {createDapodikConfigStore}=require('./dapodik-config.cjs');
+const {createDapodikClient}=require('./dapodik-client.cjs');
+const {createDapodikBridge,DAPODIK_BRIDGE_PREFIX}=require('./dapodik-bridge.cjs');
 
 if(require('electron-squirrel-startup'))app.quit();
 
@@ -23,6 +28,31 @@ app.setPath('userData',userDataPath);
 const versionMarkerPath=path.join(userDataPath,'desktop-release.json');
 const legacyExportPath=path.join(userDataPath,'legacy-localstorage.json');
 const STORAGE_KEY='erapor_satria_jaya_01_v1';
+
+/* Token bridge dibuat acak setiap peluncuran dan hanya disuntikkan ke index.html yang dilayani
+   server lokal ini. Halaman lain di browser yang sama tidak dapat menebaknya, sehingga tidak
+   dapat memanggil bridge Dapodik. Token ini BUKAN token Dapodik: token Dapodik tidak pernah
+   meninggalkan proses utama. */
+const bridgeToken=randomBytes(32).toString('hex');
+let dapodikBridge=null;
+function siapkanBridgeDapodik(){
+  if(dapodikBridge)return dapodikBridge;
+  const configStore=createDapodikConfigStore({safeStorage,fs,path,userDataPath});
+  dapodikBridge=createDapodikBridge({configStore,client:createDapodikClient({}),bridgeToken});
+  return dapodikBridge;
+}
+function bacaBadanPermintaan(request,limit){
+  return new Promise(resolve=>{
+    let total=0;const potongan=[];
+    request.on('data',bagian=>{
+      total+=bagian.length;
+      if(total>limit){potongan.length=0;request.destroy();resolve(null);return;}
+      potongan.push(bagian);
+    });
+    request.on('end',()=>resolve(Buffer.concat(potongan).toString('utf8')));
+    request.on('error',()=>resolve(null));
+  });
+}
 
 /* Port tetap supaya origin http://127.0.0.1:5321 tidak berubah antar sesi. Origin yang stabil
    penting karena penyimpanan browser terikat pada origin: port berubah berarti data guru
@@ -85,6 +115,10 @@ function markLegacyConsumed(){
 
 /* Skrip penyalin dijalankan sebelum aplikasi dimuat dan hanya menulis bila penyimpanan browser
    masih kosong, sehingga data yang sudah ada di browser tidak pernah tertimpa. */
+function bridgeTokenMeta(){
+  return `<meta name="erapor-desktop-bridge-token" content="${bridgeToken}">`;
+}
+
 function legacyBootstrapScript(){
   if(!legacyPayload)return '';
   return `<script>try{var K=${JSON.stringify(STORAGE_KEY)};if(!localStorage.getItem(K)){localStorage.setItem(K,${JSON.stringify(legacyPayload)});if(navigator.sendBeacon)navigator.sendBeacon('/__erapor/legacy-consumed');}else if(navigator.sendBeacon)navigator.sendBeacon('/__erapor/legacy-consumed');}catch(error){}</script>`;
@@ -113,6 +147,17 @@ function handleRequest(request,response){
   if(url.startsWith(HEALTH_PATH))return kirim(response,200,JSON.stringify({app:HEALTH_TOKEN,version:app.getVersion(),port:activePort,pid:process.pid}),'application/json; charset=utf-8');
   if(url.startsWith('/__erapor/legacy-consumed')){markLegacyConsumed();return kirim(response,204,'');}
   if(url.startsWith('/__erapor/exit')){kirim(response,200,'Menutup e-Rapor.');setTimeout(()=>keluar(),200);return;}
+  /* Jalur bridge dirutekan sebelum berkas statis supaya tidak pernah jatuh ke index.html. */
+  if(url.startsWith(DAPODIK_BRIDGE_PREFIX)){
+    const batas=url.includes('/push')?5*1024*1024:256*1024;
+    bacaBadanPermintaan(request,batas).then(async body=>{
+      if(body===null)return kirim(response,413,JSON.stringify({error:'Data yang dikirim ke bridge terlalu besar.'}),'application/json; charset=utf-8');
+      const hasil=await siapkanBridgeDapodik()({method:request.method,url,headers:request.headers,body});
+      response.writeHead(hasil.status,hasil.headers);
+      response.end(hasil.body);
+    }).catch(()=>kirim(response,502,JSON.stringify({error:'Bridge Dapodik gagal memproses permintaan.'}),'application/json; charset=utf-8'));
+    return;
+  }
 
   let file=safeFilePath(url);
   if(!file)return kirim(response,403,'Permintaan tidak diizinkan.');
@@ -122,7 +167,7 @@ function handleRequest(request,response){
     if(error)return kirim(response,404,'Berkas tidak ditemukan.');
     const type=MIME[path.extname(file).toLowerCase()]||'application/octet-stream';
     if(path.basename(file)==='index.html'){
-      const html=data.toString('utf8').replace('</head>',`${legacyBootstrapScript()}</head>`);
+      const html=data.toString('utf8').replace('</head>',`${bridgeTokenMeta()}${legacyBootstrapScript()}</head>`);
       return kirim(response,200,html,type);
     }
     response.writeHead(200,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
