@@ -73,24 +73,24 @@ function pageFor(route,session){
     case 'student-update': return renderStudents(session);
     case 'attendance': return renderAttendance(session);
     case 'objectives': return renderObjectives(session);
-    case 'report-input': return renderReportInput(session);
-    case 'report-import': return renderReportInput(session);
-    case 'saved-scores': return renderSavedScores(session);
-    case 'saved-descriptions': return renderSavedScores(session);
-    case 'teacher-status':
-    case 'teacher-achievement':
-    case 'teacher-score-graph': return renderAssessmentCheck(session);
+    case 'report-input': return renderReportInput(session,'input');
+    case 'report-import': return renderReportInput(session,'import');
+    case 'saved-scores': return renderSavedScores(session,'scores');
+    case 'saved-descriptions': return renderSavedScores(session,'descriptions');
+    case 'teacher-status': return renderAssessmentCheck(session,'status');
+    case 'teacher-achievement': return renderAssessmentCheck(session,'achievement');
+    case 'teacher-score-graph': return renderAssessmentCheck(session,'graph');
     case 'extra-input': return renderCompleteness(session,'extracurricular');
     case 'cocurricular-input': return renderCompleteness(session,'cocurricular');
     case 'intracurricular-input': return renderCompleteness(session,'intracurricular');
     case 'homeroom-note': return renderCompleteness(session,'note');
     case 'promotion-input': return renderCompleteness(session,'promotion');
-    case 'class-status':
-    case 'class-statistics': return renderClassCheck(session);
-    case 'student-progress':
-    case 'student-progress-graph':
-    case 'admin-progress':
-    case 'admin-progress-graph': return renderProgress(session);
+    case 'class-status': return renderClassCheck(session,'status');
+    case 'class-statistics': return renderClassCheck(session,'statistics');
+    case 'student-progress': return renderProgress(session,'progress');
+    case 'student-progress-graph': return renderProgress(session,'graph');
+    case 'admin-progress': return renderProgress(session,'progress');
+    case 'admin-progress-graph': return renderProgress(session,'graph');
     case 'transcript-number-import':
     case 'transcript-settings':
     case 'transcript-mapping':
@@ -111,8 +111,8 @@ function pageFor(route,session){
     case 'reference-branding':
     case 'reference-report-date': return renderReferences(session);
     case 'cocurricular': return renderCocurricular(session);
-    case 'assessment-status':
-    case 'assessment-statistics': return renderAdminStatus(session);
+    case 'assessment-status': return renderAdminStatus(session,'status');
+    case 'assessment-statistics': return renderAdminStatus(session,'statistics');
     case 'dapodik-service': return renderPlaceholder('Web Service Dapodik');
     case 'dapodik-pull': return renderPlaceholder('Ambil Data Dapodik');
     case 'dapodik-push': return renderPlaceholder('Kirim Nilai ke Dapodik');

@@ -330,7 +330,7 @@ git commit -m "feat: split Wali completeness inputs into canonical routes"
   - Admin: `assessment-status`, `assessment-statistics`, `admin-progress`, `admin-progress-graph`
 - Consumes existing report/analytics/admin-status services without duplicating formulas.
 
-- [ ] **Step 1: Add a route-to-renderer contract table test**
+- [x] **Step 1: Add a route-to-renderer contract table test**
 
 ```js
 const requiredCases=[
@@ -350,12 +350,12 @@ test('canonical assessment routes reuse the established engines',async()=>{
 });
 ```
 
-- [ ] **Step 2: Run the contract test and confirm missing cases**
+- [x] **Step 2: Run the contract test and confirm missing cases**
 
 Run: `node --test tests/assessment-route-contract.test.js`  
 Expected: FAIL for the new route cases.
 
-- [ ] **Step 3: Parameterize existing page renderers and add explicit app cases**
+- [x] **Step 3: Parameterize existing page renderers and add explicit app cases**
 
 ```js
 case 'report-input': return renderReportInput(session,'input');
@@ -370,12 +370,12 @@ case 'student-progress-graph': return renderProgress(session,'graph');
 
 Each renderer must validate the supplied mode against a fixed set and render one page mode without an internal duplicate menu. Keep existing calculations and empty/loading/error states.
 
-- [ ] **Step 4: Run assessment, analytics, and route tests**
+- [x] **Step 4: Run assessment, analytics, and route tests**
 
 Run: `node --test tests/assessment-route-contract.test.js tests/assessment.test.js tests/analytics.test.js tests/router.test.js`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit canonical assessment routing**
+- [x] **Step 5: Commit canonical assessment routing**
 
 ```bash
 git add src/app.js src/pages/reports.js src/pages/admin-status.js src/pages/class-overview.js src/pages/progress.js tests/assessment-route-contract.test.js
