@@ -4,8 +4,8 @@ import { storageKey } from './storage.js';
 import { normalizeMappingGroups } from './mapping.js';
 
 const MIGRATION_SNAPSHOT_KEY='erapor_migration_safety_snapshots_v1';
-const REQUIRED_OBJECT_COLLECTIONS=['settings','masterData','userAccounts','security','subjectMappings','assessmentSettings','students','attendance','learningObjectives','assessmentScores','reportScores','reportDescriptions','extracurricularScores','cocurricularActivities','cocurricularScores','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
-const PRESERVED_COLLECTIONS=['students','attendance','learningObjectives','assessmentScores','reportScores','subjectMappings','userAccounts'];
+const REQUIRED_OBJECT_COLLECTIONS=['settings','masterData','userAccounts','security','subjectMappings','assessmentSettings','students','attendance','learningObjectives','assessmentScores','reportScores','reportDescriptions','extracurricularScores','cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
+const PRESERVED_COLLECTIONS=['students','attendance','learningObjectives','assessmentScores','reportScores','subjectMappings','userAccounts','intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports'];
 function clone(value){return JSON.parse(JSON.stringify(value));}
 function isObject(value){return value!==null&&typeof value==='object'&&!Array.isArray(value);}
 function snapshots(){try{const parsed=JSON.parse(localStorage.getItem(MIGRATION_SNAPSHOT_KEY)||'[]');return Array.isArray(parsed)?parsed:[];}catch{return [];}}
@@ -47,7 +47,15 @@ function migrate3To4(db){
   next.subjectMappings=Object.fromEntries(Object.entries(next.subjectMappings||{}).map(([key,mapping])=>[key,Array.isArray(mapping)?mergeNewDefaultSubjects(mapping):mapping]));
   next.appSchemaVersion=4;return next;
 }
-export const APP_MIGRATIONS=Object.freeze({1:migrate1To2,2:migrate2To3,3:migrate3To4});
+function migrate4To5(db){
+  const next=clone(db);
+  for(const collection of ['intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports']){
+    if(!isObject(next[collection]))next[collection]={};
+  }
+  next.appSchemaVersion=5;
+  return next;
+}
+export const APP_MIGRATIONS=Object.freeze({1:migrate1To2,2:migrate2To3,3:migrate3To4,4:migrate4To5});
 export function listMigrationSafetySnapshots(){return snapshots().map(item=>({...item,database:undefined}));}
 export function migrationSnapshotStorageKey(){return MIGRATION_SNAPSHOT_KEY;}
 export function getApplicationInfo(){let schemaVersion=APP_SCHEMA_VERSION,lastMigration=null;try{const raw=localStorage.getItem(storageKey());if(raw){const db=JSON.parse(raw);schemaVersion=Number(db.appSchemaVersion||1);lastMigration=Array.isArray(db.migrationHistory)?db.migrationHistory.at(-1)||null:null;}}catch{}return {name:'e-Rapor SDN Satria Jaya 01',versionName:APP_VERSION,versionCode:VERSION_CODE,schemaVersion,lastMigration};}

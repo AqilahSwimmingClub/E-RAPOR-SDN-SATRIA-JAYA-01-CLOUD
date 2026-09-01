@@ -67,29 +67,56 @@ function pageFor(route,session){
   switch(route){
     case 'dashboard': return renderDashboard(session);
     case 'profile': return renderProfile(session);
-    case 'subject-mapping': return renderSubjectMapping(session);
     case 'backup': return renderBackupRestore(session);
     case 'account-settings': return renderAccountSettings(session);
-    case 'settings': return renderBackupRestore(session);
-    case 'students': return renderStudents(session);
+    case 'student-update': return renderStudents(session);
     case 'attendance': return renderAttendance(session);
-    case 'assessment': return renderAssessment(session);
-    case 'attitudes': return renderAttitudes(session);
-    case 'weights': return renderWeights(session);
     case 'objectives': return renderObjectives(session);
     case 'report-input': return renderReportInput(session);
+    case 'report-import': return renderReportInput(session);
     case 'saved-scores': return renderSavedScores(session);
-    case 'assessment-check': return renderAssessmentCheck(session);
-    case 'completeness-input': return renderCompleteness(session);
-    case 'class-check': return renderClassCheck(session);
-    case 'progress': return renderProgress(session);
-    case 'transcript': return renderTranscript(session);
-    case 'print': return renderPrint(session);
+    case 'saved-descriptions': return renderSavedScores(session);
+    case 'teacher-status':
+    case 'teacher-achievement':
+    case 'teacher-score-graph': return renderAssessmentCheck(session);
+    case 'extra-input':
+    case 'cocurricular-input':
+    case 'intracurricular-input':
+    case 'homeroom-note':
+    case 'promotion-input': return renderCompleteness(session);
+    case 'class-status':
+    case 'class-statistics': return renderClassCheck(session);
+    case 'student-progress':
+    case 'student-progress-graph':
+    case 'admin-progress':
+    case 'admin-progress-graph': return renderProgress(session);
+    case 'transcript-number-import':
+    case 'transcript-settings':
+    case 'transcript-mapping':
+    case 'transcript-input':
+    case 'transcript-import':
+    case 'transcript-print': return renderTranscript(session);
+    case 'print-ledger':
+    case 'print-supplement':
+    case 'print-report': return renderPrint(session);
     case 'users': return renderUsers(session);
-    case 'reference': return renderReferences(session);
+    case 'reference-students': return renderStudents(session);
+    case 'reference-mapping': return renderSubjectMapping(session);
+    case 'reference-school':
+    case 'reference-teachers':
+    case 'reference-classes':
+    case 'reference-subjects':
+    case 'reference-learning':
+    case 'reference-branding':
+    case 'reference-report-date': return renderReferences(session);
     case 'cocurricular': return renderCocurricular(session);
-    case 'assessment-status': return renderAdminStatus(session);
-    default: return renderPlaceholder('Modul e-Rapor');
+    case 'assessment-status':
+    case 'assessment-statistics': return renderAdminStatus(session);
+    case 'dapodik-service': return renderPlaceholder('Web Service Dapodik');
+    case 'dapodik-pull': return renderPlaceholder('Ambil Data Dapodik');
+    case 'dapodik-push': return renderPlaceholder('Kirim Nilai ke Dapodik');
+    case 'intracurricular': return renderPlaceholder('Data Intrakurikuler');
+    default: return renderPlaceholder('Halaman tidak tersedia');
   }
 }
 if(startupError){

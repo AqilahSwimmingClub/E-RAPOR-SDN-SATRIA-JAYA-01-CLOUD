@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { APP_SCHEMA_VERSION, APP_VERSION, PREVIOUS_RELEASE, VERSION_CODE } from '../src/data/version.js';
+import { APP_SCHEMA_VERSION, APP_VERSION, BUILD_TAG, PREVIOUS_RELEASE, VERSION_CODE } from '../src/data/version.js';
 import { listMigrationSafetySnapshots, runAppMigrations } from '../src/services/migrations.js';
 import { loadDb, storageKey } from '../src/services/storage.js';
 
@@ -34,13 +34,29 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-/* Versi boleh naik kapan saja; yang dijaga adalah aturannya, bukan angkanya. Format data lokal
-   tetap schema 4 supaya rilis baru membaca database guru yang sudah ada tanpa migrasi paksa. */
-test('identitas versi rilis memakai versionCode yang naik dan schema 4',()=>{
-  assert.match(APP_VERSION,/^\d+\.\d+\.\d+$/,'versi memakai format x.y.z');
-  assert.ok(VERSION_CODE>PREVIOUS_RELEASE.versionCode,`versionCode ${VERSION_CODE} wajib lebih tinggi dari ${PREVIOUS_RELEASE.versionCode}`);
-  assert.notEqual(APP_VERSION,PREVIOUS_RELEASE.version,'nama versi ikut berubah bersama versionCode');
-  assert.equal(APP_SCHEMA_VERSION,4,'format data lokal tetap schema 4');
+test('release v1.2.0 uses versionCode 12 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.2.0');
+  assert.equal(VERSION_CODE,12);
+  assert.equal(APP_SCHEMA_VERSION,5);
+  assert.equal(BUILD_TAG,'1.2.0-ADMIN-GURU-DAPODIK');
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.1.7',versionCode:11});
+});
+
+test('migration 4 to 5 adds new collections without changing old records',()=>{
+  useMemoryStorage();
+  const before=loadDb();
+  before.appSchemaVersion=4;
+  before.students['2026/2027|Ganjil 2026/2027|5B|student-old']={id:'student-old',classId:'5B',nis:'5001',nisn:'0012345678',name:'Siswa Lama'};
+  before.reportScores['old-score']={studentId:'student-old',finalScore:88};
+  for(const key of ['intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports'])delete before[key];
+  localStorage.setItem(storageKey(),JSON.stringify(before));
+
+  runAppMigrations();
+  const after=JSON.parse(localStorage.getItem(storageKey()));
+  assert.equal(after.appSchemaVersion,5);
+  assert.equal(after.students['2026/2027|Ganjil 2026/2027|5B|student-old'].name,'Siswa Lama');
+  assert.deepEqual(after.reportScores,before.reportScores);
+  for(const key of ['intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports'])assert.deepEqual(after[key],{});
 });
 
 test('data siswa bertahan setelah migration tanpa mengganti field lama',()=>{

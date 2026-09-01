@@ -1,3 +1,5 @@
+import { flattenNavigation } from './navigation.js';
+
 export const SCHOOL = 'SDN Satria Jaya 01';
 /* Tahun pelajaran dasar. Nilai ini TIDAK boleh berubah mengikuti tanggal karena ikut menyusun
    kunci penyimpanan data (tahun|semester|rombel). Mengubahnya membuat data guru yang sudah ada
@@ -59,44 +61,10 @@ export const ASSESSMENT_DEFAULT = {
   semesterSummative: 15,
 };
 
-export const MENU_ADMIN = [
-  ['dashboard','Dashboard','grid'],
-  ['profile','Profile','user'],
-  ['students','Data Siswa','users'],
-  ['users','Data Pengguna','users'],
-  ['reference','Data Referensi','database'],
-  ['cocurricular','Data Kokurikuler','activity'],
-  ['assessment-status','Status Penilaian','check'],
-  ['progress','Perkembangan Nilai','chart'],
-  ['transcript','Transkrip Ijazah','file'],
-  ['print','Cetak Nilai','printer'],
-  ['settings','Pengaturan','settings'],
-  ['account-settings','Pengaturan Akun','settings'],
-];
-
-export const MENU_TEACHER = [
-  ['dashboard','Dashboard','grid'],
-  ['profile','Profile','user'],
-  ['students','Data Siswa','users'],
-  ['attendance','Absensi','calendar'],
-  ['assessment','Penilaian','edit'],
-  ['attitudes','Dimensi Nilai Sikap','activity'],
-  ['weights','Bobot Penilaian','sliders'],
-  ['objectives','Tujuan Pembelajaran','target'],
-  ['report-input','Input Nilai Rapor','clipboard'],
-  ['saved-scores','Nilai Tersimpan','save'],
-  ['assessment-check','Cek Penilaian','check'],
-  ['__section__','MENU WALI KELAS',''],
-  ['completeness-input','Input Kelengkapan','list'],
-  ['class-check','Cek Penilaian Kelas','check-circle'],
-  ['progress','Perkembangan Nilai','chart'],
-  ['transcript','Transkrip Ijazah','file'],
-  ['print','Cetak Nilai','printer'],
-  ['__section__','PENGATURAN',''],
-  ['subject-mapping','Mapping Mata Pelajaran','shuffle'],
-  ['backup','Backup & Restore','database'],
-  ['account-settings','Pengaturan Akun','settings'],
-];
+/* Kompatibilitas sementara untuk modul lama. Sumber menu tunggal tetap navigation.js. */
+const legacyMenu=role=>flattenNavigation(role).map(({route,label,icon})=>[route,label,icon]);
+export const MENU_ADMIN=legacyMenu('admin');
+export const MENU_TEACHER=legacyMenu('teacher');
 
 /* Mapel agama dipetakan ke agama siswa. Master mapel tidak dihapus; hanya disaring per siswa
    sehingga siswa Kristen tidak dianggap belum lengkap karena nilai Agama Islam kosong. */

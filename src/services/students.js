@@ -53,6 +53,17 @@ function assertSession(session){
 function newId(){return globalThis.crypto?.randomUUID?.() || `student-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;}
 function normalizeHeader(value){return String(value||'').trim().toLowerCase().replace(/[_.-]+/g,' ').replace(/\s+/g,' ');}
 function clean(value,max=500){return String(value??'').trim().slice(0,max);}
+function actorId(session){return String(session.username||session.userId||session.classId||session.role);}
+function originForSession(session){return session.role==='admin'?'manual-admin':'manual-teacher';}
+function auditNewStudent(session,student,now=new Date()){
+  const timestamp=now.toISOString();
+  return {...student,origin:originForSession(session),createdBy:actorId(session),createdAt:timestamp,updatedAt:timestamp,syncState:'local',isActive:true};
+}
+function auditEditedStudent(session,existing,student,now=new Date()){
+  const timestamp=now.toISOString();
+  return {...existing,...student,origin:existing.origin||originForSession(session),createdBy:existing.createdBy||actorId(session),createdAt:existing.createdAt||timestamp,updatedAt:timestamp,syncState:existing.syncState||'local',isActive:existing.isActive!==false};
+}
+function studentClassForWrite(session,requestedClass){return session.role==='teacher'?session.classId:resolveStudentClass(session,requestedClass);}
 function isValidDate(value){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date=new Date(`${value}T00:00:00Z`);
@@ -83,8 +94,14 @@ function studentEntries(db,session,classId='ALL'){
   return Object.entries(db.students||{}).filter(([key])=>key.startsWith(classPrefix));
 }
 
+function activePeriodRecords(db,session){
+  return Object.values(db.students||{}).filter(student=>student.academicYear===session.academicYear
+    && student.semester===session.semester && student.isActive!==false);
+}
+
 export function listStudents(session,{classId='ALL'}={}){
   return studentEntries(loadDb(),session,classId)
+    .filter(([,student])=>student.isActive!==false)
     .map(([,student])=>clone(student))
     .sort((a,b)=>a.name.localeCompare(b.name,'id'));
 }
@@ -142,23 +159,24 @@ function validateDuplicates(student,records,excludeId=null){
   const errors=[];
   /* Nomor kosong tidak pernah dianggap duplikat, sehingga beberapa siswa boleh sama-sama
      belum memiliki NIS tanpa saling menolak. */
-  if(student.nis && records.some(record=>record.id!==excludeId && record.nis===student.nis)) errors.push(`NIS ${student.nis} sudah digunakan dalam scope rombel ini.`);
-  if(student.nisn && records.some(record=>record.id!==excludeId && record.nisn===student.nisn)) errors.push(`NISN ${student.nisn} sudah digunakan dalam scope rombel ini.`);
+  const nis=kunciNomor(student.nis),nisn=kunciNomor(student.nisn);
+  if(nis && records.some(record=>record.id!==excludeId && kunciNomor(record.nis)===nis)) errors.push(`NIS ${student.nis} sudah digunakan pada periode aktif.`);
+  if(nisn && records.some(record=>record.id!==excludeId && kunciNomor(record.nisn)===nisn)) errors.push(`NISN ${student.nisn} sudah digunakan pada periode aktif.`);
   return errors;
 }
 
 function validateStudent(student,records,excludeId=null){return [...validateFields(student),...validateDuplicates(student,records,excludeId)];}
 
 export function createStudent(session,input){
-  const classId=resolveStudentClass(session,input.classId);
+  assertSession(session);
+  const classId=studentClassForWrite(session,input.classId);
   let created;
   updateDb(db=>{
-    const records=studentEntries(db,session,classId).map(([,record])=>record);
+    const records=activePeriodRecords(db,session);
     const student=normalizeStudentInput(input,classId);
     const errors=validateStudent(student,records);
     if(errors.length) throw new StudentValidationError(errors);
-    const now=new Date().toISOString();
-    created={...student,id:input.id||newId(),academicYear:session.academicYear,semester:session.semester,createdAt:now,updatedAt:now};
+    created=auditNewStudent(session,{...student,id:input.id||newId(),academicYear:session.academicYear,semester:session.semester});
     db.students[`${studentScope(session,classId)}|${created.id}`]=created;
     return db;
   });
@@ -171,12 +189,12 @@ export function updateStudent(session,id,input){
     const existingEntry=studentEntries(db,session,'ALL').find(([,record])=>record.id===id);
     if(!existingEntry) throw new Error('Data siswa tidak ditemukan dalam scope aktif.');
     const [oldKey,existing]=existingEntry;
-    const classId=resolveStudentClass(session,input.classId||existing.classId);
-    const records=studentEntries(db,session,classId).map(([,record])=>record);
+    const classId=studentClassForWrite(session,input.classId||existing.classId);
+    const records=activePeriodRecords(db,session);
     const student=normalizeStudentInput({...existing,...input},classId);
     const errors=validateStudent(student,records,id);
     if(errors.length) throw new StudentValidationError(errors);
-    updated={...existing,...student,id,academicYear:session.academicYear,semester:session.semester,updatedAt:new Date().toISOString()};
+    updated=auditEditedStudent(session,existing,{...student,id,academicYear:session.academicYear,semester:session.semester});
     delete db.students[oldKey];
     db.students[`${studentScope(session,classId)}|${id}`]=updated;
     return db;
@@ -194,12 +212,29 @@ export function deleteStudent(session,id,{classId='ALL'}={}){
   return removed;
 }
 
+export function deactivateStudent(session,id,{classId='ALL'}={}){
+  let deactivated=false;
+  updateDb(db=>{
+    const entry=studentEntries(db,session,classId).find(([,record])=>record.id===id);
+    if(!entry)throw new Error('Data siswa tidak ditemukan dalam scope aktif.');
+    if(entry[1].origin!=='dapodik')throw new Error('Hanya siswa asal Dapodik yang dapat dinonaktifkan.');
+    db.students[entry[0]]={...entry[1],isActive:false,updatedAt:new Date().toISOString()};
+    deactivated=true;
+    return db;
+  });
+  return deactivated;
+}
+
 export function filterStudents(students,{query='',gender='',classId='ALL'}={}){
   const q=String(query).trim().toLowerCase();
   return students.filter(student=>(!gender || student.gender===gender)
     && (classId==='ALL' || student.classId===classId)
     && (!q || [student.nis,student.nisn,student.name,student.parentName,student.fatherName,student.motherName,student.phone,student.address]
       .some(value=>String(value||'').toLowerCase().includes(q))));
+}
+
+export function studentOriginLabel(student){
+  return ({'manual-teacher':'Input Manual Guru','manual-admin':'Input Manual Admin',dapodik:'Dapodik'})[student?.origin]||'Data Lama';
 }
 
 export function studentRow(student){return [student.nis,student.nisn,student.name,student.gender,student.religion||'',formatBirthPlaceDate(student),student.parentName||'',student.phone||'',student.address||''];}
@@ -297,10 +332,11 @@ export function previewStudentImport(session,text,{classId='ALL'}={}){
     let existingId=null;
     if(targetClass){
       const existing=studentEntries(db,session,targetClass).map(([,record])=>record);
+      const periodRecords=activePeriodRecords(db,session);
       const cocok=matchExistingStudent(data,existing);
       existingId=cocok?cocok.id:null;
       if(existingId&&dipakai.has(existingId))errors.push('Siswa yang sama muncul lebih dari satu kali pada berkas.');
-      errors.push(...validateDuplicates(data,[...existing,...previous.filter(record=>record.classId===targetClass)],existingId));
+      errors.push(...validateDuplicates(data,[...periodRecords,...previous],existingId));
     }
     if(existingId)dipakai.add(existingId);
     previous.push({...data,id:existingId||`preview-${index+1}`});
@@ -333,12 +369,12 @@ export function commitStudentImport(session,preview){
         if(fields.has('birthPlaceDate')||fields.has('birthPlace'))patch.birthPlace=row.data.birthPlace;
         if(fields.has('birthPlaceDate')||fields.has('birthDate'))patch.birthDate=row.data.birthDate;
         if(fields.has('photo')&&row.data.photo)patch.photo=row.data.photo;
-        const student={...lama[1],...patch,updatedAt:now};
+        const student=auditEditedStudent(session,lama[1],patch,new Date(now));
         db.students[lama[0]]=student;updated.push(student);tersimpan.push(student);
         return;
       }
       const id=newId();
-      const student={...row.data,id,academicYear:session.academicYear,semester:session.semester,createdAt:now,updatedAt:now};
+      const student=auditNewStudent(session,{...row.data,id,academicYear:session.academicYear,semester:session.semester},new Date(now));
       db.students[`${scope}|${id}`]=student;
       created.push(student);tersimpan.push(student);
     });
