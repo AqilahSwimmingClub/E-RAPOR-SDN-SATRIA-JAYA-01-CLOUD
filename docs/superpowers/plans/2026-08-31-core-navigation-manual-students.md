@@ -51,7 +51,7 @@
 - Consumes: existing `runAppMigrations()`, `loadDb()`, and `storageKey()`.
 - Produces: `APP_SCHEMA_VERSION === 5`, `APP_MIGRATIONS[4]`, and six schema 5 object collections.
 
-- [ ] **Step 1: Update migration tests to require schema 5 and data preservation**
+- [x] **Step 1: Update migration tests to require schema 5 and data preservation**
 
 ```js
 test('release v1.2.0 uses versionCode 12 and schema 5',()=>{
@@ -82,12 +82,12 @@ test('migration 4 to 5 adds new collections without changing old records',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the migration tests and confirm the expected failure**
+- [x] **Step 2: Run the migration tests and confirm the expected failure**
 
 Run: `node --test tests/migrations.test.js`  
 Expected: FAIL because the current release reports `1.1.7` and schema `4`.
 
-- [ ] **Step 3: Add the schema 5 migration and release constants**
+- [x] **Step 3: Add the schema 5 migration and release constants**
 
 ```js
 // src/data/version.js
@@ -116,12 +116,12 @@ export const APP_MIGRATIONS=Object.freeze({
 
 Also add the six collections to `baseDb()`, `REQUIRED_OBJECT_COLLECTIONS`, and `PRESERVED_COLLECTIONS`; update `package.json`, Android version defaults, and existing release assertions to `1.2.0/12/5`.
 
-- [ ] **Step 4: Run migration and package tests**
+- [x] **Step 4: Run migration and package tests**
 
 Run: `node --test tests/migrations.test.js tests/package.test.js`  
 Expected: PASS, including rollback and preservation tests.
 
-- [ ] **Step 5: Commit the release foundation**
+- [x] **Step 5: Commit the release foundation**
 
 ```bash
 git add src/data/version.js src/services/storage.js src/services/migrations.js package.json android/app/build.gradle tests/migrations.test.js tests/package.test.js
@@ -143,7 +143,7 @@ git commit -m "feat: migrate local data safely to schema 5"
   - `NavigationItem = {id,label,icon,route}`
 - Consumes: no DOM and no session data.
 
-- [ ] **Step 1: Write tests for unique routes, required ordering, and removed teacher duplicates**
+- [x] **Step 1: Write tests for unique routes, required ordering, and removed teacher duplicates**
 
 ```js
 import test from 'node:test';
@@ -173,12 +173,12 @@ test('teacher menu has no separate Mapping or Dimensi entry',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the navigation test and confirm the missing-module failure**
+- [x] **Step 2: Run the navigation test and confirm the missing-module failure**
 
 Run: `node --test tests/navigation.test.js`  
 Expected: FAIL with `ERR_MODULE_NOT_FOUND` for `src/data/navigation.js`.
 
-- [ ] **Step 3: Implement the pure navigation model**
+- [x] **Step 3: Implement the pure navigation model**
 
 ```js
 export const NAVIGATION=Object.freeze({
@@ -301,12 +301,12 @@ export function flattenNavigation(role){return navigationForRole(role).flatMap(g
 
 Move menu ownership out of `constants.js`. Export compatibility constants from `constants.js` by mapping the complete model above so existing imports remain valid during the transition.
 
-- [ ] **Step 4: Run navigation tests**
+- [x] **Step 4: Run navigation tests**
 
 Run: `node --test tests/navigation.test.js`  
 Expected: PASS with unique Admin and Teacher routes and exact completeness order.
 
-- [ ] **Step 5: Commit the navigation model**
+- [x] **Step 5: Commit the navigation model**
 
 ```bash
 git add src/data/navigation.js src/data/constants.js tests/navigation.test.js
@@ -327,7 +327,7 @@ git commit -m "feat: define canonical grouped menus"
   - `canAccessRoute(route, role): boolean`
   - legacy route aliases that never bypass role checks.
 
-- [ ] **Step 1: Add route alias and role-guard tests**
+- [x] **Step 1: Add route alias and role-guard tests**
 
 ```js
 test('legacy teacher routes resolve to the canonical grouped destinations',()=>{
@@ -344,12 +344,12 @@ test('teacher cannot open Dapodik or Admin activity routes',()=>{
 });
 ```
 
-- [ ] **Step 2: Run router tests and confirm aliases fail**
+- [x] **Step 2: Run router tests and confirm aliases fail**
 
 Run: `node --test tests/router.test.js`  
 Expected: FAIL because `students` and `completeness-input` do not yet resolve to `student-update`.
 
-- [ ] **Step 3: Derive allowed routes from navigation and apply aliases before authorization**
+- [x] **Step 3: Derive allowed routes from navigation and apply aliases before authorization**
 
 ```js
 const LEGACY_ALIASES=Object.freeze({
@@ -377,12 +377,12 @@ export function canAccessRoute(route,role){
 
 Update `resolveRoute()` to return the canonical route and update `pageFor()` with explicit cases for the routes delivered in later plans. Until those pages land, render the existing equivalent page; do not use a role-unsafe generic fallback.
 
-- [ ] **Step 4: Run router and navigation tests**
+- [x] **Step 4: Run router and navigation tests**
 
 Run: `node --test tests/router.test.js tests/navigation.test.js`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit route canonicalization**
+- [x] **Step 5: Commit route canonicalization**
 
 ```bash
 git add src/core/router.js src/app.js tests/router.test.js
@@ -401,7 +401,7 @@ git commit -m "feat: guard canonical routes by role"
 - Consumes: `navigationForRole(session.role)`.
 - Produces: semantic group buttons with `aria-expanded`, child navigation buttons, active ancestor expansion, and per-user local state key `erapor:nav-groups:<role>:<username-or-class>`.
 
-- [ ] **Step 1: Add source-level regression tests for semantic group controls**
+- [x] **Step 1: Add source-level regression tests for semantic group controls**
 
 ```js
 import test from 'node:test';
@@ -417,12 +417,12 @@ test('layout renders grouped controls with accessible expansion state',async()=>
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm it fails**
+- [x] **Step 2: Run the test and confirm it fails**
 
 Run: `node --test tests/layout-navigation.test.js`  
 Expected: FAIL because the current layout renders a flat tuple array.
 
-- [ ] **Step 3: Render groups and persist their open state**
+- [x] **Step 3: Render groups and persist their open state**
 
 ```js
 function groupStateKey(session){
@@ -443,12 +443,12 @@ function groupMarkup(group,route,open){
 
 For one-child groups, clicking the group navigates directly. For multi-child groups, clicking toggles only that group. On mobile, selecting a child closes the drawer. Add CSS for indentation, active child, focus-visible, `hidden`, 44 px touch targets, and drawer scrolling.
 
-- [ ] **Step 4: Run focused tests and syntax checks**
+- [x] **Step 4: Run focused tests and syntax checks**
 
 Run: `node --test tests/layout-navigation.test.js tests/navigation.test.js tests/router.test.js && npm run check`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit the grouped sidebar**
+- [x] **Step 5: Commit the grouped sidebar**
 
 ```bash
 git add src/ui/layout.js src/styles/app.css tests/layout-navigation.test.js package.json
@@ -466,7 +466,7 @@ git commit -m "feat: render accessible grouped sidebar"
 - Produces student fields `origin`, `createdBy`, `createdAt`, `updatedAt`, `syncState`, `isActive`, and optional `dapodikId`.
 - Produces: `studentOriginLabel(student): string`.
 
-- [ ] **Step 1: Add tests for origin, class ownership, and cross-class active-period duplicates**
+- [x] **Step 1: Add tests for origin, class ownership, and cross-class active-period duplicates**
 
 ```js
 test('teacher-created student is audited and remains in assigned class',()=>{
@@ -496,12 +496,12 @@ test('NISN cannot be duplicated across classes in the active period',()=>{
 });
 ```
 
-- [ ] **Step 2: Run student tests and confirm metadata assertions fail**
+- [x] **Step 2: Run student tests and confirm metadata assertions fail**
 
 Run: `node --test tests/students.test.js`  
 Expected: FAIL because new records do not have origin/audit fields and duplicate validation is class-scoped.
 
-- [ ] **Step 3: Add period-wide lookup and origin normalization**
+- [x] **Step 3: Add period-wide lookup and origin normalization**
 
 ```js
 function actorId(session){
@@ -529,12 +529,12 @@ function activePeriodRecords(db,session){
 
 Ensure old students loaded without metadata are treated as active and labeled `Data Lama`; do not rewrite them until edited or migrated by Dapodik. Preserve `origin:'dapodik'` and `dapodikId` during edits.
 
-- [ ] **Step 4: Run student and migration tests**
+- [x] **Step 4: Run student and migration tests**
 
 Run: `node --test tests/students.test.js tests/migrations.test.js`  
 Expected: PASS with historical data preserved.
 
-- [ ] **Step 5: Commit student audit behavior**
+- [x] **Step 5: Commit student audit behavior**
 
 ```bash
 git add src/services/students.js tests/students.test.js
@@ -554,7 +554,7 @@ git commit -m "feat: audit manual student creation"
 - Consumes: `studentOriginLabel(student)`, existing student CRUD, and canonical route `student-update`.
 - Produces: `renderStudentUpdate(session)` as an alias/wrapper around the existing student management renderer with role-specific heading and fixed teacher class.
 
-- [ ] **Step 1: Add UI contract tests**
+- [x] **Step 1: Add UI contract tests**
 
 ```js
 import test from 'node:test';
@@ -576,12 +576,12 @@ test('student-update route renders the student management page',async()=>{
 });
 ```
 
-- [ ] **Step 2: Run the UI contract test and confirm it fails**
+- [x] **Step 2: Run the UI contract test and confirm it fails**
 
 Run: `node --test tests/student-update-ui.test.js`  
 Expected: FAIL because origin labels and the canonical route are not wired.
 
-- [ ] **Step 3: Add origin badges and role-specific copy**
+- [x] **Step 3: Add origin badges and role-specific copy**
 
 ```js
 function originBadge(student){
@@ -598,12 +598,12 @@ function originBadge(student){
 
 Add an `Asal Data` column on desktop and badge on mobile cards. For teachers, hide class controls and always submit `session.classId`. For Admin, keep the class selector. Replace destructive copy `Hapus` with `Nonaktifkan` for Dapodik-origin students while preserving hard delete for records that have no dependent data.
 
-- [ ] **Step 4: Run student UI, service, router, and syntax checks**
+- [x] **Step 4: Run student UI, service, router, and syntax checks**
 
 Run: `node --test tests/student-update-ui.test.js tests/students.test.js tests/router.test.js && npm run check`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit the student update experience**
+- [x] **Step 5: Commit the student update experience**
 
 ```bash
 git add src/pages/students.js src/app.js src/styles/app.css tests/student-update-ui.test.js package.json
@@ -620,29 +620,51 @@ git commit -m "feat: let homeroom teachers add traced students"
 - Consumes all deliverables from Tasks 1–6.
 - Produces a stable schema/navigation/student foundation for the next two implementation plans.
 
-- [ ] **Step 1: Run the entire automated test suite**
+- [x] **Step 1: Run the entire automated test suite**
 
 Run: `npm test`  
 Expected: all tests PASS; no existing report, backup, print, or Windows tests regress.
 
-- [ ] **Step 2: Run syntax and web build checks**
+- [x] **Step 2: Run syntax and web build checks**
 
 Run: `npm run check && npm run build`  
 Expected: both commands exit 0 and `dist/` is generated.
 
-- [ ] **Step 3: Verify the migration rollback fixture manually**
+- [x] **Step 3: Verify the migration rollback fixture manually**
 
 Run: `node --test tests/migrations.test.js --test-name-pattern="failure"`  
 Expected: PASS and the raw pre-migration database remains byte-for-byte identical after the simulated failure.
 
-- [ ] **Step 4: Review the branch diff for data deletion and duplicate menu entries**
+- [x] **Step 4: Review the branch diff for data deletion and duplicate menu entries**
 
 Run: `git diff main...HEAD -- src/services/storage.js src/services/migrations.js src/data/navigation.js src/ui/layout.js src/services/students.js`  
 Expected: no removal of legacy collections and no repeated canonical route within either role menu.
 
-- [ ] **Step 5: Commit any regression-only corrections**
+- [x] **Step 5: Commit any regression-only corrections**
 
 ```bash
 git add src tests package.json android/app/build.gradle
 git commit -m "test: close foundation regression gaps"
 ```
+
+---
+
+## Catatan Verifikasi Task 7 (Foundation Regression Gate)
+
+Dijalankan pada commit lanjutan dari checkpoint `d68fa51`.
+
+- `npm test`: 441 tes, 441 lulus, 0 gagal.
+- `npm run check`: keluar 0.
+- `npm run build`: keluar 0, `dist/` terbentuk.
+- `node --test tests/migrations.test.js --test-name-pattern="failure"`: 13 tes lulus, termasuk
+  "migration failure mengembalikan snapshot database lama persis tanpa reset data".
+- Review diff `main...HEAD`: perubahan `storage.js` dan `migrations.js` hanya menambah enam koleksi
+  schema 5 (`intracurricularActivities`, `intracurricularScores`, `dapodikSyncState`,
+  `dapodikSyncLogs`, `dapodikMappings`, `publishedReports`); tidak ada koleksi lama yang dihapus.
+- Route kanonik unik: 32 entri menu Admin dan 29 entri menu Guru tanpa route ganda, dan seluruh
+  route menu memiliki penanganan halaman di `src/app.js`.
+
+Lima kegagalan yang terlihat pada pemeriksaan awal berasal dari artefak build yang memang tidak
+disimpan di repository (`dist/`, `android/app/src/main/assets/public/`, `ios/App/App/public/`).
+Setelah `npm run build` dan `npx cap copy android|ios` dijalankan, seluruh tes lulus. Tidak ada
+koreksi kode yang diperlukan pada Task 7.
