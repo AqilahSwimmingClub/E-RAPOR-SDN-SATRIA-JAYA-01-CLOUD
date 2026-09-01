@@ -23,6 +23,7 @@ import { renderCocurricular } from './pages/cocurricular.js';
 import { renderIntracurricular } from './pages/intracurricular.js';
 import { renderAdminStatus } from './pages/admin-status.js';
 import { renderPlaceholder } from './pages/placeholder.js';
+import { renderDapodik } from './pages/dapodik.js';
 import { renderSubjectMapping, renderBackupRestore, renderAccountSettings } from './pages/settings.js';
 import { renderLayout } from './ui/layout.js';
 import { runAppMigrations } from './services/migrations.js';
@@ -114,9 +115,9 @@ function pageFor(route,session){
     case 'cocurricular': return renderCocurricular(session);
     case 'assessment-status': return renderAdminStatus(session,'status');
     case 'assessment-statistics': return renderAdminStatus(session,'statistics');
-    case 'dapodik-service': return renderPlaceholder('Web Service Dapodik');
-    case 'dapodik-pull': return renderPlaceholder('Ambil Data Dapodik');
-    case 'dapodik-push': return renderPlaceholder('Kirim Nilai ke Dapodik');
+    case 'dapodik-service': return renderDapodik(session,'service');
+    case 'dapodik-pull': return renderDapodik(session,'pull');
+    case 'dapodik-push': return renderDapodik(session,'push');
     case 'intracurricular': return renderIntracurricular(session);
     default: return renderPlaceholder('Halaman tidak tersedia');
   }

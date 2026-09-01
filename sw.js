@@ -15,7 +15,7 @@ const APP_SHELL=[
   './src/styles/app.css','./src/app.js','./src/core/router.js','./src/data/constants.js','./src/data/navigation.js','./src/data/version.js','./src/data/seed-5b.js','./src/data/cocurricular.js',
   './src/ui/dom.js','./src/ui/icons.js','./src/ui/layout.js','./src/ui/intro.js','./src/ui/digital-gauge.js',
   './src/pages/assessment.js','./src/pages/attendance.js','./src/pages/class-overview.js','./src/pages/completeness.js',
-  './src/pages/activation.js','./src/pages/admin-status.js','./src/pages/attitudes.js','./src/pages/cocurricular.js','./src/pages/intracurricular.js',
+  './src/pages/activation.js','./src/pages/admin-status.js','./src/pages/attitudes.js','./src/pages/cocurricular.js','./src/pages/intracurricular.js','./src/pages/dapodik.js',
   './src/pages/dashboard.js','./src/pages/login.js','./src/pages/objectives.js','./src/pages/placeholder.js','./src/pages/references.js',
   './src/pages/print.js','./src/pages/profile.js','./src/pages/progress.js','./src/pages/reports.js',
   './src/pages/settings.js','./src/pages/students.js','./src/pages/transcript.js','./src/pages/transcript-admin.js','./src/pages/users.js','./src/pages/weights.js',

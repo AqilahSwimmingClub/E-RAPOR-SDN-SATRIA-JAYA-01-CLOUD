@@ -636,7 +636,7 @@ git commit -m "feat: detect Windows Dapodik availability safely"
 - Produces `renderDapodik(session, mode): HTMLElement` for modes `service`, `pull`, and `push`.
 - Consumes browser bridge, adapter, preview, apply, and sync log services.
 
-- [ ] **Step 1: Add route, Admin-only, and fallback UI tests**
+- [x] **Step 1: Add route, Admin-only, and fallback UI tests**
 
 ```js
 test('Dapodik canonical routes select one page mode',async()=>{
@@ -655,12 +655,12 @@ test('Dapodik page includes connection, preview, and Windows fallback copy',asyn
 });
 ```
 
-- [ ] **Step 2: Run the UI test and confirm missing page/routes**
+- [x] **Step 2: Run the UI test and confirm missing page/routes**
 
 Run: `node --test tests/dapodik-ui.test.js tests/router.test.js`  
 Expected: FAIL because the page does not exist.
 
-- [ ] **Step 3: Implement the three page modes**
+- [x] **Step 3: Implement the three page modes**
 
 ```js
 export function renderDapodik(session,mode='service'){
@@ -676,12 +676,12 @@ export function renderDapodik(session,mode='service'){
 
 The service form contains URL, masked token input, NPSN, semester, `Tes Koneksi`, and `Reset Form Data`. Pull renders counts and row groups for create/update/archive/conflict, defaults conflicts to unchecked, and requires a confirmation dialog before `applyDapodikPreview()`. Disable pull/push until the latest connection test matches NPSN and semester.
 
-- [ ] **Step 4: Run Dapodik UI, sync, adapter, and router tests**
+- [x] **Step 4: Run Dapodik UI, sync, adapter, and router tests**
 
 Run: `node --test tests/dapodik-ui.test.js tests/dapodik-sync.test.js tests/dapodik-adapter.test.js tests/router.test.js && npm run check`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit the Admin UI**
+- [x] **Step 5: Commit the Admin UI**
 
 ```bash
 git add src/pages/dapodik.js src/app.js src/styles/app.css tests/dapodik-ui.test.js package.json
