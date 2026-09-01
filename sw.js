@@ -18,13 +18,13 @@ const APP_SHELL=[
   './src/pages/activation.js','./src/pages/admin-status.js','./src/pages/attitudes.js','./src/pages/cocurricular.js','./src/pages/intracurricular.js',
   './src/pages/dashboard.js','./src/pages/login.js','./src/pages/objectives.js','./src/pages/placeholder.js','./src/pages/references.js',
   './src/pages/print.js','./src/pages/profile.js','./src/pages/progress.js','./src/pages/reports.js',
-  './src/pages/settings.js','./src/pages/students.js','./src/pages/transcript.js','./src/pages/users.js','./src/pages/weights.js',
+  './src/pages/settings.js','./src/pages/students.js','./src/pages/transcript.js','./src/pages/transcript-admin.js','./src/pages/users.js','./src/pages/weights.js',
   './src/services/admin-status.js','./src/services/analytics.js','./src/services/assessment.js','./src/services/assessment-bulk.js','./src/services/assessment-import.js','./src/services/attendance.js','./src/services/attitudes.js','./src/services/auth.js',
   './src/services/backup.js','./src/services/cocurricular.js','./src/services/completeness.js','./src/services/descriptions.js','./src/services/documents.js','./src/services/intracurricular.js',
   './src/services/mapping.js','./src/services/master.js','./src/services/objectives.js','./src/services/report.js',
   './src/services/owner-activation.js','./src/services/print-settings.js','./src/services/references.js','./src/services/report-bulk.js',
   './src/services/report-import.js','./src/services/snapshots.js','./src/services/migrations.js','./src/services/seed.js','./src/services/storage.js','./src/services/students.js',
-  './src/services/subjects.js','./src/services/transcript.js','./src/services/excel.js','./src/services/file-io.js','./src/services/print-service.js','./src/data/owner-verifier.js'
+  './src/services/subjects.js','./src/services/transcript.js','./src/services/transcript-admin.js','./src/services/excel.js','./src/services/file-io.js','./src/services/print-service.js','./src/data/owner-verifier.js'
 ];
 
 /* Kode aplikasi harus selalu mengikuti berkas terbaru dari APK, bukan salinan cache lama. */

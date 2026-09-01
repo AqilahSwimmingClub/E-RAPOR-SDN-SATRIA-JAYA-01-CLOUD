@@ -460,7 +460,7 @@ git commit -m "feat: organize Admin reference data by canonical routes"
 - Stores Admin records in `settings.transcript` and `settings.diplomaNumbers`; does not alter `transcriptScores`.
 - Consumes existing mapping and transcript score services.
 
-- [ ] **Step 1: Write Admin-only and preservation tests**
+- [x] **Step 1: Write Admin-only and preservation tests**
 
 ```js
 test('Admin saves transcript settings and diploma number without changing scores',()=>{
@@ -479,12 +479,12 @@ test('Teacher cannot change transcript administration settings',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm the missing-module failure**
+- [x] **Step 2: Run the test and confirm the missing-module failure**
 
 Run: `node --test tests/transcript-admin.test.js`  
 Expected: FAIL with `ERR_MODULE_NOT_FOUND`.
 
-- [ ] **Step 3: Implement validated transcript administration records**
+- [x] **Step 3: Implement validated transcript administration records**
 
 ```js
 export function saveTranscriptSettings(session,input){
@@ -504,7 +504,7 @@ export function saveTranscriptSettings(session,input){
 
 Use NISN first and student ID second during import matching, reject duplicate diploma numbers within an academic year, and require preview confirmation before commit.
 
-- [ ] **Step 4: Add Admin route renderers and preserve Teacher input/import/print**
+- [x] **Step 4: Add Admin route renderers and preserve Teacher input/import/print**
 
 ```js
 case 'transcript-number-import': return renderTranscriptAdmin(session,'numbers');
@@ -519,7 +519,7 @@ case 'transcript-print': return renderTranscript(session,'preview');
 
 The Admin input/import/print renderer selects class first and then uses a teacher-shaped scope object only after Admin authorization has succeeded.
 
-- [ ] **Step 5: Run transcript tests and commit**
+- [x] **Step 5: Run transcript tests and commit**
 
 Run: `node --test tests/transcript-admin.test.js tests/transcript.test.js tests/router.test.js && npm run check`  
 Expected: PASS.

@@ -15,6 +15,7 @@ import { renderCompleteness } from './pages/completeness.js';
 import { renderClassCheck } from './pages/class-overview.js';
 import { renderProgress } from './pages/progress.js';
 import { renderTranscript } from './pages/transcript.js';
+import { renderTranscriptAdmin } from './pages/transcript-admin.js';
 import { renderPrint } from './pages/print.js';
 import { renderUsers } from './pages/users.js';
 import { renderReferences } from './pages/references.js';
@@ -91,12 +92,12 @@ function pageFor(route,session){
     case 'student-progress-graph': return renderProgress(session,'graph');
     case 'admin-progress': return renderProgress(session,'progress');
     case 'admin-progress-graph': return renderProgress(session,'graph');
-    case 'transcript-number-import':
-    case 'transcript-settings':
-    case 'transcript-mapping':
-    case 'transcript-input':
-    case 'transcript-import':
-    case 'transcript-print': return renderTranscript(session);
+    case 'transcript-number-import': return renderTranscriptAdmin(session,'numbers');
+    case 'transcript-settings': return renderTranscriptAdmin(session,'settings');
+    case 'transcript-mapping': return renderSubjectMapping(session);
+    case 'transcript-input': return session.role==='admin'?renderTranscriptAdmin(session,'input'):renderTranscript(session,'input');
+    case 'transcript-import': return renderTranscript(session,'import');
+    case 'transcript-print': return renderTranscript(session,'preview');
     case 'print-ledger':
     case 'print-supplement':
     case 'print-report': return renderPrint(session);
