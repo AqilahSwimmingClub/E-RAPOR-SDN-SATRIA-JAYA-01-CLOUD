@@ -692,29 +692,54 @@ git commit -m "feat: complete canonical report printing flows"
 **Interfaces:**
 - Produces a fully testable Admin/Guru feature set independent of live Dapodik.
 
-- [ ] **Step 1: Run all automated tests**
+- [x] **Step 1: Run all automated tests**
 
 Run: `npm test`  
 Expected: all tests PASS.
 
-- [ ] **Step 2: Run syntax, web build, and platform metadata checks**
+- [x] **Step 2: Run syntax, web build, and platform metadata checks**
 
 Run: `npm run check && npm run build && node --test tests/package.test.js tests/desktop-windows.test.js`  
 Expected: every command exits 0.
 
-- [ ] **Step 3: Verify store separation directly**
+- [x] **Step 3: Verify store separation directly**
 
 Run: `node --test tests/intracurricular.test.js tests/completeness.test.js --test-name-pattern="separate|independently"`  
 Expected: PASS with one Kokurikuler record and one Intrakurikuler record in different collections.
 
-- [ ] **Step 4: Verify canonical navigation has no repeated route**
+- [x] **Step 4: Verify canonical navigation has no repeated route**
 
 Run: `node --test tests/navigation.test.js tests/assessment-route-contract.test.js tests/reference-routes.test.js tests/print-routes.test.js`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit regression-only corrections**
+- [x] **Step 5: Commit regression-only corrections**
 
 ```bash
 git add src tests package.json
 git commit -m "test: close assessment and printing regression gaps"
 ```
+
+---
+
+## Catatan Verifikasi Task 10 (Assessment and Printing Regression Gate)
+
+- `npm test`: 488 tes, 488 lulus, 0 gagal.
+- `npm run check` dan `npm run build`: keluar 0, `dist/` terbentuk.
+- `node --test tests/package.test.js tests/desktop-windows.test.js`: 16 lulus.
+- Pemisahan store diverifikasi langsung: satu kegiatan dan satu nilai Kokurikuler pada
+  `cocurricularActivities`/`cocurricularScores`, satu kegiatan dan satu nilai Intrakurikuler pada
+  `intracurricularActivities`/`intracurricularScores`, tanpa saling menimpa.
+- Navigasi kanonik: 32 entri menu Admin dan 29 entri menu Guru, seluruhnya unik, dan setiap route
+  menu memiliki penanganan halaman di `src/app.js`.
+- Tersisa tiga route placeholder yang memang milik rencana berikutnya: `dapodik-service`,
+  `dapodik-pull`, dan `dapodik-push`.
+
+Tidak ada koreksi kode yang diperlukan pada Task 10.
+
+### Keputusan yang perlu diketahui
+
+- Rancangan menu tidak menyediakan entri terpisah untuk Tahun Pelajaran & Semester, sehingga
+  pengelolaannya ditempatkan pada Data Kelas/Rombel karena keduanya menentukan scope akademik.
+- Margin cetak bawaan yang sudah terverifikasi dipertahankan (leger 8mm, rapor 10mm atas-bawah
+  dengan margin samping dibawa lembar rapor sendiri). Margin dari pengaturan cetak baru berlaku
+  setelah wali kelas benar-benar menyimpannya.
