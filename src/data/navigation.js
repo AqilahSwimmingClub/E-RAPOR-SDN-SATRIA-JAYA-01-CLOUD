@@ -64,6 +64,12 @@ export const NAVIGATION=Object.freeze({
       item('profile','Profil','user','profile'),
       item('objectives','Tujuan Pembelajaran','target','objectives')
     ]),
+    group('legacy-assessment','PENILAIAN','edit',[
+      item('attendance','Absensi','calendar','attendance'),
+      item('assessment','Penilaian','edit','assessment'),
+      item('attitudes','Dimensi Nilai Sikap','activity','attitudes'),
+      item('weights','Bobot Penilaian','sliders','weights')
+    ]),
     group('report-input','Input Nilai Rapor','clipboard',[
       item('report-input-form','Input Nilai Rapor','edit','report-input'),
       item('report-import','Import Nilai Rapor','upload','report-import')
@@ -79,7 +85,6 @@ export const NAVIGATION=Object.freeze({
     ]),
     group('completeness','Input Kelengkapan','list',[
       item('student-update','Update Data Siswa','users','student-update'),
-      item('attendance','Input Kehadiran','calendar','attendance'),
       item('extra-input','Input Nilai Ekskul','activity','extra-input'),
       item('cocurricular-input','Input Nilai Kokurikuler','activity','cocurricular-input'),
       item('intracurricular-input','Input Nilai Intrakurikuler','activity','intracurricular-input'),
