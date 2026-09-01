@@ -12,14 +12,16 @@ test('Teacher cannot open Admin routes through the hash',()=>{
   assert.equal(resolveRoute('#assessment-status',teacher),'dashboard');
 });
 
-test('legacy teacher routes resolve to the canonical grouped destinations',()=>{
+test('legacy teacher routes preserve data-entry destinations while grouped aliases stay canonical',()=>{
   const teacher5b={role:'teacher',classId:'5B'};
   assert.equal(resolveRoute('students',teacher5b),'student-update');
   assert.equal(resolveRoute('completeness-input',teacher5b),'student-update');
-  assert.equal(resolveRoute('assessment',teacher5b),'report-input');
+  assert.equal(resolveRoute('assessment',teacher5b),'assessment');
+  assert.equal(resolveRoute('attendance',teacher5b),'attendance');
+  assert.equal(resolveRoute('attitudes',teacher5b),'attitudes');
+  assert.equal(resolveRoute('weights',teacher5b),'weights');
   assert.equal(resolveRoute('print',teacher5b),'print-report');
   assert.equal(resolveRoute('subject-mapping',teacher5b),'dashboard');
-  assert.equal(resolveRoute('attitudes',teacher5b),'dashboard');
 });
 
 test('teacher cannot open Dapodik or Admin activity routes',()=>{
