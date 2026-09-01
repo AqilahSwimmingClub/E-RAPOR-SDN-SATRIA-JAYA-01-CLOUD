@@ -10,11 +10,11 @@ test('teacher Input Kelengkapan children use the approved order',()=>{
   ]);
 });
 
-test('teacher penilaian group restores legacy attendance and assessment tools',()=>{
+test('teacher penilaian group restores legacy attendance assessment attitude and weight tools',()=>{
   const group=navigationForRole('teacher').find(item=>item.id==='legacy-assessment');
   assert.deepEqual(group.children.map(item=>[item.route,item.label]),[
     ['attendance','Absensi'],['assessment','Penilaian'],
-    ['attitudes','Dimensi Nilai Sikap'],['weights','Bobot Penilaian']
+    ['attitudes','Penilaian Sikap'],['weights','Bobot Penilaian']
   ]);
 });
 
