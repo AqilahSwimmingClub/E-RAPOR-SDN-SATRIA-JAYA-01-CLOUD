@@ -53,7 +53,7 @@
   - `IntracurricularActivity = {id,name,description,classId,semester,academicYear,active,createdAt,updatedAt}`
 - Consumes: schema 5 `intracurricularActivities`, `loadDb()`, and `updateDb()`.
 
-- [ ] **Step 1: Write Admin CRUD and separation tests**
+- [x] **Step 1: Write Admin CRUD and separation tests**
 
 ```js
 import test from 'node:test';
@@ -82,12 +82,12 @@ test('Teacher cannot manage Intrakurikuler master data',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm the missing-module failure**
+- [x] **Step 2: Run the test and confirm the missing-module failure**
 
 Run: `node --test tests/intracurricular.test.js`  
 Expected: FAIL with `ERR_MODULE_NOT_FOUND`.
 
-- [ ] **Step 3: Implement scoped Admin CRUD**
+- [x] **Step 3: Implement scoped Admin CRUD**
 
 ```js
 function keyOf(record){
@@ -106,12 +106,12 @@ export function createIntracurricularActivity(session,input){
 
 Mirror the proven Kokurikuler validation rules while changing error copy, ID prefix, and collection names. Include uniqueness by name within the same class/year/semester.
 
-- [ ] **Step 4: Run focused tests and syntax checks**
+- [x] **Step 4: Run focused tests and syntax checks**
 
 Run: `node --test tests/intracurricular.test.js && npm run check`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit the service**
+- [x] **Step 5: Commit the service**
 
 ```bash
 git add src/services/intracurricular.js tests/intracurricular.test.js package.json
