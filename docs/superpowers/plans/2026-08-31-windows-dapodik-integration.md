@@ -149,7 +149,7 @@ git commit -m "feat: normalize supported Dapodik payloads"
   - each preview student action is `create`, `update`, `unchanged`, `archive`, or `conflict`
 - Consumes normalized data from Task 1 and schema 5 sync collections.
 
-- [ ] **Step 1: Write preview tests for ID/NISN matching and manual preservation**
+- [x] **Step 1: Write preview tests for ID/NISN matching and manual preservation**
 
 ```js
 test('preview matches Dapodik ID first and NISN second',()=>{
@@ -179,12 +179,12 @@ test('duplicate NISN with incompatible Dapodik identity becomes a conflict',()=>
 });
 ```
 
-- [ ] **Step 2: Run the sync test and confirm the missing-module failure**
+- [x] **Step 2: Run the sync test and confirm the missing-module failure**
 
 Run: `node --test tests/dapodik-sync.test.js`  
 Expected: FAIL with `ERR_MODULE_NOT_FOUND`.
 
-- [ ] **Step 3: Implement deterministic preview matching**
+- [x] **Step 3: Implement deterministic preview matching**
 
 ```js
 function matchStudent(remote,localStudents){
@@ -199,12 +199,12 @@ function matchStudent(remote,localStudents){
 
 Resolve remote class IDs through the preview class mapping. Mark imported local records absent remotely as `archive`; never mark `manual-admin`, `manual-teacher`, or legacy records as `archive`. Generate `previewId` and immutable action records so the apply step cannot silently recalculate a different preview.
 
-- [ ] **Step 4: Run sync and student tests**
+- [x] **Step 4: Run sync and student tests**
 
 Run: `node --test tests/dapodik-sync.test.js tests/students.test.js`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit preview logic**
+- [x] **Step 5: Commit preview logic**
 
 ```bash
 git add src/services/dapodik-sync.js tests/dapodik-sync.test.js
