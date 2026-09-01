@@ -5,9 +5,16 @@ import { flattenNavigation, navigationForRole } from '../src/data/navigation.js'
 test('teacher Input Kelengkapan children use the approved order',()=>{
   const group=navigationForRole('teacher').find(item=>item.id==='completeness');
   assert.deepEqual(group.children.map(item=>item.label),[
-    'Update Data Siswa','Input Kehadiran','Input Nilai Ekskul',
-    'Input Nilai Kokurikuler','Input Nilai Intrakurikuler',
-    'Input Catatan Wali Kelas','Input Kenaikan Kelas'
+    'Update Data Siswa','Input Nilai Ekskul','Input Nilai Kokurikuler',
+    'Input Nilai Intrakurikuler','Input Catatan Wali Kelas','Input Kenaikan Kelas'
+  ]);
+});
+
+test('teacher penilaian group restores legacy attendance and assessment tools',()=>{
+  const group=navigationForRole('teacher').find(item=>item.id==='legacy-assessment');
+  assert.deepEqual(group.children.map(item=>[item.route,item.label]),[
+    ['attendance','Absensi'],['assessment','Penilaian'],
+    ['attitudes','Dimensi Nilai Sikap'],['weights','Bobot Penilaian']
   ]);
 });
 
@@ -18,7 +25,7 @@ test('each role has one canonical menu entry per route',()=>{
   }
 });
 
-test('teacher menu has no separate Mapping or Dimensi entry',()=>{
+test('teacher menu has no separate Mapping or deprecated Dimensi Penilaian entry',()=>{
   const labels=flattenNavigation('teacher').map(item=>item.label);
   assert.equal(labels.includes('Mapping Mata Pelajaran'),false);
   assert.equal(labels.includes('Dimensi Penilaian'),false);
