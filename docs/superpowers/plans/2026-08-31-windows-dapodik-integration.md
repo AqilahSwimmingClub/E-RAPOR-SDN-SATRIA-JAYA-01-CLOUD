@@ -55,7 +55,7 @@
   - `DapodikDataset = {school,teachers,students,classes,subjects,lessons}`
 - Does not read or write localStorage.
 
-- [ ] **Step 1: Write adapter tests for supported and rejected payload shapes**
+- [x] **Step 1: Write adapter tests for supported and rejected payload shapes**
 
 ```js
 import test from 'node:test';
@@ -91,12 +91,12 @@ test('unknown envelope and mismatched context stop synchronization',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the adapter test and confirm the missing-module failure**
+- [x] **Step 2: Run the adapter test and confirm the missing-module failure**
 
 Run: `node --test tests/dapodik-adapter.test.js`  
 Expected: FAIL with `ERR_MODULE_NOT_FOUND`.
 
-- [ ] **Step 3: Implement strict normalization**
+- [x] **Step 3: Implement strict normalization**
 
 ```js
 export function normalizeDapodikEnvelope(payload){
@@ -123,12 +123,12 @@ function normalizeStudent(row){
 
 Define explicit field maps for school, teachers, classes, subjects, and lessons. Validate required IDs, reject duplicate Dapodik IDs, and retain only normalized values needed by this application.
 
-- [ ] **Step 4: Run adapter and syntax tests**
+- [x] **Step 4: Run adapter and syntax tests**
 
 Run: `node --test tests/dapodik-adapter.test.js && npm run check`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit the adapter**
+- [x] **Step 5: Commit the adapter**
 
 ```bash
 git add src/services/dapodik-adapter.js tests/dapodik-adapter.test.js package.json
