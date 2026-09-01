@@ -74,6 +74,9 @@ function pageFor(route,session){
     case 'account-settings': return renderAccountSettings(session);
     case 'student-update': return renderStudents(session);
     case 'attendance': return renderAttendance(session);
+    case 'assessment': return renderAssessment(session);
+    case 'attitudes': return renderAttitudes(session);
+    case 'weights': return renderWeights(session);
     case 'objectives': return renderObjectives(session);
     case 'report-input': return renderReportInput(session,'input');
     case 'report-import': return renderReportInput(session,'import');
