@@ -131,7 +131,7 @@ git commit -m "feat: add separate intracurricular activity service"
 - Consumes all four Intrakurikuler service functions.
 - Produces `renderIntracurricular(session): HTMLElement` on canonical Admin route `intracurricular`.
 
-- [ ] **Step 1: Add a route/page contract test**
+- [x] **Step 1: Add a route/page contract test**
 
 ```js
 test('Admin Intrakurikuler route uses a dedicated page and store',async()=>{
@@ -144,12 +144,12 @@ test('Admin Intrakurikuler route uses a dedicated page and store',async()=>{
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm it fails**
+- [x] **Step 2: Run the test and confirm it fails**
 
 Run: `node --test tests/intracurricular-ui.test.js`  
 Expected: FAIL because the page does not exist.
 
-- [ ] **Step 3: Build the page using the established Admin activity pattern**
+- [x] **Step 3: Build the page using the established Admin activity pattern**
 
 ```js
 export function renderIntracurricular(session){
@@ -171,12 +171,12 @@ export function renderIntracurricular(session){
 
 Implement every named helper in the file and reuse reference services for class/year/semester options. The empty state text must say `Belum ada kegiatan intrakurikuler`.
 
-- [ ] **Step 4: Run UI, service, router, and syntax tests**
+- [x] **Step 4: Run UI, service, router, and syntax tests**
 
 Run: `node --test tests/intracurricular-ui.test.js tests/intracurricular.test.js tests/router.test.js && npm run check`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit the Admin page**
+- [x] **Step 5: Commit the Admin page**
 
 ```bash
 git add src/pages/intracurricular.js src/app.js src/styles/app.css tests/intracurricular-ui.test.js package.json

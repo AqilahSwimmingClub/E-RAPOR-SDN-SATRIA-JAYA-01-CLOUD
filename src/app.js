@@ -19,6 +19,7 @@ import { renderPrint } from './pages/print.js';
 import { renderUsers } from './pages/users.js';
 import { renderReferences } from './pages/references.js';
 import { renderCocurricular } from './pages/cocurricular.js';
+import { renderIntracurricular } from './pages/intracurricular.js';
 import { renderAdminStatus } from './pages/admin-status.js';
 import { renderPlaceholder } from './pages/placeholder.js';
 import { renderSubjectMapping, renderBackupRestore, renderAccountSettings } from './pages/settings.js';
@@ -115,7 +116,7 @@ function pageFor(route,session){
     case 'dapodik-service': return renderPlaceholder('Web Service Dapodik');
     case 'dapodik-pull': return renderPlaceholder('Ambil Data Dapodik');
     case 'dapodik-push': return renderPlaceholder('Kirim Nilai ke Dapodik');
-    case 'intracurricular': return renderPlaceholder('Data Intrakurikuler');
+    case 'intracurricular': return renderIntracurricular(session);
     default: return renderPlaceholder('Halaman tidak tersedia');
   }
 }
