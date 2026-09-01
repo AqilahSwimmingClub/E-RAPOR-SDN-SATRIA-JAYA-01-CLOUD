@@ -67,7 +67,6 @@ export const NAVIGATION=Object.freeze({
     group('legacy-assessment','PENILAIAN','edit',[
       item('attendance','Absensi','calendar','attendance'),
       item('assessment','Penilaian','edit','assessment'),
-      item('attitudes','Penilaian Sikap','activity','attitudes'),
       item('weights','Bobot Penilaian','sliders','weights')
     ]),
     group('report-input','Input Nilai Rapor','clipboard',[
@@ -88,6 +87,7 @@ export const NAVIGATION=Object.freeze({
       item('extra-input','Input Nilai Ekskul','activity','extra-input'),
       item('cocurricular-input','Input Nilai Kokurikuler','activity','cocurricular-input'),
       item('intracurricular-input','Input Nilai Intrakurikuler','activity','intracurricular-input'),
+      item('attitudes','Penilaian Sikap','activity','attitudes'),
       item('homeroom-note','Input Catatan Wali Kelas','edit','homeroom-note'),
       item('promotion-input','Input Kenaikan Kelas','check','promotion-input')
     ]),
