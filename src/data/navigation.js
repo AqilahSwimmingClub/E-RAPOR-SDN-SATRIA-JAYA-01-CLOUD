@@ -67,7 +67,7 @@ export const NAVIGATION=Object.freeze({
     group('legacy-assessment','PENILAIAN','edit',[
       item('attendance','Absensi','calendar','attendance'),
       item('assessment','Penilaian','edit','assessment'),
-      item('attitudes','Dimensi Nilai Sikap','activity','attitudes'),
+      item('attitudes','Penilaian Sikap','activity','attitudes'),
       item('weights','Bobot Penilaian','sliders','weights')
     ]),
     group('report-input','Input Nilai Rapor','clipboard',[
