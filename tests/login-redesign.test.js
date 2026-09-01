@@ -64,7 +64,7 @@ test('Animasi form memakai transform/opacity saja dan berhenti stabil',()=>{
   for(const blok of animasi)
     assert.doesNotMatch(blok,/\b(width|height|margin|top|left|right|bottom)\s*:/,'hanya transform/opacity, tanpa properti yang memicu layout');
   /* Animasi hanya berjalan sekali lalu diam: forwards, tanpa infinite. */
-  assert.match(t,/animation:loginCaseOpen[^;]*forwards/);
+  assert.match(t,/\.login-stage\.login-open \.login-shell\{[^}]*animation:loginCaseOpen[^;}]*both/,'animasi buka menahan keadaan akhir');
   assert.doesNotMatch(t.slice(t.indexOf('.login-stage{')),/animation:[^;]*infinite/,'tidak ada animasi berulang saat mengetik');
   assert.match(t,/@media\(prefers-reduced-motion:reduce\)/,'menghormati pengaturan kurangi gerak');
 });

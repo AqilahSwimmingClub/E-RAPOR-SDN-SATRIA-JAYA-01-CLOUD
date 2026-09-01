@@ -13,8 +13,24 @@ export function renderLogin({onSuccess,onActivate}){
   let role='admin';let adminActivated=true;
   const semesters=listLoginSemesters();
   const root=el(`<main class="login-stage">
+    <div class="login-scrim" aria-hidden="true"></div>
     <div class="login-aurora" aria-hidden="true"></div>
+    <nav class="login-topbar">
+      <div class="login-topbar-brand">
+        <span class="login-topbar-mark">${icon('school',20)}</span>
+        <span class="login-topbar-text"><strong>e-Rapor</strong><small>SDN Satria Jaya 01</small></span>
+      </div>
+      <button type="button" class="login-open-btn" data-open-login>Login</button>
+    </nav>
+    <div class="login-welcome" data-login-welcome>
+      <span class="login-welcome-app">E-RAPOR</span>
+      <h1>SDN SATRIA JAYA 01</h1>
+      <p class="login-welcome-region">KABUPATEN BEKASI</p>
+      <p class="login-welcome-tagline">Cerdas Berkarakter Berprestasi</p>
+      <button type="button" class="login-welcome-cta" data-open-login>Masuk ke Aplikasi</button>
+    </div>
     <section class="login-shell">
+      <button type="button" class="login-close" data-close-login aria-label="Tutup form masuk">${icon('x',16)}</button>
       <header class="login-brand">
         <div class="login-brand-mark">${icon('school',26)}</div>
         <div class="login-brand-text">
@@ -47,6 +63,18 @@ export function renderLogin({onSuccess,onActivate}){
       <small>© 2026 e-Rapor SDN Satria Jaya 01 — Semua Hak Dilindungi</small>
     </footer>
   </main>`);
+
+  function openPanel(){
+    if(root.classList.contains('login-open'))return;
+    root.classList.add('login-open');
+    const fokus=qs('#username',root);
+    if(fokus)setTimeout(()=>{try{fokus.focus({preventScroll:true});}catch{fokus.focus();}},260);
+  }
+  function closePanel(){
+    root.classList.remove('login-open');
+    const box=qs('#loginError',root);
+    if(box)box.classList.add('hidden');
+  }
 
   function help(){const activation=root.querySelector('[data-activate]');activation.classList.toggle('hidden',role!=='admin'||adminActivated);qs('#loginHelp',root).innerHTML=role==='admin'?(adminActivated?'Gunakan akun Admin dan password lokal yang sudah diaktivasi.':'Belum ada password default. Aktivasi Admin dan simpan kode recovery yang ditampilkan.'):'Gunakan username akun rombel, atau username Guru selama credential bootstrap masih aktif.';}
   async function refreshStatus(){try{await ensureSecurityBootstrap();const status=await getSecurityStatus();adminActivated=status.adminActivated;help();}catch(error){const box=qs('#loginError',root);box.textContent=error.message;box.classList.remove('hidden');}}
@@ -81,6 +109,10 @@ export function renderLogin({onSuccess,onActivate}){
       errorBox.classList.remove('login-shake');void errorBox.offsetWidth;errorBox.classList.add('login-shake');
     }finally{button.disabled=false;button.textContent='Masuk';}
   };
+  root.querySelectorAll('[data-open-login]').forEach(button=>button.onclick=openPanel);
+  root.querySelector('[data-close-login]').onclick=closePanel;
+  /* Menekan Escape menutup panel, sama seperti tombol silang pada rujukan. */
+  root.addEventListener('keydown',event=>{if(event.key==='Escape')closePanel();});
   refreshStatus();
   return root;
 }
