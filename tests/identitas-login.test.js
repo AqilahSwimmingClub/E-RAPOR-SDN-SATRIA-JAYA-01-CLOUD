@@ -85,8 +85,9 @@ test('6. Panel Masuk menampilkan identitas e-Rapor, sekolah, dan kabupaten',()=>
 
 test('7. Semester aktif tetap dapat dipilih guru pada panel Masuk',()=>{
   const halaman=read('src/pages/login.js');
-  assert.match(halaman,/<label for="semester">Semester Aktif<\/label>/);
-  assert.match(halaman,/<select class="input" id="semester">/);
+  assert.match(halaman,/id="semester" aria-label="Semester Aktif"/,'dropdown semester tetap bernama');
+  assert.match(halaman,/<select class="input" id="semester"/);
+  assert.match(halaman,/aria-label="Sekolah"/,'isian sekolah tetap bernama');
   assert.match(halaman,/listLoginSemesters\(\)/,'daftar semester berasal dari Data Referensi');
   assert.match(halaman,/semester:qs\('#semester',root\)\.value/,'semester terpilih ikut dikirim saat masuk');
 });

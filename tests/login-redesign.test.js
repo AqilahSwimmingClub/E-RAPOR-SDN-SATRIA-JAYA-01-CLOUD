@@ -43,14 +43,14 @@ test('Login memakai satu panel menyatu, bukan foto besar kiri dan blok putih kan
   assert.match(t,/\.login-shell\{/);
 });
 
-test('Tema login dark navy dengan aksen cyan, glass, dan border bercahaya',()=>{
+test('Tema login memakai langit biru berlapis dengan kartu kaca',()=>{
   const t=css();
   const blok=t.slice(t.indexOf('.login-stage{'));
-  assert.match(blok,/var\(--navy/,'memakai token navy dashboard');
-  assert.match(blok,/var\(--cyan/,'aksen cyan');
+  assert.match(blok,/linear-gradient\(180deg,#2f6fa8/,'gradasi langit biru');
   assert.match(blok,/backdrop-filter\s*:\s*blur\(/,'glassmorphism');
   assert.match(blok,/box-shadow/,'shadow lembut');
   assert.match(t,/\.login-shell\{[^}]*border:1px solid/,'border tipis');
+  assert.match(t,/\.login-sky\{[^}]*position:fixed/,'pemandangan menutup seluruh layar');
 });
 
 /* ------------------------------------------------------ 3. Animasi ringan dan stabil */
@@ -64,14 +64,15 @@ test('Animasi form memakai transform/opacity saja dan berhenti stabil',()=>{
   for(const blok of animasi)
     assert.doesNotMatch(blok,/\b(width|height|margin|top|left|right|bottom)\s*:/,'hanya transform/opacity, tanpa properti yang memicu layout');
   /* Animasi hanya berjalan sekali lalu diam: forwards, tanpa infinite. */
-  assert.match(t,/\.login-stage\.login-open \.login-shell\{[^}]*animation:loginCaseOpen[^;}]*both/,'animasi buka menahan keadaan akhir');
+  assert.match(t,/\.login-shell\{[^}]*animation:loginCaseOpen[^;}]*both/,'animasi buka menahan keadaan akhir');
   assert.doesNotMatch(t.slice(t.indexOf('.login-stage{')),/animation:[^;]*infinite/,'tidak ada animasi berulang saat mengetik');
   assert.match(t,/@media\(prefers-reduced-motion:reduce\)/,'menghormati pengaturan kurangi gerak');
 });
 
 test('Input aktif dan tombol Masuk punya micro-animation tanpa pustaka luar',()=>{
   const t=css(),source=login();
-  assert.match(t,/\.login-shell .input:focus\{[^}]*var\(--cyan\)/,'border cyan saat aktif');
+  assert.match(t,/\.login-field:focus-within\{[^}]*border-color:#fff/,'isian aktif diberi bingkai terang');
+  assert.match(t,/\.login-field:focus-within\{[^}]*box-shadow/,'ada cahaya tipis saat aktif');
   assert.match(t,/\.login-submit/,'tombol Masuk punya gaya sendiri');
   assert.match(t,/\.login-submit:active\{[^}]*transform:/,'ada respons tekan');
   assert.doesNotMatch(source,/gsap|anime\.js|framer|lottie/i,'tanpa pustaka animasi berat');
@@ -155,7 +156,7 @@ test('Login nyaman di Android potret, lanskap, tablet, dan laptop',()=>{
   assert.match(t,/\.login-shell\{[^}]*width:min\(/,'lebar mengikuti layar sehingga tidak terpotong');
   assert.doesNotMatch(stage,/overflow-x:scroll/);
   assert.match(t,/@media\(max-width:767px\)[^@]*\.login-shell\{/,'penyesuaian ponsel');
-  assert.match(t,/@media\(max-height:560px\)[^@]*\.login-stage\{/,'layar pendek atau lanskap');
+  assert.match(t,/@media\(max-height:620px\)[^@]*\.login-stage\{/,'layar pendek atau lanskap');
   assert.match(t,/env\(safe-area-inset-bottom\)/,'aman dari area sistem dan papan ketik');
 });
 
