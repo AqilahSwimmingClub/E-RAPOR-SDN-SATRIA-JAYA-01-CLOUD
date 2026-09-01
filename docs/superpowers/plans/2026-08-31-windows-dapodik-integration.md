@@ -556,7 +556,7 @@ git commit -m "feat: expose a protected local Dapodik bridge"
   - `pushDapodikValues(payload): Promise<PushResult>`
 - Reads the launch token only from the meta tag and keeps it in module memory.
 
-- [ ] **Step 1: Add Windows and Web/PWA behavior tests**
+- [x] **Step 1: Add Windows and Web/PWA behavior tests**
 
 ```js
 test('browser without desktop meta reports Windows requirement and does not fetch',async()=>{
@@ -586,12 +586,12 @@ test('Windows bridge sends the launch token header',async()=>{
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm the missing-module failure**
+- [x] **Step 2: Run the test and confirm the missing-module failure**
 
 Run: `node --test tests/dapodik-browser-bridge.test.js`  
 Expected: FAIL with `ERR_MODULE_NOT_FOUND`.
 
-- [ ] **Step 3: Implement the same-origin fetch wrapper**
+- [x] **Step 3: Implement the same-origin fetch wrapper**
 
 ```js
 function request(path,{method='GET',body}={}){
@@ -611,12 +611,12 @@ function request(path,{method='GET',body}={}){
 
 Never accept an absolute bridge URL; all requests use fixed same-origin paths. Do not persist the launch token.
 
-- [ ] **Step 4: Run bridge and platform tests**
+- [x] **Step 4: Run bridge and platform tests**
 
 Run: `node --test tests/dapodik-browser-bridge.test.js tests/desktop-windows.test.js`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit browser discovery**
+- [x] **Step 5: Commit browser discovery**
 
 ```bash
 git add src/services/dapodik-bridge.js tests/dapodik-browser-bridge.test.js package.json
