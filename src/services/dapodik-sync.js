@@ -219,3 +219,109 @@ export function applyDapodikPreview(session,preview,{acceptedActionIds=[]}={}){
     throw new Error('Sinkronisasi dibatalkan dan data lama dipulihkan.');
   }
 }
+
+/* ------------------------------------------------- Antrean kirim Nilai Rapor ke Dapodik */
+
+/* ID antrean menyertakan cap perubahan nilai, sehingga nilai yang direvisi setelah terkirim
+   otomatis mendapat ID baru dan wajib dikirim ulang, sedangkan nilai yang tidak berubah tidak
+   pernah dikirim dua kali. */
+function scoreQueueId(localKey,record){return `${localKey}|${record.updatedAt||record.finalScore}`;}
+
+function pushState(){
+  const state=loadDb().dapodikSyncState?.scorePush;
+  return state&&typeof state==='object'?state:{items:{}};
+}
+
+function mappedDapodikId(mappings,kind,localId){
+  const record=mappings[`${kind}|${localId}`];
+  return clean(record?.dapodikId,120);
+}
+
+export function buildDapodikScoreQueue(session){
+  assertAdmin(session);
+  const db=loadDb();
+  const mappings=db.dapodikMappings&&typeof db.dapodikMappings==='object'?db.dapodikMappings:{};
+  const students=new Map(periodStudents(session).map(student=>[student.id,student]));
+  const state=pushState();
+  const prefix=`${session.academicYear}|${session.semester}|`;
+  const items=[],blocked=[];
+  let success=0,failed=0;
+
+  for(const [localKey,record] of Object.entries(db.reportScores||{})){
+    if(!localKey.startsWith(prefix))continue;
+    const student=students.get(record?.studentId);
+    const queueId=scoreQueueId(localKey,record||{});
+    const tersimpan=state.items?.[queueId];
+    if(tersimpan?.status==='success'){success+=1;continue;}
+    /* Alasan blokir hanya memuat kode dan ID internal; tidak ada NISN, nama, atau alamat. */
+    if(!student||!clean(student.dapodikId,120)){
+      blocked.push(Object.freeze({queueId,localKey,reasonCode:'STUDENT_NOT_MAPPED'}));
+      continue;
+    }
+    const dapodikSubjectId=mappedDapodikId(mappings,'subject',record?.subjectId);
+    if(!dapodikSubjectId){
+      blocked.push(Object.freeze({queueId,localKey,reasonCode:'SUBJECT_NOT_MAPPED'}));
+      continue;
+    }
+    if(tersimpan?.status==='failed')failed+=1;
+    items.push(Object.freeze({
+      queueId,localKey,
+      dapodikStudentId:clean(student.dapodikId,120),
+      dapodikSubjectId,
+      finalScore:Number(record?.finalScore??0),
+      kktp:Number(record?.kktp??0),
+      masteryStatus:clean(record?.masteryStatus,30),
+      status:tersimpan?.status||'ready',
+      reasonCode:clean(tersimpan?.reasonCode,40)
+    }));
+  }
+
+  const ready=items.filter(item=>item.status!=='failed').length;
+  return Object.freeze({
+    items:Object.freeze(items),
+    blocked:Object.freeze(blocked),
+    summary:Object.freeze({ready,success,failed,blocked:blocked.length})
+  });
+}
+
+export function retryableDapodikScores(session){
+  assertAdmin(session);
+  const state=pushState();
+  return Object.values(state.items||{})
+    .filter(item=>item.status==='failed'&&item.payload)
+    .map(item=>JSON.parse(JSON.stringify(item.payload)));
+}
+
+/* Hanya kode alasan yang disimpan. Pesan mentah dari Dapodik dapat memuat token maupun
+   identitas siswa, sehingga tidak pernah ikut tersimpan atau tercatat di log. */
+export function recordDapodikPushResult(session,result){
+  assertAdmin(session);
+  const startedAt=new Date().toISOString();
+  const daftar=Array.isArray(result?.items)?result.items:[];
+  const queue=buildDapodikScoreQueue(session);
+  const byId=new Map(queue.items.map(item=>[item.queueId,item]));
+  let sent=0,gagal=0;
+  updateDb(db=>{
+    if(!db.dapodikSyncState||typeof db.dapodikSyncState!=='object')db.dapodikSyncState={};
+    const state=db.dapodikSyncState.scorePush&&typeof db.dapodikSyncState.scorePush==='object'?db.dapodikSyncState.scorePush:{items:{}};
+    if(!state.items)state.items={};
+    for(const entry of daftar){
+      const queueId=clean(entry?.queueId,300);
+      if(!queueId)continue;
+      const status=entry?.status==='success'?'success':'failed';
+      if(status==='success')sent+=1;else gagal+=1;
+      state.items[queueId]={
+        queueId,status,
+        reasonCode:status==='failed'?clean(entry?.reasonCode,40)||'UNKNOWN':'',
+        updatedAt:new Date().toISOString(),
+        payload:status==='failed'?(byId.get(queueId)||{queueId}):undefined
+      };
+    }
+    state.lastPushAt=new Date().toISOString();
+    db.dapodikSyncState.scorePush=state;
+    return db;
+  });
+  const counts={sent:{scores:sent},failed:{scores:gagal}};
+  appendSafeLog('push',gagal?'PARTIAL':'SUCCESS',counts,session,startedAt);
+  return {sent,failed:gagal};
+}

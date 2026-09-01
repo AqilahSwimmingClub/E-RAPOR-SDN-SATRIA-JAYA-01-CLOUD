@@ -77,3 +77,18 @@ test('Halaman Dapodik terdaftar pada check, precache, dan CSS',()=>{
   assert.match(read('sw.js'),/\.\/src\/pages\/dapodik\.js/);
   assert.match(read('src/styles/app.css'),/dapodik-/);
 });
+
+test('Layar Kirim menyediakan kartu status dan tombol coba ulang bersyarat',()=>{
+  const page=read('src/pages/dapodik.js');
+  for(const label of ['Siap Kirim','Berhasil','Gagal','Belum Terpetakan'])
+    assert.match(page,new RegExp(label),`kartu ${label} tersedia`);
+  assert.match(page,/Coba Ulang Data Gagal/);
+  assert.match(page,/gagal\.length\?/,'tombol coba ulang hanya muncul saat ada kegagalan');
+  assert.match(page,/buildDapodikScoreQueue/);
+  assert.match(page,/recordDapodikPushResult/);
+  assert.match(page,/retryableDapodikScores/);
+  /* Pengiriman pertama wajib dikonfirmasi dengan jumlahnya. */
+  assert.match(page,/Kirim \$\{daftar\.length\} Nilai Rapor ke Dapodik/);
+  assert.match(page,/STUDENT_NOT_MAPPED/);
+  assert.match(page,/SUBJECT_NOT_MAPPED/);
+});

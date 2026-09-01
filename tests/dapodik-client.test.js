@@ -101,3 +101,23 @@ test('Klien tidak pernah menulis token ke berkas atau localStorage',async()=>{
   assert.doesNotMatch(source,/localStorage|writeFileSync|appendFileSync/);
   assert.doesNotMatch(source,/console\.(log|error|warn)/,'token tidak boleh sampai ke log aplikasi');
 });
+
+test('Push mengembalikan status per item walau sebagian atau seluruhnya gagal',async()=>{
+  const scores=[{queueId:'q-1'},{queueId:'q-2'}];
+  const sebagian=createDapodikClient({lookup:loopback,timeoutMs:1000,fetchImpl:async()=>jsonResponse({rows:[{queueId:'q-2',status:'failed'}]})});
+  const hasil=await sebagian.push(config,{scores});
+  assert.deepEqual(hasil.items,[{queueId:'q-1',status:'success'},{queueId:'q-2',status:'failed',reasonCode:'REJECTED'}]);
+
+  const gagalTotal=createDapodikClient({lookup:loopback,timeoutMs:1000,fetchImpl:async()=>new Response('nope',{status:500})});
+  const semuaGagal=await gagalTotal.push(config,{scores});
+  assert.deepEqual(semuaGagal.items.map(item=>item.status),['failed','failed']);
+  assert.equal(semuaGagal.items[0].reasonCode,'HTTP_500');
+
+  /* Registrasi matev gagal berarti nilai belum boleh dianggap terkirim. */
+  let panggilan=0;
+  const matevGagal=createDapodikClient({lookup:loopback,timeoutMs:1000,fetchImpl:async()=>{panggilan+=1;return new Response('nope',{status:401});}});
+  const hasilMatev=await matevGagal.push(config,{registrations:[{id:'m-1'}],scores});
+  assert.equal(panggilan,1,'nilai tidak dikirim setelah registrasi gagal');
+  assert.deepEqual(hasilMatev.items.map(item=>item.status),['failed','failed']);
+  assert.equal(hasilMatev.items[0].reasonCode,'AUTH');
+});

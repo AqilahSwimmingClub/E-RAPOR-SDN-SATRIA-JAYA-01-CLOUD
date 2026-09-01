@@ -705,7 +705,7 @@ git commit -m "feat: add Admin Dapodik connection and pull preview"
   - push payload records keyed by local report score key plus Dapodik student/subject IDs.
 - Successful records are not resent by retry; failed records retain a safe status and reason code.
 
-- [ ] **Step 1: Write queue and partial-retry tests**
+- [x] **Step 1: Write queue and partial-retry tests**
 
 ```js
 test('retry sends only failed score records',()=>{
@@ -731,12 +731,12 @@ test('queue blocks local students without Dapodik student mapping',()=>{
 });
 ```
 
-- [ ] **Step 2: Run push tests and confirm missing queue functions**
+- [x] **Step 2: Run push tests and confirm missing queue functions**
 
 Run: `node --test tests/dapodik-push.test.js`  
 Expected: FAIL because score queue APIs are absent.
 
-- [ ] **Step 3: Implement stable queue IDs and safe state**
+- [x] **Step 3: Implement stable queue IDs and safe state**
 
 ```js
 function scoreQueueId(score){
@@ -754,7 +754,7 @@ export function retryableDapodikScores(session){
 
 Map local subject IDs through `dapodikMappings`; block unmapped students/subjects with reason codes and counts, never raw NISN in logs. The Electron client registers evaluation subjects then posts report values. Bridge returns per-item statuses even when one item fails.
 
-- [ ] **Step 4: Add UI status cards and retry action**
+- [x] **Step 4: Add UI status cards and retry action**
 
 ```js
 function pushSummaryCards(summary){
@@ -769,7 +769,7 @@ function pushSummaryCards(summary){
 
 Require a confirmation showing counts before the first push. Show `Coba Ulang Data Gagal` only when failed items exist.
 
-- [ ] **Step 5: Run push, bridge, and report tests, then commit**
+- [x] **Step 5: Run push, bridge, and report tests, then commit**
 
 Run: `node --test tests/dapodik-push.test.js tests/dapodik-bridge.test.js tests/report.test.js`  
 Expected: PASS.

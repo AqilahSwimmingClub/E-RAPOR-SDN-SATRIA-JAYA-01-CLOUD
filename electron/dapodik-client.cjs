@@ -123,13 +123,45 @@ function createDapodikClient({fetchImpl=globalThis.fetch,lookup,timeoutMs=15000}
     return dataset;
   }
 
+  function reasonCodeFrom(error){
+    const message=String((error&&error.message)||'');
+    if(/tidak menjawab tepat waktu/.test(message))return 'TIMEOUT';
+    if(/[Tt]oken Dapodik ditolak/.test(message))return 'AUTH';
+    if(/kode (\d+)/.test(message))return `HTTP_${message.match(/kode (\d+)/)[1]}`;
+    if(/tidak ditemukan/.test(message))return 'HTTP_404';
+    return 'NETWORK';
+  }
+
   async function push(config,payload){
-    const hasil={registrations:null,scores:null};
     const registrations=(payload&&payload.registrations)||[];
     const scores=(payload&&payload.scores)||[];
-    if(registrations.length)hasil.registrations=await request(config,ENDPOINTS.registrations,{method:'POST',body:{npsn:config.npsn,semester_id:config.semesterId,rows:registrations}});
-    if(scores.length)hasil.scores=await request(config,ENDPOINTS.scores,{method:'POST',body:{npsn:config.npsn,semester_id:config.semesterId,table:'rapor',rows:scores}});
-    return hasil;
+    const hasil={registrations:null,scores:null,items:[]};
+    if(registrations.length){
+      try{hasil.registrations=await request(config,ENDPOINTS.registrations,{method:'POST',body:{npsn:config.npsn,semester_id:config.semesterId,rows:registrations}});}
+      catch(error){
+        /* Registrasi matev gagal berarti seluruh nilai belum boleh dikirim. */
+        return {...hasil,items:scores.map(row=>({queueId:row&&row.queueId,status:'failed',reasonCode:reasonCodeFrom(error)}))};
+      }
+    }
+    if(!scores.length)return hasil;
+    try{
+      hasil.scores=await request(config,ENDPOINTS.scores,{method:'POST',body:{npsn:config.npsn,semester_id:config.semesterId,table:'rapor',rows:scores}});
+      const dilaporkan=new Map();
+      const baris=(hasil.scores&&(hasil.scores.rows||hasil.scores.data||hasil.scores.results))||[];
+      for(const row of Array.isArray(baris)?baris:[]){
+        const id=String((row&&row.queueId)||'');
+        if(id)dilaporkan.set(id,String((row&&row.status)||'').toLowerCase()==='failed'?'failed':'success');
+      }
+      hasil.items=scores.map(row=>{
+        const id=row&&row.queueId;
+        const status=dilaporkan.get(String(id||''))||'success';
+        return status==='failed'?{queueId:id,status,reasonCode:'REJECTED'}:{queueId:id,status};
+      });
+      return hasil;
+    }catch(error){
+      const reasonCode=reasonCodeFrom(error);
+      return {...hasil,items:scores.map(row=>({queueId:row&&row.queueId,status:'failed',reasonCode}))};
+    }
   }
 
   return {test,pull,push,endpoints:{...ENDPOINTS}};

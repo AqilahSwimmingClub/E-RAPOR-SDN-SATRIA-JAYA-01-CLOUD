@@ -1,6 +1,6 @@
 import { normalizeDapodikDataset } from '../services/dapodik-adapter.js';
-import { clearDapodikConfig, dapodikPlatform, getDapodikPublicConfig, pullDapodikData, saveDapodikConfig, testDapodikConnection } from '../services/dapodik-bridge.js';
-import { applyDapodikPreview, buildDapodikPreview, listDapodikSyncLogs } from '../services/dapodik-sync.js';
+import { clearDapodikConfig, dapodikPlatform, getDapodikPublicConfig, pullDapodikData, pushDapodikValues, saveDapodikConfig, testDapodikConnection } from '../services/dapodik-bridge.js';
+import { applyDapodikPreview, buildDapodikPreview, buildDapodikScoreQueue, listDapodikSyncLogs, recordDapodikPushResult, retryableDapodikScores } from '../services/dapodik-sync.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 
@@ -124,12 +124,38 @@ export function renderDapodik(session,mode='service'){
     };
   }
 
+  function pushSummaryCards(summary){
+    return `<div class="assessment-summary dapodik-status-grid"><article class="stat-card"><div class="stat-label">Siap Kirim</div><div class="stat-value">${summary.ready}</div></article><article class="stat-card"><div class="stat-label">Berhasil</div><div class="stat-value">${summary.success}</div></article><article class="stat-card"><div class="stat-label">Gagal</div><div class="stat-value">${summary.failed}</div></article><article class="stat-card"><div class="stat-label">Belum Terpetakan</div><div class="stat-value">${summary.blocked}</div></article></div>`;
+  }
+
+  const BLOCK_REASONS={STUDENT_NOT_MAPPED:'Siswa belum punya ID Dapodik. Jalankan Ambil Data Dapodik terlebih dahulu.',SUBJECT_NOT_MAPPED:'Mata pelajaran belum dipetakan ke Dapodik.'};
+
+  async function kirim(daftar,label){
+    if(!daftar.length){toast('Tidak ada nilai yang perlu dikirim.','error');return;}
+    if(!await confirmDialog({title:label,message:`Kirim ${daftar.length} Nilai Rapor ke Dapodik? Nilai yang sudah berhasil terkirim tidak dikirim ulang.`,confirmText:'Kirim'}))return;
+    try{
+      const hasil=await pushDapodikValues({scores:daftar.map(item=>({queueId:item.queueId,dapodikStudentId:item.dapodikStudentId,dapodikSubjectId:item.dapodikSubjectId,finalScore:item.finalScore,kktp:item.kktp,masteryStatus:item.masteryStatus}))});
+      /* Bridge mengembalikan status per item walau sebagian gagal, sehingga yang berhasil
+         tetap tercatat berhasil dan tidak ikut dikirim ulang. */
+      const items=Array.isArray(hasil?.items)?hasil.items:daftar.map(item=>({queueId:item.queueId,status:'success'}));
+      const ringkas=recordDapodikPushResult(session,{items});
+      drawPush();
+      toast(`Terkirim ${ringkas.sent}, gagal ${ringkas.failed}.`,ringkas.failed?'warning':'success');
+    }catch(error){toast(error.message,'error');}
+  }
+
   function drawPush(){
-    actions.innerHTML='';
+    if(!connectionMatches){actions.innerHTML='';view.innerHTML=lockedNotice();return;}
+    const queue=buildDapodikScoreQueue(session);
+    const gagal=retryableDapodikScores(session);
+    const siap=queue.items.filter(item=>item.status!=='failed');
+    actions.innerHTML=`<button class="btn btn-primary" data-push ${siap.length?'':'disabled'}>${icon('upload',16)} Kirim Nilai ke Dapodik</button>${gagal.length?`<button class="btn btn-light" data-retry>Coba Ulang Data Gagal</button>`:''}`;
     const logs=listDapodikSyncLogs(session).filter(item=>item.operation==='push').slice(-10).reverse();
-    view.innerHTML=connectionMatches
-      ?`<section class="card dapodik-summary"><div class="section-head"><div><h3>Kirim Nilai ke Dapodik</h3><p>Antrean pengiriman Nilai Rapor beserta riwayat percobaannya.</p></div></div>${logs.length?`<div class="table-scroll"><table class="data-table"><thead><tr><th>Waktu</th><th>Status</th><th>Terkirim</th><th>Gagal</th></tr></thead><tbody>${logs.map(item=>`<tr><td>${escapeHtml(String(item.finishedAt||'').replace('T',' ').slice(0,19))}</td><td>${escapeHtml(item.status)}</td><td>${item.counts?.sent?.scores??0}</td><td>${item.counts?.failed?.scores??0}</td></tr>`).join('')}</tbody></table></div>`:'<section class="card empty-state"><h3>Belum ada pengiriman</h3><p>Riwayat pengiriman Nilai Rapor akan tampil di sini.</p></section>'}</section>`
-      :lockedNotice();
+    view.innerHTML=`<section class="card dapodik-summary"><div class="section-head"><div><h3>Status Pengiriman Nilai</h3><p>Nilai yang sudah berhasil terkirim tidak pernah dikirim ulang. Nilai yang direvisi masuk antrean lagi secara otomatis.</p></div></div>${pushSummaryCards(queue.summary)}</section>${queue.blocked.length?`<section class="card dapodik-group"><div class="section-head"><div><h3>Belum Terpetakan</h3><p>Baris berikut tidak dikirim sampai pemetaannya tersedia.</p></div><span class="badge badge-inactive">${queue.blocked.length} baris</span></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Kode</th><th>Penjelasan</th><th>Jumlah</th></tr></thead><tbody>${Object.entries(queue.blocked.reduce((acc,item)=>({...acc,[item.reasonCode]:(acc[item.reasonCode]||0)+1}),{})).map(([kode,jumlah])=>`<tr><td><strong>${escapeHtml(kode)}</strong></td><td>${escapeHtml(BLOCK_REASONS[kode]||'Perlu diperiksa.')}</td><td>${jumlah}</td></tr>`).join('')}</tbody></table></div></section>`:''}${logs.length?`<section class="card dapodik-group"><div class="section-head"><div><h3>Riwayat Pengiriman</h3><p>Sepuluh percobaan terakhir.</p></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Waktu</th><th>Status</th><th>Terkirim</th><th>Gagal</th></tr></thead><tbody>${logs.map(item=>`<tr><td>${escapeHtml(String(item.finishedAt||'').replace('T',' ').slice(0,19))}</td><td>${escapeHtml(item.status)}</td><td>${item.counts?.sent?.scores??0}</td><td>${item.counts?.failed?.scores??0}</td></tr>`).join('')}</tbody></table></div></section>`:''}`;
+    const tombolKirim=actions.querySelector('[data-push]');
+    if(tombolKirim)tombolKirim.onclick=()=>kirim(siap,'Kirim Nilai ke Dapodik');
+    const tombolUlang=actions.querySelector('[data-retry]');
+    if(tombolUlang)tombolUlang.onclick=()=>kirim(gagal,'Coba Ulang Data Gagal');
   }
 
   muatConfig().then(()=>{
