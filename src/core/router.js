@@ -10,7 +10,7 @@ const LEGACY_ALIASES=Object.freeze({
     progress:'admin-progress',transcript:'transcript-input',print:'print-report'
   }),
   teacher:Object.freeze({
-    students:'student-update','completeness-input':'student-update',assessment:'report-input',
+    students:'student-update','completeness-input':'student-update',
     'assessment-check':'teacher-status','class-check':'class-status',progress:'student-progress',
     transcript:'transcript-input',print:'print-report'
   })
