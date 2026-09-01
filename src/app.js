@@ -12,6 +12,7 @@ import { renderWeights } from './pages/weights.js';
 import { renderObjectives } from './pages/objectives.js';
 import { renderAssessmentCheck, renderReportInput, renderSavedScores } from './pages/reports.js';
 import { renderCompleteness } from './pages/completeness.js';
+import { renderIntracurricularInput } from './pages/intracurricular-input.js';
 import { renderClassCheck } from './pages/class-overview.js';
 import { renderProgress } from './pages/progress.js';
 import { renderTranscript } from './pages/transcript.js';
@@ -87,7 +88,7 @@ function pageFor(route,session){
     case 'teacher-score-graph': return renderAssessmentCheck(session,'graph');
     case 'extra-input': return renderCompleteness(session,'extracurricular');
     case 'cocurricular-input': return renderCompleteness(session,'cocurricular');
-    case 'intracurricular-input': return renderCompleteness(session,'intracurricular');
+    case 'intracurricular-input': return renderIntracurricularInput(session);
     case 'homeroom-note': return renderCompleteness(session,'note');
     case 'promotion-input': return renderCompleteness(session,'promotion');
     case 'class-status': return renderClassCheck(session,'status');
