@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ACADEMIC_YEAR } from '../src/data/constants.js';
-import { buildDapodikPreview } from '../src/services/dapodik-sync.js';
+import { applyDapodikPreview, buildDapodikPreview, listDapodikSyncLogs } from '../src/services/dapodik-sync.js';
 import { loadDb, updateDb } from '../src/services/storage.js';
 
 function useMemoryStorage(){const values=new Map();globalThis.localStorage={getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};globalThis.sessionStorage=globalThis.localStorage;}
@@ -112,4 +112,112 @@ test('Preview hanya untuk Admin dan menolak konteks sekolah yang berbeda',()=>{
   assert.throws(()=>buildDapodikPreview(guru,dataset(),konteks),/Hanya Admin/);
   assert.throws(()=>buildDapodikPreview(admin,dataset(),{npsn:'99999999',semesterId:'20262'}),/NPSN Dapodik berbeda/);
   assert.throws(()=>buildDapodikPreview(admin,dataset(),{npsn:'20218098',semesterId:'20261'}),/Semester Dapodik berbeda/);
+});
+
+/* ------------------------------------------------- Task 3: penerapan transaksional dan log */
+
+function previewSatuCreate(){
+  return buildDapodikPreview(admin,dataset({students:[{dapodikId:'pd-1',nisn:'0012345678',nis:'5001',name:'Alya',gender:'P',classDapodikId:'rombel-5b',isActive:true}]}),konteks);
+}
+const terima=preview=>({acceptedActionIds:preview.students.map(item=>item.id)});
+
+test('Apply menulis hanya aksi yang disetujui dan menandai asal Dapodik',()=>{
+  useMemoryStorage();
+  const preview=previewSatuCreate();
+  const result=applyDapodikPreview(admin,preview,{acceptedActionIds:preview.students.filter(item=>item.action==='create').map(item=>item.id)});
+  assert.equal(result.created.students,1);
+  const saved=Object.values(loadDb().students).find(item=>item.dapodikId==='pd-1');
+  assert.equal(saved.origin,'dapodik');
+  assert.equal(saved.syncState,'synced');
+  assert.equal(saved.classId,'5B');
+  assert.equal(saved.academicYear,ACADEMIC_YEAR);
+  assert.equal(saved.isActive,true);
+});
+
+test('Aksi yang tidak disetujui tidak pernah ditulis',()=>{
+  useMemoryStorage();
+  const preview=previewSatuCreate();
+  const result=applyDapodikPreview(admin,preview,{acceptedActionIds:[]});
+  assert.equal(result.created.students,0);
+  assert.equal(Object.keys(loadDb().students).length,0);
+});
+
+test('Konflik yang disetujui menghentikan penerapan sebelum ada perubahan',()=>{
+  useMemoryStorage();
+  seedStudent({id:'manual-1',nisn:'0012345678',name:'Siswa Manual',origin:'manual-teacher',classId:'5B'});
+  seedStudent({id:'manual-2',nisn:'0012345678',name:'Siswa Kembar',origin:'manual-teacher',classId:'5C'});
+  const preview=buildDapodikPreview(admin,dataset({students:[{dapodikId:'pd-2',nisn:'0012345678',name:'Nama Berbeda',gender:'P',classDapodikId:'rombel-5b',isActive:true}]}),konteks);
+  const sebelum=JSON.parse(JSON.stringify(loadDb().students));
+  assert.throws(()=>applyDapodikPreview(admin,preview,terima(preview)),/Konflik Dapodik/);
+  assert.deepEqual(loadDb().students,sebelum);
+});
+
+test('Archive menonaktifkan record Dapodik tanpa menghapusnya',()=>{
+  useMemoryStorage();
+  seedStudent({id:'imported-1',dapodikId:'pd-9',nisn:'0012345681',name:'Siswa Impor',origin:'dapodik',classId:'5B'});
+  const preview=buildDapodikPreview(admin,dataset({students:[]}),konteks);
+  applyDapodikPreview(admin,preview,terima(preview));
+  const saved=Object.values(loadDb().students).find(item=>item.id==='imported-1');
+  assert.ok(saved,'record tetap ada');
+  assert.equal(saved.isActive,false);
+  assert.equal(saved.name,'Siswa Impor','data lama tidak dihapus');
+});
+
+test('Update memperbarui record lokal tanpa membuat duplikat',()=>{
+  useMemoryStorage();
+  seedStudent({id:'local-1',nisn:'0012345678',nis:'5001',name:'Nama Lama',gender:'P',origin:'dapodik',classId:'5B'});
+  const preview=buildDapodikPreview(admin,dataset({students:[{dapodikId:'pd-1',nisn:'0012345678',nis:'5001',name:'Nama Baru',gender:'P',classDapodikId:'rombel-5b',isActive:true}]}),konteks);
+  applyDapodikPreview(admin,preview,terima(preview));
+  const students=Object.values(loadDb().students);
+  assert.equal(students.length,1);
+  assert.equal(students[0].name,'Nama Baru');
+  assert.equal(students[0].dapodikId,'pd-1');
+  assert.equal(students[0].id,'local-1');
+});
+
+test('Preview dari konteks lain ditolak dan data lokal tidak berubah',()=>{
+  useMemoryStorage();
+  const preview=previewSatuCreate();
+  const lain={...admin,semester:`Genap ${ACADEMIC_YEAR}`};
+  assert.throws(()=>applyDapodikPreview(lain,preview,terima(preview)),/periode/i);
+  assert.equal(Object.keys(loadDb().students).length,0);
+});
+
+test('Log sinkronisasi memuat jumlah tetapi tanpa identitas pribadi maupun token',()=>{
+  useMemoryStorage();
+  const preview=previewSatuCreate();
+  applyDapodikPreview(admin,preview,{acceptedActionIds:preview.students.map(item=>item.id)});
+  const logs=listDapodikSyncLogs(admin);
+  assert.equal(logs.length,1);
+  assert.equal(logs[0].operation,'pull');
+  assert.equal(logs[0].status,'SUCCESS');
+  assert.equal(logs[0].counts.created.students,1);
+  const text=JSON.stringify(logs);
+  assert.doesNotMatch(text,/0012345678|Alya|Bearer|token/i);
+  assert.match(text,/"students":1/);
+  assert.throws(()=>listDapodikSyncLogs(guru),/Hanya Admin/);
+});
+
+test('Kegagalan penerapan memulihkan basis data dan mencatat ROLLED_BACK',()=>{
+  useMemoryStorage();
+  seedStudent({id:'lama-1',nisn:'0012345699',name:'Siswa Lama',origin:'manual-teacher',classId:'5B'});
+  const sebelum=JSON.parse(JSON.stringify(loadDb().students));
+  const preview=previewSatuCreate();
+  /* Baris preview dirusak untuk memaksa validasi gagal di tengah penerapan. */
+  const rusak={...preview,students:Object.freeze([Object.freeze({...preview.students[0],classId:'ZZ'})])};
+  assert.throws(()=>applyDapodikPreview(admin,rusak,{acceptedActionIds:[rusak.students[0].id]}),/dibatalkan dan data lama dipulihkan/);
+  assert.deepEqual(loadDb().students,sebelum,'data lama utuh setelah rollback');
+  const logs=listDapodikSyncLogs(admin);
+  assert.equal(logs.at(-1).status,'ROLLED_BACK');
+});
+
+test('Setiap baris preview punya ID aksi yang stabil dan unik',()=>{
+  useMemoryStorage();
+  const preview=buildDapodikPreview(admin,dataset({students:[
+    {dapodikId:'pd-1',nisn:'0012345678',name:'Alya',gender:'P',classDapodikId:'rombel-5b',isActive:true},
+    {dapodikId:'pd-2',nisn:'0012345679',name:'Budi',gender:'L',classDapodikId:'rombel-5b',isActive:true}
+  ]}),konteks);
+  const ids=preview.students.map(item=>item.id);
+  assert.equal(new Set(ids).size,ids.length);
+  assert.ok(ids.every(id=>typeof id==='string'&&id.length>0));
 });

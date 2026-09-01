@@ -1,6 +1,8 @@
 import { CLASSES } from '../data/constants.js';
 import { validateSchoolContext } from './dapodik-adapter.js';
-import { loadDb } from './storage.js';
+import { exportDb, loadDb, replaceDb, updateDb } from './storage.js';
+import { validateMigratedDatabase } from './migrations.js';
+import { APP_SCHEMA_VERSION } from '../data/version.js';
 
 /* Preview tarik data Dapodik. Modul ini hanya MEMBACA basis data lokal; perubahan baru terjadi
    pada langkah apply setelah Admin menyetujui preview. Setiap baris preview dibekukan supaya
@@ -52,7 +54,8 @@ function differs(local,remote,classId){
   });
 }
 
-function row(value){return Object.freeze(value);}
+let actionCounter=0;
+function row(value){return Object.freeze({id:`aksi-${++actionCounter}-${Math.random().toString(36).slice(2,8)}`,...value});}
 
 export function buildDapodikPreview(session,dataset,expectedContext){
   assertAdmin(session);
@@ -106,4 +109,113 @@ export function buildDapodikPreview(session,dataset,expectedContext){
     lessons:Object.freeze([...(dataset.lessons||[])].map(row)),
     counts:Object.freeze(counts)
   });
+}
+
+/* ------------------------------------------------------------ Penerapan transaksional */
+
+const LOG_LIMIT=50;
+function emptyCounts(){return {created:{students:0},updated:{students:0},archived:{students:0},skipped:{students:0}};}
+
+/* Log sinkronisasi hanya menyimpan angka dan pesan aman. Tidak ada token, NISN, nama, alamat,
+   atau potongan payload mentah yang boleh masuk ke sini karena log ikut tercadangkan. */
+function appendSafeLog(operation,status,counts,session,startedAt){
+  const record={
+    id:newPreviewId(),
+    operation:clean(operation,20),
+    status:clean(status,20),
+    counts,
+    startedAt,
+    finishedAt:new Date().toISOString(),
+    actor:clean(session.username||session.accountId||session.role,60)
+  };
+  updateDb(db=>{
+    if(!db.dapodikSyncLogs)db.dapodikSyncLogs={};
+    db.dapodikSyncLogs[record.id]=record;
+    const semua=Object.entries(db.dapodikSyncLogs).sort((a,b)=>String(a[1].finishedAt).localeCompare(String(b[1].finishedAt)));
+    for(const [key] of semua.slice(0,Math.max(0,semua.length-LOG_LIMIT)))delete db.dapodikSyncLogs[key];
+    return db;
+  });
+  return record;
+}
+
+export function listDapodikSyncLogs(session){
+  assertAdmin(session);
+  return Object.values(loadDb().dapodikSyncLogs||{})
+    .map(item=>JSON.parse(JSON.stringify(item)))
+    .sort((a,b)=>String(a.finishedAt).localeCompare(String(b.finishedAt)));
+}
+
+function validatePreviewContext(session,preview){
+  if(!preview?.previewId||!Array.isArray(preview.students))throw new Error('Preview Dapodik tidak valid.');
+  if(preview.context?.academicYear!==session.academicYear||preview.context?.semester!==session.semester){
+    throw new Error('Preview Dapodik dibuat untuk periode lain. Ulangi Ambil Data pada periode aktif.');
+  }
+}
+
+function studentKey(session,classId,id){return `${session.academicYear}|${session.semester}|${classId}|${id}`;}
+function newStudentId(){return globalThis.crypto?.randomUUID?.()||`student-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;}
+
+function applyAcceptedActions(database,session,preview,accepted){
+  const counts=emptyCounts();
+  const now=new Date().toISOString();
+  const actor=clean(session.username||session.accountId||session.role,60);
+  const entries=Object.entries(database.students||{});
+  for(const action of preview.students){
+    if(!accepted.has(action.id)||action.action==='unchanged'){
+      if(action.action!=='unchanged')counts.skipped.students+=1;
+      continue;
+    }
+    if(!CLASSES.includes(action.classId))throw new Error(`Rombel ${action.classId||'(kosong)'} tidak dikenal pada preview.`);
+    if(action.action==='create'){
+      const id=newStudentId();
+      database.students[studentKey(session,action.classId,id)]={
+        id,classId:action.classId,academicYear:session.academicYear,semester:session.semester,
+        dapodikId:action.dapodikId,nisn:action.nisn,nis:action.nis,name:action.name,gender:action.gender,
+        religion:'',birthPlace:'',birthDate:'',parentName:'',phone:'',address:'',photo:'',
+        origin:'dapodik',createdBy:actor,createdAt:now,updatedAt:now,syncState:'synced',isActive:true
+      };
+      counts.created.students+=1;
+      continue;
+    }
+    const found=entries.find(([,student])=>student.id===action.localId);
+    if(!found)throw new Error('Record siswa pada preview sudah tidak ada. Ulangi Ambil Data.');
+    const [oldKey,existing]=found;
+    if(action.action==='archive'){
+      database.students[oldKey]={...existing,isActive:false,syncState:'archived',updatedAt:now};
+      counts.archived.students+=1;
+      continue;
+    }
+    const updated={...existing,dapodikId:action.dapodikId||existing.dapodikId,nisn:action.nisn,nis:action.nis,
+      name:action.name,gender:action.gender,classId:action.classId,origin:existing.origin||'dapodik',
+      syncState:'synced',isActive:true,updatedAt:now};
+    delete database.students[oldKey];
+    database.students[studentKey(session,action.classId,updated.id)]=updated;
+    counts.updated.students+=1;
+  }
+  return {database,counts};
+}
+
+/* Pola clone-validate-save: seluruh perubahan disusun pada salinan, divalidasi, lalu disimpan
+   sekali. Kegagalan apa pun memulihkan basis data apa adanya sebelum sinkronisasi dimulai. */
+export function applyDapodikPreview(session,preview,{acceptedActionIds=[]}={}){
+  assertAdmin(session);
+  validatePreviewContext(session,preview);
+  const accepted=new Set(acceptedActionIds);
+  if(preview.students.some(item=>accepted.has(item.id)&&item.action==='conflict')){
+    throw new Error('Konflik Dapodik harus diselesaikan sebelum penerapan.');
+  }
+  const startedAt=new Date().toISOString();
+  const before=exportDb();
+  try{
+    const result=applyAcceptedActions(JSON.parse(JSON.stringify(before)),session,preview,accepted);
+    validateMigratedDatabase(result.database,{expectedSchemaVersion:APP_SCHEMA_VERSION,before});
+    replaceDb(result.database);
+    appendSafeLog('pull','SUCCESS',result.counts,session,startedAt);
+    return {previewId:preview.previewId,...result.counts};
+  }catch(error){
+    replaceDb(before);
+    appendSafeLog('pull','ROLLED_BACK',emptyCounts(),session,startedAt);
+    if(/Konflik Dapodik|periode lain|tidak valid/.test(error.message))throw error;
+    throw new Error('Sinkronisasi dibatalkan dan data lama dipulihkan.');
+  }
 }

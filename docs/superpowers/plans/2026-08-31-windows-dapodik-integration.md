@@ -226,7 +226,7 @@ git commit -m "feat: preview Dapodik merges without data loss"
   - `DapodikSyncLog = {id,operation,status,counts,startedAt,finishedAt,actor}`
 - Logs contain counts and safe messages only; no token, NISN, names, addresses, or raw payloads.
 
-- [ ] **Step 1: Add atomic-apply and redaction tests**
+- [x] **Step 1: Add atomic-apply and redaction tests**
 
 ```js
 test('apply creates a safety snapshot and writes only accepted non-conflict actions',()=>{
@@ -250,12 +250,12 @@ test('sync logs contain counts but no personal identifiers',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the focused test and confirm apply/log failures**
+- [x] **Step 2: Run the focused test and confirm apply/log failures**
 
 Run: `node --test tests/dapodik-sync.test.js`  
 Expected: FAIL because transactional apply and logs are incomplete.
 
-- [ ] **Step 3: Implement clone-validate-save application**
+- [x] **Step 3: Implement clone-validate-save application**
 
 ```js
 export function applyDapodikPreview(session,preview,{acceptedActionIds}){
@@ -282,12 +282,12 @@ export function applyDapodikPreview(session,preview,{acceptedActionIds}){
 
 Exclude `dapodikSyncState`, `dapodikSyncLogs`, and `dapodikMappings` from Teacher backups unless they belong to the active class and contain no raw remote payload. Never include desktop token/config secrets because they are outside the database.
 
-- [ ] **Step 4: Run sync, migration, and backup tests**
+- [x] **Step 4: Run sync, migration, and backup tests**
 
 Run: `node --test tests/dapodik-sync.test.js tests/migrations.test.js tests/backup.test.js`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit transactional apply**
+- [x] **Step 5: Commit transactional apply**
 
 ```bash
 git add src/services/dapodik-sync.js src/services/backup.js tests/dapodik-sync.test.js tests/backup.test.js
