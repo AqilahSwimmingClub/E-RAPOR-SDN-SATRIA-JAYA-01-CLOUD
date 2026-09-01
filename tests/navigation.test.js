@@ -24,9 +24,13 @@ test('each role has one canonical menu entry per route',()=>{
   }
 });
 
-test('teacher menu has no separate Mapping or deprecated Dimensi Penilaian entry',()=>{
-  const labels=flattenNavigation('teacher').map(item=>item.label);
-  assert.equal(labels.includes('Mapping Mata Pelajaran'),false);
+test('teacher menu keeps one Mapping entry and no deprecated Dimensi Penilaian entry',()=>{
+  const items=flattenNavigation('teacher');
+  const labels=items.map(item=>item.label);
+  /* Mapping Mata Pelajaran memang disediakan untuk akun Guru. Yang dijaga adalah entrinya
+     tunggal dan memakai route kanonik yang sama dengan milik Admin, bukan route duplikat. */
+  assert.equal(labels.filter(label=>label==='Mapping Mata Pelajaran').length,1);
+  assert.equal(items.filter(item=>item.route==='reference-mapping').length,1);
   assert.equal(labels.includes('Dimensi Penilaian'),false);
 });
 

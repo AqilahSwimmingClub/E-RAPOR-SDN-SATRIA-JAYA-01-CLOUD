@@ -7,14 +7,22 @@ import { flattenNavigation } from '../src/data/navigation.js';
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
 const ROUTES=['reference-school','reference-teachers','reference-students','reference-classes','reference-subjects','reference-learning','reference-mapping','reference-branding','reference-report-date'];
+/* Mapping Mata Pelajaran dipakai bersama: Admin mengelolanya dari Data Referensi, Guru
+   memakainya untuk rombelnya sendiri. Route referensi lain tetap khusus Admin. */
+const SHARED_ROUTES=['reference-mapping'];
+const ADMIN_ONLY_ROUTES=ROUTES.filter(route=>!SHARED_ROUTES.includes(route));
 
-test('Route anak Data Referensi milik Admin dan tertutup untuk Guru',()=>{
+test('Route anak Data Referensi milik Admin, kecuali Mapping yang dipakai bersama',()=>{
   const teacher={role:'teacher',classId:'5B'};
-  for(const route of ROUTES){
-    assert.equal(canAccessRoute(route,'admin'),true,`${route} terbuka untuk Admin`);
+  for(const route of ROUTES)assert.equal(canAccessRoute(route,'admin'),true,`${route} terbuka untuk Admin`);
+  for(const route of ADMIN_ONLY_ROUTES){
     assert.equal(canAccessRoute(route,'teacher'),false,`${route} tertutup untuk Guru`);
+    assert.equal(resolveRoute(route,teacher),'dashboard',`${route} mengembalikan Guru ke Dashboard`);
   }
-  assert.equal(resolveRoute('reference-mapping',teacher),'dashboard');
+  for(const route of SHARED_ROUTES){
+    assert.equal(canAccessRoute(route,'teacher'),true,`${route} terbuka untuk Guru`);
+    assert.equal(resolveRoute(route,teacher),route,`${route} tetap terbuka bagi Guru`);
+  }
   assert.equal(resolveRoute('reference-mapping',{role:'admin'}),'reference-mapping');
 });
 
@@ -53,10 +61,12 @@ test('Pengelolaan tahun pelajaran tetap dapat dijangkau Admin',()=>{
   assert.match(page,/drawPeriods\(\)/);
 });
 
-test('Menu Data Referensi Admin tidak punya entri ganda',()=>{
+test('Menu Data Referensi tidak punya entri ganda pada kedua peran',()=>{
   const menu=flattenNavigation('admin').map(item=>item.route);
   for(const route of ROUTES)assert.equal(menu.filter(item=>item===route).length,1,`${route} muncul sekali`);
-  assert.equal(flattenNavigation('teacher').some(item=>ROUTES.includes(item.route)),false,'menu Guru tidak memuat route referensi Admin');
+  const menuGuru=flattenNavigation('teacher').map(item=>item.route);
+  assert.equal(menuGuru.some(route=>ADMIN_ONLY_ROUTES.includes(route)),false,'menu Guru tidak memuat route referensi khusus Admin');
+  for(const route of SHARED_ROUTES)assert.equal(menuGuru.filter(item=>item===route).length,1,`${route} muncul sekali pada menu Guru`);
 });
 
 test('Tanggal Rapor bawaan Admin dipakai rombel yang belum mengatur cetak sendiri',async()=>{
