@@ -6,15 +6,14 @@ test('teacher Input Kelengkapan children use the approved order',()=>{
   const group=navigationForRole('teacher').find(item=>item.id==='completeness');
   assert.deepEqual(group.children.map(item=>item.label),[
     'Update Data Siswa','Input Nilai Ekskul','Input Nilai Kokurikuler',
-    'Input Nilai Intrakurikuler','Input Catatan Wali Kelas','Input Kenaikan Kelas'
+    'Input Nilai Intrakurikuler','Penilaian Sikap','Input Catatan Wali Kelas','Input Kenaikan Kelas'
   ]);
 });
 
-test('teacher penilaian group restores legacy attendance assessment attitude and weight tools',()=>{
+test('teacher penilaian group contains attendance assessment and weight tools only',()=>{
   const group=navigationForRole('teacher').find(item=>item.id==='legacy-assessment');
   assert.deepEqual(group.children.map(item=>[item.route,item.label]),[
-    ['attendance','Absensi'],['assessment','Penilaian'],
-    ['attitudes','Penilaian Sikap'],['weights','Bobot Penilaian']
+    ['attendance','Absensi'],['assessment','Penilaian'],['weights','Bobot Penilaian']
   ]);
 });
 
