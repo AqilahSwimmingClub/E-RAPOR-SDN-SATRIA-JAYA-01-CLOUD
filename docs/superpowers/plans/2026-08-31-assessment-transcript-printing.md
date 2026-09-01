@@ -547,7 +547,7 @@ git commit -m "feat: add transcript administration workflows"
   - `isReportPublished(session, studentId, documentType): boolean`
   - `listPublishedReports(session): Publication[]`
 
-- [ ] **Step 1: Write publication scope and settings tests**
+- [x] **Step 1: Write publication scope and settings tests**
 
 ```js
 test('publication is scoped by class period student and document type',()=>{
@@ -573,12 +573,12 @@ test('print settings validate A4 margins and first page',()=>{
 });
 ```
 
-- [ ] **Step 2: Run focused tests and confirm missing publication module**
+- [x] **Step 2: Run focused tests and confirm missing publication module**
 
 Run: `node --test tests/publications.test.js tests/documents.test.js`  
 Expected: FAIL with `ERR_MODULE_NOT_FOUND` and missing print fields.
 
-- [ ] **Step 3: Implement scoped publication records and print validation**
+- [x] **Step 3: Implement scoped publication records and print validation**
 
 ```js
 export function publicationKey(session,studentId,documentType){
@@ -601,12 +601,12 @@ export function publishReport(session,studentId,documentType){
 
 Bound every margin to 0–50 mm and `firstPage` to integer 1–99. `getReportDocument()` exposes publication state but does not require publication for printing.
 
-- [ ] **Step 4: Run publication, document, migration, and backup tests**
+- [x] **Step 4: Run publication, document, migration, and backup tests**
 
 Run: `node --test tests/publications.test.js tests/documents.test.js tests/migrations.test.js tests/backup.test.js`  
 Expected: PASS; teacher backups include the active-scope publication records and no unrelated class records.
 
-- [ ] **Step 5: Commit print settings and publication state**
+- [x] **Step 5: Commit print settings and publication state**
 
 ```bash
 git add src/services/print-settings.js src/services/publications.js src/services/documents.js tests/publications.test.js tests/documents.test.js

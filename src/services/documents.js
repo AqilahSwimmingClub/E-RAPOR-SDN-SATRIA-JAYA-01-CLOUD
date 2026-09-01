@@ -4,6 +4,7 @@ import { listStudentAttitudes } from './attitudes.js';
 import { getPrintSettings } from './print-settings.js';
 import { getStoredReportRows } from './report.js';
 import { listStudents } from './students.js';
+import { isReportPublished } from './publications.js';
 import { hasStudentReligion, listActiveSubjects, listSubjectsForStudent } from './subjects.js';
 import { getSchoolMaster, getTeacherProfile } from './master.js';
 import { createWorkbookBytes } from './excel.js';
@@ -108,7 +109,8 @@ export function getReportDocument(session,studentId){
     ?(status?.status==='GRADUATED'?'Lulus':status?.status==='NOT_GRADUATED'?'Tidak Lulus':'')
     :(status?.status==='PROMOTED'?`Naik ke Kelas ${status.targetClass}`:status?.status==='RETAINED'?'Tinggal di kelas':'');
   const identity=getDocumentIdentity(session);const {school,teacher,printSettings}=identity;
-  return {session:clone(session),master:{school,teacher},printSettings,student:clone(summary.student),attitudes,
+  const published=isReportPublished(session,studentId,'report');
+  return {session:clone(session),master:{school,teacher},printSettings,student:clone(summary.student),attitudes,published,
     classId:identity.classId,classLabel:identity.classLabel,semester:identity.semester,semesterNumber:identity.semesterNumber,academicYear:identity.academicYear,subjects:reportRows.map(row=>({subject:clone(row.subject),score:row.score?.finalScore??null,kktp:row.score?.kktp??null,masteryStatus:row.score?.masteryStatus??null,description:row.description?.text||''})),attendance:{Hadir:attendance.Hadir,Sakit:attendance.Sakit,Izin:attendance.Izin,Alpa:attendance.Alpa},extracurricular,cocurricular,homeroomNote:homeroomNote?.text||'',finalStatus:status?clone(status):null,finalStatusLabel:statusLabel,complete:summary.status==='COMPLETE',missing:clone(summary.missing),categories:clone(summary.categories),percentage:summary.percentage};
 }
 
