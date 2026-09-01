@@ -12,10 +12,14 @@ test('menu guru menampilkan Penilaian Sikap',()=>{
   assert.equal(item.label,'Penilaian Sikap');
 });
 
-test('Input Nilai Intrakurikuler mengimpor master kegiatan yang dipakai renderer',()=>{
-  const source=read('src/pages/completeness.js');
-  assert.match(source,/import\s*\{[^}]*listAssignedIntracurricularActivities[^}]*\}\s*from\s*['"]\.\.\/services\/intracurricular\.js['"]/s);
-  assert.match(source,/const kegiatan=listAssignedIntracurricularActivities\(session\)/);
+test('Input Nilai Intrakurikuler memakai renderer stabil dan master kegiatan sesuai scope guru',()=>{
+  const app=read('src/app.js');
+  const page=read('src/pages/intracurricular-input.js');
+  assert.match(app,/import \{ renderIntracurricularInput \} from '\.\/pages\/intracurricular-input\.js';/);
+  assert.match(app,/case 'intracurricular-input': return renderIntracurricularInput\(session\);/);
+  assert.match(page,/listAssignedIntracurricularActivities/);
+  assert.match(page,/getStudentIntracurricular/);
+  assert.match(page,/saveStudentIntracurricular/);
 });
 
 test('setiap halaman selain Dashboard memiliki tombol Kembali global',()=>{
