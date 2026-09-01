@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { APP_VERSION } from '../src/data/version.js';
 
 const root=new URL('../',import.meta.url);
@@ -72,33 +72,15 @@ test('Service worker tidak dipakai pada desktop sehingga tidak ada bundle lama d
 
 /* ------------------------------------------------------------------------- Intro responsive */
 
-test('Intro tampil utuh dan proporsional pada portrait maupun landscape',()=>{
-  const css=read('src/styles/app.css');
-  const aturan=css.match(/\.intro-screen\{[^}]*\}/)[0];
-  assert.match(aturan,/height:100vh/,'tinggi mengikuti viewport, bukan sekadar inset');
-  assert.match(css,/@supports \(height:100dvh\)\{\.intro-screen\{width:100dvw;height:100dvh\}\}/,'memakai viewport dinamis bila tersedia');
-  assert.match(aturan,/align-items:center/);
-  assert.match(aturan,/justify-content:center/);
-  assert.match(aturan,/overflow:hidden/);
-  assert.match(aturan,/env\(safe-area-inset-top\)/,'area aman perangkat diperhitungkan');
-
-  const video=css.match(/\.intro-screen video\{[^}]*\}/)[0];
-  assert.match(video,/object-fit:contain/,'video tidak pernah terpotong');
-  assert.match(video,/max-width:100%/);
-  assert.match(video,/max-height:100%/);
-  assert.match(video,/object-position:center center/,'video center horizontal dan vertikal');
-  assert.equal(/object-fit:cover/.test(video),false,'cover dilarang karena memotong video');
-  assert.equal(/object-fit:fill/.test(video),false,'fill dilarang karena menggepengkan video');
+test('Opening lama sudah dibuang dan aplikasi langsung membuka Login',()=>{
+  const html=read('index.html'),css=read('src/styles/app.css');
+  /* Layar pembuka, videonya, dan skripnya tidak lagi ada pada alur aplikasi. */
+  for(const jejak of ['intro-screen','intro-logo.mp4','ui/intro.js','intro-active'])
+    assert.equal(html.includes(jejak),false,`index.html tidak lagi memuat ${jejak}`);
+  assert.equal(existsSync(new URL('../src/ui/intro.js',import.meta.url)),false,'berkas intro dihapus');
+  assert.doesNotMatch(css,/\.intro-screen|--intro-bg|intro-active/,'gaya intro dibuang');
+  assert.match(html,/src\/app\.js/,'aplikasi tetap dimuat dan langsung merender Login');
 });
-
-test('Intro tidak dimuat ulang atau memulai audio dari awal saat orientasi berubah',()=>{
-  const intro=read('src/ui/intro.js');
-  for(const pemicu of ['orientationchange','addEventListener(\'resize\'','location.reload','video.load()'])
-    assert.equal(new RegExp(pemicu.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).test(intro.replace(/video\.load\(\);\}catch/,'')),false,`intro tidak boleh bereaksi pada ${pemicu}`);
-  assert.match(intro,/video\.addEventListener\('ended',finish,\{once:true\}\)/,'intro selesai lalu masuk Login seperti biasa');
-});
-
-/* --------------------------------------------------------------------- Fitur final tidak berubah */
 
 test('Perubahan desktop tidak menyentuh format dokumen yang sudah final',()=>{
   const css=read('src/styles/app.css');

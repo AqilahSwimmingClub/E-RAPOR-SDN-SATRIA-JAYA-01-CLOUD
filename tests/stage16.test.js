@@ -210,24 +210,15 @@ test('Ekstrakurikuler dan kokurikuler memakai preset kelas serta dua predikat',(
 
 /* ------------------------------------------------------------------ Startup intro */
 
-test('Intro startup memakai audio asli dan berhenti setelah masuk Login',()=>{
-  const html=read('index.html'),intro=read('src/ui/intro.js');
-  assert.match(html,/assets\/intro-logo\.mp4/);
-  assert.equal(/<video[^>]*\smuted/.test(html),false,'video intro tidak lagi di-mute pada markup');
-  assert.match(html,/autoplay/);
-  assert.match(html,/playsinline/);
-  assert.match(intro,/video\.muted=false/,'audio asli diputar');
-  assert.match(intro,/video\.pause\(\)/,'audio dihentikan');
-  assert.match(intro,/removeAttribute\('src'\)/,'sumber dilepas agar tidak ada audio di latar');
-  assert.match(intro,/visibilitychange/,'audio berhenti saat aplikasi ditinggalkan');
-  assert.match(intro,/paintBackgroundFromFirstFrame/,'latar diambil dari frame pertama agar tidak ada kedip putih');
+test('Opening lama dihapus dan aplikasi langsung menampilkan Login',()=>{
+  const html=read('index.html'),css=read('src/styles/app.css');
+  for(const jejak of ['assets/intro-logo.mp4','data-intro-screen','ui/intro.js','intro-active'])
+    assert.equal(html.includes(jejak),false,`index.html tidak lagi memuat ${jejak}`);
+  assert.doesNotMatch(css,/--intro-bg|\.intro-screen|intro-active/,'gaya intro dibuang seluruhnya');
+  assert.match(html,/id="app"/,'wadah aplikasi tetap ada');
+  assert.match(html,/src\/app\.js/,'app.js langsung merender Login');
   const capacitor=JSON.parse(read('capacitor.config.json'));
-  assert.equal(capacitor.android.mediaPlaybackRequiresUserGesture,false,'Android boleh autoplay bersuara');
-  /* Latar WebView diputihkan karena warna hitamnya ikut tercetak sebagai pinggiran hitam pada
-     Simpan PDF Android. Layar intro tetap hitam lewat CSS-nya sendiri dan splash native. */
-  assert.equal(capacitor.backgroundColor,'#ffffff');
-  assert.match(read('src/styles/app.css'),/:root\{--intro-bg:#000\}/,'latar animasi intro tetap hitam');
-  assert.match(read('src/styles/app.css'),/\.intro-screen\{position:fixed;inset:0;z-index:10000;background:var\(--intro-bg\)/,'layar intro menutup penuh dengan latar hitam');
+  assert.equal(capacitor.backgroundColor,'#ffffff','latar WebView tetap putih agar cetak PDF tidak berpinggiran hitam');
   const styles=read('android/app/src/main/res/values/styles.xml');
   assert.match(styles,/windowSplashScreenAnimatedIcon">@drawable\/splash_icon_transparent/,'tidak ada logo statis sebelum animasi');
   assert.match(styles,/windowSplashScreenBackground">#000000/);

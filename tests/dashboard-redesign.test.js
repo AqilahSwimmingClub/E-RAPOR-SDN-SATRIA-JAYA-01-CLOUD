@@ -79,9 +79,9 @@ test('Redesign dashboard tidak mengubah menu Admin maupun Guru',()=>{
     assert.ok(teacher.includes(route),`menu Guru ${route} tetap ada`);
 });
 
-test('Halaman login dan animasinya tidak tersentuh',()=>{
-  const berubah=execFileSync('git',['diff','--name-only','HEAD','--','src/pages/login.js','src/ui/intro.js','src/pages/activation.js','src/services/auth.js'],{cwd:new URL('.',root).pathname,encoding:'utf8'}).trim();
-  assert.equal(berubah,'','login, aktivasi, dan animasi intro tidak boleh berubah');
+test('Autentikasi dan aktivasi tidak tersentuh oleh perubahan tampilan',()=>{
+  const berubah=execFileSync('git',['diff','--name-only','HEAD','--','src/pages/activation.js','src/services/auth.js','src/services/owner-activation.js'],{cwd:new URL('.',root).pathname,encoding:'utf8'}).trim();
+  assert.equal(berubah,'','aktivasi dan layanan autentikasi tidak boleh berubah');
 });
 
 test('Permukaan dokumen cetak tetap putih, tidak ikut tema gelap',()=>{

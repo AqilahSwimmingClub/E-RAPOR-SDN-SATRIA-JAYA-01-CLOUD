@@ -74,35 +74,34 @@ test('5. Tahun pelajaran lama pada database yang sudah ada tidak pernah dibuang'
 
 /* --------------------------------------------------------- 6-8. Identitas halaman Masuk */
 
-test('6. Panel kiri atas menampilkan e-Rapor Mandiri beserta sekolah dan semester',()=>{
+test('6. Panel Masuk menampilkan identitas e-Rapor, sekolah, dan kabupaten',()=>{
   const halaman=read('src/pages/login.js');
-  assert.match(halaman,/<div class="brand-title">e-Rapor Mandiri<\/div>/);
-  assert.match(halaman,/<div class="brand-sub" data-brand-sub>\$\{escapeHtml\(SCHOOL\)\} · \$\{escapeHtml\(semesters\[0\]\|\|'Semester belum tersedia'\)\}<\/div>/);
-  assert.equal(halaman.includes('e-Rapor mandiri SDN Satria Jaya 01 ·'),false,'teks lama sudah tidak dipakai');
+  assert.match(halaman,/<span class="login-brand-app">e-Rapor<\/span>/);
+  assert.match(halaman,/<strong>SDN SATRIA JAYA 01<\/strong>/);
+  assert.match(halaman,/<span class="login-brand-region">KABUPATEN BEKASI<\/span>/);
+  assert.match(halaman,/Cerdas Berkarakter Berprestasi/,'slogan sekolah tampil');
   assert.equal(SCHOOL,'SDN Satria Jaya 01');
 });
 
-test('7. Keterangan semester ikut berubah saat guru mengganti pilihan',()=>{
+test('7. Semester aktif tetap dapat dipilih guru pada panel Masuk',()=>{
   const halaman=read('src/pages/login.js');
-  /* Tanpa ini, tahun pelajaran di panel kiri akan tertinggal ketika guru memilih semester lain. */
-  assert.match(halaman,/const segarkanSemester=\(\)=>\{const sub=root\.querySelector\('\[data-brand-sub\]'\);/);
-  assert.match(halaman,/sub\.textContent=`\$\{SCHOOL\} · \$\{semesterSelect\.value\|\|'Semester belum tersedia'\}`/);
-  assert.match(halaman,/semesterSelect\.onchange=segarkanSemester;segarkanSemester\(\);/,'dipasang sekali saat halaman dibuka');
+  assert.match(halaman,/<label for="semester">Semester Aktif<\/label>/);
+  assert.match(halaman,/<select class="input" id="semester">/);
+  assert.match(halaman,/listLoginSemesters\(\)/,'daftar semester berasal dari Data Referensi');
+  assert.match(halaman,/semester:qs\('#semester',root\)\.value/,'semester terpilih ikut dikirim saat masuk');
 });
 
-test('8. Panel kiri bawah memuat nama, peran, moto, dan nomor versi otomatis',()=>{
+test('8. Footer memuat nama pengembang dan hak cipta, tanpa teks lama',()=>{
   const halaman=read('src/pages/login.js');
   assert.match(halaman,/<strong>FAHMI DJAWAS, S\.Pd\.<\/strong>/);
-  assert.match(halaman,/<p class="creator-role">System Architect &amp; Lead Developer<\/p>/);
-  assert.match(halaman,/<p class="creator-motto">Inovasi digital mandiri untuk transformasi tatakelola pendidikan\.<\/p>/);
-  /* Nomor versi diambil dari APP_VERSION, jadi ikut berubah sendiri setiap rilis. */
-  assert.match(halaman,/<span class="creator-version">v\$\{escapeHtml\(APP_VERSION\)\}<\/span>/);
+  assert.match(halaman,/Dirancang &amp; Dikembangkan oleh/);
+  assert.match(halaman,/© 2026 e-Rapor SDN Satria Jaya 01 — Semua Hak Dilindungi/);
+  assert.equal(halaman.includes('System Architect & Lead Developer'),false,'peran lama dibuang');
+  assert.equal(halaman.includes('Inovasi digital mandiri'),false,'moto lama dibuang');
+  /* Nomor versi tetap otomatis dari APP_VERSION. */
+  assert.match(halaman,/<span class="login-version">v\$\{escapeHtml\(APP_VERSION\)\}<\/span>/);
   assert.match(halaman,/import \{ APP_VERSION \} from '\.\.\/data\/version\.js';/);
-  assert.equal(halaman.includes(`v${APP_VERSION}"`),false,'nomor versi tidak pernah ditulis manual');
-  assert.match(read('src/styles/app.css'),/\.creator \.creator-version\{display:inline-block/,'nomor versi punya gayanya sendiri');
 });
-
-/* --------------------------------------- 9-12. Semester berjalan menjadi pilihan awal Masuk */
 
 test('9. Semester yang sedang berjalan menurut kalender berada di urutan pertama',()=>{
   /* Pilihan pertama adalah yang terpilih otomatis pada halaman Masuk. Bila yang terpilih tahun
