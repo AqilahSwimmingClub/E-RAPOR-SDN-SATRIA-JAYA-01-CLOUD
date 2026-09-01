@@ -789,7 +789,7 @@ git commit -m "feat: send and retry Dapodik report scores safely"
 **Interfaces:**
 - Produces a reproducible mock verification and a controlled live-school checklist.
 
-- [ ] **Step 1: Write the operator guide with exact safety sequence**
+- [x] **Step 1: Write the operator guide with exact safety sequence**
 
 ```markdown
 # Dapodik Windows
@@ -807,27 +807,27 @@ git commit -m "feat: send and retry Dapodik report scores safely"
 
 Also document that Android/PWA cannot perform Dapodik sync and that bearer tokens must not be pasted into screenshots, issues, chat, or logs.
 
-- [ ] **Step 2: Run the entire automated suite**
+- [x] **Step 2: Run the entire automated suite**
 
 Run: `npm test`  
 Expected: all tests PASS, including every `dapodik-*.test.js`.
 
-- [ ] **Step 3: Run syntax, web build, and Windows packaging checks**
+- [x] **Step 3: Run syntax, web build, and Windows packaging checks**
 
 Run: `npm run check && npm run build && npm run desktop:package`  
 Expected: all commands exit 0 and the packaged Windows launcher contains the Dapodik bridge files.
 
-- [ ] **Step 4: Run the mock end-to-end sequence**
+- [x] **Step 4: Run the mock end-to-end sequence**
 
 Run: `node --test tests/dapodik-adapter.test.js tests/dapodik-sync.test.js tests/dapodik-config.test.js tests/dapodik-client.test.js tests/dapodik-bridge.test.js tests/dapodik-browser-bridge.test.js tests/dapodik-ui.test.js tests/dapodik-push.test.js`  
 Expected: PASS for connection, pull, preview, apply, partial push, retry, redaction, and platform fallback.
 
-- [ ] **Step 5: Confirm no secrets or personal identifiers were committed**
+- [x] **Step 5: Confirm no secrets or personal identifiers were committed**
 
 Run: `rg -n "Bearer [A-Za-z0-9_-]+|20218098.*token|SECRET" src electron docs tests --glob '!tests/dapodik-*.test.js'`  
 Expected: no matches containing a real token; school NPSN may appear only as non-secret configuration documentation.
 
-- [ ] **Step 6: Commit documentation and verification corrections**
+- [x] **Step 6: Commit documentation and verification corrections**
 
 ```bash
 git add docs/operator/dapodik-windows.md README.md src electron tests package.json
@@ -837,3 +837,41 @@ git commit -m "docs: add safe Dapodik Windows operations"
 - [ ] **Step 7: Perform the controlled live-school acceptance after deployment**
 
 On the authorized school Windows computer, follow the nine guide steps with the school operator. Record only timestamp, operation, and success/failure counts; do not copy token, student names, NISN, raw responses, or screenshots containing credentials into the repository. Production synchronization is accepted only after school identity validation, one pull preview, one applied class check, and one controlled score batch succeed.
+
+---
+
+## Catatan Verifikasi Task 10 (Final Verification)
+
+- `npm test`: 567 tes, 567 lulus, 0 gagal, termasuk seluruh `tests/dapodik-*.test.js`.
+- `npm run check` dan `npm run build`: keluar 0.
+- `npm run desktop:package`: keluar 0. Paket berisi `electron/dapodik-bridge.cjs`,
+  `electron/dapodik-client.cjs`, dan `electron/dapodik-config.cjs` beserta `dist/`, diperiksa
+  langsung dari header `app.asar`. Runner CI berjalan di Linux sehingga target paketnya
+  linux-x64; pembuatan installer Windows tetap dilakukan pada runner Windows.
+- Urutan mock ujung ke ujung (`tests/dapodik-*.test.js`): 77 tes lulus, mencakup koneksi,
+  penarikan, pratinjau, penerapan, kegagalan sebagian pada pengiriman, coba ulang, penyuntingan
+  pesan, dan fallback platform.
+- Pemindaian rahasia: tidak ada token nyata pada `src`, `electron`, `docs`, `README.md`, maupun
+  `tests`. Kemunculan kata `SECRET` hanya berupa nilai contoh di dalam dokumen rencana ini dan
+  di test yang memang menguji penyuntingan. NPSN sekolah muncul sebagai konfigurasi non-rahasia.
+  Tidak ada berkas token atau konfigurasi Dapodik yang terlacak Git.
+
+### Temuan yang diperbaiki selama pelaksanaan
+
+- **Task 5:** menyetel `pathname` sebuah `URL` menjadi string kosong dikembalikan menjadi `/`,
+  sehingga penggabungan `"/" + endpoint` menghasilkan `//WebService/...` yang dibaca sebagai
+  HOST baru dan permintaan menuju host yang salah. Jalur dasar kini dihitung sebagai string
+  terpisah.
+- **Task 2:** record yang cocok lewat NISN tetapi belum menyimpan ID Dapodik semula dianggap
+  `unchanged`, sehingga ID Dapodik tidak pernah tercatat dan penarikan berikutnya terus
+  bergantung pada NISN. Kini ditandai `update`.
+- **Task 4:** `safeStorage` tiruan pada contoh rencana mengembalikan `"encrypted:" + nilai`
+  sehingga berkas token tetap memuat token apa adanya dan asersinya tidak mungkin lulus.
+  Tiruannya diganti dengan yang benar-benar menyamarkan nilai.
+
+### Status Step 7
+
+Penerimaan produksi di komputer sekolah **belum dilakukan** dan memang tidak dapat dilakukan di
+CI. Prosedurnya ada di `docs/operator/dapodik-windows.md`. Sinkronisasi produksi baru dianggap
+diterima setelah validasi identitas sekolah, satu pratinjau penarikan, satu pemeriksaan kelas
+hasil penerapan, dan satu batch nilai terkontrol semuanya berhasil.
