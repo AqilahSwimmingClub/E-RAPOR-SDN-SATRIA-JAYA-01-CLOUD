@@ -310,7 +310,7 @@ git commit -m "feat: apply Dapodik previews transactionally"
   - `ConfigStore.clear(): void`
 - Public config never contains `token`.
 
-- [ ] **Step 1: Write dependency-injected encryption tests**
+- [x] **Step 1: Write dependency-injected encryption tests**
 
 ```js
 test('config encrypts token and never returns it publicly',()=>{
@@ -333,12 +333,12 @@ test('config encrypts token and never returns it publicly',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the config test and confirm the missing-module failure**
+- [x] **Step 2: Run the config test and confirm the missing-module failure**
 
 Run: `node --test tests/dapodik-config.test.js`  
 Expected: FAIL because the module does not exist.
 
-- [ ] **Step 3: Implement fail-closed encrypted persistence**
+- [x] **Step 3: Implement fail-closed encrypted persistence**
 
 ```js
 function save(input){
@@ -356,12 +356,12 @@ function save(input){
 
 Write configuration files under Electron `userData`, never `dist` or the repository. Redact filesystem and crypto exception messages before returning them to the browser.
 
-- [ ] **Step 4: Run config and repository-secret tests**
+- [x] **Step 4: Run config and repository-secret tests**
 
 Run: `node --test tests/dapodik-config.test.js tests/kunci-tidak-ikut-git.test.js`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit the encrypted store**
+- [x] **Step 5: Commit the encrypted store**
 
 ```bash
 git add electron/dapodik-config.cjs tests/dapodik-config.test.js package.json
