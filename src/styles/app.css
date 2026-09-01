@@ -329,7 +329,7 @@ html,body{color-scheme:light}
    pernah bergerak saat guru mengetik. Seluruh gerak hanya memakai transform dan opacity
    supaya ringan di WebView Android. */
 
-.login-stage{position:relative;min-height:100vh;min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;justify-items:center;align-items:center;gap:14px;padding:0 16px calc(18px + env(safe-area-inset-bottom));overflow-y:auto;overflow-x:hidden;background:linear-gradient(165deg,rgba(11,26,47,.72),rgba(15,39,69,.82)),url('../../assets/login-background.jpg') center/cover no-repeat,linear-gradient(165deg,var(--navy) 0%,var(--navy-2) 100%);background-attachment:scroll;color:var(--dark-ink)}
+.login-stage{position:relative;min-height:100vh;min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;justify-items:center;align-items:center;gap:14px;padding:0 16px calc(18px + env(safe-area-inset-bottom));overflow-y:auto;overflow-x:hidden;background:linear-gradient(165deg,rgba(11,26,47,.72),rgba(15,39,69,.82)),url('../../assets/login-background.jpg') var(--login-bg-pos,center 45%)/cover no-repeat,linear-gradient(165deg,var(--navy) 0%,var(--navy-2) 100%);background-attachment:scroll;color:var(--dark-ink)}
 .login-scrim{position:absolute;inset:0;pointer-events:none;background:radial-gradient(900px 520px at 50% 42%,rgba(3,10,20,.35) 0%,rgba(3,10,20,.72) 100%)}
 .login-aurora{position:absolute;inset:0;pointer-events:none;background:radial-gradient(520px 320px at 12% 88%,rgba(56,225,255,.16) 0%,transparent 60%),radial-gradient(420px 280px at 88% 78%,rgba(46,230,192,.13) 0%,transparent 60%)}
 
@@ -518,3 +518,16 @@ textarea.input{color:var(--light-ink)}
 @media(prefers-reduced-motion:reduce){
   .login-welcome,.login-stage.login-open .login-shell{animation:none}
 }
+
+
+/* ============ Titik fokus latar Login per ukuran layar ============
+   Foto latar berformat lebar. Dengan background-size:cover, layar yang lebih sempit memotong
+   sisi kiri dan kanan, sehingga titik fokusnya digeser agar bagian utama foto tetap terlihat.
+   Berkas gambarnya sendiri tidak pernah diubah atau dipotong. */
+:root{--login-bg-pos:center 45%}
+/* Tablet: sedikit dinaikkan supaya garis cakrawala dan bangunan tetap masuk. */
+@media(max-width:1024px){:root{--login-bg-pos:center 42%}}
+/* Ponsel potret: pemotongan sisi paling besar, fokus dijaga tepat di tengah. */
+@media(max-width:767px){:root{--login-bg-pos:center 48%}}
+/* Layar pendek dan lanskap ponsel: tinggi sempit, fokus dinaikkan agar langit tidak mendominasi. */
+@media(max-height:560px){:root{--login-bg-pos:center 38%}}

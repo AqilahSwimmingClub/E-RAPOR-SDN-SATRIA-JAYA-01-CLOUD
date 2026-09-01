@@ -136,3 +136,19 @@ test('Mencetak melepas tinggi tetap sehingga dokumen tidak terpotong satu layar'
   assert.match(t,/\.document-a4\{[^}]*background:#fff/);
   assert.match(t,/\.report-a4\{padding:14mm 13mm\}/);
 });
+
+test('Latar Login memakai cover dengan posisi yang menyesuaikan lebar layar',()=>{
+  const t=css();
+  const stage=rule('.login-stage');
+  /* Gambar tidak pernah dipotong permanen: cover plus titik fokus yang dapat digeser. */
+  assert.match(stage,/url\(/,'memakai berkas gambar');
+  assert.match(stage,/cover/,'memakai background-size cover');
+  assert.match(stage,/var\(--login-bg-pos/,'titik fokus dikendalikan satu variabel');
+  assert.match(t,/--login-bg-pos\s*:/,'variabel titik fokus tersedia');
+  /* Tiga kelas layar punya titik fokus sendiri agar bagian penting tetap terlihat. */
+  assert.match(t,/@media\(max-width:1024px\)[^@]*--login-bg-pos/,'penyesuaian tablet');
+  assert.match(t,/@media\(max-width:767px\)[^@]*--login-bg-pos/,'penyesuaian ponsel');
+  assert.match(t,/@media\(max-height:560px\)[^@]*--login-bg-pos/,'penyesuaian layar pendek dan lanskap');
+  /* Gradasi tetap menjadi cadangan bila berkas gambar belum tersedia. */
+  assert.match(stage,/linear-gradient\(165deg,var\(--navy\)/,'ada cadangan gradasi');
+});
