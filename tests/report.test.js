@@ -15,7 +15,7 @@ function useMemoryStorage(){
 }
 const base={role:'teacher',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
 const teacher5b={...base,classId:'5B'};const teacher5c={...base,classId:'5C'};const teacher5bGenap={...teacher5b,semester:`Genap ${ACADEMIC_YEAR}`};
-function addStudent(session,index=1,id){return createStudent(session,{id,classId:session.classId,nis:`${session.classId}-R-${index}`,nisn:`88${session.classId.replace(/\D/g,'')}${String(index).padStart(7,'0')}`,name:`Siswa Rapor ${session.classId}-${index}`,gender:index%2?'L':'P',religion:'Islam',photo:''});}
+function addStudent(session,index=1,id){return createStudent(session,{id,classId:session.classId,nis:`${session.classId}-R-${index}`,nisn:`88${[...session.classId].map(character=>character.charCodeAt(0)).join('')}${String(index).padStart(7,'0')}`,name:`Siswa Rapor ${session.classId}-${index}`,gender:index%2?'L':'P',religion:'Islam',photo:''});}
 function scores(session,subjectId,student,values){for(const [type,value] of Object.entries(values))saveAssessmentScores(session,subjectId,type,{[student.id]:value});}
 const completeValues={formative:80,daily:70,practice:90,scopeSummative:60,semesterSummative:100};
 function addTwoObjectives(session,subjectId){const best=createLearningObjective(session,subjectId,{code:'TP-B',description:'memahami konsep utama dengan sangat baik.'});const improve=createLearningObjective(session,subjectId,{code:'TP-I',description:'menerapkan konsep pada situasi baru.'});return {best,improve};}

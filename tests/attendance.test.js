@@ -17,7 +17,7 @@ const base={role:'teacher',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMI
 const teacher5b={...base,classId:'5B'};
 const teacher5c={...base,classId:'5C'};
 function addStudent(session,index){
-  return createStudent(session,{classId:session.classId,nis:`${session.classId}${index}`,nisn:`00${session.classId.replace(/\D/g,'')}${String(index).padStart(7,'0')}`,name:`Siswa ${session.classId}-${index}`,gender:index%2?'L':'P',photo:''});
+  return createStudent(session,{classId:session.classId,nis:`${session.classId}${index}`,nisn:`00${[...session.classId].map(character=>character.charCodeAt(0)).join('')}${String(index).padStart(7,'0')}`,name:`Siswa ${session.classId}-${index}`,gender:index%2?'L':'P',photo:''});
 }
 
 test('One attendance status per student per date is saved and editable',()=>{

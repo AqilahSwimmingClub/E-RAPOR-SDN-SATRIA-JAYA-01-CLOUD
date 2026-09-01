@@ -47,7 +47,11 @@ function bacaProperties(isi){
 }
 /* Format Java Properties memperlakukan "\" sebagai escape, jadi digandakan saat ditulis. */
 const escape=nilai=>String(nilai).replace(/\\/g,'\\\\');
-const jalankanKeytool=args=>execFileSync(keytool,args,{stdio:['ignore','ignore','pipe'],encoding:'utf8'});
+/* Hook --keytool juga menerima wrapper JavaScript agar simulasi kegagalan dapat berjalan sama
+   di Windows dan Unix. Pemakaian produksi tetap langsung memanggil binary keytool. */
+const jalankanKeytool=args=>keytool.endsWith('.mjs')
+  ?execFileSync(process.execPath,[keytool,...args],{stdio:['ignore','ignore','pipe'],encoding:'utf8'})
+  :execFileSync(keytool,args,{stdio:['ignore','ignore','pipe'],encoding:'utf8'});
 
 if(!passwordBaru)berhenti('Password baru belum disebutkan.',['Contoh: npm run signing:ganti-password 230191']);
 if(passwordBaru.length<6)berhenti(`Password "${passwordBaru}" hanya ${passwordBaru.length} karakter.`,['keytool mewajibkan minimal 6 karakter.']);

@@ -28,10 +28,10 @@ test('Rute "#/students" dari indikator kelengkapan tidak lagi jatuh ke Dashboard
   const session=guru('5B');
   /* Tombol "! Agama" mengarahkan guru ke Data Siswa. Bentuk lama "#/students" tidak dikenali
      router sehingga guru selalu mendarat di Dashboard dan agama tidak pernah terisi. */
-  assert.equal(resolveRoute('#/students',session),'students');
-  assert.equal(resolveRoute('/students',session),'students');
-  assert.equal(resolveRoute('#students',session),'students');
-  assert.equal(resolveRoute('students',session),'students');
+  assert.equal(resolveRoute('#/students',session),'student-update');
+  assert.equal(resolveRoute('/students',session),'student-update');
+  assert.equal(resolveRoute('#students',session),'student-update');
+  assert.equal(resolveRoute('students',session),'student-update');
   assert.equal(resolveRoute('#/tidak-ada',session),'dashboard','rute asing tetap jatuh ke Dashboard');
 });
 

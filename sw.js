@@ -5,14 +5,14 @@
    diperbarui WebView masih menjalankan JavaScript lama dari cache dan revisi baru tidak
    pernah muncul. Kini kode aplikasi diambil network-first supaya berkas dari APK terbaru
    selalu menang, sedangkan aset berat tetap cache-first agar offline tetap ringan. */
-const APP_CACHE_VERSION='1.1.7-11';
+const APP_CACHE_VERSION='1.2.0-12';
 const CACHE=`erapor-satria-${APP_CACHE_VERSION}`;
 const OFFLINE_SHELL='./index.html';
 const APP_SHELL=[
   './','./index.html','./manifest.webmanifest',
   './assets/app-icon.svg','./assets/app-icon-192.svg','./assets/app-icon-512.svg','./assets/fahmi-djawas.jpg','./assets/intro-logo.mp4','./assets/vendor/xlsx.mjs',
   './assets/logo-tut-wuri-handayani.png','./assets/logo-kabupaten-bekasi.png',
-  './src/styles/app.css','./src/app.js','./src/core/router.js','./src/data/constants.js','./src/data/version.js','./src/data/seed-5b.js','./src/data/cocurricular.js',
+  './src/styles/app.css','./src/app.js','./src/core/router.js','./src/data/constants.js','./src/data/navigation.js','./src/data/version.js','./src/data/seed-5b.js','./src/data/cocurricular.js',
   './src/ui/dom.js','./src/ui/icons.js','./src/ui/layout.js','./src/ui/intro.js','./src/ui/digital-gauge.js',
   './src/pages/assessment.js','./src/pages/attendance.js','./src/pages/class-overview.js','./src/pages/completeness.js',
   './src/pages/activation.js','./src/pages/admin-status.js','./src/pages/attitudes.js','./src/pages/cocurricular.js',

@@ -9,10 +9,10 @@ const BACKUP_VERSION='1.0';
 const SCOPED_COLLECTIONS=[
   'settings','subjectMappings','assessmentSettings','students','attendance',
   'learningObjectives','assessmentScores','reportScores','reportDescriptions',
-  'extracurricularScores','cocurricularActivities','cocurricularScores','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'
+  'extracurricularScores','cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'
 ];
-const LATER_COLLECTIONS=['cocurricularActivities','cocurricularScores','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
-const GLOBAL_COLLECTIONS=['masterData','userAccounts','security'];
+const LATER_COLLECTIONS=['cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
+const GLOBAL_COLLECTIONS=['masterData','userAccounts','security','dapodikSyncState','dapodikSyncLogs','dapodikMappings'];
 const DATA_KEYS=new Set(['schemaVersion','appSchemaVersion','appVersion','createdAt','updatedAt',...GLOBAL_COLLECTIONS,...SCOPED_COLLECTIONS,'backupHistory','migrationHistory']);
 const DANGEROUS_KEYS=new Set(['__proto__','prototype','constructor']);
 
