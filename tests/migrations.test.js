@@ -34,12 +34,12 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.2.0 uses versionCode 12 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.2.0');
-  assert.equal(VERSION_CODE,12);
+test('release v1.2.1 uses versionCode 13 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.2.1');
+  assert.equal(VERSION_CODE,13);
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.2.0-ADMIN-GURU-DAPODIK');
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.1.7',versionCode:11});
+  assert.equal(BUILD_TAG,'1.2.1-HOTFIX-ABSENSI-PENILAIAN');
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.0',versionCode:12});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
