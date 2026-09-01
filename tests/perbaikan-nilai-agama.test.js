@@ -260,7 +260,8 @@ test('Format Rapor, Cover, Perlengkapan, dan Leger tidak berubah',()=>{
   assert.match(css,/\.document-table th\{text-align:center;background:#f3f0ed\}/,'arsiran header tabel dokumen tetap');
   const cetak=read('src/pages/print.js');
   assert.match(cetak,/COVER_LOGO_DEFAULTS=Object\.freeze\(\{/,'logo Cover tetap');
-  assert.match(cetak,/setPrintPageSize\('landscape'\)/,'Leger A4 landscape tetap');
+  assert.match(cetak,/if\(tab==='leger'\)setPrintPageSize\('landscape',marginRule\('leger'\)\)/,'Leger A4 landscape tetap');
+  assert.match(cetak,/return mode==='report'\?'10mm 0':'8mm';/,'margin leger bawaan tetap 8mm');
   assert.match(css,/@media print\{\.report-a4\+\.report-a4,\.report-cover-a4\+\.report-cover-a4\{break-before:page\}\}/,'pemisah halaman rapor dan cover tetap');
   assert.match(css,/\.leger-table th,\.leger-table td\{text-align:center;min-width:78px\}/,'format Leger tetap');
   assert.match(css,/\.equipment-title strong\{font-size:14px\}/,'format Perlengkapan tetap');

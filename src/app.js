@@ -98,9 +98,9 @@ function pageFor(route,session){
     case 'transcript-input': return session.role==='admin'?renderTranscriptAdmin(session,'input'):renderTranscript(session,'input');
     case 'transcript-import': return renderTranscript(session,'import');
     case 'transcript-print': return renderTranscript(session,'preview');
-    case 'print-ledger':
-    case 'print-supplement':
-    case 'print-report': return renderPrint(session);
+    case 'print-ledger': return renderPrint(session,'ledger');
+    case 'print-supplement': return renderPrint(session,'supplement');
+    case 'print-report': return renderPrint(session,'report');
     case 'users': return renderUsers(session,'users');
     case 'reference-school': return renderReferences(session,'school');
     case 'reference-teachers': return renderUsers(session,'teachers');

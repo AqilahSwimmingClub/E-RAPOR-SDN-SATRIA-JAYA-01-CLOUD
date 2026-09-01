@@ -34,7 +34,10 @@ test('2. Margin samping lembar rapor saat cetak tetap dibawa lembar itu sendiri'
   /* Kerangka cetak Android mengabaikan margin @page, sehingga margin samping harus melekat pada
      lembar. !important memastikan margin ini menang atas aturan pratinjau layar sempit. */
   assert.match(css,/\.report-a4\{padding:0 13mm!important\}/,'margin cetak 13mm dibawa lembar');
-  assert.match(read('src/pages/print.js'),/else if\(tab==='report'\)setPrintPageSize\('portrait','10mm 0'\)/,'@page memberi margin atas-bawah saja');
+  const halamanCetak=read('src/pages/print.js');
+  assert.match(halamanCetak,/else if\(tab==='report'\)setPrintPageSize\('portrait',marginRule\('report'\)\)/,'@page rapor mengikuti margin atas-bawah');
+  assert.match(halamanCetak,/if\(!hasSavedPrintSettings\(scope\)\)return mode==='report'\?'10mm 0':'8mm';/,'margin bawaan yang sudah terverifikasi dipertahankan');
+  assert.match(halamanCetak,/\?`\$\{cetak\.marginTopMm\}mm 0 \$\{cetak\.marginBottomMm\}mm 0`/,'@page memberi margin atas-bawah saja');
   assert.match(css,/\.report-a4\{padding:14mm 13mm\}/,'pratinjau layar lebar tetap 14mm/13mm');
 });
 

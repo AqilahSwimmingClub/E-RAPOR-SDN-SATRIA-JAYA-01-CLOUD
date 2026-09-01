@@ -25,6 +25,9 @@ function layoutOf(input,base=LAYOUT_DEFAULTS){
     firstPage:boundedPage(input?.firstPage,base.firstPage)
   };
 }
+/* Dipakai halaman cetak untuk membedakan setelan yang benar-benar disimpan guru dari nilai
+   bawaan, sehingga tata letak cetak yang sudah terverifikasi tidak berubah dengan sendirinya. */
+export function hasSavedPrintSettings(session){return Boolean(loadDb().printSettings?.[key(session)]);}
 export function printLayoutOptions(){return {paperSizes:[...PAPER_SIZES],signatureModes:[...SIGNATURE_MODES],principalPositions:[...PRINCIPAL_POSITIONS]};}
 export function formatIndonesianPrintDate(dateValue,city='Bekasi'){const raw=String(dateValue||'').trim();if(!raw)return '';const date=new Date(`${raw}T00:00:00`);if(Number.isNaN(date.getTime()))throw new Error('Tanggal cetak tidak valid.');return `${clean(city,80)||'Bekasi'}, ${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;}
 export function getPrintSettings(session){const school=getSchoolMaster();const teacher=session?.classId?getTeacherProfile(session.classId):null;const saved=loadDb().printSettings?.[key(session)];if(saved)return clone({...LAYOUT_DEFAULTS,...saved});return clone({...LAYOUT_DEFAULTS,classId:session?.classId||null,semester:session?.semester,academicYear:session?.academicYear,principalName:school.principalName||'',principalNip:school.principalNip||'',teacherName:teacher?.name||'',teacherNip:teacher?.nip||'',city:school.reportCity||'Bekasi',printDate:school.reportDate||'',printDateLabel:school.reportDate?formatIndonesianPrintDate(school.reportDate,school.reportCity||'Bekasi'):''});}

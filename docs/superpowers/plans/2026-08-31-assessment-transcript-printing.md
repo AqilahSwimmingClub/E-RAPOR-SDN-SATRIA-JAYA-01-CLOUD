@@ -627,7 +627,7 @@ git commit -m "feat: track published report documents"
 - Produces route modes `print-ledger`, `print-supplement`, and `print-report`.
 - Consumes publication service, expanded print settings, existing `getLeger()`, `getReportDocument()`, `printCurrentDocument()`, and workbook/PDF helpers.
 
-- [ ] **Step 1: Add route and publication-control tests**
+- [x] **Step 1: Add route and publication-control tests**
 
 ```js
 test('print routes open one document mode without duplicate internal navigation',async()=>{
@@ -646,12 +646,12 @@ test('report screen exposes per-student and whole-class actions',async()=>{
 });
 ```
 
-- [ ] **Step 2: Run print tests and confirm missing route modes/actions**
+- [x] **Step 2: Run print tests and confirm missing route modes/actions**
 
 Run: `node --test tests/print-routes.test.js tests/format-rapor-final.test.js tests/cetak-lintas-perangkat.test.js`  
 Expected: FAIL for the new canonical route and publication copy.
 
-- [ ] **Step 3: Parameterize the print page and add controls**
+- [x] **Step 3: Parameterize the print page and add controls**
 
 ```js
 export function renderPrint(session,initialTab='ledger'){
@@ -671,12 +671,12 @@ function publicationButton(student,documentType){
 
 Render the full print settings grid before class selection. Apply margins through `setPrintPageSize()`. Add `Generate ... Kelas Ini` and `Cetak Langsung ...` actions that call the existing bulk sheet builder after completeness validation. Keep per-student `Buat`/PDF actions and expose publication status for supplement and report rows.
 
-- [ ] **Step 4: Run all report, transcript, and print tests**
+- [x] **Step 4: Run all report, transcript, and print tests**
 
 Run: `node --test tests/print-routes.test.js tests/format-rapor-final.test.js tests/cetak-lintas-perangkat.test.js tests/documents.test.js tests/transcript.test.js`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit canonical printing**
+- [x] **Step 5: Commit canonical printing**
 
 ```bash
 git add src/pages/print.js src/app.js src/styles/app.css tests/print-routes.test.js tests/format-rapor-final.test.js tests/cetak-lintas-perangkat.test.js

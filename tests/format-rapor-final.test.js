@@ -59,7 +59,12 @@ test('4. Rapor tetap A4 portrait dengan margin isi 13mm kiri dan kanan',()=>{
   assert.match(t,/\.document-a4\{width:min\(100%,794px\);min-height:1123px/,'ukuran A4 layar');
   assert.match(t,/\.report-a4\{padding:14mm 13mm\}/,'margin isi pada preview layar');
   assert.match(t,/\.report-a4\{padding:0 13mm!important\}/,'margin samping dibawa lembar saat cetak');
-  assert.match(read('src/pages/print.js'),/else if\(tab==='report'\)setPrintPageSize\('portrait','10mm 0'\)/);
+  const cetak=read('src/pages/print.js');
+  assert.match(cetak,/else if\(tab==='report'\)setPrintPageSize\('portrait',marginRule\('report'\)\)/);
+  /* Margin samping tetap 0 pada @page: lembar rapor sendiri yang membawa 13mm kiri-kanan,
+     baik memakai margin bawaan maupun margin yang disimpan guru. */
+  assert.match(cetak,/if\(!hasSavedPrintSettings\(scope\)\)return mode==='report'\?'10mm 0':'8mm';/);
+  assert.match(cetak,/\?`\$\{cetak\.marginTopMm\}mm 0 \$\{cetak\.marginBottomMm\}mm 0`/);
 });
 
 test('5. Cover tetap A4 portrait satu halaman dan desainnya tidak diubah',()=>{

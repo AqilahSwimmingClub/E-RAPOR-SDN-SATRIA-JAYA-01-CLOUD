@@ -107,5 +107,6 @@ test('Perubahan desktop tidak menyentuh format dokumen yang sudah final',()=>{
   assert.match(css,/\.brand-photo\{width:78px;height:78px/,'branding pembuat tetap');
   const cetak=read('src/pages/print.js');
   assert.match(cetak,/COVER_LOGO_DEFAULTS=Object\.freeze\(\{/,'Cover tetap memakai logo resmi');
-  assert.match(cetak,/setPrintPageSize\('landscape'\)/,'Leger A4 landscape tetap');
+  assert.match(cetak,/if\(tab==='leger'\)setPrintPageSize\('landscape',marginRule\('leger'\)\)/,'Leger A4 landscape tetap');
+  assert.match(cetak,/return mode==='report'\?'10mm 0':'8mm';/,'margin leger bawaan tetap 8mm');
 });

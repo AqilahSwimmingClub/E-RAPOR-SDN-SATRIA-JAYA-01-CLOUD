@@ -137,7 +137,8 @@ test('Dokumen rapor membawa sikap, ekstrakurikuler, ketidakhadiran, dan catatan 
 
 test('Halaman Cetak Nilai memuat tab Perlengkapan dan seluruh blok format referensi',()=>{
   const page=read('src/pages/print.js');
-  assert.match(page,/data-tab="equipment"/);
+  assert.match(page,/data-supplement="\$\{id\}"/,'sub-dokumen pelengkap dipilih di dalam halaman');
+  assert.match(page,/\['equipment','Perlengkapan'\]/,'Perlengkapan tetap tersedia');
   assert.match(page,/SEKOLAH DASAR/);
   assert.match(page,/KEMENTERIAN PENDIDIKAN DASAR DAN MENENGAH/);
   assert.match(page,/IDENTITAS PESERTA DIDIK/);
@@ -282,6 +283,7 @@ test('Leger memakai A4 landscape melalui override ukuran halaman cetak',async()=
   assert.equal(styles.size,0,'override dilepas di luar tab Leger');
   delete globalThis.document;
   const page=read('src/pages/print.js');
-  assert.match(page,/if\(tab==='leger'\)setPrintPageSize\('landscape'\)/,'Leger tetap landscape 8mm');
+  assert.match(page,/if\(tab==='leger'\)setPrintPageSize\('landscape',marginRule\('leger'\)\)/,'Leger tetap landscape');
+  assert.match(page,/return mode==='report'\?'10mm 0':'8mm';/,'Leger tetap memakai margin bawaan 8mm');
   assert.match(page,/else setPrintPageSize\(null\)/,'dokumen lain tetap memakai @page bawaan app.css');
 });
