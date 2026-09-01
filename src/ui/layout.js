@@ -43,6 +43,7 @@ export function renderLayout({session,route,onNavigate,onLogout,content}){
   const bacaProfil=()=>session.role==='admin'?getAdminProfile():getTeacherProfile(session.classId);
   const profile=bacaProfil();
   const activeTitle=menu.find(item=>item.route===route)?.label||humanize(route);
+  const backButton=route!=='dashboard'?'<button class="btn btn-light btn-small global-back" type="button" data-back aria-label="Kembali">← <span>Kembali</span></button>':'';
   const shell=el(`<div class="app-shell">
     <div class="drawer-backdrop hidden" data-backdrop></div>
     <aside class="sidebar" data-sidebar>
@@ -53,7 +54,7 @@ export function renderLayout({session,route,onNavigate,onLogout,content}){
     </aside>
     <main class="main">
       <header class="topbar">
-        <div class="topbar-left"><button class="mobile-menu" data-menu aria-label="Buka menu">${icon('menu',21)}</button><div><div class="page-title">${activeTitle}</div><div class="page-sub">${school.name}</div></div></div>
+        <div class="topbar-left"><button class="mobile-menu" data-menu aria-label="Buka menu">${icon('menu',21)}</button>${backButton}<div><div class="page-title">${activeTitle}</div><div class="page-sub">${school.name}</div></div></div>
         <div class="topbar-right"><div class="semester-chip">${session.semester}</div><div class="profile-mini" data-profile-mini>${profileAvatar(profile)}<div class="profile-text"><strong>${profile.name}</strong><span>${session.role==='teacher'?`Kelas ${session.classId}`:session.academicYear}</span></div></div></div>
       </header>
       <div class="content" data-content></div>
@@ -107,6 +108,8 @@ export function renderLayout({session,route,onNavigate,onLogout,content}){
   });
   shell.querySelector('[data-menu]').onclick=openDrawer;backdrop.onclick=closeDrawer;
   shell.querySelector('[data-logout]').onclick=()=>{clearSession();onLogout()};
+  const back=shell.querySelector('[data-back]');
+  if(back)back.onclick=()=>{if(window.history.length>1)window.history.back();else onNavigate('dashboard');};
 
   /* Mengganti foto pada menu Profile langsung memperbarui foto kanan atas tanpa perlu
      berpindah halaman. Foto branding pembuat di sidebar sengaja tidak ikut diperbarui. */
