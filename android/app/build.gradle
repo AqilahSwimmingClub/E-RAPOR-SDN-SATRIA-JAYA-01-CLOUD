@@ -16,7 +16,7 @@ android {
         applicationId "id.sch.sdn.satriajaya01.erapor"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode = (project.findProperty('ERAPOR_VERSION_CODE') ?: '12').toInteger()
+        versionCode = (project.findProperty('ERAPOR_VERSION_CODE') ?: '13').toInteger()
         versionName = project.findProperty('ERAPOR_VERSION_NAME') ?: '1.2.0'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
