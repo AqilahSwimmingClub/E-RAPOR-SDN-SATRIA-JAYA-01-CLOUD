@@ -64,6 +64,9 @@ export const NAVIGATION=Object.freeze({
       item('profile','Profil','user','profile'),
       item('objectives','Tujuan Pembelajaran','target','objectives')
     ]),
+    group('teacher-reference','Data Referensi','database',[
+      item('reference-mapping','Mapping Mata Pelajaran','shuffle','reference-mapping')
+    ]),
     group('legacy-assessment','PENILAIAN','edit',[
       item('attendance','Absensi','calendar','attendance'),
       item('assessment','Penilaian','edit','assessment'),
