@@ -100,16 +100,16 @@ function pageFor(route,session){
     case 'print-ledger':
     case 'print-supplement':
     case 'print-report': return renderPrint(session);
-    case 'users': return renderUsers(session);
+    case 'users': return renderUsers(session,'users');
+    case 'reference-school': return renderReferences(session,'school');
+    case 'reference-teachers': return renderUsers(session,'teachers');
     case 'reference-students': return renderStudents(session);
+    case 'reference-classes': return renderReferences(session,'classes');
+    case 'reference-subjects': return renderReferences(session,'subjects');
+    case 'reference-learning': return renderReferences(session,'learning');
     case 'reference-mapping': return renderSubjectMapping(session);
-    case 'reference-school':
-    case 'reference-teachers':
-    case 'reference-classes':
-    case 'reference-subjects':
-    case 'reference-learning':
-    case 'reference-branding':
-    case 'reference-report-date': return renderReferences(session);
+    case 'reference-branding': return renderReferences(session,'branding');
+    case 'reference-report-date': return renderReferences(session,'report-date');
     case 'cocurricular': return renderCocurricular(session);
     case 'assessment-status': return renderAdminStatus(session,'status');
     case 'assessment-statistics': return renderAdminStatus(session,'statistics');

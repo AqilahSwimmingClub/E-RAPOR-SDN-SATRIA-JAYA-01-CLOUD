@@ -22,6 +22,8 @@ export function saveSchoolMaster(session,input){
       npsn:clean(input?.npsn,20),registrationNumber:clean(input?.registrationNumber,40),
       address:clean(input?.address,200),village:clean(input?.village,120),district:clean(input?.district,120),
       city:clean(input?.city,120),province:clean(input?.province,120),website:clean(input?.website,180),email,
+      reportDate:clean(input?.reportDate??db.masterData.school.reportDate,10),
+      reportCity:clean(input?.reportCity??db.masterData.school.reportCity,80),
       ministryLogo:normalizeLogo(input?.ministryLogo??db.masterData.school.ministryLogo,'Logo Tut Wuri Handayani'),
       regionLogo:normalizeLogo(input?.regionLogo??db.masterData.school.regionLogo,'Lambang daerah'),
       updatedAt:new Date().toISOString()};

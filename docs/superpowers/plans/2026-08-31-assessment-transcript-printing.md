@@ -394,7 +394,7 @@ git commit -m "feat: route assessment views through one canonical menu"
 - Produces `renderReferences(session, section)` with sections `school`, `teachers`, `students`, `classes`, `subjects`, `learning`, `mapping`, `branding`, and `report-date`.
 - Consumes existing `renderUsers()`, `renderStudents()`, subject mapping, master data, and print settings.
 
-- [ ] **Step 1: Add role and route tests for Admin reference ownership**
+- [x] **Step 1: Add role and route tests for Admin reference ownership**
 
 ```js
 test('Admin reference child routes are explicit and Teacher mapping stays blocked',()=>{
@@ -407,12 +407,12 @@ test('Admin reference child routes are explicit and Teacher mapping stays blocke
 });
 ```
 
-- [ ] **Step 2: Run reference and router tests and confirm missing routes**
+- [x] **Step 2: Run reference and router tests and confirm missing routes**
 
 Run: `node --test tests/reference-routes.test.js tests/router.test.js`  
 Expected: FAIL because the new Admin reference routes are absent.
 
-- [ ] **Step 3: Wire existing modules through route-selected reference sections**
+- [x] **Step 3: Wire existing modules through route-selected reference sections**
 
 ```js
 case 'reference-school': return renderReferences(session,'school');
@@ -428,12 +428,12 @@ case 'reference-report-date': return renderReferences(session,'report-date');
 
 Split the existing school form into reusable blocks so `branding` renders only logos/signatures and `report-date` renders date/city defaults. The `learning` section displays class–teacher–subject assignments using existing master and mapping data; edits write through existing services rather than a second store.
 
-- [ ] **Step 4: Run reference, mapping, master, and router tests**
+- [x] **Step 4: Run reference, mapping, master, and router tests**
 
 Run: `node --test tests/reference-routes.test.js tests/router.test.js tests/mapping.test.js tests/stage10.test.js`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit Admin reference routing**
+- [x] **Step 5: Commit Admin reference routing**
 
 ```bash
 git add src/pages/references.js src/pages/users.js src/app.js tests/reference-routes.test.js
