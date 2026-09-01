@@ -393,7 +393,7 @@ git commit -m "feat: encrypt Dapodik credentials on Windows"
   - subject/evaluation registration: `POST /WebService/postMatevRapor`
   - report scores: `POST /WebService/postNilai` with `table=rapor`
 
-- [ ] **Step 1: Write private-host, timeout, auth, and redaction tests**
+- [x] **Step 1: Write private-host, timeout, auth, and redaction tests**
 
 ```js
 test('private address policy accepts loopback and RFC1918 only',()=>{
@@ -423,12 +423,12 @@ test('client sends bearer token but redacts it from errors',async()=>{
 });
 ```
 
-- [ ] **Step 2: Run the client test and confirm the missing-module failure**
+- [x] **Step 2: Run the client test and confirm the missing-module failure**
 
 Run: `node --test tests/dapodik-client.test.js`  
 Expected: FAIL because the client does not exist.
 
-- [ ] **Step 3: Implement DNS-aware URL validation and request wrapper**
+- [x] **Step 3: Implement DNS-aware URL validation and request wrapper**
 
 ```js
 async function validateDapodikUrl(value,lookup){
@@ -446,12 +446,12 @@ async function validateDapodikUrl(value,lookup){
 
 Use `AbortSignal.timeout(timeoutMs)`, set `Accept: application/json`, apply `Authorization: Bearer ...`, cap response bodies at 10 MB, parse JSON strictly, and convert all network/HTTP errors to safe Indonesian messages.
 
-- [ ] **Step 4: Run client and syntax tests**
+- [x] **Step 4: Run client and syntax tests**
 
 Run: `node --test tests/dapodik-client.test.js && npm run check`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit the client**
+- [x] **Step 5: Commit the client**
 
 ```bash
 git add electron/dapodik-client.cjs tests/dapodik-client.test.js package.json
