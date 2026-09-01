@@ -269,7 +269,7 @@ git commit -m "feat: store intracurricular scores separately"
   - supported sections: `extracurricular`, `cocurricular`, `intracurricular`, `note`, `promotion`
 - Consumes: `student-update` and `attendance` as separate existing pages.
 
-- [ ] **Step 1: Add child-route wiring tests**
+- [x] **Step 1: Add child-route wiring tests**
 
 ```js
 test('approved completeness child routes open their matching sections',async()=>{
@@ -282,12 +282,12 @@ test('approved completeness child routes open their matching sections',async()=>
 });
 ```
 
-- [ ] **Step 2: Run the test and confirm it fails**
+- [x] **Step 2: Run the test and confirm it fails**
 
 Run: `node --test tests/completeness-routes.test.js`  
 Expected: FAIL because the canonical cases and `initialSection` parameter are absent.
 
-- [ ] **Step 3: Add section-based rendering and Intrakurikuler form**
+- [x] **Step 3: Add section-based rendering and Intrakurikuler form**
 
 ```js
 export function renderCompleteness(session,initialSection='extracurricular'){
@@ -302,12 +302,12 @@ export function renderCompleteness(session,initialSection='extracurricular'){
 
 `drawIntracurricular()` must select one assigned-class student, populate active Intrakurikuler activities for that class/period, save through `saveStudentIntracurricular()`, and offer `Terapkan ke siswa kosong` through `saveIntracurricularBulk(...,{overwrite:false})`. Remove the old internal tab bar when opened through a canonical child route so the sidebar remains the single navigation source.
 
-- [ ] **Step 4: Run completeness route and service tests**
+- [x] **Step 4: Run completeness route and service tests**
 
 Run: `node --test tests/completeness-routes.test.js tests/completeness.test.js tests/router.test.js`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit the Wali completeness flow**
+- [x] **Step 5: Commit the Wali completeness flow**
 
 ```bash
 git add src/pages/completeness.js src/app.js src/styles/app.css tests/completeness-routes.test.js

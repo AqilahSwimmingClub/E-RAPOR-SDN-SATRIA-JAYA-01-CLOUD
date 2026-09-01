@@ -4,7 +4,7 @@ import { ACADEMIC_YEAR, availableAcademicYears } from '../src/data/constants.js'
 import { createCocurricularActivity, listCocurricularActivities } from '../src/services/cocurricular.js';
 import {
   createIntracurricularActivity, deleteIntracurricularActivity,
-  listIntracurricularActivities, updateIntracurricularActivity
+  listAssignedIntracurricularActivities, listIntracurricularActivities, updateIntracurricularActivity
 } from '../src/services/intracurricular.js';
 import { createAcademicYear } from '../src/services/references.js';
 import { loadDb } from '../src/services/storage.js';
@@ -65,4 +65,17 @@ test('Isian intrakurikuler divalidasi sebelum tersimpan',()=>{
   assert.throws(()=>updateIntracurricularActivity(admin,'tidak-ada',isi()),/tidak ditemukan/);
   assert.throws(()=>deleteIntracurricularActivity(admin,'tidak-ada'),/tidak ditemukan/);
   assert.equal(Object.keys(loadDb().intracurricularActivities).length,0);
+});
+
+test('Wali kelas membaca kegiatan aktif rombelnya sendiri tanpa hak kelola',()=>{
+  useMemoryStorage();
+  createIntracurricularActivity(admin,isi());
+  createIntracurricularActivity(admin,isi({name:'Numerasi Dasar',active:false}));
+  createIntracurricularActivity(admin,isi({classId:'5A',name:'Literasi Kelas Lain'}));
+  createIntracurricularActivity(admin,isi({semester:genap,name:'Literasi Genap'}));
+  const guru={role:'teacher',classId:'5B',academicYear:ACADEMIC_YEAR,semester:ganjil};
+  assert.deepEqual(listAssignedIntracurricularActivities(guru).map(item=>item.name),['Literasi Matematika']);
+  assert.throws(()=>listAssignedIntracurricularActivities({role:'teacher'}),/tidak berwenang/);
+  assert.throws(()=>listAssignedIntracurricularActivities({role:'owner'}),/tidak berwenang/);
+  assert.deepEqual(listAssignedIntracurricularActivities(admin).map(item=>item.name),['Literasi Kelas Lain','Literasi Matematika']);
 });

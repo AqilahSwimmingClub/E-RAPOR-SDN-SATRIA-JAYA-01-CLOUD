@@ -80,11 +80,11 @@ function pageFor(route,session){
     case 'teacher-status':
     case 'teacher-achievement':
     case 'teacher-score-graph': return renderAssessmentCheck(session);
-    case 'extra-input':
-    case 'cocurricular-input':
-    case 'intracurricular-input':
-    case 'homeroom-note':
-    case 'promotion-input': return renderCompleteness(session);
+    case 'extra-input': return renderCompleteness(session,'extracurricular');
+    case 'cocurricular-input': return renderCompleteness(session,'cocurricular');
+    case 'intracurricular-input': return renderCompleteness(session,'intracurricular');
+    case 'homeroom-note': return renderCompleteness(session,'note');
+    case 'promotion-input': return renderCompleteness(session,'promotion');
     case 'class-status':
     case 'class-statistics': return renderClassCheck(session);
     case 'student-progress':
