@@ -99,6 +99,38 @@ export function getStudentCocurricular(session,studentId){requireStudent(session
 
 export function saveStudentCocurricular(session,studentId,input){requireStudent(session,studentId);const value=normalizeCocurricular(input);let saved;updateDb(db=>{const key=cocurricularKey(session,studentId);const existing=db.cocurricularScores[key];const now=new Date().toISOString();saved=scopedRecord(session,studentId,{...value,createdAt:existing?.createdAt||now,updatedAt:now});db.cocurricularScores[key]=saved;return db;});return clone(saved);}
 
+/* Intrakurikuler memakai koleksi intracurricularScores sendiri. Kunci, validasi, dan
+   bentuk record sengaja sejajar dengan kokurikuler supaya perilaku keduanya konsisten,
+   tetapi penyimpanannya tidak pernah bersinggungan. */
+function intracurricularKey(session,studentId){return `${scopeKey(session)}|${studentId}`;}
+function normalizeIntracurricular(input){const record={activity:clean(input?.activity,180),predicate:clean(input?.predicate,50),description:clean(input?.description,1200)};if(!record.activity)throw new Error('Kegiatan intrakurikuler wajib diisi.');if(!knownPredicate(record.predicate))throw new Error('Predikat intrakurikuler tidak valid.');if(!record.description)throw new Error('Deskripsi intrakurikuler wajib diisi.');return record;}
+
+export function getStudentIntracurricular(session,studentId){requireStudent(session,studentId);const record=loadDb().intracurricularScores?.[intracurricularKey(session,studentId)];return record?clone(record):null;}
+
+export function saveStudentIntracurricular(session,studentId,input){requireStudent(session,studentId);const value=normalizeIntracurricular(input);let saved;updateDb(db=>{const key=intracurricularKey(session,studentId);const existing=db.intracurricularScores?.[key];const now=new Date().toISOString();saved=scopedRecord(session,studentId,{...value,createdAt:existing?.createdAt||now,updatedAt:now});if(!db.intracurricularScores)db.intracurricularScores={};db.intracurricularScores[key]=saved;return db;});return clone(saved);}
+
+/* Bawaan overwrite:false supaya isian guru per siswa tidak tertimpa diam-diam oleh isian massal. */
+export function saveIntracurricularBulk(session,input,{overwrite=false}={}){
+  assertTeacher(session);
+  const value=normalizeIntracurricular(input);
+  const students=listStudents(session,{classId:session.classId});
+  const saved=[];let dilewati=0;
+  updateDb(db=>{
+    const now=new Date().toISOString();
+    if(!db.intracurricularScores)db.intracurricularScores={};
+    students.forEach(student=>{
+      const key=intracurricularKey(session,student.id);
+      const existing=db.intracurricularScores[key];
+      if(existing&&!overwrite){dilewati+=1;saved.push(clone(existing));return;}
+      const record=scopedRecord(session,student.id,{...value,createdAt:existing?.createdAt||now,updatedAt:now});
+      db.intracurricularScores[key]=record;
+      saved.push(record);
+    });
+    return db;
+  });
+  return {saved:clone(saved),studentCount:students.length,skipped:dilewati};
+}
+
 /* Terapkan ke Semua Siswa untuk kokurikuler, juga dalam satu commit. */
 export function saveCocurricularBulk(session,input,{overwrite=true}={}){
   assertTeacher(session);

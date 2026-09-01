@@ -197,7 +197,7 @@ git commit -m "feat: add Admin Intrakurikuler management"
   - `IntracurricularScore = {studentId,activity,predicate,description,classId,semester,academicYear,createdAt,updatedAt}`
 - Consumes: `intracurricularScores`, assigned-class student guard, and predicates `Baik`/`Sangat Baik`.
 
-- [ ] **Step 1: Add persistence and separation tests**
+- [x] **Step 1: Add persistence and separation tests**
 
 ```js
 test('Guru saves Intrakurikuler independently from Kokurikuler',()=>{
@@ -216,12 +216,12 @@ test('Guru saves Intrakurikuler independently from Kokurikuler',()=>{
 });
 ```
 
-- [ ] **Step 2: Run completeness tests and confirm missing exports**
+- [x] **Step 2: Run completeness tests and confirm missing exports**
 
 Run: `node --test tests/completeness.test.js`  
 Expected: FAIL because the Intrakurikuler functions are not exported.
 
-- [ ] **Step 3: Implement Intrakurikuler score validation and writes**
+- [x] **Step 3: Implement Intrakurikuler score validation and writes**
 
 ```js
 function intracurricularKey(session,studentId){
@@ -243,12 +243,12 @@ function normalizeIntracurricular(input){
 
 Use `requireStudent()` before every read/write, preserve `createdAt`, update `updatedAt`, and make bulk mode default to `overwrite:false` so existing student records are not silently replaced.
 
-- [ ] **Step 4: Run completeness and migration tests**
+- [x] **Step 4: Run completeness and migration tests**
 
 Run: `node --test tests/completeness.test.js tests/migrations.test.js`  
 Expected: PASS.
 
-- [ ] **Step 5: Commit the score domain**
+- [x] **Step 5: Commit the score domain**
 
 ```bash
 git add src/services/completeness.js tests/completeness.test.js
