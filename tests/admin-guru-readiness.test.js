@@ -6,7 +6,8 @@ import { getAdminReadiness, activateTeacherUsage, deactivateTeacherUsage, isTeac
   READINESS_ITEMS, teacherUsageScopeKey } from '../src/services/admin-readiness.js';
 import { saveSchoolIdentitySetup, saveTeacherProfile } from '../src/services/master.js';
 import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
-import { saveAssessmentSettings } from '../src/services/assessment.js';
+import { saveAssessmentScores, saveAssessmentSettings } from '../src/services/assessment.js';
+import { createStudent } from '../src/services/students.js';
 
 /* Admin lokal mengendalikan kapan Guru boleh mulai memakai e-Rapor pada satu tahun pelajaran
    dan semester. Statusnya tersimpan di database lokal perangkat dan sama sekali tidak
@@ -129,4 +130,52 @@ test('Riwayat perubahan status kesiapan tercatat tanpa menghapus riwayat lama',(
   assert.ok(record.history.length>=3,'seluruh perubahan tercatat');
   assert.equal(record.history[1].reason,'ganti KKTP');
   assert.ok(record.history.every(item=>item.at&&item.actor),'setiap catatan punya waktu dan aktor');
+});
+
+/* ------------------------------------------------- Instalasi lama tidak boleh ikut terkunci */
+
+function nilaiTersimpan(session='5B'){
+  const sesi=guru(session);
+  saveSubjectMapping(sesi,SUBJECTS_DEFAULT.map((item,index)=>({...item,active:item.id==='mtk',order:index+1})));
+  const siswa=createStudent(sesi,{classId:sesi.classId,nis:`${sesi.classId}-1`,nisn:'9911000001',
+    name:'Siswa Lama',gender:'P',photo:''});
+  saveAssessmentScores(sesi,'mtk','formative',{[siswa.id]:88});
+  return sesi;
+}
+
+test('Instalasi lama yang sudah berisi nilai tetap terbuka untuk Guru',()=>{
+  useMemoryStorage();
+  const sesi=nilaiTersimpan();
+  /* Belum pernah ada tombol Aktifkan pada perangkat ini, tetapi sekolah jelas sudah memakai
+     aplikasi: nilai untuk periode ini sudah tersimpan. Guru tidak boleh mendadak terkunci
+     hanya karena aplikasinya diperbarui. */
+  assert.equal(isTeacherUsageActive(sesi),true);
+  const kesiapan=getAdminReadiness(admin);
+  assert.equal(kesiapan.active,true);
+  assert.equal(kesiapan.grandfathered,true);
+});
+
+test('Instalasi baru tanpa penilaian tetap menunggu Admin menekan Aktifkan',()=>{
+  useMemoryStorage();
+  const sesi=guru();
+  saveSubjectMapping(sesi,SUBJECTS_DEFAULT.map((item,index)=>({...item,active:item.id==='mtk',order:index+1})));
+  createStudent(sesi,{classId:sesi.classId,nis:'5B-1',nisn:'9911000002',name:'Siswa Baru',gender:'L',photo:''});
+  assert.equal(isTeacherUsageActive(sesi),false,'baru ada siswa, belum ada penilaian apa pun');
+  assert.equal(getAdminReadiness(admin).grandfathered,false);
+});
+
+test('Admin tetap dapat menutup penggunaan pada instalasi lama tanpa menghapus data',()=>{
+  useMemoryStorage();
+  const sesi=nilaiTersimpan();
+  assert.equal(isTeacherUsageActive(sesi),true);
+  deactivateTeacherUsage(admin,{reason:'perbaikan konfigurasi'});
+  assert.equal(isTeacherUsageActive(sesi),false,'keputusan Admin mengalahkan penerusan otomatis');
+  assert.equal(Object.keys(loadDb().assessmentScores).length,1,'data nilai tidak tersentuh');
+});
+
+test('Periode berikutnya tidak ikut terbuka oleh data periode sebelumnya',()=>{
+  useMemoryStorage();
+  const sesi=nilaiTersimpan();
+  assert.equal(isTeacherUsageActive(sesi),true);
+  assert.equal(isTeacherUsageActive({...sesi,semester:`Genap ${ACADEMIC_YEAR}`}),false,'semester baru tetap menunggu Admin');
 });

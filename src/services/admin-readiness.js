@@ -19,6 +19,26 @@ export function teacherUsageScopeKey(session){
   return `${String(session?.academicYear||'').trim()}|${String(session?.semester||'').trim()}`;
 }
 
+
+/* Koleksi yang isinya hanya lahir dari pemakaian nyata oleh Guru. Daftar siswa sengaja TIDAK
+   masuk: mengisi Data Siswa adalah langkah persiapan Admin, bukan tanda sekolah sudah menilai. */
+const JEJAK_PEMAKAIAN=Object.freeze([
+  'assessmentScores','reportScores','reportDescriptions','attendance',
+  'extracurricularScores','cocurricularScores','intracurricularScores','attitudeProfiles',
+  'homeroomNotes','transcriptScores',
+]);
+
+/* Perangkat yang sudah dipakai menilai pada periode ini berarti sekolahnya memang sudah
+   memakai e-Rapor sebelum kendali Admin ada. Pembaruan aplikasi tidak boleh mengunci mereka,
+   jadi penggunaan Guru dianggap sudah terbuka sampai Admin memutuskan sebaliknya. Begitu Admin
+   menekan Aktifkan atau Nonaktifkan, keputusannya yang berlaku. */
+function adaJejakPemakaian(session){
+  const db=loadDb();
+  const prefix=`${String(session?.academicYear||'').trim()}|${String(session?.semester||'').trim()}|`;
+  return JEJAK_PEMAKAIAN.some(collection=>
+    Object.keys(db[collection]||{}).some(key=>key.startsWith(prefix)));
+}
+
 function assertAdmin(session){
   if(session?.role!=='admin')throw new Error('Hanya Admin yang dapat mengatur kesiapan penggunaan e-Rapor.');
 }
@@ -77,9 +97,11 @@ export function getAdminReadiness(session){
 
   const missing=items.filter(item=>!item.done).map(item=>item.label);
   const record=loadDb()[COLLECTION]?.[teacherUsageScopeKey(session)]||null;
+  const grandfathered=!record&&adaJejakPemakaian(session);
   return {
     items,missing,ready:missing.length===0,
-    active:Boolean(record?.active),
+    active:record?Boolean(record.active):grandfathered,
+    grandfathered,
     activatedAt:record?.activatedAt||null,
     scope:teacherUsageScopeKey(session),
     classes:rombel,
@@ -125,5 +147,7 @@ export function deactivateTeacherUsage(session,options={}){
 }
 
 export function isTeacherUsageActive(session){
-  return Boolean(loadDb()[COLLECTION]?.[teacherUsageScopeKey(session)]?.active);
+  const record=loadDb()[COLLECTION]?.[teacherUsageScopeKey(session)];
+  if(record)return Boolean(record.active);
+  return adaJejakPemakaian(session);
 }

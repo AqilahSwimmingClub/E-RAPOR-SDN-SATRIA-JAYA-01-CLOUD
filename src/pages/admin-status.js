@@ -42,6 +42,7 @@ export function renderAdminStatus(session,mode='status'){
         <h3>Kesiapan Penggunaan e-Rapor</h3>
         <p>${escapeHtml(academicYear)} · ${escapeHtml(semester)}</p></div>
         <span class="badge ${kesiapan.active?'badge-active':'badge-a'}">${kesiapan.active?'Sudah dibuka untuk Guru':'Belum dibuka'}</span></div>
+      ${kesiapan.grandfathered?'<p class="readiness-note">Perangkat ini sudah dipakai menilai pada periode ini, jadi menu Guru tetap terbuka seperti sebelumnya. Lengkapi checklist bila ingin mengunci dan membukanya sendiri.</p>':''}
       <ul class="readiness-list">${kesiapan.items.map(item=>`<li class="${item.done?'done':'todo'}">
         <strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.done?'Lengkap':item.reason)}</span></li>`).join('')}</ul>
       <div class="actions">${kesiapan.active
