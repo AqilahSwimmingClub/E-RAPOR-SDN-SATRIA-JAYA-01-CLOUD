@@ -30,7 +30,6 @@ export function renderLogin({onSuccess,onActivate}){
           </div>
         </div>
         <div class="login-photo-caption">
-          <h1>WELCOME</h1>
           <p>Cerdas • Berkarakter • Berprestasi</p>
         </div>
       </div>

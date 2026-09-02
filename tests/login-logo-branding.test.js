@@ -39,9 +39,9 @@ test('Logo sejajar dengan blok identitas dan diberi jarak rapi',()=>{
   assert.match(brand,/gap:/,'ada jarak antara logo dan teks');
 });
 
-test('Sambutan tetap WELCOME dengan tagline bertitik pemisah',()=>{
+test('Sambutan dihapus, tagline bertitik pemisah tetap tampil',()=>{
   const source=login();
-  assert.match(source,/<h1>WELCOME<\/h1>/,'tulisan besar WELCOME dipertahankan');
+  assert.doesNotMatch(source,/WELCOME/i,'tulisan besar WELCOME sudah dihapus');
   assert.ok(source.includes('Cerdas • Berkarakter • Berprestasi'),'tagline memakai titik pemisah');
   assert.equal(source.includes('>Cerdas Berkarakter Berprestasi<'),false,'tagline lama tanpa pemisah sudah diganti');
 });

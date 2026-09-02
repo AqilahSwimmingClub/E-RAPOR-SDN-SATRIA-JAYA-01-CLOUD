@@ -117,7 +117,7 @@ test('Form Login langsung tampil dan isian berbentuk pil dengan ikon',()=>{
   assert.match(t,/\.login-field\{[^}]*border-radius:999px/,'isian berbentuk pil');
   assert.match(source,/login-field-icon/,'setiap isian punya ikon di depan');
   assert.match(t,/\.login-submit\{[^}]*border-radius:999px/,'tombol Masuk berbentuk pil');
-  assert.match(source,/<h1>WELCOME<\/h1>/,'bagian sambutan seperti rujukan');
+  assert.doesNotMatch(source,/WELCOME/i,'sambutan WELCOME sudah dihapus');
   assert.match(t,/@keyframes loginCaseOpen/,'animasi buka tetap ringan');
 });
 
