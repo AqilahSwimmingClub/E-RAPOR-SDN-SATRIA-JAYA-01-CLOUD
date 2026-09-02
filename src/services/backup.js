@@ -1,9 +1,13 @@
 import { CLASSES, SUBJECTS_DEFAULT } from '../data/constants.js';
+import { ACCEPTED_BACKUP_APP_NAMES, APP_NAME } from '../data/app-identity.js';
+import { getSchoolMaster } from './master.js';
 import { APP_SCHEMA_VERSION, APP_VERSION } from '../data/version.js';
 import { exportDb, invalidateDbCache, replaceDb, scopeKey, updateDb } from './storage.js';
 import { runAppMigrations } from './migrations.js';
 
-const APP_NAME='e-Rapor SDN Satria Jaya 01';
+/* Berkas backup baru ditandai dengan nama produk generic. Berkas lama yang ditandai nama
+   produk versi sebelumnya tetap diterima saat restore, tanpa melonggarkan satu pun
+   pemeriksaan struktur, scope, maupun integritas lainnya. */
 const SCHEMA_VERSION=1;
 const BACKUP_VERSION='1.0';
 const SCOPED_COLLECTIONS=[
@@ -158,11 +162,14 @@ export function buildBackup(session){
   return payload;
 }
 
+/* Nama berkas mengikuti sekolah pengguna. Bila identitas sekolah belum diisi, berkas tetap
+   dapat diunduh dengan awalan generic. */
 export function backupFilename(session){
   const klass=session.role==='admin'?'ADMIN':`KELAS-${safeSegment(session.classId)}`;
   const semester=safeSegment(String(session.semester||'').split(/\s+/)[0]);
   const academicYear=safeSegment(session.academicYear);
-  return `ERAPOR-SDN-SATRIA-JAYA-01-${klass}-${semester}-${academicYear}.backup.json`;
+  const school=safeSegment(String(getSchoolMaster().name||'').trim());
+  return `ERAPOR${school?`-${school}`:''}-${klass}-${semester}-${academicYear}.backup.json`;
 }
 
 export function downloadBackup(session){
@@ -185,7 +192,7 @@ export function validateBackupPayload(payload){
   if(Object.hasOwn(payload,'appVersion'))assert(typeof payload.appVersion==='string'&&payload.appVersion.trim(),'Versi aplikasi pada backup tidak valid.');
   if(Object.hasOwn(payload,'appSchemaVersion'))assert(Number.isInteger(payload.appSchemaVersion)&&payload.appSchemaVersion>=1,'appSchemaVersion pada backup tidak valid.');
   if(Object.hasOwn(payload,'counts'))assert(isPlainObject(payload.counts),'Ringkasan jumlah data pada backup tidak valid.');
-  assert(payload.app===APP_NAME,'File bukan backup e-Rapor SDN Satria Jaya 01.');
+  assert(ACCEPTED_BACKUP_APP_NAMES.includes(payload.app),'File bukan backup e-Rapor.');
   assert(payload.schemaVersion===SCHEMA_VERSION && payload.backupVersion===BACKUP_VERSION,'Versi backup tidak kompatibel.');
   assert(isIsoDate(payload.exportedAt),'Waktu ekspor backup tidak valid.');
   assert(isPlainObject(payload.scope),'Scope backup tidak valid.');

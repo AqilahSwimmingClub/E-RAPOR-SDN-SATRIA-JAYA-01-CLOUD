@@ -394,6 +394,20 @@ textarea.input{color:var(--light-ink)}
    ditumpuk: foto menjadi panel atas yang ringkas, form tetap utuh di bawahnya sehingga
    tidak pernah terpotong dan tidak menimbulkan gulir mendatar. */
 
+/* Setup Awal Sekolah: satu kartu di tengah layar dengan tema gelap yang sama seperti
+   halaman Masuk. Identitas pembuat aplikasi di bawah kartu bersifat permanen. */
+.setup-stage{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:32px 18px calc(28px + env(safe-area-inset-bottom));background:radial-gradient(760px 460px at 70% 6%,rgba(56,225,255,.1) 0%,transparent 60%),linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%);color:var(--dark-ink);overflow-y:auto}
+.setup-card{width:min(880px,100%);background:linear-gradient(165deg,rgba(255,255,255,.09),rgba(255,255,255,.04));border:1px solid var(--glass-line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 24px 60px rgba(0,0,0,.45)}
+.setup-card h1{margin:0;font-size:20px;font-weight:850;color:var(--dark-ink)}
+.setup-card .section-head p{color:var(--dark-muted);font-size:11.5px;line-height:1.55}
+.setup-card .field label{color:var(--dark-ink)}
+.setup-card .input{background:var(--glass-2);border:1px solid var(--glass-line);color:var(--dark-ink)}
+.setup-card .input::placeholder{color:var(--dark-muted)}
+.setup-hint{display:block;margin-top:5px;font-size:10px;color:var(--dark-muted)}
+.setup-credit{text-align:center;line-height:1.55}
+.setup-credit span,.setup-credit small{display:block;font-size:10px;color:var(--dark-muted)}
+.setup-credit strong{display:block;font-size:12.5px;font-weight:850;color:#fff;margin:3px 0}
+@media(max-width:767px){.setup-stage{padding:20px 14px calc(20px + env(safe-area-inset-bottom))}.setup-card h1{font-size:17px}}
 .login-stage{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:1.05fr .95fr;background:linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%);color:var(--dark-ink)}
 
 /* ---- Kolom kiri: foto sekolah ---- */

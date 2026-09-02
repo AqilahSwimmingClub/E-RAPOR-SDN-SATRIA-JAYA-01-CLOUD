@@ -2,6 +2,8 @@ import { initRouter, navigate, onRouteChange, resolveRoute } from './core/router
 import { getSession } from './services/auth.js';
 import { renderLogin } from './pages/login.js';
 import { renderOwnerActivation } from './pages/activation.js';
+import { renderSchoolSetup } from './pages/school-setup.js';
+import { isSchoolIdentityReady } from './services/master.js';
 import { renderDashboard } from './pages/dashboard.js';
 import { renderProfile } from './pages/profile.js';
 import { renderStudents } from './pages/students.js';
@@ -30,15 +32,15 @@ import { renderDapodik } from './pages/dapodik.js';
 import { renderSubjectMapping, renderBackupRestore, renderAccountSettings } from './pages/settings.js';
 import { renderLayout } from './ui/layout.js';
 import { runAppMigrations } from './services/migrations.js';
-import { ensureDefaultSubjects, seedInitialStudents } from './services/seed.js';
+import { ensureDefaultSubjects } from './services/seed.js';
 
 const app=document.querySelector('#app');
 let startupError=null;
-/* Migration dijalankan lebih dulu, lalu dua pengaman idempotent: mapel bawaan baru
-   dipastikan ada pada Mapping lama, dan data awal 5B dilengkapi bila belum masuk.
+/* Migration dijalankan lebih dulu, lalu satu pengaman idempotent: mapel bawaan baru
+   dipastikan ada pada Mapping lama. Tidak ada data siswa yang pernah dimasukkan otomatis.
    Kegagalan pengaman tidak boleh membuat aplikasi gagal dibuka. */
 try{runAppMigrations();}catch(error){startupError=error;}
-if(!startupError){try{ensureDefaultSubjects();}catch{}try{seedInitialStudents();}catch{}}
+if(!startupError){try{ensureDefaultSubjects();}catch{}}
 let session=startupError?null:getSession();
 let expiryTimer=null;
 
@@ -52,6 +54,14 @@ function scheduleSessionExpiry(activeSession){
 function mount(requestedRoute){
   session=getSession();
   scheduleSessionExpiry(session);
+  /* Instalasi baru mengisi identitas sekolah lebih dulu. Setelah nama sekolah tersimpan,
+     gerbang ini tidak pernah muncul lagi dan alur kembali ke aktivasi/login yang sudah ada. */
+  if(!startupError&&!isSchoolIdentityReady()){
+    document.documentElement.dataset.route='school-setup';
+    app.innerHTML='';
+    app.append(renderSchoolSetup({onComplete:()=>navigate('login')}));
+    return;
+  }
   const route=resolveRoute(requestedRoute,session);
   if(route!==requestedRoute){navigate(route);return;}
   /* Halaman aktif ditandai di <html> supaya latar halaman Cetak Nilai bisa diputihkan sampai

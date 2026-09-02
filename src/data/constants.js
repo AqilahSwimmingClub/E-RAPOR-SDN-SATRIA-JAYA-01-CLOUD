@@ -1,6 +1,10 @@
 import { flattenNavigation } from './navigation.js';
 
-export const SCHOOL = 'SDN Satria Jaya 01';
+/* Instalasi baru tidak membawa identitas sekolah mana pun. Nama sekolah diisi Admin pada
+   Setup Awal dan disimpan di masterData.school. SCHOOL_PLACEHOLDER hanya label tampilan
+   ketika identitas sekolah belum diisi, bukan nilai yang pernah tersimpan. */
+export const DEFAULT_SCHOOL_NAME = '';
+export const SCHOOL_PLACEHOLDER = 'Nama Sekolah';
 /* Tahun pelajaran dasar. Nilai ini TIDAK boleh berubah mengikuti tanggal karena ikut menyusun
    kunci penyimpanan data (tahun|semester|rombel). Mengubahnya membuat data guru yang sudah ada
    berada pada scope lain dan seolah hilang dari layar. */

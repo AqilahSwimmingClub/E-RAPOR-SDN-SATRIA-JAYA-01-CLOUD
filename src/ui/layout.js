@@ -3,10 +3,12 @@ import { clearSession } from '../services/auth.js';
 import { icon } from './icons.js';
 import { el, escapeHtml } from './dom.js';
 import { getAdminProfile, getSchoolMaster, getTeacherProfile } from '../services/master.js';
+import { APP_NAME, DEVELOPER_PHOTO, FOOTER_CREDIT } from '../data/app-identity.js';
+import { SCHOOL_PLACEHOLDER } from '../data/constants.js';
 
 /* Foto pembuat e-Rapor dipakai sebagai branding aplikasi di sidebar. Foto ini TIDAK pernah
    mengikuti foto profil guru, dan hanya tampil di antarmuka, tidak pernah di kertas dokumen. */
-export const BRAND_PHOTO='./assets/fahmi-djawas.jpg';
+export const BRAND_PHOTO=DEVELOPER_PHOTO;
 export const PROFILE_UPDATED_EVENT='erapor:profile-updated';
 
 function initials(name){return String(name||'?').split(/\s+/).filter(Boolean).slice(0,2).map(word=>word[0]).join('').toUpperCase();}
@@ -47,7 +49,7 @@ export function renderLayout({session,route,onNavigate,onLogout,content}){
   const shell=el(`<div class="app-shell">
     <div class="drawer-backdrop hidden" data-backdrop></div>
     <aside class="sidebar" data-sidebar>
-      <div class="brand"><img class="brand-photo" src="${BRAND_PHOTO}" alt="Pembuat e-Rapor"/><div><div class="brand-title">e-Rapor</div><div class="brand-sub">${school.name}</div></div></div>
+      <div class="brand"><img class="brand-photo" src="${BRAND_PHOTO}" alt="Pembuat e-Rapor"/><div><div class="brand-title">${escapeHtml(APP_NAME)}</div><div class="brand-sub">${escapeHtml(String(school.name||'').trim()||SCHOOL_PLACEHOLDER)}</div></div></div>
       <nav class="nav" data-nav></nav>
       <div class="sidebar-spacer"></div>
       <div class="sidebar-footer"><div class="nav-section" style="padding-top:0">KELUAR</div><button class="nav-item logout-btn" data-logout>${icon('logout',18)}<span>Keluar</span></button></div>
@@ -58,7 +60,7 @@ export function renderLayout({session,route,onNavigate,onLogout,content}){
         <div class="topbar-right"><div class="semester-chip">${session.semester}</div><div class="profile-mini" data-profile-mini>${profileAvatar(profile)}<div class="profile-text"><strong>${profile.name}</strong><span>${session.role==='teacher'?`Kelas ${session.classId}`:session.academicYear}</span></div></div></div>
       </header>
       <div class="content" data-content></div>
-      <footer class="footer">Dashboard didesain oleh FAHMI DJAWAS. © 2026 Semua hak dilindungi</footer>
+      <footer class="footer">${escapeHtml(FOOTER_CREDIT)}</footer>
     </main>
   </div>`);
   const nav=shell.querySelector('[data-nav]');

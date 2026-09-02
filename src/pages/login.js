@@ -1,5 +1,7 @@
-import { SCHOOL } from '../data/constants.js';
+import { SCHOOL_PLACEHOLDER } from '../data/constants.js';
 import { APP_VERSION } from '../data/version.js';
+import { COPYRIGHT, DEVELOPER_CREDIT_LEAD, DEVELOPER_NAME, DEVELOPER_ROLE } from '../data/app-identity.js';
+import { getSchoolMaster } from '../services/master.js';
 import { listLoginSemesters } from '../services/references.js';
 import { authenticate, ensureSecurityBootstrap, getSecurityStatus, recoverAdmin, saveSession } from '../services/auth.js';
 import { icon } from '../ui/icons.js';
@@ -14,26 +16,34 @@ const LOCK_ICON='<svg class="icon" width="15" height="15" viewBox="0 0 24 24" fi
 export function renderLogin({onSuccess,onActivate}){
   let role='admin';let adminActivated=true;
   const semesters=listLoginSemesters();
+  /* Identitas sekolah selalu dibaca dari master. Sebelum Setup Awal selesai, halaman ini
+     memakai label netral dan lambang bawaan aplikasi, bukan identitas sekolah mana pun. */
+  const school=getSchoolMaster();
+  const schoolName=String(school.name||'').trim();
+  const schoolLabel=schoolName||SCHOOL_PLACEHOLDER;
+  const schoolLogo=String(school.schoolLogo||'').trim();
+  const crest=schoolLogo||'./assets/app-icon.svg';
+  const crestAlt=schoolName?`Logo ${schoolName}`:'Lambang sekolah belum diunggah';
   const root=el(`<main class="login-stage">
     <section class="login-photo">
       <div class="login-photo-overlay" aria-hidden="true"></div>
       <div class="login-photo-content">
         <div class="login-brand">
           <div class="login-brand-mark">
-            <img class="login-logo" src="./assets/logo-sekolah.png" alt="Logo SDN Satria Jaya 01" data-login-logo/>
+            <img class="login-logo" src="${escapeHtml(crest)}" alt="${escapeHtml(crestAlt)}" data-login-logo/>
             <span class="login-logo-fallback hidden" aria-hidden="true">${icon('school',26)}</span>
           </div>
           <div class="login-brand-text">
             <span class="login-brand-app">e-Rapor</span>
-            <strong>SDN SATRIA JAYA 01</strong>
+            <strong>${escapeHtml(schoolLabel.toUpperCase())}</strong>
             <span class="login-brand-tagline">Cerdas • Berkarakter • Berprestasi</span>
           </div>
         </div>
         <div class="login-photo-caption">
-          <span class="login-credit-lead">Dirancang &amp; Dikembangkan oleh</span>
-          <strong class="login-credit-name">FAHMI DJAWAS, S.Pd.</strong>
-          <span class="login-credit-role">Developer &amp; UI/UX Designer e-Rapor</span>
-          <span class="login-credit-copy">© 2026 — Semua Hak Dilindungi</span>
+          <span class="login-credit-lead">${escapeHtml(DEVELOPER_CREDIT_LEAD)}</span>
+          <strong class="login-credit-name">${escapeHtml(DEVELOPER_NAME)}</strong>
+          <span class="login-credit-role">${escapeHtml(DEVELOPER_ROLE)}</span>
+          <span class="login-credit-copy">${escapeHtml(COPYRIGHT)}</span>
         </div>
       </div>
     </section>
@@ -43,7 +53,7 @@ export function renderLogin({onSuccess,onActivate}){
           <div class="login-crest-row">
             <img class="login-crest" src="./assets/logo-tut-wuri-handayani.png" alt="Logo Tut Wuri Handayani"/>
             <img class="login-crest login-crest-region" src="./assets/logo-kabupaten-bekasi.png" alt="Logo Kabupaten Bekasi"/>
-            <img class="login-crest" src="./assets/logo-sekolah.png" alt="Logo SDN Satria Jaya 01"/>
+            <img class="login-crest" src="${escapeHtml(crest)}" alt="${escapeHtml(crestAlt)}"/>
           </div>
           <h2>Masuk ke e-Rapor</h2>
           <p>Pilih peran, semester, lalu masukkan akun Anda.</p>
@@ -55,7 +65,7 @@ export function renderLogin({onSuccess,onActivate}){
           </div>
           <div class="login-field login-anim" style="--rise:1">
             <span class="login-field-icon">${icon('school',15)}</span>
-            <input class="input" id="loginSchool" value="${escapeHtml(SCHOOL)}" aria-label="Sekolah" readonly/>
+            <input class="input" id="loginSchool" value="${escapeHtml(schoolLabel)}" aria-label="Sekolah" readonly/>
           </div>
           <div class="login-field login-anim" style="--rise:2">
             <span class="login-field-icon">${icon('calendar',15)}</span>

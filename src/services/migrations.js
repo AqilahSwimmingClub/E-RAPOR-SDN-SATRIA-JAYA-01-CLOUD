@@ -1,3 +1,4 @@
+import { APP_NAME } from '../data/app-identity.js';
 import { APP_SCHEMA_VERSION, APP_VERSION, VERSION_CODE } from '../data/version.js';
 import { SUBJECTS_DEFAULT } from '../data/constants.js';
 import { storageKey } from './storage.js';
@@ -59,7 +60,7 @@ function migrate4To5(db){
 export const APP_MIGRATIONS=Object.freeze({1:migrate1To2,2:migrate2To3,3:migrate3To4,4:migrate4To5});
 export function listMigrationSafetySnapshots(){return snapshots().map(item=>({...item,database:undefined}));}
 export function migrationSnapshotStorageKey(){return MIGRATION_SNAPSHOT_KEY;}
-export function getApplicationInfo(){let schemaVersion=APP_SCHEMA_VERSION,lastMigration=null;try{const raw=localStorage.getItem(storageKey());if(raw){const db=JSON.parse(raw);schemaVersion=Number(db.appSchemaVersion||1);lastMigration=Array.isArray(db.migrationHistory)?db.migrationHistory.at(-1)||null:null;}}catch{}return {name:'e-Rapor SDN Satria Jaya 01',versionName:APP_VERSION,versionCode:VERSION_CODE,schemaVersion,lastMigration};}
+export function getApplicationInfo(){let schemaVersion=APP_SCHEMA_VERSION,lastMigration=null;try{const raw=localStorage.getItem(storageKey());if(raw){const db=JSON.parse(raw);schemaVersion=Number(db.appSchemaVersion||1);lastMigration=Array.isArray(db.migrationHistory)?db.migrationHistory.at(-1)||null:null;}}catch{}return {name:APP_NAME,versionName:APP_VERSION,versionCode:VERSION_CODE,schemaVersion,lastMigration};}
 /* Rilis baru yang tidak mengubah schema tetap harus mencatat versinya pada database pengguna.
    Sebelumnya penanda berhenti di versi rilis lama, sehingga snapshot migrasi berikutnya
    mencatat asal yang keliru. Hanya penanda versi yang ditulis; data pengguna tidak disentuh. */
