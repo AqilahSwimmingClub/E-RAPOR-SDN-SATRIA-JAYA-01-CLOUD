@@ -40,6 +40,11 @@ export function renderLogin({onSuccess,onActivate}){
     <section class="login-panel">
       <div class="login-shell">
         <div class="login-shell-head">
+          <div class="login-crest-row">
+            <img class="login-crest" src="./assets/logo-tut-wuri-handayani.png" alt="Logo Tut Wuri Handayani"/>
+            <img class="login-crest login-crest-region" src="./assets/logo-kabupaten-bekasi.png" alt="Logo Kabupaten Bekasi"/>
+            <img class="login-crest" src="./assets/logo-sekolah.png" alt="Logo SDN Satria Jaya 01"/>
+          </div>
           <h2>Masuk ke e-Rapor</h2>
           <p>Pilih peran, semester, lalu masukkan akun Anda.</p>
         </div>
@@ -73,11 +78,6 @@ export function renderLogin({onSuccess,onActivate}){
         </form>
         <span class="login-version">v${escapeHtml(APP_VERSION)}</span>
       </div>
-      <footer class="login-footer">
-        <span>Dirancang &amp; Dikembangkan oleh</span>
-        <strong>FAHMI DJAWAS, S.Pd.</strong>
-        <small>© 2026 e-Rapor SDN Satria Jaya 01 — Semua Hak Dilindungi</small>
-      </footer>
     </section>
   </main>`);
 

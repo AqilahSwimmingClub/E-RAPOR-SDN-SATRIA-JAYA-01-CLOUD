@@ -412,7 +412,18 @@ textarea.input{color:var(--light-ink)}
 /* ---- Kolom kanan: form Masuk ---- */
 .login-panel{position:relative;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:30px 24px calc(22px + env(safe-area-inset-bottom));overflow-y:auto;background:radial-gradient(700px 420px at 70% 8%,rgba(56,225,255,.1) 0%,transparent 60%),linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%)}
 .login-shell{position:relative;width:min(380px,100%);padding:26px 24px 20px;border-radius:20px;border:1px solid var(--glass-line);background:linear-gradient(165deg,rgba(255,255,255,.09),rgba(255,255,255,.04));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 24px 60px rgba(0,0,0,.45);transform-origin:50% 60%;animation:loginCaseOpen .55s cubic-bezier(.22,1,.36,1) both}
-.login-shell-head{margin-bottom:16px}
+/* Tiga lambang berdiri sebagai satu kelompok rapat di tengah panel. Lebarnya mengikuti isi,
+   bukan lebar panel, sehingga layar selebar apa pun tidak pernah menjauhkan ketiganya.
+   Tingginya tetap dalam piksel agar tidak ikut membesar di layar besar. */
+.login-crest-row{display:flex;justify-content:center;align-items:center;gap:9px;margin:0 auto 14px}
+.login-crest{height:44px;width:auto;flex:none;object-fit:contain;display:block;filter:drop-shadow(0 2px 8px rgba(4,18,34,.4))}
+/* Lambang Kabupaten Bekasi hanya mengisi 57% tinggi bingkainya, sedangkan dua lambang lain
+   mengisi 97%. Tanpa penyeimbang ia tampak jauh lebih kecil. Kotaknya dibesarkan lalu ruang
+   kosong di dalam bingkai ditarik kembali dengan margin negatif, sehingga gambarnya tampak
+   sebesar dua lambang lain tanpa melebarkan jarak antarlambang maupun tinggi barisnya.
+   Berkasnya sendiri tidak dipotong karena bingkai penuh itu dipakai lembar Cover Rapor. */
+.login-crest-region{height:76px;margin:-16px -18px}
+.login-shell-head{margin-bottom:16px;text-align:center}
 .login-shell-head h2{margin:0;font-size:19px;font-weight:850;color:var(--dark-ink)}
 .login-shell-head p{margin:5px 0 0;font-size:11.5px;color:var(--dark-muted);line-height:1.5}
 
@@ -447,10 +458,6 @@ textarea.input{color:var(--light-ink)}
 .login-shake{animation:loginShake .32s ease both}
 .login-version{display:block;margin:12px auto 0;width:max-content;font-size:10px;font-weight:700;color:var(--dark-muted);background:var(--glass-2);border:1px solid var(--glass-line);border-radius:999px;padding:3px 10px}
 
-.login-footer{text-align:center;line-height:1.55}
-.login-footer span{display:block;font-size:10px;color:var(--dark-muted)}
-.login-footer strong{display:block;font-size:12px;font-weight:800;color:var(--dark-ink);margin:2px 0 3px}
-.login-footer small{display:block;font-size:9.5px;color:var(--dark-muted)}
 
 .login-anim{animation:loginFieldRise .42s ease both;animation-delay:calc(.12s + var(--rise,0) * .05s)}
 
@@ -492,6 +499,9 @@ textarea.input{color:var(--light-ink)}
   .login-credit-role{font-size:10.5px}
   .login-credit-copy{font-size:9.5px}
   .login-shell{width:min(100%,380px);padding:22px 18px 18px;border-radius:18px}
+  .login-crest{height:36px}
+  .login-crest-region{height:62px;margin:-13px -15px}
+  .login-crest-row{gap:8px;margin-bottom:12px}
   .login-brand-text strong{font-size:15px}
 }
 /* Lanskap ponsel: layar pendek, foto dipersempit agar form tetap terjangkau. */
@@ -500,6 +510,9 @@ textarea.input{color:var(--light-ink)}
   .login-logo,.login-logo-fallback{width:40px;height:40px}
   .login-photo-caption{display:none}
   .login-panel{padding-top:16px}
+  .login-crest{height:32px}
+  .login-crest-region{height:55px;margin:-12px -13px}
+  .login-crest-row{gap:8px;margin-bottom:10px}
 }
 @media(prefers-reduced-motion:reduce){
   .login-shell,.login-anim{animation:none}

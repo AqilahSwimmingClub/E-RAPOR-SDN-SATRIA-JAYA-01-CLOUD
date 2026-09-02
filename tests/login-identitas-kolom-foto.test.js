@@ -82,8 +82,9 @@ test('Teks putih lembut, aksen cyan tipis, tanpa kotak besar menutupi foto',()=>
 test('Tata letak foto kiri dan form kanan tidak ikut berubah',()=>{
   const t=css(),source=login();
   assert.match(t,/\.login-stage\{[^}]*grid-template-columns:1\.05fr \.95fr/,'dua kolom tetap');
-  assert.match(source,/<footer class="login-footer">/,'footer kolom kanan tetap utuh');
-  assert.match(source,/© 2026 e-Rapor SDN Satria Jaya 01 — Semua Hak Dilindungi/,'hak cipta kolom kanan tetap');
+  /* Identitas pengembang kini hanya di kiri bawah; panel kanan berakhir di nomor versi. */
+  assert.doesNotMatch(source,/login-footer/,'footer kolom kanan sudah dihapus');
+  assert.match(source,/<span class="login-version">/,'nomor versi menjadi elemen terakhir panel kanan');
   for(const teks of ['Masuk ke e-Rapor','MASUK','Lupa Password?','Aktivasi Admin Pertama'])
     assert.ok(source.includes(teks),`${teks} tetap ada`);
 });

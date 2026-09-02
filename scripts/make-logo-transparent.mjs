@@ -1,17 +1,21 @@
-/* Membuang latar gelap pekat dari berkas logo dan menyimpannya kembali sebagai PNG RGBA.
-   Dipakai saat logo sekolah diganti dengan berkas yang masih membawa kotak hitam.
+/* Membuang latar polos dari berkas logo dan menyimpannya kembali sebagai PNG RGBA.
+   Dipakai saat sebuah logo masih membawa kotak hitam atau kotak putih di belakangnya.
 
-     node scripts/make-logo-transparent.mjs assets/logo-sekolah.png assets/logo-sekolah.png
+     node scripts/make-logo-transparent.mjs <sumber> <tujuan> [ambang] [dark|light]
 
-   Latar dikenali lewat perambatan dari tepi bingkai, jadi warna gelap di dalam lambang
-   (garis biru tua, mata pena) tidak ikut ditembuskan. */
+     node scripts/make-logo-transparent.mjs assets/logo-sekolah.png assets/logo-sekolah.png 40 dark
+     node scripts/make-logo-transparent.mjs assets/logo-kabupaten-bekasi.png assets/logo-kabupaten-bekasi.png 24 light
+
+   Latar dikenali lewat perambatan dari tepi bingkai, jadi warna serupa di dalam lambang
+   (garis biru tua, bidang putih di tengah lambang) tidak ikut ditembuskan. */
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import zlib from 'node:zlib';
 
 const SRC = process.argv[2];
 const OUT = process.argv[3];
-const LO = Number(process.argv[4] ?? 40);   // <= LO dan tersambung tepi = latar
+const LO = Number(process.argv[4] ?? 40);   // jarak warna dari latar polos yang masih dianggap latar
+const MODE = process.argv[5] ?? 'dark';    // 'dark' = latar hitam, 'light' = latar putih
 const buf = readFileSync(SRC);
 
 /* ---------- baca PNG ---------- */
@@ -58,10 +62,14 @@ for (let y = 0; y < h; y++) {
 
 /* ---------- flood fill latar gelap dari tepi ---------- */
 const bg = new Uint8Array(w * h);
-const maxch = new Uint8Array(w * h);
-for (let i = 0; i < w * h; i++) maxch[i] = Math.max(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]);
+/* jarak[i] = seberapa jauh piksel dari warna latar polos; 0 berarti persis latar. */
+const jarak = new Uint8Array(w * h);
+for (let i = 0; i < w * h; i++) {
+  const r = px[i * 4], g = px[i * 4 + 1], b = px[i * 4 + 2];
+  jarak[i] = MODE === 'light' ? 255 - Math.min(r, g, b) : Math.max(r, g, b);
+}
 const stack = [];
-const push = i => { if (!bg[i] && maxch[i] <= LO) { bg[i] = 1; stack.push(i); } };
+const push = i => { if (!bg[i] && jarak[i] <= LO) { bg[i] = 1; stack.push(i); } };
 for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
 for (let y = 0; y < h; y++) { push(y * w); push(y * w + w - 1); }
 while (stack.length) {

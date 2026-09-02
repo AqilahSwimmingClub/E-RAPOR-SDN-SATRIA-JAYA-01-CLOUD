@@ -92,11 +92,12 @@ test('7. Semester aktif tetap dapat dipilih guru pada panel Masuk',()=>{
   assert.match(halaman,/semester:qs\('#semester',root\)\.value/,'semester terpilih ikut dikirim saat masuk');
 });
 
-test('8. Footer memuat nama pengembang dan hak cipta, tanpa teks lama',()=>{
+test('8. Identitas pengembang memuat nama dan hak cipta, tanpa teks lama',()=>{
   const halaman=read('src/pages/login.js');
-  assert.match(halaman,/<strong>FAHMI DJAWAS, S\.Pd\.<\/strong>/);
+  /* Identitas pengembang berada di kiri bawah kolom foto; panel kanan berakhir di nomor versi. */
+  assert.match(halaman,/<strong class="login-credit-name">FAHMI DJAWAS, S\.Pd\.<\/strong>/);
   assert.match(halaman,/Dirancang &amp; Dikembangkan oleh/);
-  assert.match(halaman,/© 2026 e-Rapor SDN Satria Jaya 01 — Semua Hak Dilindungi/);
+  assert.match(halaman,/© 2026 — Semua Hak Dilindungi/);
   assert.equal(halaman.includes('System Architect & Lead Developer'),false,'peran lama dibuang');
   assert.equal(halaman.includes('Inovasi digital mandiri'),false,'moto lama dibuang');
   /* Nomor versi tetap otomatis dari APP_VERSION. */

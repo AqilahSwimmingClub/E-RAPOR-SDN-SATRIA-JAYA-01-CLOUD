@@ -27,7 +27,7 @@ const APP_SHELL=[
   './src/services/subjects.js','./src/services/transcript.js','./src/services/transcript-admin.js','./src/services/excel.js','./src/services/file-io.js','./src/services/print-service.js','./src/data/owner-verifier.js'
 ];
 
-const SWAPPABLE_ASSETS=['/assets/login-background.jpg','/assets/logo-sekolah.png'];
+const SWAPPABLE_ASSETS=['/assets/login-background.jpg','/assets/logo-sekolah.png','/assets/logo-tut-wuri-handayani.png','/assets/logo-kabupaten-bekasi.png'];
 function isSwappableAsset(url){const path=new URL(url).pathname;return SWAPPABLE_ASSETS.some(name=>path.endsWith(name));}
 
 function isAppCode(url){return /\.(?:js|mjs|css|html|webmanifest)$/i.test(new URL(url).pathname);}

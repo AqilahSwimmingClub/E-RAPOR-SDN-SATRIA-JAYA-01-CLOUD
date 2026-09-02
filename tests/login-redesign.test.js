@@ -139,10 +139,12 @@ test('Branding sekolah dan footer pengembang sesuai permintaan',()=>{
   const source=login();
   for(const teks of ['e-Rapor','SDN SATRIA JAYA 01','Cerdas • Berkarakter • Berprestasi','Dirancang &amp; Dikembangkan oleh','FAHMI DJAWAS, S.Pd.','Semua Hak Dilindungi'])
     assert.ok(source.includes(teks),`branding ${teks} tampil`);
-  assert.match(source,/©\s*2026 e-Rapor SDN Satria Jaya 01/);
+  assert.match(source,/©\s*2026 — Semua Hak Dilindungi/);
   assert.doesNotMatch(source,/System Architect/,'teks lama dibuang');
   assert.doesNotMatch(source,/Inovasi digital mandiri/,'motto lama dibuang');
-  assert.match(css(),/\.login-footer\{[^}]*text-align:center/,'footer di tengah');
+  /* Identitas pengembang hanya di kiri bawah, panel kanan tidak lagi membawa footer. */
+  assert.match(css(),/\.login-photo-caption\{[^}]*position:relative/,'blok identitas kiri tetap ada');
+  assert.doesNotMatch(source,/login-footer/,'footer panel kanan sudah dihapus');
   assert.equal(SCHOOL.length>0,true);
 });
 
