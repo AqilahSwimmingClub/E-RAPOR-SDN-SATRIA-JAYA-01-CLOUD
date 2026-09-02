@@ -1,5 +1,6 @@
 import { ASSESSMENT_TYPES, SCOPE_SUMMATIVE_PARTS, SCOPE_SUMMATIVE_TYPE, getAssessmentSheet, saveAssessmentScores, scopeSummativeAverage } from '../services/assessment.js';
 import { fillAllAssessmentScores } from '../services/assessment-bulk.js';
+import { getSelectedAssessmentObjectives, listObjectivesForAssessment, setSelectedAssessmentObjectives } from '../services/learning-objectives.js';
 import { assessmentTemplateFilename, assessmentTemplateWorkbook, commitAssessmentImport, previewAssessmentImport } from '../services/assessment-import.js';
 import { pickFile, saveFile } from '../services/file-io.js';
 import { attendanceDerivedSheet, getDailyAttendanceMode } from '../services/report.js';
@@ -33,9 +34,9 @@ function askScore({title,message,defaultValue='80'}){
 
 export function renderAssessment(session){
   const subjects=listActiveSubjects(session);let subjectId=subjects[0]?.id||'';let assessmentType=ASSESSMENT_TYPES[0].id;
-  const root=el(`<div><div class="page-head"><div><h1>Penilaian</h1><p>Input nilai 0–100 untuk siswa Kelas ${escapeHtml(session.classId)} pada scope aktif.</p></div><div class="actions"><button class="btn btn-primary" data-save>${icon('save',17)} Simpan Nilai</button></div></div><section class="card assessment-filter"><div class="field compact-field"><label for="assessmentSubject">Mata Pelajaran Aktif</label><select class="input" id="assessmentSubject" data-subject>${subjects.map(subject=>`<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></div><div class="field compact-field"><label for="assessmentType">Jenis Penilaian</label><select class="input" id="assessmentType" data-type>${ASSESSMENT_TYPES.map(type=>`<option value="${type.id}">${escapeHtml(type.label)}</option>`).join('')}</select></div><div class="field compact-field"><label for="assessmentFillTarget">Tampilkan Siswa</label><select class="input" id="assessmentFillTarget" data-fill-target><option value="">Semua Siswa</option></select></div><div class="scope-note">Kelas ${escapeHtml(session.classId)}<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section><section data-summary></section><div data-list></div></div>`);
+  const root=el(`<div><div class="page-head"><div><h1>Penilaian</h1><p>Input nilai 0–100 untuk siswa Kelas ${escapeHtml(session.classId)} pada scope aktif.</p></div><div class="actions"><button class="btn btn-primary" data-save>${icon('save',17)} Simpan Nilai</button></div></div><section class="card assessment-filter"><div class="field compact-field"><label for="assessmentSubject">Mata Pelajaran Aktif</label><select class="input" id="assessmentSubject" data-subject>${subjects.map(subject=>`<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></div><div class="field compact-field"><label for="assessmentType">Jenis Penilaian</label><select class="input" id="assessmentType" data-type>${ASSESSMENT_TYPES.map(type=>`<option value="${type.id}">${escapeHtml(type.label)}</option>`).join('')}</select></div><div class="field compact-field"><label for="assessmentFillTarget">Tampilkan Siswa</label><select class="input" id="assessmentFillTarget" data-fill-target><option value="">Semua Siswa</option></select></div><div class="scope-note">Kelas ${escapeHtml(session.classId)}<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section><section data-objectives></section><section data-summary></section><div data-list></div></div>`);
   root.querySelector('.page-head .actions').insertAdjacentHTML('afterbegin','<button class="btn btn-light" data-template>Download Template Nilai</button><button class="btn btn-light" data-import>Import Nilai</button><button class="btn btn-light" data-fill-all>Isi Semua Nilai</button>');
-  const listHost=root.querySelector('[data-list]');const summaryHost=root.querySelector('[data-summary]');const saveButton=root.querySelector('[data-save]');
+  const listHost=root.querySelector('[data-list]');const objectiveHost=root.querySelector('[data-objectives]');const summaryHost=root.querySelector('[data-summary]');const saveButton=root.querySelector('[data-save]');
   if(!subjects.length){root.querySelector('[data-subject]').disabled=true;root.querySelector('[data-type]').disabled=true;saveButton.disabled=true;root.querySelector('[data-template]').disabled=true;root.querySelector('[data-import]').disabled=true;listHost.innerHTML='<section class="card empty-state"><h3>Tidak ada mata pelajaran aktif</h3><p>Aktifkan mata pelajaran melalui Mapping Mata Pelajaran.</p></section>';return root;}
 
   /* Template Nilai membawa seluruh siswa rombel aktif beserta nilai yang sudah tersimpan pada
@@ -86,7 +87,34 @@ export function renderAssessment(session){
     listHost.querySelectorAll(`[data-average-cell][data-id="${CSS.escape(studentId)}"]`).forEach(cell=>{cell.textContent=rata===null?'—':rata;});
   }
 
+  /* Tujuan Pembelajaran dipakai sebagai ACUAN penilaian, bukan sebagai nilai. Guru hanya
+     mencentang TP mana yang menjadi acuan mapel ini; tidak ada satu pun kotak angka per TP.
+     Nilai Akhir tetap berasal dari lima jenis penilaian di bawah. */
+  function drawObjectives(){
+    let objectives=[];
+    try{objectives=listObjectivesForAssessment(session,subjectId,{activeOnly:true});}catch{objectives=[];}
+    if(!objectives.length){
+      objectiveHost.innerHTML='<section class="card source-banner">Belum ada Tujuan Pembelajaran untuk mata pelajaran ini. Tambahkan melalui menu Tujuan Pembelajaran agar deskripsi rapor punya acuan.</section>';
+      return;
+    }
+    const dipilih=new Set(getSelectedAssessmentObjectives(session,subjectId));
+    const bawaan=objectives.some(item=>item.isDefault);
+    const catatan=bawaan
+      ? 'TP bawaan berstatus inspiratif/acuan dan dapat disesuaikan guru melalui menu Tujuan Pembelajaran.'
+      : 'TP berikut berasal dari daftar TP mata pelajaran ini.';
+    objectiveHost.innerHTML=`<section class="card objective-reference"><div class="objective-reference-head"><h2>Acuan Tujuan Pembelajaran</h2><p>TP menjadi acuan penilaian dan bahan deskripsi rapor. Tidak ada nilai per TP; Nilai Akhir tetap dari Formatif, Harian, Praktik, Sumatif Lingkup Materi, dan Sumatif Akhir. ${escapeHtml(catatan)}</p></div><div class="objective-reference-list">${objectives.map(item=>`<label class="objective-reference-item"><input type="checkbox" data-objective value="${escapeHtml(item.id)}" ${dipilih.has(item.id)?'checked':''}/><span><strong>${escapeHtml(item.code)}</strong> ${escapeHtml(item.description)}</span></label>`).join('')}</div><div class="objective-reference-foot"><span data-objective-count>${dipilih.size} TP dijadikan acuan</span></div></section>`;
+    objectiveHost.querySelectorAll('[data-objective]').forEach(box=>box.onchange=()=>{
+      const ids=[...objectiveHost.querySelectorAll('[data-objective]')].filter(item=>item.checked).map(item=>item.value);
+      try{
+        setSelectedAssessmentObjectives(session,subjectId,ids);
+        objectiveHost.querySelector('[data-objective-count]').textContent=`${ids.length} TP dijadikan acuan`;
+        toast('Acuan Tujuan Pembelajaran tersimpan.');
+      }catch(error){box.checked=!box.checked;toast(error.message,'error');}
+    });
+  }
+
   function draw(){
+    drawObjectives();
     const attendanceMode=assessmentType==='daily'&&getDailyAttendanceMode(session,subjectId);const sheet=attendanceMode?attendanceDerivedSheet(session,subjectId):getAssessmentSheet(session,subjectId,assessmentType);drawSummary(sheet.average,sheet.pendingCount,sheet.filledCount,sheet.rows.length,attendanceMode);
     saveButton.disabled=!sheet.rows.length||attendanceMode;saveButton.innerHTML=attendanceMode?`${icon('calendar',17)} Dihitung dari Absensi`:`${icon('save',17)} Simpan Nilai`;
     const target=root.querySelector('[data-fill-target]');const chosen=target.value;
