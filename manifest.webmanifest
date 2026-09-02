@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "e-Rapor SDN Satria Jaya 01",
+  "name": "e-Rapor",
   "short_name": "e-Rapor",
-  "description": "Aplikasi e-Rapor lokal SDN Satria Jaya 01",
+  "description": "Aplikasi e-Rapor sekolah, berjalan penuh secara lokal.",
   "lang": "id-ID",
   "start_url": "./?source=pwa",
   "scope": "./",
