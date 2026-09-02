@@ -23,6 +23,8 @@ export function loadSecrets(env=process.env){
 
 export function loadServerConfig(env=process.env){
   return {
+    /* Dipakai adapter PostgreSQL/Neon. Pada Vercel diisi lewat Environment Variables. */
+    databaseUrl:env.DATABASE_URL||'',
     port:Number.parseInt(env.PORT||'8787',10),
     host:env.HOST||'127.0.0.1',
     databaseFile:env.LICENSE_DB_FILE||'./server/data/licenses.db',

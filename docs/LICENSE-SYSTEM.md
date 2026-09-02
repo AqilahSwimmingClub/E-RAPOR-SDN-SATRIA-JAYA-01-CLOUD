@@ -14,62 +14,106 @@ Tiga komponen yang terpisah:
 | Komponen | Lokasi | Peran |
 |---|---|---|
 | **Client e-Rapor** | `src/` — aplikasi yang dipakai sekolah | Meminta aktivasi, menyimpan Activation Token, memverifikasi tanda tangannya, dan tetap berjalan offline |
-| **License Backend** | `server/src/` — Node.js + SQLite, tanpa dependency | Satu-satunya tempat keputusan lisensi dibuat |
+| **License Backend** | `api/` (Vercel Functions) + `server/src/` (core) | Satu-satunya tempat keputusan lisensi dibuat |
 | **Owner Web Panel** | `server/public/owner/` — disajikan di `/owner/` | Panel khusus pemilik: buat lisensi, reset perangkat, suspend, revoke, recovery, audit log |
 
 Client **tidak pernah** menulis langsung ke database lisensi. Ia hanya memanggil dua endpoint
 publik (`/activate`, `/check`) dan menerima hasilnya.
 
 ```
-Sekolah  ──POST /api/v1/activate──►  License Backend  ──►  SQLite
+Sekolah  ──POST /api/v1/activate──►  Vercel Function  ──►  Neon PostgreSQL
    ▲                                        │
    └──── Activation Token (ECDSA) ──────────┘
 Pemilik  ──Bearer session──►  /api/v1/owner/*
 ```
 
+Aturan lisensi ditulis **satu kali** di `server/src/licenses.js` dan berjalan di atas adapter
+`server/src/store.js`, yang mendukung dua database:
+
+- **PostgreSQL/Neon** — produksi, dipakai Vercel Functions
+- **SQLite** — pengembangan lokal (`node server/src/server.js`)
+
+Perilaku keduanya identik karena logikanya sama; hanya adapternya yang berbeda.
+
 ---
 
-## 2. Menyiapkan backend
+## 2. Deploy ke Vercel + Neon
+
+### 2.1 Siapkan database Neon
+
+1. Buat project di [neon.tech](https://neon.tech), pilih region terdekat (Singapore untuk Indonesia).
+2. Salin **Pooled connection string** — bentuknya
+   `postgresql://USER:PASSWORD@ep-xxx-pooler.REGION.aws.neon.tech/DB?sslmode=require`.
+   Gunakan yang **pooled**, bukan direct, karena fungsi serverless membuka banyak koneksi pendek.
+3. Skema dibuat otomatis saat request pertama. Bila lebih suka manual, jalankan isi
+   `server/schema-postgres.sql` di SQL Editor Neon — pernyataannya idempotent.
+
+### 2.2 Siapkan kunci dan rahasia
 
 ```bash
-# 1. Buat kunci penandatangan (sekali seumur hidup instalasi)
-node server/scripts/generate-signing-key.mjs
-#    → private key tersimpan di server/secrets/license-signing-key.pem  (JANGAN di-commit)
-#    → public key ditampilkan di layar; tempel ke src/data/license-config.js
-
-# 2. Buat nilai acak untuk pepper dan kunci pemulihan
-node server/scripts/generate-secrets.mjs
-
-# 3. Salin dan isi environment
-cp server/.env.example server/.env
-#    isi LICENSE_HASH_PEPPER, LICENSE_RECOVERY_KEY, OWNER_USERNAME, OWNER_PASSWORD
-
-# 4. Jalankan
-node --env-file=server/.env server/src/server.js
-#    API   : http://127.0.0.1:8787/api/v1
-#    Panel : http://127.0.0.1:8787/owner/
+node server/scripts/generate-signing-key.mjs   # private key + public key
+node server/scripts/generate-secrets.mjs        # pepper + recovery key
 ```
+
+### 2.3 Isi Environment Variables di Vercel
+
+Project → Settings → Environment Variables. Isi untuk **Production** (dan Preview bila perlu):
+
+| Variabel | Isi |
+|---|---|
+| `DATABASE_URL` | Pooled connection string Neon |
+| `LICENSE_SIGNING_PRIVATE_KEY` | Isi PEM private key, newline ditulis sebagai `\n` |
+| `LICENSE_HASH_PEPPER` | Keluaran `generate-secrets.mjs` |
+| `LICENSE_RECOVERY_KEY` | Keluaran `generate-secrets.mjs` |
+| `OWNER_USERNAME` | Username pemilik |
+| `OWNER_PASSWORD` | Password pemilik |
+
+`LICENSE_SIGNING_PRIVATE_KEY_FILE` **tidak dipakai di Vercel** — tidak ada berkas yang menetap
+di sana. Gunakan `LICENSE_SIGNING_PRIVATE_KEY`.
+
+### 2.4 Deploy
+
+```bash
+npx vercel --prod
+```
+
+`vercel.json` sudah mengarahkan `/api/v1/*` ke fungsi `api/[...route].js` dan menyajikan Owner
+Panel di `/owner/` dengan header `noindex`.
+
+Setelah deploy:
+- API   : `https://PROYEK.vercel.app/api/v1`
+- Panel : `https://PROYEK.vercel.app/owner/`
+
+### 2.5 Sambungkan aplikasi sekolah
+
+Tempel ke `src/data/license-config.js`, lalu build ulang APK/web:
+
+```js
+export const LICENSE_API_BASE='https://PROYEK.vercel.app';
+export const LICENSE_PUBLIC_JWK={kty:'EC',crv:'P-256',x:'…',y:'…'};
+```
+
+Kedua nilai itu **bukan rahasia** dan memang ikut ke APK.
+
+### 2.6 Menjalankan lokal (opsional)
+
+```bash
+cp server/.env.example server/.env    # isi nilainya
+node --env-file=server/.env server/src/server.js
+```
+
+Versi lokal memakai SQLite dan logika lisensi yang sama persis.
 
 ### Environment variable yang wajib diisi
 
 | Variabel | Isi | Catatan |
 |---|---|---|
-| `LICENSE_SIGNING_PRIVATE_KEY_FILE` | Path ke PEM kunci privat | Alternatif: `LICENSE_SIGNING_PRIVATE_KEY` berisi PEM langsung |
-| `LICENSE_HASH_PEPPER` | Acak ≥32 karakter | **Jangan pernah diganti** setelah ada lisensi terbit — seluruh kunci lama tidak akan ditemukan |
+| `DATABASE_URL` | Pooled connection string Neon | Hanya untuk PostgreSQL/Vercel |
+| `LICENSE_SIGNING_PRIVATE_KEY` | PEM kunci privat | Di lokal boleh `LICENSE_SIGNING_PRIVATE_KEY_FILE` |
+| `LICENSE_HASH_PEPPER` | Acak ≥32 karakter | **Jangan pernah diganti** setelah ada lisensi terbit |
 | `LICENSE_RECOVERY_KEY` | Acak ≥32 karakter | Mengenkripsi nilai pemulihan License Key |
-| `OWNER_USERNAME` | Username pemilik | Akun dibuat sekali saat server start |
-| `OWNER_PASSWORD` | Password pemilik | Tidak pernah ditanam di kode |
-| `LICENSE_DB_FILE` | Path berkas SQLite | Default `./server/data/licenses.db` |
-| `HOST` / `PORT` | Alamat server | Default `127.0.0.1:8787` |
-
-Setelah `generate-signing-key.mjs`, tempel **public key** ke `src/data/license-config.js`:
-
-```js
-export const LICENSE_API_BASE='https://lisensi.domain-anda.id';
-export const LICENSE_PUBLIC_JWK={kty:'EC',crv:'P-256',x:'…',y:'…'};
-```
-
-Kedua nilai itu **bukan rahasia** dan memang ikut ke APK.
+| `OWNER_USERNAME` / `OWNER_PASSWORD` | Kredensial pemilik | Akun dibuat sekali otomatis |
+| `LICENSE_DB_FILE` / `HOST` / `PORT` | Khusus mode lokal | Default `127.0.0.1:8787` |
 
 ---
 
