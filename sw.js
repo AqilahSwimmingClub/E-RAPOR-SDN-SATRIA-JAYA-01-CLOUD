@@ -12,7 +12,7 @@ const APP_SHELL=[
   './','./index.html','./manifest.webmanifest',
   './assets/app-icon.svg','./assets/app-icon-192.svg','./assets/app-icon-512.svg','./assets/fahmi-djawas.jpg','./assets/vendor/xlsx.mjs',
   './assets/logo-tut-wuri-handayani.png','./assets/logo-kabupaten-bekasi.png',
-  './src/styles/app.css','./src/app.js','./src/core/router.js','./src/data/constants.js','./src/data/navigation.js','./src/data/version.js','./src/data/activity-description.js','./src/data/app-identity.js','./src/data/license-config.js','./src/data/cocurricular.js','./src/data/extracurricular-defaults.js','./src/data/intracurricular-defaults.js',
+  './src/styles/app.css','./src/app.js','./src/core/router.js','./src/data/constants.js','./src/data/navigation.js','./src/data/version.js','./src/data/activity-description.js','./src/data/app-identity.js','./src/data/license-config.js','./src/data/cocurricular.js','./src/data/extracurricular-defaults.js','./src/data/intracurricular-defaults.js','./src/data/learning-objective-defaults.js',
   './src/ui/dom.js','./src/ui/icons.js','./src/ui/layout.js','./src/ui/digital-gauge.js',
   './src/pages/assessment.js','./src/pages/attendance.js','./src/pages/class-overview.js','./src/pages/cocurricular-input.js','./src/pages/completeness.js','./src/pages/extracurricular-input.js','./src/pages/intracurricular-input.js',
   './src/pages/activation.js','./src/pages/admin-status.js','./src/pages/attitudes.js','./src/pages/cocurricular.js','./src/pages/intracurricular.js','./src/pages/dapodik.js',
@@ -21,7 +21,7 @@ const APP_SHELL=[
   './src/pages/settings.js','./src/pages/students.js','./src/pages/transcript.js','./src/pages/transcript-admin.js','./src/pages/users.js','./src/pages/weights.js',
   './src/services/admin-status.js','./src/services/analytics.js','./src/services/assessment.js','./src/services/assessment-bulk.js','./src/services/assessment-import.js','./src/services/attendance.js','./src/services/attitudes.js','./src/services/auth.js',
   './src/services/backup.js','./src/services/cocurricular.js','./src/services/completeness.js','./src/services/descriptions.js','./src/services/documents.js','./src/services/dapodik-adapter.js','./src/services/dapodik-sync.js','./src/services/dapodik-bridge.js','./src/services/intracurricular.js',
-  './src/services/mapping.js','./src/services/admin-readiness.js','./src/services/installation.js','./src/services/student-handover.js','./src/services/license.js','./src/services/master.js','./src/services/objectives.js','./src/services/report.js',
+  './src/services/mapping.js','./src/services/admin-readiness.js','./src/services/installation.js','./src/services/student-handover.js','./src/services/license.js','./src/services/master.js','./src/services/objectives.js','./src/services/learning-objectives.js','./src/services/report.js',
   './src/services/owner-activation.js','./src/services/print-settings.js','./src/services/publications.js','./src/services/references.js','./src/services/report-bulk.js',
   './src/services/report-import.js','./src/services/snapshots.js','./src/services/migrations.js','./src/services/seed.js','./src/services/storage.js','./src/services/students.js',
   './src/services/subjects.js','./src/services/transcript.js','./src/services/transcript-admin.js','./src/services/excel.js','./src/services/file-io.js','./src/services/print-service.js','./src/data/owner-verifier.js'
