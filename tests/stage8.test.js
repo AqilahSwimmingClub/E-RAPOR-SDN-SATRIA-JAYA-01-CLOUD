@@ -14,15 +14,15 @@ const teacher={role:'teacher',classId:'5B',semester:`Genap ${ACADEMIC_YEAR}`,aca
 test('Master sekolah menyediakan 24 rombel dan profil Guru sesuai rombel',()=>{
   globalThis.localStorage=memoryStorage();globalThis.sessionStorage=memoryStorage();
   assert.deepEqual(listMasterClasses(),CLASSES);assert.equal(listTeacherProfiles().length,24);
-  saveSchoolMaster(admin,{principalName:'Kepala Sekolah Uji',principalNip:'198001012006041001'});
+  saveSchoolMaster(admin,{name:'SDN Contoh Nusantara 02',principalName:'Kepala Sekolah Uji',principalNip:'198001012006041001'});
   saveTeacherProfile(admin,'5B',{name:'Wali Kelas Lima B',nip:'198502022010012001',phone:'08123456789',email:'wali5b@example.test',photo:''});
-  assert.equal(getSchoolMaster().name,'SDN Satria Jaya 01');assert.equal(getTeacherProfile('5B').classId,'5B');
+  assert.equal(getSchoolMaster().name,'SDN Contoh Nusantara 02','nama sekolah mengikuti input Admin');assert.equal(getTeacherProfile('5B').classId,'5B');
   assert.throws(()=>saveTeacherProfile({...teacher,classId:'5A'},'5B',{name:'Tidak Diizinkan'}),/tidak berwenang/);
 });
 
 test('Nama dan NIP master otomatis masuk model dokumen rapor',()=>{
   globalThis.localStorage=memoryStorage();globalThis.sessionStorage=memoryStorage();
-  saveSchoolMaster(admin,{principalName:'Kepala Sekolah Uji',principalNip:'198001012006041001'});
+  saveSchoolMaster(admin,{name:'SDN Contoh Nusantara 02',principalName:'Kepala Sekolah Uji',principalNip:'198001012006041001'});
   saveTeacherProfile(admin,'5B',{name:'Wali Kelas Lima B',nip:'198502022010012001',phone:'',email:'',photo:''});
   const student=createStudent(teacher,{nis:'501',nisn:'0050000001',name:'Siswa Dokumen Master',gender:'L',birthPlace:'Bekasi',birthDate:'2015-01-01',fatherName:'Ayah',motherName:'Ibu',phone:'',address:'Satria Jaya',photo:''});
   const document=getReportDocument(teacher,student.id);
@@ -32,10 +32,10 @@ test('Nama dan NIP master otomatis masuk model dokumen rapor',()=>{
 
 test('Safety snapshot dapat dipreview dan memulihkan data lokal',()=>{
   globalThis.localStorage=memoryStorage();globalThis.sessionStorage=memoryStorage();
-  saveSchoolMaster(admin,{principalName:'Nama Sebelum',principalNip:'111'});
+  saveSchoolMaster(admin,{name:'SDN Contoh Nusantara 02',principalName:'Nama Sebelum',principalNip:'111'});
   const snapshot=createRecoverySnapshot(admin,'Snapshot pengujian');
   assert.equal(listRecoverySnapshots(admin).length,1);assert.equal(previewRecoverySnapshot(admin,snapshot.id).reason,'Snapshot pengujian');
-  saveSchoolMaster(admin,{principalName:'Nama Sesudah',principalNip:'222'});assert.equal(getSchoolMaster().principalName,'Nama Sesudah');
+  saveSchoolMaster(admin,{name:'SDN Contoh Nusantara 02',principalName:'Nama Sesudah',principalNip:'222'});assert.equal(getSchoolMaster().principalName,'Nama Sesudah');
   restoreRecoverySnapshot(admin,snapshot.id);assert.equal(getSchoolMaster().principalName,'Nama Sebelum');assert.equal(listRecoverySnapshots(admin).length,2);
 });
 

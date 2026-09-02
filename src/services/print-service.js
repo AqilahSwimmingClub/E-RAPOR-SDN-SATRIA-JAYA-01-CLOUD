@@ -1,3 +1,4 @@
+import { APP_NAME } from '../data/app-identity.js';
 /* Preview dokumen selalu tersedia DI DALAM aplikasi sebelum dialog cetak perangkat dibuka.
    Electron/Chromium memang tidak menyertakan print preview bawaan, sehingga dialog Windows
    menampilkan "This app doesn't support print preview". Preview palsu tidak dibuat; alurnya
@@ -12,7 +13,7 @@ export function showDocumentPreview(){
   return true;
 }
 
-export function printCurrentDocument({title='e-Rapor SDN Satria Jaya 01',savePdf=false}={}){
+export function printCurrentDocument({title=APP_NAME,savePdf=false}={}){
   if(globalThis.desktopBridge?.printCurrent){
     /* Simpan PDF memakai printToPDF Electron; Cetak membuka dialog perangkat setelah
        dokumennya lebih dulu ditampilkan di aplikasi. */

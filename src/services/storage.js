@@ -1,4 +1,4 @@
-import { SUBJECTS_DEFAULT, ASSESSMENT_DEFAULT, CLASSES, SCHOOL, ACADEMIC_YEAR, SEMESTERS, availableAcademicYears, semestersOf } from '../data/constants.js';
+import { SUBJECTS_DEFAULT, ASSESSMENT_DEFAULT, CLASSES, DEFAULT_SCHOOL_NAME, ACADEMIC_YEAR, SEMESTERS, availableAcademicYears, semestersOf } from '../data/constants.js';
 import { normalizeMappingGroups } from './mapping.js';
 import { APP_SCHEMA_VERSION, APP_VERSION } from '../data/version.js';
 
@@ -31,8 +31,12 @@ function normalizeReferenceData(input){
 
 function defaultMasterData(){
   return {
-    school:{name:SCHOOL,principalName:'',principalNip:'',npsn:'20218098',registrationNumber:'101022205007',address:'Kp. Gebang',village:'Satriajaya',district:'Kec. Tambun Utara',city:'Kab. Bekasi',province:'Prov. Jawa Barat',website:'',email:'sdnsatriajaya01tamara@gmail.com',ministryLogo:'',regionLogo:''},
-    admin:{name:'Fahmi Djawas, S.Pd.',nip:'',phone:'',email:'',photo:'./assets/fahmi-djawas.jpg'},
+    /* Instalasi baru bersih dari identitas sekolah mana pun. Seluruh nilai diisi Admin
+       lewat Setup Awal. Merge di loadDb() memastikan instalasi lama tetap memakai
+       identitas sekolah yang sudah tersimpan. */
+    school:{name:DEFAULT_SCHOOL_NAME,principalName:'',principalNip:'',npsn:'',registrationNumber:'',status:'',address:'',village:'',district:'',city:'',province:'',postalCode:'',phone:'',website:'',email:'',ministryLogo:'',regionLogo:'',schoolLogo:''},
+    /* Profil akun Admin milik sekolah pengguna, bukan identitas pembuat aplikasi. */
+    admin:{name:'Administrator',nip:'',phone:'',email:'',photo:''},
     classes:[...CLASSES],
     teachers:Object.fromEntries(CLASSES.map(classId=>[classId,{classId,name:`Guru / Wali Kelas ${classId}`,nip:'',phone:'',email:'',photo:'',updatedAt:null}])),
     references:defaultReferenceData(),
@@ -54,6 +58,7 @@ function baseDb(){
     assessmentSettings: {},
     students: {}, attendance: {}, learningObjectives: {}, assessmentScores: {},
     reportScores: {}, reportDescriptions: {}, extracurricularScores: {}, cocurricularActivities: {}, cocurricularScores: {},
+    intracurricularActivities: {}, intracurricularScores: {}, dapodikSyncState: {}, dapodikSyncLogs: {}, dapodikMappings: {}, publishedReports: {},
     attitudeProfiles: {}, printSettings: {}, homeroomNotes: {}, promotionStatus: {}, graduationStatus: {}, transcriptScores: {},
     backupHistory: [], migrationHistory: []
   };

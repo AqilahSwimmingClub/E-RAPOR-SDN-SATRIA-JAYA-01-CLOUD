@@ -122,9 +122,8 @@ test('9. Keystore dikembalikan utuh bila keytool gagal di tengah jalan',()=>{
   const {folder,keystore,properties}=siapkan();
   try{
     /* keytool tiruan: pemeriksaan lolos, tetapi -storepasswd merusak berkas lalu gagal. */
-    const tiruan=path.join(folder,'keytool-gagal');
-    writeFileSync(tiruan,`#!/bin/bash\nfor arg in "$@"; do\n  if [ "$arg" = "-storepasswd" ]; then\n    for ((i=1;i<=$#;i++)); do if [ "\${!i}" = "-keystore" ]; then j=$((i+1)); printf 'RUSAK' > "\${!j}"; fi; done\n    echo "keytool error: sengaja gagal untuk uji" >&2; exit 1\n  fi\ndone\nexec keytool "$@"\n`,'utf8');
-    chmodSync(tiruan,0o755);
+    const tiruan=path.join(folder,'keytool-gagal.mjs');
+    writeFileSync(tiruan,`import {execFileSync} from 'node:child_process';\nimport {writeFileSync} from 'node:fs';\nconst args=process.argv.slice(2);\nif(args.includes('-storepasswd')){const index=args.indexOf('-keystore');writeFileSync(args[index+1],'RUSAK');console.error('keytool error: sengaja gagal untuk uji');process.exit(1);}\nexecFileSync('keytool',args,{stdio:'inherit'});\n`,'utf8');
     const sebelum=isiBerkas(keystore);
     const pesan=gagal(()=>jalankan(['999999'],properties,['--keytool',tiruan]));
     assert.match(pesan,/keytool gagal mengganti password keystore/);

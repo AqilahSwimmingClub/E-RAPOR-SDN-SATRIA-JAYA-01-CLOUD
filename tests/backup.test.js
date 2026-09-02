@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { backupFilename, buildBackup, parseBackupText, restoreBackup, validateBackupForSession } from '../src/services/backup.js';
-import { loadDb, saveDb, scopeKey } from '../src/services/storage.js';
+import { loadDb, saveDb, scopeKey, updateDb } from '../src/services/storage.js';
 
 function useMemoryStorage(){
   const values=new Map();
@@ -42,7 +42,7 @@ test('Teacher backup only contains its class, semester, and academic-year scope'
     assert.ok(keys.every(key=>!key.startsWith(scope5c)));
   }
   assert.deepEqual(payload.data.backupHistory,[]);
-  assert.equal(backupFilename(teacher5b),'ERAPOR-SDN-SATRIA-JAYA-01-KELAS-5B-GANJIL-2026-2027.backup.json');
+  assert.equal(backupFilename(teacher5b),'ERAPOR-KELAS-5B-GANJIL-2026-2027.backup.json');
 });
 
 test('Teacher restore rejects a different scope and Admin backup',()=>{
@@ -72,4 +72,22 @@ test('Teacher restore replaces only its scope and preserves another class',()=>{
   const restored=loadDb();
   assert.equal(restored.students[`${scope5b}|student-1`].name,'Hasil Restore 5B');
   assert.equal(restored.students[`${scope5c}|student-1`].name,'Siswa 5C');
+});
+
+test('Backup Guru tidak pernah memuat konfigurasi maupun log Dapodik',()=>{
+  useMemoryStorage();
+  updateDb(db=>{
+    db.dapodikSyncState={aktif:{npsn:'20218098',semesterId:'20262',lastPullAt:'2026-09-01T00:00:00.000Z'}};
+    db.dapodikSyncLogs={'log-1':{id:'log-1',operation:'pull',status:'SUCCESS',counts:{created:{students:1}},actor:'admin'}};
+    db.dapodikMappings={'rombel-5b':{classId:'5B'}};
+    return db;
+  });
+  const guru=buildBackup({role:'teacher',classId:'5B',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`});
+  assert.deepEqual(guru.data.dapodikSyncState,{});
+  assert.deepEqual(guru.data.dapodikSyncLogs,{});
+  assert.deepEqual(guru.data.dapodikMappings,{});
+  /* Token Dapodik hidup di luar basis data (safeStorage desktop), jadi tidak mungkin ikut. */
+  assert.doesNotMatch(JSON.stringify(guru),/bearer|token/i);
+  const adminBackup=buildBackup({role:'admin',classId:null,academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`});
+  assert.equal(Object.keys(adminBackup.data.dapodikSyncLogs).length,1,'Admin tetap membawa log untuk audit');
 });

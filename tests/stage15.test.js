@@ -82,20 +82,20 @@ test('Workbook leger mengikuti judul, identitas sekolah, dan baris rekap referen
 test('Identitas sekolah lengkap tersimpan dan dipakai halaman Perlengkapan',()=>{
   useMemoryStorage();
   const defaults=getSchoolMaster();
-  assert.equal(defaults.npsn,'20218098');
-  assert.equal(defaults.registrationNumber,'101022205007');
-  assert.equal(defaults.address,'Kp. Gebang');
-  assert.equal(defaults.province,'Prov. Jawa Barat');
-  const saved=saveSchoolMaster(admin,{npsn:'20218098',registrationNumber:'101022205007',address:'Kp. Gebang',village:'Satriajaya',district:'Kec. Tambun Utara',city:'Kab. Bekasi',province:'Prov. Jawa Barat',website:'',email:'sdnsatriajaya01tamara@gmail.com',principalName:'Misan, S.Pd',principalNip:'196604171992031008'});
+  /* Instalasi baru tidak membawa identitas sekolah mana pun. */
+  for(const field of ['name','npsn','registrationNumber','address','village','district','city','province','email','status','postalCode','phone','schoolLogo'])
+    assert.equal(defaults[field],'',`${field} kosong pada instalasi baru`);
+  const saved=saveSchoolMaster(admin,{name:'SDN Contoh Nusantara 02',npsn:'20218098',registrationNumber:'101022205007',address:'Kp. Gebang',village:'Satriajaya',district:'Kec. Tambun Utara',city:'Kab. Bekasi',province:'Prov. Jawa Barat',website:'',email:'sdnsatriajaya01tamara@gmail.com',principalName:'Misan, S.Pd',principalNip:'196604171992031008'});
   assert.equal(saved.village,'Satriajaya');
   assert.equal(saved.email,'sdnsatriajaya01tamara@gmail.com');
   assert.equal(getSchoolMaster().principalName,'Misan, S.Pd');
-  assert.throws(()=>saveSchoolMaster(admin,{email:'bukan-email',principalName:'A',principalNip:'1'}),/email sekolah tidak valid/);
+  assert.throws(()=>saveSchoolMaster(admin,{name:'SDN Contoh Nusantara 02',email:'bukan-email',principalName:'A',principalNip:'1'}),/email sekolah tidak valid/);
+  assert.throws(()=>saveSchoolMaster(admin,{name:'  ',principalName:'A',principalNip:'1'}),/Nama sekolah wajib diisi/);
 });
 
 test('Identitas dokumen sama pada leger, cover, perlengkapan, dan rapor',()=>{
   useMemoryStorage();saveSubjectMapping(teacher,mapping());
-  saveSchoolMaster(admin,{npsn:'20218098',registrationNumber:'101022205007',address:'Kp. Gebang',village:'Satriajaya',district:'Kec. Tambun Utara',city:'Kab. Bekasi',province:'Prov. Jawa Barat',website:'',email:'sdnsatriajaya01tamara@gmail.com',principalName:'Misan, S.Pd',principalNip:'196604171992031008'});
+  saveSchoolMaster(admin,{name:'SDN Contoh Nusantara 02',npsn:'20218098',registrationNumber:'101022205007',address:'Kp. Gebang',village:'Satriajaya',district:'Kec. Tambun Utara',city:'Kab. Bekasi',province:'Prov. Jawa Barat',website:'',email:'sdnsatriajaya01tamara@gmail.com',principalName:'Misan, S.Pd',principalNip:'196604171992031008'});
   const student=addStudent(1);fillStudent(student,1,{mtk:90,agama:80,sunda:88});markSick([student]);
   savePrintSettings(teacher,{principalName:'Misan, S.Pd',principalNip:'196604171992031008',teacherName:'FAHMI DJAWAS, S.Pd',teacherNip:'199101232025211006',city:'Bekasi',printDate:'2026-12-22'});
   const identity=getDocumentIdentity(teacher);
@@ -137,7 +137,8 @@ test('Dokumen rapor membawa sikap, ekstrakurikuler, ketidakhadiran, dan catatan 
 
 test('Halaman Cetak Nilai memuat tab Perlengkapan dan seluruh blok format referensi',()=>{
   const page=read('src/pages/print.js');
-  assert.match(page,/data-tab="equipment"/);
+  assert.match(page,/data-supplement="\$\{id\}"/,'sub-dokumen pelengkap dipilih di dalam halaman');
+  assert.match(page,/\['equipment','Perlengkapan'\]/,'Perlengkapan tetap tersedia');
   assert.match(page,/SEKOLAH DASAR/);
   assert.match(page,/KEMENTERIAN PENDIDIKAN DASAR DAN MENENGAH/);
   assert.match(page,/IDENTITAS PESERTA DIDIK/);
@@ -257,7 +258,7 @@ test('Logo bawaan Cover dibaca dari assets dan didahulukan oleh logo master seko
 test('Logo sekolah tersimpan pada master, tervalidasi, dan tetap ada saat field lain disimpan',()=>{
   useMemoryStorage();
   const png='data:image/png;base64,iVBORw0KGgo=';
-  const base={npsn:'20218098',registrationNumber:'101022205007',address:'Kp. Gebang',village:'Satriajaya',district:'Kec. Tambun Utara',city:'Kab. Bekasi',province:'Prov. Jawa Barat',website:'',email:'sdnsatriajaya01tamara@gmail.com',principalName:'Misan, S.Pd',principalNip:'196604171992031008'};
+  const base={name:'SDN Contoh Nusantara 02',npsn:'20218098',registrationNumber:'101022205007',address:'Kp. Gebang',village:'Satriajaya',district:'Kec. Tambun Utara',city:'Kab. Bekasi',province:'Prov. Jawa Barat',website:'',email:'sdnsatriajaya01tamara@gmail.com',principalName:'Misan, S.Pd',principalNip:'196604171992031008'};
   assert.equal(getSchoolMaster().ministryLogo,'');
   const saved=saveSchoolMaster(admin,{...base,ministryLogo:png,regionLogo:png});
   assert.equal(saved.ministryLogo,png);
@@ -282,6 +283,7 @@ test('Leger memakai A4 landscape melalui override ukuran halaman cetak',async()=
   assert.equal(styles.size,0,'override dilepas di luar tab Leger');
   delete globalThis.document;
   const page=read('src/pages/print.js');
-  assert.match(page,/if\(tab==='leger'\)setPrintPageSize\('landscape'\)/,'Leger tetap landscape 8mm');
+  assert.match(page,/if\(tab==='leger'\)setPrintPageSize\('landscape',marginRule\('leger'\)\)/,'Leger tetap landscape');
+  assert.match(page,/return mode==='report'\?'10mm 0':'8mm';/,'Leger tetap memakai margin bawaan 8mm');
   assert.match(page,/else setPrintPageSize\(null\)/,'dokumen lain tetap memakai @page bawaan app.css');
 });

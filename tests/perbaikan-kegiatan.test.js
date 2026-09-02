@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { defaultExtracurricularActivities, pramukaActivityName } from '../src/data/extracurricular-defaults.js';
+import { generateCocurricularDescription } from '../src/data/cocurricular.js';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT, religionMatches, religionOfSubject } from '../src/data/constants.js';
 import { COCURRICULAR_ACTIVITY_PRESETS } from '../src/data/cocurricular.js';
 import { ACTIVITY_PREDICATES, cocurricularDescriptionsForClass, getStudentCocurricular, listCocurricularActivities, listExtracurriculars, pramukaDescriptionsForClass, pramukaPresetForClass, saveCocurricularBulk, saveExtracurricularBulk, saveStudentCocurricular } from '../src/services/completeness.js';
@@ -47,16 +49,18 @@ test('3 & 4. Siaga dan Penggalang masing-masing punya 5 deskripsi yang berbeda',
 });
 
 test('Form ekstrakurikuler menyediakan pilihan otomatis, bukan ketikan bebas',()=>{
-  const page=read('src/pages/completeness.js');
-  assert.match(page,/function extraActivityOptions\(/,'kegiatan berupa pilihan');
-  assert.match(page,/pramukaPresetForClass\(session\.classId\)/,'Pramuka mengikuti tingkat kelas');
+  const page=read('src/pages/extracurricular-input.js');
+  assert.match(page,/defaultExtracurricularActivities\(session\.classId\)/,'kegiatan berupa pilihan bawaan');
+  assert.match(page,/select class="input" data-activity/,'kegiatan berupa dropdown');
   assert.match(page,/select class="input" data-predicate/,'predikat berupa pilihan');
   assert.match(page,/function predicateOptions\(/,'pilihan predikat dibangun dari daftar resmi');
-  assert.match(page,/pramukaDescriptionsForClass\(session\.classId\)/,'deskripsi berasal dari preset tingkat kelas');
-  assert.match(page,/Kegiatan lain \(ketik sendiri\)/,'kegiatan lain tetap dapat ditambahkan manual');
+  /* Pramuka tetap kegiatan utama dan namanya mengikuti tingkat kelas. */
+  assert.match(pramukaActivityName('2A'),/Siaga/);
+  assert.match(pramukaActivityName('5B'),/Penggalang/);
+  assert.equal(defaultExtracurricularActivities('5B')[0].name,'Pramuka Penggalang');
   /* Tidak lagi memakai input teks bebas untuk nama, predikat, dan deskripsi ekstrakurikuler. */
   assert.equal(/<input class="input" name="predicate"/.test(page),false);
-  assert.equal(/name="name" value="\$\{escapeHtml\(record\?\.name\|\|''\)\}"/.test(page),false);
+  assert.equal(/input class="input" data-activity/.test(page),false,'bukan lagi ketikan bebas');
 });
 
 test('5. Ekstrakurikuler dapat diterapkan ke semua siswa sekaligus',()=>{
@@ -78,17 +82,17 @@ test('5. Ekstrakurikuler dapat diterapkan ke semua siswa sekaligus',()=>{
   const ulang=saveExtracurricularBulk(session,{name:'Pramuka Penggalang',predicate:'Baik',description:pramukaDescriptionsForClass('5B')[0]},{overwrite:false});
   assert.equal(ulang.skipped,daftar.length,'seluruh data individual dilewati');
   assert.equal(listExtracurriculars(session,daftar[0].id)[0].predicate,'Sangat Baik','predikat lama tidak berubah');
-  assert.match(read('src/pages/completeness.js'),/data-extra-bulk/,'tersedia tombol Terapkan ke Semua Siswa');
+  assert.match(read('src/pages/extracurricular-input.js'),/data-bulk/,'tersedia tombol massal pada halaman input');
 });
 
 /* ------------------------------------------------------------- 6-9. Kokurikuler preset */
 
 test('6. Lima kegiatan kokurikuler tersedia sebagai pilihan',()=>{
   assert.deepEqual(listCocurricularActivities(),['Kunjungan Edukasi (Field Trip)','Proyek Peduli Lingkungan','Bakti Sosial','Pengenalan Budaya','Pelatihan Literasi']);
-  const page=read('src/pages/completeness.js');
+  const page=read('src/pages/cocurricular-input.js');
   assert.match(page,/listCocurricularActivities\(\)/,'halaman memakai daftar preset');
-  assert.match(page,/select class="input" data-coco-activity/,'kegiatan berupa dropdown');
-  assert.equal(/input class="input" data-coco-activity/.test(page),false,'bukan lagi input teks kosong');
+  assert.match(page,/select class="input" data-activity/,'kegiatan berupa dropdown');
+  assert.equal(/input class="input" data-activity/.test(page),false,'bukan lagi input teks kosong');
 });
 
 test('7 & 8. Setiap kegiatan punya 5 deskripsi kelas rendah dan 5 kelas tinggi yang berbeda',()=>{
@@ -105,7 +109,11 @@ test('7 & 8. Setiap kegiatan punya 5 deskripsi kelas rendah dan 5 kelas tinggi y
   assert.equal(new Set(semua).size,50,'seluruh 50 deskripsi unik');
   /* Deskripsi berubah mengikuti kegiatan yang dipilih, bukan satu daftar generik. */
   assert.notDeepEqual(cocurricularDescriptionsForClass('5B','Bakti Sosial'),cocurricularDescriptionsForClass('5B','Pelatihan Literasi'));
-  assert.match(read('src/pages/completeness.js'),/cocurricularDescriptionsForClass\(session\.classId,activity\.value\)/,'deskripsi mengikuti kegiatan terpilih');
+  /* Deskripsi otomatis pada halaman input juga mengikuti kegiatan dan tingkat kelas. */
+  assert.notEqual(
+    generateCocurricularDescription({studentName:'Bayu',activity:'Bakti Sosial',predicate:'Baik',classId:'5B'}),
+    generateCocurricularDescription({studentName:'Bayu',activity:'Pelatihan Literasi',predicate:'Baik',classId:'5B'}),
+  );
 });
 
 test('9. Kokurikuler dapat diterapkan ke semua siswa dan tetap dapat diedit satuan',()=>{
@@ -127,7 +135,7 @@ test('9. Kokurikuler dapat diterapkan ke semua siswa dan tetap dapat diedit satu
   saveStudentCocurricular(session,daftar[0].id,{activity:'Pelatihan Literasi',predicate:'Sangat Baik',description:cocurricularDescriptionsForClass('5B','Pelatihan Literasi')[0]});
   assert.equal(getStudentCocurricular(session,daftar[0].id).activity,'Pelatihan Literasi');
   assert.equal(getStudentCocurricular(session,daftar[1].id).activity,kegiatan,'siswa lain tidak ikut berubah');
-  assert.deepEqual(ACTIVITY_PREDICATES,['Baik','Sangat Baik']);
+  assert.deepEqual(ACTIVITY_PREDICATES,['Cukup','Baik','Sangat Baik']);
 });
 
 test('Kokurikuler tetap tidak diwajibkan untuk mencetak rapor',()=>{

@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
-import { STUDENTS_5B, SEED_CLASS_ID, SEED_ACADEMIC_YEAR, SEED_SEMESTER } from '../src/data/seed-5b.js';
-import { seedInitialStudents, seedStatus } from '../src/services/seed.js';
+import { ensureDefaultSubjects } from '../src/services/seed.js';
 import { commitStudentImport, formatBirthPlaceDate, listStudents, parseBirthPlaceDate, previewStudentWorkbookImport, STUDENT_CSV_HEADERS, studentRow, studentTemplateWorkbook, studentWorkbookBytes } from '../src/services/students.js';
 import { createWorkbookBytes, readWorkbookRows } from '../src/services/excel.js';
 import { getLeger, legerWorkbookRows } from '../src/services/documents.js';
-import { saveSubjectMapping } from '../src/services/storage.js';
+import { loadDb, saveSubjectMapping } from '../src/services/storage.js';
 import { moveSubjectToGroup } from '../src/services/mapping.js';
 import { listActiveSubjects } from '../src/services/subjects.js';
 import { fillAllAssessmentScores } from '../src/services/assessment-bulk.js';
@@ -67,22 +66,15 @@ test('Ekspor Data Siswa memakai format kolom yang sama dengan template',()=>{
   assert.deepEqual(studentRow(listStudents(session,{classId:'5B'})[0]).length,STUDENT_CSV_HEADERS.length);
 });
 
-test('Data awal 5B terisi sekali dan tidak menggandakan saat seed diulang',()=>{
+test('Instalasi baru tidak pernah menyemai data siswa siapa pun',()=>{
   useMemoryStorage();
-  assert.equal(STUDENTS_5B.length,33);
-  assert.equal(SEED_CLASS_ID,'5B');
-  assert.equal(SEED_ACADEMIC_YEAR,'2026/2027');
-  assert.equal(SEED_SEMESTER,'Ganjil 2026/2027');
-  const pertama=seedInitialStudents();
-  assert.equal(pertama.seeded,33);
-  assert.equal(seedInitialStudents().seeded,0,'seed kedua tidak menambah data');
-  assert.equal(seedInitialStudents().seeded,0,'seed ketiga tetap tidak menambah data');
-  assert.equal(seedStatus().count,33);
-  const session={role:'teacher',classId:'5B',academicYear:SEED_ACADEMIC_YEAR,semester:SEED_SEMESTER};
-  const siswa=listStudents(session,{classId:'5B'});
-  assert.equal(siswa.length,33);
-  assert.equal(new Set(siswa.map(item=>item.nisn)).size,33,'NISN unik');
-  assert.equal(listStudents({...session,classId:'6A'},{classId:'6A'}).length,0,'rombel lain tetap kosong');
+  /* Aplikasi dipakai banyak sekolah, jadi tidak ada roster yang ikut didistribusikan.
+     Pengaman startup hanya menyentuh mapel, tidak pernah menyentuh siswa. */
+  ensureDefaultSubjects();
+  const session={role:'teacher',classId:'5B',academicYear:'2026/2027',semester:'Ganjil 2026/2027'};
+  assert.equal(listStudents(session,{classId:'5B'}).length,0,'rombel kosong sampai Admin mengisi sendiri');
+  assert.equal(Object.keys(loadDb().students).length,0,'tidak ada satu pun siswa pada instalasi baru');
+  assert.equal(existsSync(new URL('../src/data/seed-5b.js',root)),false,'roster siswa tidak lagi ada di kode produk');
 });
 
 /* ---------------------------------------------------------------- Leger dinamis */
@@ -197,7 +189,7 @@ test('Catatan wali kelas massal tidak menimpa catatan individual tanpa diminta',
 });
 
 test('Ekstrakurikuler dan kokurikuler memakai preset kelas serta dua predikat',()=>{
-  assert.deepEqual(ACTIVITY_PREDICATES,['Baik','Sangat Baik']);
+  assert.deepEqual(ACTIVITY_PREDICATES,['Cukup','Baik','Sangat Baik']);
   assert.equal(pramukaPresetForClass('2A'),'Pramuka Siaga');
   assert.equal(pramukaPresetForClass('5B'),'Pramuka Penggalang');
   assert.equal(pramukaDescriptionsForClass('2A').length,5);
@@ -210,24 +202,15 @@ test('Ekstrakurikuler dan kokurikuler memakai preset kelas serta dua predikat',(
 
 /* ------------------------------------------------------------------ Startup intro */
 
-test('Intro startup memakai audio asli dan berhenti setelah masuk Login',()=>{
-  const html=read('index.html'),intro=read('src/ui/intro.js');
-  assert.match(html,/assets\/intro-logo\.mp4/);
-  assert.equal(/<video[^>]*\smuted/.test(html),false,'video intro tidak lagi di-mute pada markup');
-  assert.match(html,/autoplay/);
-  assert.match(html,/playsinline/);
-  assert.match(intro,/video\.muted=false/,'audio asli diputar');
-  assert.match(intro,/video\.pause\(\)/,'audio dihentikan');
-  assert.match(intro,/removeAttribute\('src'\)/,'sumber dilepas agar tidak ada audio di latar');
-  assert.match(intro,/visibilitychange/,'audio berhenti saat aplikasi ditinggalkan');
-  assert.match(intro,/paintBackgroundFromFirstFrame/,'latar diambil dari frame pertama agar tidak ada kedip putih');
+test('Opening lama dihapus dan aplikasi langsung menampilkan Login',()=>{
+  const html=read('index.html'),css=read('src/styles/app.css');
+  for(const jejak of ['assets/intro-logo.mp4','data-intro-screen','ui/intro.js','intro-active'])
+    assert.equal(html.includes(jejak),false,`index.html tidak lagi memuat ${jejak}`);
+  assert.doesNotMatch(css,/--intro-bg|\.intro-screen|intro-active/,'gaya intro dibuang seluruhnya');
+  assert.match(html,/id="app"/,'wadah aplikasi tetap ada');
+  assert.match(html,/src\/app\.js/,'app.js langsung merender Login');
   const capacitor=JSON.parse(read('capacitor.config.json'));
-  assert.equal(capacitor.android.mediaPlaybackRequiresUserGesture,false,'Android boleh autoplay bersuara');
-  /* Latar WebView diputihkan karena warna hitamnya ikut tercetak sebagai pinggiran hitam pada
-     Simpan PDF Android. Layar intro tetap hitam lewat CSS-nya sendiri dan splash native. */
-  assert.equal(capacitor.backgroundColor,'#ffffff');
-  assert.match(read('src/styles/app.css'),/:root\{--intro-bg:#000\}/,'latar animasi intro tetap hitam');
-  assert.match(read('src/styles/app.css'),/\.intro-screen\{position:fixed;inset:0;z-index:10000;background:var\(--intro-bg\)/,'layar intro menutup penuh dengan latar hitam');
+  assert.equal(capacitor.backgroundColor,'#ffffff','latar WebView tetap putih agar cetak PDF tidak berpinggiran hitam');
   const styles=read('android/app/src/main/res/values/styles.xml');
   assert.match(styles,/windowSplashScreenAnimatedIcon">@drawable\/splash_icon_transparent/,'tidak ada logo statis sebelum animasi');
   assert.match(styles,/windowSplashScreenBackground">#000000/);

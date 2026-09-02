@@ -14,7 +14,7 @@ const base={role:'teacher',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMI
 const teacher5b={...base,classId:'5B'};const teacher5c={...base,classId:'5C'};
 const teacher5bGenap={...teacher5b,semester:`Genap ${ACADEMIC_YEAR}`};
 function addStudent(session,index,id){
-  return createStudent(session,{id,classId:session.classId,nis:`${session.classId}-${index}`,nisn:`99${session.classId.replace(/\D/g,'')}${String(index).padStart(7,'0')}`,name:`Siswa ${session.classId}-${index}`,gender:index%2?'L':'P',photo:''});
+  return createStudent(session,{id,classId:session.classId,nis:`${session.classId}-${index}`,nisn:`99${[...session.classId].map(character=>character.charCodeAt(0)).join('')}${String(index).padStart(7,'0')}`,name:`Siswa ${session.classId}-${index}`,gender:index%2?'L':'P',photo:''});
 }
 
 test('Assessment weights must total exactly 100 percent',()=>{

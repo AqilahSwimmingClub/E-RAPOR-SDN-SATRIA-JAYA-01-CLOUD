@@ -6,6 +6,8 @@ import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { digitalGauge } from '../ui/digital-gauge.js';
 import { isDesktop, printCurrentDocument, showDocumentPreview } from '../services/print-service.js';
+import { getPrintSettings, hasSavedPrintSettings, printLayoutOptions, savePrintSettings } from '../services/print-settings.js';
+import { isReportPublished, publishReport, unpublishReport } from '../services/publications.js';
 
 const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const DOTS='..................................';
@@ -74,22 +76,41 @@ export function activityTable(label,items,{studentName=''}={}){
   }).join('')}</tbody></table>`;
 }
 
-/* Kedua bagian ini opsional: tidak dicetak sama sekali bila memang belum diisi. */
+/* Ketiga bagian ini opsional dan dinilai per siswa yang sedang dicetak. Bagian yang belum
+   diisi siswa itu tidak menghasilkan HTML sama sekali: tidak ada judul, tabel, maupun baris
+   kosong sebagai placeholder. Data siswa lain di rombel yang sama tidak pernah ikut terbawa
+   karena seluruh isinya berasal dari dokumen satu siswa. */
 export function extracurricularTable(doc){
   return activityTable('Ekstrakurikuler',doc?.extracurricular,{studentName:doc?.student?.name});
 }
 
-export function cocurricularTable(doc){
-  const item=doc?.cocurricular;
-  return activityTable('Kokurikuler',item?[{name:item.activity,predicate:item.predicate,description:item.description}]:[],{studentName:doc?.student?.name});
+function singleActivityRows(item){
+  return item?.activity?[{name:item.activity,predicate:item.predicate,description:item.description}]:[];
 }
 
-export function renderPrint(session){
+export function cocurricularTable(doc){
+  return activityTable('Kokurikuler',singleActivityRows(doc?.cocurricular),{studentName:doc?.student?.name});
+}
+
+export function intracurricularTable(doc){
+  return activityTable('Intrakurikuler',singleActivityRows(doc?.intracurricular),{studentName:doc?.student?.name});
+}
+
+const PRINT_MODES=Object.freeze({
+  ledger:{title:'Leger Rapor',lead:'Rekap nilai seluruh siswa rombel dalam satu lembar lanskap.'},
+  supplement:{title:'Pelengkap Rapor',lead:'Cover, perlengkapan rapor, dan pemeriksaan kelengkapan sebelum cetak final.'},
+  report:{title:'Nilai Rapor',lead:'Cetak Rapor A4 per siswa atau satu rombel penuh dari data tersimpan.'}
+});
+const SUPPLEMENT_VIEWS=[['cover','Cover'],['equipment','Perlengkapan'],['completeness','Kelengkapan Rapor']];
+
+export function renderPrint(session,initialTab='ledger'){
+  const mode=Object.hasOwn(PRINT_MODES,initialTab)?initialTab:'ledger';const halaman=PRINT_MODES[mode];
   let classId=session.role==='teacher'?session.classId:CLASSES[0];
   let scope={...session,role:'teacher',classId};
-  let tab='leger';let studentId='';let showLandscape=false;let previewed=false;
-  const root=el(`<div class="print-workspace"><div class="page-head no-print"><div><h1>Cetak Nilai</h1><p>Leger, cover, perlengkapan rapor, pemeriksaan kelengkapan, dan Cetak Rapor A4 dari data tersimpan.</p></div></div><div class="report-tabs print-tabs no-print"><button class="tab active" data-tab="leger">Leger</button><button class="tab" data-tab="cover">Cover</button><button class="tab" data-tab="equipment">Perlengkapan</button><button class="tab" data-tab="completeness">Kelengkapan Rapor</button><button class="tab" data-tab="report">Cetak Rapor</button></div>${session.role==='admin'?`<section class="card module-filter no-print"><div class="field compact-field"><label>Rombel</label><select class="input" data-class>${classes(classId)}</select></div><div class="scope-note">Dokumen Kelas<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section>`:''}<div data-view></div></div>`);
-  const view=root.querySelector('[data-view]');
+  let tab=mode==='ledger'?'leger':mode==='report'?'report':'cover';
+  let studentId='';let showLandscape=false;let previewed=false;
+  const root=el(`<div class="print-workspace"><div class="page-head no-print"><div><h1>${escapeHtml(halaman.title)}</h1><p>${escapeHtml(halaman.lead)}</p></div></div>${mode==='supplement'?`<div class="report-tabs print-tabs no-print">${SUPPLEMENT_VIEWS.map(([id,label])=>`<button class="tab ${id==='cover'?'active':''}" data-supplement="${id}">${label}</button>`).join('')}</div>`:''}<section class="card print-settings-grid no-print" data-print-settings></section>${session.role==='admin'?`<section class="card module-filter no-print"><div class="field compact-field"><label>Rombel</label><select class="input" data-class>${classes(classId)}</select></div><div class="scope-note">Dokumen Kelas<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section>`:''}<div data-view></div></div>`);
+  const view=root.querySelector('[data-view]');const settingsHost=root.querySelector('[data-print-settings]');
 
   function refresh(){scope={...session,role:'teacher',classId};const students=listStudents(scope,{classId});if(!students.some(student=>student.id===studentId))studentId=students[0]?.id||'';return students;}
   function documentTitle(label,student){return [label,`Kelas ${classId}`,student?.name,session.semester,session.academicYear.replace('/','-')].filter(Boolean).map(fileNamePart).join(' - ');}
@@ -255,8 +276,9 @@ export function renderPrint(session){
       bindBulkToggle();return;
     }
     const doc=getReportDocument(scope,studentId);
-    view.innerHTML=`${toolbar(studentPicker(students),{bulk:true})}${schoolSheet(doc)}${studentIdentitySheet(doc)}${transferOutSheet(doc)}${transferInSheet(doc)}`;
-    bindStudentPicker();bindBulkToggle();
+    const student=students.find(item=>item.id===studentId);
+    view.innerHTML=`${toolbar(studentPicker(students),{bulk:true})}<section class="card report-print-control no-print"><span>Pelengkap rapor · ${students.length} siswa</span><button class="btn btn-light" data-class-generate>${icon('file',16)} Generate Pelengkap Kelas Ini</button><button class="btn btn-primary" data-class-print>${icon('printer',16)} Cetak Langsung Pelengkap</button>${student?publicationButton(student,'supplement'):''}</section>${schoolSheet(doc)}${studentIdentitySheet(doc)}${transferOutSheet(doc)}${transferInSheet(doc)}`;
+    bindStudentPicker();bindBulkToggle();bindPublication();bindClassActions(students,'Pelengkap Rapor');
   }
 
   /* ------------------------------------------------------- Kelengkapan */
@@ -291,7 +313,7 @@ export function renderPrint(session){
     return ['A','B'].map(group=>{
       const rows=doc.subjects.filter(row=>(row.subject.group||'B')===group);
       if(!rows.length)return '';
-      return `<tr class="subject-group-row"><td colspan="4">Kelompok ${group}</td></tr>${rows.map((row,index)=>`<tr><td>${index+1}</td><td class="subject-name-cell">${escapeHtml(row.subject.name)}</td><td class="subject-score-cell">${row.score??'—'}</td><td class="subject-description-cell">${escapeHtml(row.description||'')}</td></tr>`).join('')}`;
+      return `<tr class="subject-group-row"><td colspan="4">Kelompok ${group}</td></tr>${rows.map((row,index)=>`<tr><td class="subject-no-cell">${index+1}</td><td class="subject-name-cell">${escapeHtml(row.subject.name)}</td><td class="subject-score-cell">${row.score??'—'}</td><td class="subject-description-cell">${escapeHtml(row.description||'')}</td></tr>`).join('')}`;
     }).join('');
   }
 
@@ -311,7 +333,7 @@ export function renderPrint(session){
     const student=doc.student,school=doc.master.school,teacher=doc.master.teacher,settings=doc.printSettings;
     const head=`<table class="report-head-table"><tbody><tr><td>Nama Murid</td><td>:</td><td>${escapeHtml(student.name)}</td><td>Kelas</td><td>:</td><td>${escapeHtml(doc.classLabel)}</td></tr><tr><td>NIS/NISN</td><td>:</td><td>${escapeHtml(student.nis)} / ${escapeHtml(student.nisn)}</td><td>Semester</td><td>:</td><td>${doc.semesterNumber}</td></tr><tr><td>Sekolah</td><td>:</td><td>${escapeHtml(school.name)}</td><td>Tahun Ajaran</td><td>:</td><td>${escapeHtml(doc.academicYear)}</td></tr><tr><td>Alamat</td><td>:</td><td colspan="4">${blank(school.address)}</td></tr></tbody></table>`;
     const signatures=`<div class="report-signatures"><div><span>Orang Tua Murid</span><span class="signature-spacer"></span><strong>${DOTS}</strong></div><div><span>Kepala Sekolah</span><span class="signature-spacer"></span>${signatureBlock(school.principalName,school.principalNip)}</div><div><span>${escapeHtml(settings.printDateLabel||`${settings.city||'Bekasi'}, ${DOTS.slice(0,18)}`)}</span><span>Wali Kelas</span><span class="signature-spacer"></span>${signatureBlock(teacher.name,teacher.nip)}</div></div>`;
-    return `<section class="document-a4 document-sheet report-a4">${head}<h2 class="document-heading">LAPORAN HASIL BELAJAR</h2>${attitudeBlock(doc)}<h3 class="document-section">B. Pengetahuan dan Keterampilan</h3><table class="document-table report-learning-table"><thead><tr><th>No</th><th>Mata Pelajaran</th><th>Nilai Akhir</th><th>Capaian Kompetensi</th></tr></thead><tbody>${subjectRows(doc)}</tbody></table>${extracurricularTable(doc)}${cocurricularTable(doc)}<div class="report-lower-grid"><section class="document-box"><div class="document-box-head">Ketidakhadiran</div><div class="document-box-body"><table class="absence-document-table"><tbody><tr><th>Sakit</th><td>: ${doc.attendance.Sakit} hari</td></tr><tr><th>Izin</th><td>: ${doc.attendance.Izin} hari</td></tr><tr><th>Tanpa Keterangan</th><td>: ${doc.attendance.Alpa} hari</td></tr></tbody></table></div></section><section class="document-box"><div class="document-box-head">Catatan Wali Kelas</div><div class="document-box-body"><p>${escapeHtml(doc.homeroomNote||'')}</p></div></section></div>${finalStatusBlock(doc)}<section class="document-box response-box"><div class="document-box-head">Tanggapan Orang Tua/Wali Murid</div><div class="document-box-body"></div></section>${signatures}<div class="document-foot">${escapeHtml(doc.classLabel)} | ${escapeHtml(student.name)} | ${escapeHtml(student.nis)}</div></section>`;
+    return `<section class="document-a4 document-sheet report-a4">${head}<h2 class="document-heading">LAPORAN HASIL BELAJAR</h2>${attitudeBlock(doc)}<h3 class="document-section">B. Pengetahuan dan Keterampilan</h3><table class="document-table report-learning-table"><thead><tr><th>No</th><th>Mata Pelajaran</th><th>Nilai Akhir</th><th>Capaian Kompetensi</th></tr></thead><tbody>${subjectRows(doc)}</tbody></table>${extracurricularTable(doc)}${cocurricularTable(doc)}${intracurricularTable(doc)}<div class="report-lower-grid"><section class="document-box"><div class="document-box-head">Ketidakhadiran</div><div class="document-box-body"><table class="absence-document-table"><tbody><tr><th>Sakit</th><td>: ${doc.attendance.Sakit} hari</td></tr><tr><th>Izin</th><td>: ${doc.attendance.Izin} hari</td></tr><tr><th>Tanpa Keterangan</th><td>: ${doc.attendance.Alpa} hari</td></tr></tbody></table></div></section><section class="document-box"><div class="document-box-head">Catatan Wali Kelas</div><div class="document-box-body"><p>${escapeHtml(doc.homeroomNote||'')}</p></div></section></div>${finalStatusBlock(doc)}<section class="document-box response-box"><div class="document-box-head">Tanggapan Orang Tua/Wali Murid</div><div class="document-box-body"></div></section>${signatures}<div class="document-foot">${escapeHtml(doc.classLabel)} | ${escapeHtml(student.name)} | ${escapeHtml(student.nis)}</div></section>`;
   }
 
   /* Mapel agama hanya bisa ditentukan dari agama siswa dan tidak pernah ditebak. Ketika kolom
@@ -329,18 +351,80 @@ export function renderPrint(session){
       view.innerHTML=`${bulkToolbar('Cetak Semua Rapor',students.length)}${bulkSheets(students,reportA4)}`;
       bindBulkToggle();return;
     }
-    view.innerHTML=`${toolbar(studentPicker(students),{bulk:true})}${religionNotice(doc)}${doc.complete?'<div class="source-banner no-print">Rapor lengkap dan siap dicetak final.</div>':`<div class="source-banner warning-banner no-print">Catatan: masih kurang ${escapeHtml(doc.missing.join(', '))}. Rapor tetap dapat dicetak.</div>`}${previewed?reportA4(doc):'<section class="card empty-state no-print"><h3>Preview belum dibuka</h3><p>Pilih siswa lalu klik Preview untuk menampilkan lembar A4.</p></section>'}`;
-    bindStudentPicker();bindBulkToggle();bindCompletenessNavigation();
+    const student=students.find(item=>item.id===studentId);
+    view.innerHTML=`${toolbar(studentPicker(students),{bulk:true})}<section class="card report-print-control no-print"><span>Satu rombel penuh · ${students.length} siswa</span><button class="btn btn-light" data-class-generate>${icon('file',16)} Generate Rapor Kelas Ini</button><button class="btn btn-primary" data-class-print>${icon('printer',16)} Cetak Langsung Rapor</button>${student?publicationButton(student,'report'):''}</section>${religionNotice(doc)}${doc.complete?'<div class="source-banner no-print">Rapor lengkap dan siap dicetak final.</div>':`<div class="source-banner warning-banner no-print">Catatan: masih kurang ${escapeHtml(doc.missing.join(', '))}. Rapor tetap dapat dicetak.</div>`}${previewed?reportA4(doc):'<section class="card empty-state no-print"><h3>Preview belum dibuka</h3><p>Pilih siswa lalu klik Preview untuk menampilkan lembar A4.</p></section>'}`;
+    bindStudentPicker();bindBulkToggle();bindCompletenessNavigation();bindPublication();bindClassActions(students,'Rapor');
   }
 
   function openPreview(){previewed=true;draw();}
 
   /* -------------------------------------------------------------- Router */
 
+  /* Generate menampilkan seluruh lembar rombel di layar; Cetak Langsung meneruskannya ke
+     dialog cetak. Keduanya memakai bulkSheets yang sudah ada dan memeriksa kelengkapan dulu. */
+  function bindClassActions(students,label){
+    const tampilkanSemua=()=>{bulkMode=true;previewed=true;draw();};
+    view.querySelector('[data-class-generate]')?.addEventListener('click',()=>{
+      const kurang=students.filter(item=>{try{assertReportPrintable(scope,item.id);return false;}catch{return true;}});
+      if(kurang.length)toast(`${kurang.length} dari ${students.length} siswa masih belum lengkap. Lembar tetap dibuat.`,'warning');
+      tampilkanSemua();
+      toast(`${label} ${students.length} siswa siap diperiksa.`);
+    });
+    view.querySelector('[data-class-print]')?.addEventListener('click',async()=>{
+      tampilkanSemua();
+      try{
+        if(isDesktop()){
+          showDocumentPreview();
+          const lanjut=await confirmDialog({title:`Cetak ${label} Satu Rombel`,message:`Seluruh ${students.length} lembar sudah tampil di layar. Periksa hasilnya, lalu lanjutkan ke dialog cetak.`,confirmText:'Lanjut Cetak'});
+          if(!lanjut)return;
+        }
+        await printCurrentDocument({title:documentTitle(`${label} Kelas`,null)});
+      }catch(error){toast(error.message,'error');}
+    });
+  }
+  function marginRule(mode){
+    if(!hasSavedPrintSettings(scope))return mode==='report'?'10mm 0':'8mm';
+    const cetak=getPrintSettings(scope);
+    return mode==='report'
+      ?`${cetak.marginTopMm}mm 0 ${cetak.marginBottomMm}mm 0`
+      :`${cetak.marginTopMm}mm ${cetak.marginRightMm}mm ${cetak.marginBottomMm}mm ${cetak.marginLeftMm}mm`;
+  }
+  function drawPrintSettings(){
+    const cetak=getPrintSettings(scope);const pilihan=printLayoutOptions();
+    const opsi=(daftar,nilai,label)=>daftar.map(item=>`<option value="${item}" ${item===nilai?'selected':''}>${escapeHtml(label(item))}</option>`).join('');
+    settingsHost.innerHTML=`<form class="print-settings-form" data-settings><div class="section-head"><div><h3>Pengaturan Cetak Kelas ${escapeHtml(classId)}</h3><p>Ukuran kertas, margin, penomoran halaman, dan area tanda tangan.</p></div></div><div class="form-grid"><div class="field"><label>Ukuran Kertas</label><select class="input" name="paperSize">${opsi(pilihan.paperSizes,cetak.paperSize,item=>item)}</select></div><div class="field"><label>Halaman Pertama (1–99)</label><input class="input" type="number" name="firstPage" min="1" max="99" value="${cetak.firstPage}"/></div><div class="field"><label>Margin Atas (mm)</label><input class="input" type="number" name="marginTopMm" min="0" max="50" value="${cetak.marginTopMm}"/></div><div class="field"><label>Margin Bawah (mm)</label><input class="input" type="number" name="marginBottomMm" min="0" max="50" value="${cetak.marginBottomMm}"/></div><div class="field"><label>Margin Kiri (mm)</label><input class="input" type="number" name="marginLeftMm" min="0" max="50" value="${cetak.marginLeftMm}"/></div><div class="field"><label>Margin Kanan (mm)</label><input class="input" type="number" name="marginRightMm" min="0" max="50" value="${cetak.marginRightMm}"/></div><div class="field"><label>Area Tanda Tangan</label><select class="input" name="signatureMode">${opsi(pilihan.signatureModes,cetak.signatureMode,item=>item==='with-signature'?'Dengan tanda tangan':'Tanpa tanda tangan')}</select></div><div class="field"><label>Posisi Kepala Sekolah</label><select class="input" name="principalPosition">${opsi(pilihan.principalPositions,cetak.principalPosition,item=>item==='parallel'?'Sejajar wali kelas':'Di atas wali kelas')}</select></div><div class="field"><label>Nama Wali Kelas</label><label class="switch"><input type="checkbox" name="showTeacherName" ${cetak.showTeacherName?'checked':''}/> Tampilkan</label></div><div class="field"><label>Kota</label><input class="input" name="city" value="${escapeHtml(cetak.city||'')}"/></div><div class="field"><label>Tanggal Rapor</label><input class="input" type="date" name="printDate" value="${escapeHtml(cetak.printDate||'')}"/></div></div><div class="actions"><button class="btn btn-primary" type="submit">${icon('save',16)} Simpan Pengaturan Cetak</button></div></form>`;
+    settingsHost.querySelector('[data-settings]').onsubmit=event=>{
+      event.preventDefault();const fields=event.currentTarget.elements;
+      try{
+        savePrintSettings(scope,{...cetak,paperSize:fields.paperSize.value,firstPage:fields.firstPage.value,
+          marginTopMm:fields.marginTopMm.value,marginBottomMm:fields.marginBottomMm.value,
+          marginLeftMm:fields.marginLeftMm.value,marginRightMm:fields.marginRightMm.value,
+          signatureMode:fields.signatureMode.value,principalPosition:fields.principalPosition.value,
+          showTeacherName:fields.showTeacherName.checked,city:fields.city.value,printDate:fields.printDate.value});
+        draw();toast('Pengaturan cetak berhasil disimpan.');
+      }catch(error){toast(error.message,'error');}
+    };
+  }
+  /* Publikasi hanya mencatat dokumen yang sudah ditampilkan kepada siswa; mencetak tetap bebas. */
+  function publicationButton(student,documentType){
+    const published=isReportPublished(scope,student.id,documentType);
+    return `<button class="btn ${published?'btn-success':'btn-light'} btn-small" data-publish="${escapeHtml(student.id)}" data-document-type="${documentType}">${published?'Ditampilkan kepada Siswa':'Tampilkan pada Siswa'}</button>`;
+  }
+  function bindPublication(){
+    view.querySelectorAll('[data-publish]').forEach(button=>button.onclick=()=>{
+      const student=button.dataset.publish,jenis=button.dataset.documentType;
+      try{
+        if(isReportPublished(scope,student,jenis)){unpublishReport(scope,student,jenis);toast('Dokumen tidak lagi ditampilkan kepada siswa.','warning');}
+        else{publishReport(scope,student,jenis);toast('Dokumen ditampilkan kepada siswa.');}
+        draw();
+      }catch(error){toast(error.message,'error');}
+    });
+  }
   function draw(){
-    root.querySelectorAll('[data-tab]').forEach(button=>button.classList.toggle('active',button.dataset.tab===tab));
-    if(tab==='leger')setPrintPageSize('landscape');
-    else if(tab==='report')setPrintPageSize('portrait','10mm 0');
+    root.querySelectorAll('[data-supplement]').forEach(button=>button.classList.toggle('active',button.dataset.supplement===tab));
+    drawPrintSettings();
+    if(tab==='leger')setPrintPageSize('landscape',marginRule('leger'));
+    else if(tab==='report')setPrintPageSize('portrait',marginRule('report'));
     else setPrintPageSize(null);
     if(tab==='leger'){drawLeger();bindActions('Leger');return;}
     if(tab==='cover'){drawCover();bindActions('Cover Rapor',{student:listStudents(scope,{classId}).find(item=>item.id===studentId)});return;}
@@ -350,7 +434,7 @@ export function renderPrint(session){
   }
 
   if(session.role==='admin')root.querySelector('[data-class]').onchange=event=>{classId=event.target.value;studentId='';previewed=false;draw();};
-  root.querySelectorAll('[data-tab]').forEach(button=>button.onclick=()=>{tab=button.dataset.tab;previewed=false;bulkMode=false;draw();});
+  root.querySelectorAll('[data-supplement]').forEach(button=>button.onclick=()=>{tab=button.dataset.supplement;previewed=false;bulkMode=false;draw();});
   globalThis.addEventListener?.('hashchange',()=>setPrintPageSize(null),{once:true});
   draw();return root;
 }

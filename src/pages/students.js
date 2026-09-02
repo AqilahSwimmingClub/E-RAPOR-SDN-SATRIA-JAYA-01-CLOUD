@@ -1,5 +1,5 @@
 import { CLASSES, RELIGIONS } from '../data/constants.js';
-import { commitStudentImport, createStudent, deleteStudent, filterStudents, getStudent, listStudents, previewStudentImport, previewStudentWorkbookImport, studentTemplateWorkbook, updateStudent } from '../services/students.js';
+import { commitStudentImport, createStudent, deactivateStudent, deleteStudent, filterStudents, getStudent, listStudents, previewStudentImport, previewStudentWorkbookImport, studentOriginLabel, studentTemplateWorkbook, updateStudent } from '../services/students.js';
 import { pickFile, saveFile } from '../services/file-io.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
@@ -9,6 +9,10 @@ function avatar(student,size='small'){
   return student.photo
     ? `<img class="student-photo student-photo-${size}" src="${escapeHtml(student.photo)}" alt="Foto ${escapeHtml(student.name)}"/>`
     : `<div class="student-photo student-photo-${size} student-initials">${escapeHtml(initials(student.name))}</div>`;
+}
+function originBadge(student){
+  /* Label resmi: Input Manual Guru, Input Manual Admin, Dapodik, atau Data Lama. */
+  return `<span class="badge student-origin origin-${escapeHtml(student.origin||'legacy')}">${escapeHtml(studentOriginLabel(student))}</span>`;
 }
 function displayDate(value){
   if(!value)return '—';
@@ -24,7 +28,7 @@ export function renderStudents(session){
   let selectedClass=isAdmin?'ALL':session.classId;
   let query='';let gender='';
   const root=el(`<div>
-    <div class="page-head"><div><h1>Data Siswa</h1><p>${isAdmin?'Kelola siswa seluruh rombel pada semester aktif.':`Kelola siswa Kelas ${session.classId} pada ${session.semester}.`}</p></div>
+    <div class="page-head"><div><h1>${isAdmin?'Data Siswa':'Update Data Siswa'}</h1><p>${isAdmin?'Kelola siswa seluruh rombel pada semester aktif.':`Kelola siswa Kelas ${session.classId} pada ${session.semester}.`}</p></div>
       <div class="actions"><button class="btn btn-light" data-template>${icon('download',17)} Template Excel</button><button class="btn btn-light" data-import>${icon('upload',17)} Import Excel</button><button class="btn btn-primary" data-add>${icon('users',17)} Tambah Siswa</button></div>
     </div>
     <section class="card student-toolbar">
@@ -49,10 +53,10 @@ export function renderStudents(session){
       return;
     }
     listHost.innerHTML=`
-      <section class="card student-table-card"><div class="table-scroll"><table class="data-table student-table"><thead><tr><th>Foto</th><th>NIS / NISN</th><th>Nama</th>${isAdmin?'<th>Rombel</th>':''}<th>JK</th><th>Tempat, Tanggal Lahir</th><th>Orang Tua</th><th>Telepon</th><th>Aksi</th></tr></thead><tbody>
-        ${students.map(student=>`<tr><td>${avatar(student)}</td><td><strong>${escapeHtml(student.nis)}</strong><span>${escapeHtml(student.nisn)}</span></td><td><strong>${escapeHtml(student.name)}</strong><span>${escapeHtml(student.address||'Alamat belum diisi')}</span></td>${isAdmin?`<td><span class="badge badge-a">${escapeHtml(student.classId)}</span></td>`:''}<td>${student.gender==='L'?'Laki-laki':'Perempuan'}</td><td>${escapeHtml(student.birthPlace||'—')}, ${escapeHtml(displayDate(student.birthDate))}</td><td>${escapeHtml(student.parentName||student.fatherName||student.motherName||'—')}</td><td>${escapeHtml(student.phone||'—')}</td><td><div class="row-actions"><button class="btn btn-light btn-small" data-action="detail" data-id="${escapeHtml(student.id)}">Detail</button><button class="btn btn-light btn-small" data-action="edit" data-id="${escapeHtml(student.id)}">Edit</button><button class="btn btn-danger btn-small" data-action="delete" data-id="${escapeHtml(student.id)}">Hapus</button></div></td></tr>`).join('')}
+      <section class="card student-table-card"><div class="table-scroll"><table class="data-table student-table"><thead><tr><th>Foto</th><th>NIS / NISN</th><th>Nama</th>${isAdmin?'<th>Rombel</th>':''}<th>Asal Data</th><th>JK</th><th>Tempat, Tanggal Lahir</th><th>Orang Tua</th><th>Telepon</th><th>Aksi</th></tr></thead><tbody>
+        ${students.map(student=>`<tr><td>${avatar(student)}</td><td><strong>${escapeHtml(student.nis)}</strong><span>${escapeHtml(student.nisn)}</span></td><td><strong>${escapeHtml(student.name)}</strong><span>${escapeHtml(student.address||'Alamat belum diisi')}</span></td>${isAdmin?`<td><span class="badge badge-a">${escapeHtml(student.classId)}</span></td>`:''}<td>${originBadge(student)}</td><td>${student.gender==='L'?'Laki-laki':'Perempuan'}</td><td>${escapeHtml(student.birthPlace||'—')}, ${escapeHtml(displayDate(student.birthDate))}</td><td>${escapeHtml(student.parentName||student.fatherName||student.motherName||'—')}</td><td>${escapeHtml(student.phone||'—')}</td><td><div class="row-actions"><button class="btn btn-light btn-small" data-action="detail" data-id="${escapeHtml(student.id)}">Detail</button><button class="btn btn-light btn-small" data-action="edit" data-id="${escapeHtml(student.id)}">Edit</button><button class="btn btn-danger btn-small" data-action="delete" data-id="${escapeHtml(student.id)}">${student.origin==='dapodik'?'Nonaktifkan':'Hapus'}</button></div></td></tr>`).join('')}
       </tbody></table></div></section>
-      <div class="student-card-list">${students.map(student=>`<article class="card student-mobile-card"><div class="student-card-head">${avatar(student,'large')}<div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(student.nis)} · ${escapeHtml(student.nisn)}</p></div><span class="badge badge-a">${escapeHtml(student.classId)}</span></div><div class="student-card-meta"><span><b>JK</b>${student.gender}</span><span><b>Lahir</b>${escapeHtml(student.birthPlace||'—')}, ${escapeHtml(displayDate(student.birthDate))}</span><span><b>Telepon</b>${escapeHtml(student.phone||'—')}</span><span><b>Alamat</b>${escapeHtml(student.address||'—')}</span></div><div class="row-actions"><button class="btn btn-light btn-small" data-action="detail" data-id="${escapeHtml(student.id)}">Detail</button><button class="btn btn-light btn-small" data-action="edit" data-id="${escapeHtml(student.id)}">Edit</button><button class="btn btn-danger btn-small" data-action="delete" data-id="${escapeHtml(student.id)}">Hapus</button></div></article>`).join('')}</div>`;
+      <div class="student-card-list">${students.map(student=>`<article class="card student-mobile-card"><div class="student-card-head">${avatar(student,'large')}<div><h3>${escapeHtml(student.name)}</h3><p>${escapeHtml(student.nis)} · ${escapeHtml(student.nisn)}</p></div><span class="badge badge-a">${escapeHtml(student.classId)}</span></div><div class="student-origin-row">${originBadge(student)}</div><div class="student-card-meta"><span><b>JK</b>${student.gender}</span><span><b>Lahir</b>${escapeHtml(student.birthPlace||'—')}, ${escapeHtml(displayDate(student.birthDate))}</span><span><b>Telepon</b>${escapeHtml(student.phone||'—')}</span><span><b>Alamat</b>${escapeHtml(student.address||'—')}</span></div><div class="row-actions"><button class="btn btn-light btn-small" data-action="detail" data-id="${escapeHtml(student.id)}">Detail</button><button class="btn btn-light btn-small" data-action="edit" data-id="${escapeHtml(student.id)}">Edit</button><button class="btn btn-danger btn-small" data-action="delete" data-id="${escapeHtml(student.id)}">${student.origin==='dapodik'?'Nonaktifkan':'Hapus'}</button></div></article>`).join('')}</div>`;
     bindActions();
   }
   function bindActions(){
@@ -94,19 +98,20 @@ export function renderStudents(session){
     };
     form.onsubmit=event=>{
       event.preventDefault();const errorBox=modal.querySelector('[data-error]');errorBox.classList.add('hidden');
-      const input={photo:photoData,classId:form.elements.classId.value,nis:form.elements.nis.value,nisn:form.elements.nisn.value,name:form.elements.name.value,gender:form.elements.gender.value,religion:form.elements.religion.value,birthPlace:form.elements.birthPlace.value,birthDate:form.elements.birthDate.value,parentName:form.elements.parentName.value,phone:form.elements.phone.value,address:form.elements.address.value};
+      const input={photo:photoData,classId:isAdmin?form.elements.classId.value:session.classId,nis:form.elements.nis.value,nisn:form.elements.nisn.value,name:form.elements.name.value,gender:form.elements.gender.value,religion:form.elements.religion.value,birthPlace:form.elements.birthPlace.value,birthDate:form.elements.birthDate.value,parentName:form.elements.parentName.value,phone:form.elements.phone.value,address:form.elements.address.value};
       try{if(student)updateStudent(session,student.id,input);else createStudent(session,input);closeModal(modal);draw();toast(student?'Data siswa berhasil diperbarui.':'Siswa berhasil ditambahkan.');}
       catch(error){errorBox.innerHTML=(error.errors||[error.message]).map(message=>`<div>${escapeHtml(message)}</div>`).join('');errorBox.classList.remove('hidden');}
     };
   }
   function openDetail(student){
-    const fields=[['NIS',student.nis],['NISN',student.nisn],['Rombel',student.classId],['JK',student.gender==='L'?'Laki-laki':'Perempuan'],['Agama',student.religion||'—'],['Tempat Lahir',student.birthPlace||'—'],['Tanggal Lahir',displayDate(student.birthDate)],['Nama Orang Tua',student.parentName||student.fatherName||student.motherName||'—'],['No. Telepon',student.phone||'—'],['Alamat',student.address||'—']];
+    const fields=[['NIS',student.nis],['NISN',student.nisn],['Rombel',student.classId],['Asal Data',studentOriginLabel(student)],['JK',student.gender==='L'?'Laki-laki':'Perempuan'],['Agama',student.religion||'—'],['Tempat Lahir',student.birthPlace||'—'],['Tanggal Lahir',displayDate(student.birthDate)],['Nama Orang Tua',student.parentName||student.fatherName||student.motherName||'—'],['No. Telepon',student.phone||'—'],['Alamat',student.address||'—']];
     const modal=el(`<div class="modal-backdrop"><div class="modal-card modal-wide"><div class="modal-head"><div><h3>Detail Siswa</h3><p>Scope Kelas ${escapeHtml(student.classId)} · ${escapeHtml(student.semester)}</p></div><button class="btn btn-light btn-icon" data-close aria-label="Tutup">${icon('x',17)}</button></div><div class="student-detail-head">${avatar(student,'form')}<div><h2>${escapeHtml(student.name)}</h2><span class="badge badge-a">Kelas ${escapeHtml(student.classId)}</span></div></div><div class="detail-grid">${fields.map(([label,value])=>`<div><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}</div><div class="modal-actions"><button class="btn btn-light" data-ok>Tutup</button></div></div></div>`);
     document.body.append(modal);modal.querySelector('[data-close]').onclick=()=>closeModal(modal);modal.querySelector('[data-ok]').onclick=()=>closeModal(modal);
   }
   async function removeStudent(student){
-    if(await confirmDialog({title:'Hapus Data Siswa',message:`Hapus ${student.name} dari Data Siswa Kelas ${student.classId}?`,confirmText:'Hapus',danger:true})){
-      try{deleteStudent(session,student.id,{classId:student.classId});draw();toast('Data siswa berhasil dihapus.','warning');}catch(error){toast(error.message,'error');}
+    const dapodik=student.origin==='dapodik';
+    if(await confirmDialog({title:dapodik?'Nonaktifkan Data Siswa':'Hapus Data Siswa',message:dapodik?`Nonaktifkan ${student.name} dari Data Siswa Kelas ${student.classId}? Data asal Dapodik tidak dihapus.`:`Hapus ${student.name} dari Data Siswa Kelas ${student.classId}?`,confirmText:dapodik?'Nonaktifkan':'Hapus',danger:true})){
+      try{if(dapodik)deactivateStudent(session,student.id,{classId:student.classId});else deleteStudent(session,student.id,{classId:student.classId});draw();toast(dapodik?'Data siswa berhasil dinonaktifkan.':'Data siswa berhasil dihapus.','warning');}catch(error){toast(error.message,'error');}
     }
   }
   async function downloadTemplate(){

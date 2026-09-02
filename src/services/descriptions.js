@@ -1,4 +1,5 @@
-import { listLearningObjectives } from './objectives.js';
+import { listObjectivesForAssessment } from './learning-objectives.js';
+import { calculateReportScore, getReportScore } from './report.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
 import { requireActiveSubject } from './subjects.js';
@@ -8,12 +9,64 @@ function key(session,subjectId,studentId){return `${scopeKey(session)}|${subject
 function phrase(value){return String(value||'').trim().replace(/[.!?]+$/,'');}
 function context(session,subjectId,studentId,bestObjectiveId,improvementObjectiveId){
   requireActiveSubject(session,subjectId);const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);if(!student)throw new Error('Siswa tidak ditemukan pada scope aktif.');
-  const objectives=listLearningObjectives(session,subjectId,{activeOnly:true});if(!objectives.length)throw new Error('Belum ada TP aktif untuk membuat deskripsi.');
+  const objectives=listObjectivesForAssessment(session,subjectId,{activeOnly:true});if(!objectives.length)throw new Error('Belum ada TP aktif untuk membuat deskripsi.');
   const best=objectives.find(item=>item.id===bestObjectiveId);const improvement=objectives.find(item=>item.id===improvementObjectiveId);
   if(!best||!improvement)throw new Error('Pilih TP aktif untuk capaian terbaik dan yang perlu ditingkatkan.');return {student,best,improvement};
 }
 
-export function generateReportDescription(session,subjectId,studentId,{bestObjectiveId,improvementObjectiveId}){
+/* --------------------------------------------------- Deskripsi bersumber dari TP acuan penilaian
+
+   TP hanya menjadi ACUAN. Nilai Akhir tetap satu angka dari pipeline penilaian lama, dan angka
+   itulah yang menentukan tingkat capaian pada kalimat deskripsi. Tidak ada nilai per TP, dan
+   tidak ada kompetensi yang ditambahkan di luar TP yang dipilih guru. */
+
+function studentOf(session,studentId){
+  const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);
+  if(!student)throw new Error('Siswa tidak ditemukan pada scope aktif.');
+  return student;
+}
+function finalScoreOf(session,subjectId,studentId){
+  const tersimpan=getReportScore(session,subjectId,studentId);
+  if(tersimpan&&tersimpan.finalScore!==null&&tersimpan.finalScore!==undefined)
+    return {finalScore:tersimpan.finalScore,kktp:tersimpan.kktp??75};
+  const dihitung=calculateReportScore(session,subjectId,studentId);
+  return {finalScore:dihitung.finalScore,kktp:dihitung.kktp};
+}
+function levelCapaian(finalScore,kktp){
+  if(finalScore===null||finalScore===undefined)return null;
+  if(finalScore>=90)return 'sangat baik';
+  if(finalScore>=kktp)return 'baik';
+  return 'cukup';
+}
+/* Satu TP, dua TP, atau lebih dirangkai menjadi satu kalimat. Tiap TP disebut tepat sekali. */
+function rangkai(daftar){
+  const isi=daftar.map(item=>phrase(item.description));
+  if(isi.length<=1)return isi[0]||'';
+  if(isi.length===2)return `${isi[0]} serta ${isi[1]}`;
+  return `${isi.slice(0,-1).join(', ')}, serta ${isi[isi.length-1]}`;
+}
+function objectiveDescription(session,subjectId,studentId,objectiveIds){
+  requireActiveSubject(session,subjectId);
+  const student=studentOf(session,studentId);
+  const tersedia=listObjectivesForAssessment(session,subjectId);
+  const dipilih=[...new Set(objectiveIds.map(id=>String(id)))]
+    .map(id=>tersedia.find(item=>item.id===id)||null);
+  if(dipilih.some(item=>!item))throw new Error('Tujuan Pembelajaran acuan tidak ditemukan pada mata pelajaran ini.');
+  const {finalScore,kktp}=finalScoreOf(session,subjectId,studentId);
+  const level=levelCapaian(finalScore,kktp);
+  const isi=rangkai(dipilih);
+  const text=level===null
+    ? `Ananda ${student.name} menunjukkan capaian pada ${isi}.`
+    : finalScore>=kktp
+      ? `Ananda ${student.name} menunjukkan capaian ${level} dalam ${isi}.`
+      : `Ananda ${student.name} menunjukkan capaian ${level} dalam ${isi}, dan perlu bimbingan untuk mencapainya secara utuh.`;
+  return {text,objectiveIds:dipilih.map(item=>item.id),bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};
+}
+
+export function generateReportDescription(session,subjectId,studentId,input){
+  const objectiveIds=Array.isArray(input?.objectiveIds)?input.objectiveIds:null;
+  if(objectiveIds&&objectiveIds.length)return objectiveDescription(session,subjectId,studentId,objectiveIds);
+  const {bestObjectiveId,improvementObjectiveId}=input||{};
   const {student,best,improvement}=context(session,subjectId,studentId,bestObjectiveId,improvementObjectiveId);
   const text=best.id===improvement.id
     ? `Ananda ${student.name} menunjukkan capaian pada ${phrase(best.description)}.`
@@ -28,7 +81,7 @@ export function getReportDescription(session,subjectId,studentId){
 export function saveReportDescription(session,subjectId,studentId,input){
   const current=getReportDescription(session,subjectId,studentId);if(current?.locked)throw new Error('Deskripsi sudah terkunci dan tidak dapat diubah.');
   const generated=generateReportDescription(session,subjectId,studentId,input);const text=String(input?.text||'').trim().slice(0,1500);if(!text)throw new Error('Deskripsi rapor wajib diisi.');let saved;
-  updateDb(db=>{const now=new Date().toISOString();saved={studentId,classId:session.classId,subjectId,semester:session.semester,academicYear:session.academicYear,text,bestObjectiveId:generated.bestObjectiveId,improvementObjectiveId:generated.improvementObjectiveId,status:text===generated.text?'AUTO':'EDITED',locked:false,createdAt:current?.createdAt||now,updatedAt:now};db.reportDescriptions[key(session,subjectId,studentId)]=saved;return db;});return clone(saved);
+  updateDb(db=>{const now=new Date().toISOString();saved={studentId,classId:session.classId,subjectId,semester:session.semester,academicYear:session.academicYear,text,bestObjectiveId:generated.bestObjectiveId,improvementObjectiveId:generated.improvementObjectiveId,...(generated.objectiveIds?{objectiveIds:generated.objectiveIds}:{}),status:text===generated.text?'AUTO':'EDITED',locked:false,createdAt:current?.createdAt||now,updatedAt:now};db.reportDescriptions[key(session,subjectId,studentId)]=saved;return db;});return clone(saved);
 }
 
 export function lockReportDescription(session,subjectId,studentId){

@@ -28,10 +28,10 @@ test('Rute "#/students" dari indikator kelengkapan tidak lagi jatuh ke Dashboard
   const session=guru('5B');
   /* Tombol "! Agama" mengarahkan guru ke Data Siswa. Bentuk lama "#/students" tidak dikenali
      router sehingga guru selalu mendarat di Dashboard dan agama tidak pernah terisi. */
-  assert.equal(resolveRoute('#/students',session),'students');
-  assert.equal(resolveRoute('/students',session),'students');
-  assert.equal(resolveRoute('#students',session),'students');
-  assert.equal(resolveRoute('students',session),'students');
+  assert.equal(resolveRoute('#/students',session),'student-update');
+  assert.equal(resolveRoute('/students',session),'student-update');
+  assert.equal(resolveRoute('#students',session),'student-update');
+  assert.equal(resolveRoute('students',session),'student-update');
   assert.equal(resolveRoute('#/tidak-ada',session),'dashboard','rute asing tetap jatuh ke Dashboard');
 });
 
@@ -203,8 +203,10 @@ test('Margin kiri-kanan Rapor dibawa lembarnya sendiri, bukan oleh @page',()=>{
   assert.doesNotMatch(css,/\.report-a4\{padding:0!important\}/,'padding samping tidak lagi dinolkan');
   assert.match(css,/\.report-a4\{padding:14mm 13mm\}/,'tampilan layar tidak berubah');
   const cetak=read('src/pages/print.js');
-  assert.match(cetak,/else if\(tab==='report'\)setPrintPageSize\('portrait','10mm 0'\)/,'@page Rapor A4 portrait dengan margin samping 0');
-  assert.match(cetak,/if\(tab==='leger'\)setPrintPageSize\('landscape'\)/,'Leger tetap A4 landscape 8mm');
+  assert.match(cetak,/else if\(tab==='report'\)setPrintPageSize\('portrait',marginRule\('report'\)\)/,'@page Rapor A4 portrait');
+  assert.match(cetak,/return mode==='report'\?'10mm 0':'8mm';/,'margin rapor bawaan tetap 10mm atas-bawah tanpa margin samping');
+  assert.match(cetak,/\?`\$\{cetak\.marginTopMm\}mm 0 \$\{cetak\.marginBottomMm\}mm 0`/,'margin samping @page Rapor tetap 0');
+  assert.match(cetak,/if\(tab==='leger'\)setPrintPageSize\('landscape',marginRule\('leger'\)\)/,'Leger tetap A4 landscape 8mm');
   assert.match(cetak,/else setPrintPageSize\(null\)/,'Cover, Perlengkapan, dan Kelengkapan tetap memakai @page app.css');
   assert.match(cetak,/style\.textContent=`@media print\{@page\{size:A4 \$\{orientation\};margin:\$\{margin\}\}\}`/);
 });

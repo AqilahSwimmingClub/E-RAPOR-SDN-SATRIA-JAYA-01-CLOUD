@@ -105,7 +105,7 @@ test('Ekstrakurikuler Pramuka mengikuti tingkat kelas secara otomatis',()=>{
   ['4A','5B','6D'].forEach(kelas=>assert.equal(pramukaPresetForClass(kelas),'Pramuka Penggalang',`${kelas} memakai Penggalang`));
   assert.equal(pramukaDescriptionsForClass('2A').length,5);
   assert.equal(pramukaDescriptionsForClass('5B').length,5);
-  assert.deepEqual(ACTIVITY_PREDICATES,['Baik','Sangat Baik']);
+  assert.deepEqual(ACTIVITY_PREDICATES,['Cukup','Baik','Sangat Baik']);
 });
 
 /* ------------------------------------------- 4. Kenaikan kelas / kelulusan */

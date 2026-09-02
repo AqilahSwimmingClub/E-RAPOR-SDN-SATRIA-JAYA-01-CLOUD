@@ -1,6 +1,6 @@
 # e-Rapor SDN Satria Jaya 01
 
-Aplikasi e-Rapor lokal untuk SDN Satria Jaya 01. Frontend yang sama digunakan untuk web/PWA, Android melalui Capacitor, dan Windows melalui Electron. Data disimpan lokal pada browser atau WebView perangkat; aplikasi tidak memakai Dapodik, Supabase, Firebase, atau layanan cloud.
+Aplikasi e-Rapor lokal untuk SDN Satria Jaya 01. Frontend yang sama digunakan untuk web/PWA, Android melalui Capacitor, dan Windows melalui Electron. Data disimpan lokal pada browser atau WebView perangkat; aplikasi tidak memakai Supabase, Firebase, atau layanan cloud. Sinkronisasi Dapodik tersedia khusus pada aplikasi Windows dan menghubungi layanan Dapodik lokal di komputer sekolah, bukan layanan internet.
 
 Folder `design_reference/`, `docs/`, `tests/`, dan `src/` merupakan bagian project dan tidak boleh dihapus.
 
@@ -171,6 +171,23 @@ npm run desktop:make
 ```
 
 Installer Squirrel tersedia di `out/make/squirrel.windows/x64/`. Installer rilis yang siap disalin berada di folder `release/`. Data desktop disimpan di direktori data aplikasi Windows dan dipertahankan saat aplikasi diperbarui.
+
+## Sinkronisasi Dapodik (khusus Windows)
+
+Menu **Dapodik** hanya berfungsi pada aplikasi Windows, karena Dapodik berjalan sebagai layanan
+lokal di komputer sekolah. Pada web/PWA dan Android menu tetap terlihat, tetapi hanya
+menampilkan arahan memakai Windows dan tidak pernah menghubungi jaringan.
+
+- Konfigurasi dan sinkronisasi hanya dapat dijalankan oleh Admin.
+- Token Dapodik disimpan terenkripsi lewat `safeStorage` Electron di direktori data aplikasi,
+  tidak pernah masuk penyimpanan browser, backup, log, atau pesan kesalahan, dan tidak pernah
+  dikembalikan ke halaman.
+- Aplikasi hanya mau menghubungi alamat loopback atau jaringan privat.
+- **Ambil Data Dapodik selalu menghasilkan pratinjau.** Data lokal berubah hanya setelah Admin
+  menyetujuinya, dan siswa manual tidak pernah dihapus karena tidak ada di Dapodik.
+
+Langkah lengkap beserta urutan pengamanannya ada di
+[`docs/operator/dapodik-windows.md`](docs/operator/dapodik-windows.md).
 
 ## iOS
 

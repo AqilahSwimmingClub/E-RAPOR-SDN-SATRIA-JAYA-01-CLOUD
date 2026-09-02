@@ -281,7 +281,8 @@ test('15-17. Preview, Simpan PDF, dan Cetak desktop memakai jalur yang benar',()
   assert.equal(/webContents\.print\(/.test(main),false,'dialog cetak Electron tidak lagi menjadi jalur utama');
   assert.match(service,/globalThis\.print\(\)/,'browser memakai dialog cetak dan Save as PDF bawaan');
   /* Leger tetap A4 landscape lewat @page, dan cetak massal tidak berubah. */
-  assert.match(cetak,/setPrintPageSize\('landscape'\)/);
+  assert.match(cetak,/if\(tab==='leger'\)setPrintPageSize\('landscape',marginRule\('leger'\)\)/);
+  assert.match(cetak,/return mode==='report'\?'10mm 0':'8mm';/,'margin leger bawaan tetap 8mm');
   assert.match(cetak,/data-bulk-toggle/,'Cetak Semua Rapor tetap tersedia');
   assert.equal(/Cetak Semua Leger/.test(cetak),false,'tidak ada Cetak Semua Leger');
 });

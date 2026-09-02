@@ -1,3 +1,5 @@
+import { composeActivityDescription } from './activity-description.js';
+
 /* Kegiatan kokurikuler bawaan beserta pilihan deskripsi rapor.
    Setiap kegiatan punya 5 deskripsi kelas rendah (1-3) dan 5 deskripsi kelas tinggi (4-6),
    ditulis dengan bahasa rapor yang formal, positif, dan mudah dipahami orang tua. */
@@ -98,4 +100,14 @@ export function cocurricularActivityNames(){return COCURRICULAR_ACTIVITY_PRESETS
 export function findCocurricularPreset(activity){
   const value=String(activity||'').trim().toLowerCase();
   return COCURRICULAR_ACTIVITY_PRESETS.find(item=>item.id===value||item.name.toLowerCase()===value)||null;
+}
+
+/* Deskripsi kokurikuler otomatis: fokus kegiatan diambil dari preset sesuai tingkat kelas,
+   lalu disusun dengan bentuk kalimat yang sama seperti Ekstrakurikuler dan Intrakurikuler. */
+export function generateCocurricularDescription({studentName='',activity,predicate='Baik',classId=''}={}){
+  const activityName=String(activity?.name||activity||'').trim();
+  const preset=findCocurricularPreset(activityName);
+  const grade=Number.parseInt(String(classId||'').trim(),10);
+  const daftar=preset?(grade&&grade<=3?preset.lower:preset.upper):[];
+  return composeActivityDescription({studentName,activityName,detail:daftar[0]||'',predicate,fallbackActivity:'kokurikuler'});
 }

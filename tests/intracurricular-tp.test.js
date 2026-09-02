@@ -1,0 +1,240 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
+import { ACTIVITY_PREDICATES, getStudentCocurricular, getStudentIntracurricular,
+  saveStudentCocurricular } from '../src/services/completeness.js';
+import { saveAssessmentScores, saveAssessmentSettings } from '../src/services/assessment.js';
+import { composeIntracurricularDescription, getStudentIntracurricularSelection,
+  INTRACURRICULAR_PREDICATES, listIntracurricularObjectives, listIntracurricularSubjects,
+  saveStudentIntracurricularSelection } from '../src/services/intracurricular.js';
+import { setSelectedAssessmentObjectives } from '../src/services/learning-objectives.js';
+import { createLearningObjective } from '../src/services/objectives.js';
+import { calculateReportScore } from '../src/services/report.js';
+import { createStudent } from '../src/services/students.js';
+import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { activityTable } from '../src/pages/print.js';
+
+/* Tahap 8E — Intrakurikuler: Mapel → TP → Predikat → Deskripsi otomatis.
+
+   Intrakurikuler memakai katalog TP yang sama dengan Penilaian Umum, tetapi pilihan TP dan
+   predikatnya disimpan terpisah supaya tidak pernah menimpa Penilaian Umum maupun
+   Kokurikuler. Tampilan rapor tidak berubah: tetap No, Kegiatan beserta predikat, dan
+   Keterangan. */
+
+function useMemoryStorage(){
+  const values=new Map();
+  globalThis.localStorage={getItem:key=>values.has(key)?values.get(key):null,
+    setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};
+  invalidateDbCache();
+}
+const guru=(classId='5B')=>({role:'teacher',classId,academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`});
+function aktifkanMapel(session,ids){
+  saveSubjectMapping(session,SUBJECTS_DEFAULT.map((item,index)=>({...item,active:ids.includes(item.id),order:index+1})));
+}
+function tambahSiswa(session,index=1){
+  return createStudent(session,{classId:session.classId,nis:`${session.classId}-${index}`,
+    nisn:`9977${String(index).padStart(6,'0')}`,name:`Siswa ${index}`,gender:'P',photo:''});
+}
+
+/* ------------------------------------------------------------------ Fase dan visibilitas mapel */
+
+test('Daftar mapel intrakurikuler mengikuti fase dan hanya memuat mapel aktif',()=>{
+  useMemoryStorage();
+  const kelas5=guru('5B');
+  aktifkanMapel(kelas5,['mtk','bindo','ipas']);
+  const ids=listIntracurricularSubjects(kelas5).map(item=>item.id);
+  assert.deepEqual([...ids].sort(),['bindo','ipas','mtk']);
+  assert.equal(ids.includes('koding'),false,'mapel yang tidak diaktifkan tidak muncul');
+});
+
+test('IPAS tidak muncul pada Fase A dan muncul pada Fase B serta C',()=>{
+  useMemoryStorage();
+  const kelas1=guru('1A');
+  aktifkanMapel(kelas1,['mtk','bindo','ipas']);
+  assert.equal(listIntracurricularSubjects(kelas1).some(item=>item.id==='ipas'),false);
+  const kelas3=guru('3A');
+  aktifkanMapel(kelas3,['mtk','bindo','ipas']);
+  assert.equal(listIntracurricularSubjects(kelas3).some(item=>item.id==='ipas'),true);
+  const kelas6=guru('6A');
+  aktifkanMapel(kelas6,['mtk','bindo','ipas']);
+  assert.equal(listIntracurricularSubjects(kelas6).some(item=>item.id==='ipas'),true);
+});
+
+test('Mapel pilihan hanya tersedia bila sekolah mengaktifkannya',()=>{
+  useMemoryStorage();
+  const kelas=guru('4A');
+  aktifkanMapel(kelas,['mtk']);
+  assert.equal(listIntracurricularSubjects(kelas).some(item=>item.id==='sunda'),false);
+  aktifkanMapel(kelas,['mtk','sunda']);
+  assert.equal(listIntracurricularSubjects(kelas).some(item=>item.id==='sunda'),true);
+});
+
+test('TP intrakurikuler memakai katalog yang sama dan mengikuti fase kelas',()=>{
+  useMemoryStorage();
+  const kelas=guru('2A');
+  aktifkanMapel(kelas,['mtk']);
+  const tp=listIntracurricularObjectives(kelas,'mtk');
+  assert.ok(tp.length>=2);
+  for(const item of tp){assert.equal(item.phase,'A');assert.equal(item.status,'inspiratif');}
+  const kelas5=guru('5B');
+  aktifkanMapel(kelas5,['mtk']);
+  assert.equal(listIntracurricularObjectives(kelas5,'mtk')[0].phase,'C');
+});
+
+/* --------------------------------------------------------------- Predikat dan deskripsi otomatis */
+
+test('Predikat intrakurikuler hanya Cukup, Baik, dan Sangat Baik',()=>{
+  assert.deepEqual(INTRACURRICULAR_PREDICATES,['Cukup','Baik','Sangat Baik']);
+  assert.deepEqual(INTRACURRICULAR_PREDICATES,ACTIVITY_PREDICATES);
+});
+
+test('Satu TP dan banyak TP menghasilkan deskripsi yang memuat setiap TP satu kali',()=>{
+  useMemoryStorage();
+  const kelas=guru('5B');
+  aktifkanMapel(kelas,['mtk']);
+  const tp=listIntracurricularObjectives(kelas,'mtk');
+  for(const jumlah of [1,2,3]){
+    const dipakai=tp.slice(0,jumlah);
+    const teks=composeIntracurricularDescription({studentName:'Siswa 1',subjectName:'Matematika',
+      objectives:dipakai,predicate:'Baik'});
+    assert.ok(teks.includes('Matematika'));
+    for(const item of dipakai)
+      assert.equal(teks.split(item.description).length-1,1,`${jumlah} TP: ${item.code} muncul sekali`);
+    for(const item of tp.slice(jumlah))
+      assert.equal(teks.includes(item.description),false,'TP di luar pilihan tidak ikut');
+    assert.match(teks,/\.$/);
+  }
+});
+
+test('Tiga predikat menghasilkan tiga kalimat capaian yang berbeda',()=>{
+  useMemoryStorage();
+  const kelas=guru('5B');
+  aktifkanMapel(kelas,['mtk']);
+  const tp=listIntracurricularObjectives(kelas,'mtk').slice(0,2);
+  const teks=INTRACURRICULAR_PREDICATES.map(predicate=>composeIntracurricularDescription(
+    {studentName:'Siswa 1',subjectName:'Matematika',objectives:tp,predicate}));
+  assert.equal(new Set(teks).size,3,'tiap predikat punya kalimat sendiri');
+  for(const item of teks)for(const objective of tp)assert.ok(item.includes(objective.description));
+});
+
+/* --------------------------------------------------------------------- Penyimpanan per siswa */
+
+test('Pilihan mapel, TP, dan predikat tersimpan beserta deskripsi otomatis',()=>{
+  useMemoryStorage();
+  const kelas=guru('5B');
+  aktifkanMapel(kelas,['mtk','bindo']);
+  const siswa=tambahSiswa(kelas);
+  const tp=listIntracurricularObjectives(kelas,'mtk').slice(0,2);
+  const saved=saveStudentIntracurricularSelection(kelas,siswa.id,
+    {subjectId:'mtk',objectiveIds:tp.map(item=>item.id),predicate:'Sangat Baik'});
+  assert.equal(saved.subjectId,'mtk');
+  assert.deepEqual(saved.objectiveIds,tp.map(item=>item.id));
+  assert.equal(saved.predicate,'Sangat Baik');
+  assert.equal(saved.activity,'Matematika','kolom Kegiatan pada rapor memuat nama mapel');
+  for(const item of tp)assert.ok(saved.description.includes(item.description));
+  const dibaca=getStudentIntracurricularSelection(kelas,siswa.id);
+  assert.equal(dibaca.subjectId,'mtk');
+  assert.deepEqual(dibaca.objectiveIds,tp.map(item=>item.id));
+});
+
+test('Deskripsi diperbarui saat pilihan TP atau predikat berubah',()=>{
+  useMemoryStorage();
+  const kelas=guru('5B');
+  aktifkanMapel(kelas,['mtk']);
+  const siswa=tambahSiswa(kelas);
+  const tp=listIntracurricularObjectives(kelas,'mtk');
+  const pertama=saveStudentIntracurricularSelection(kelas,siswa.id,
+    {subjectId:'mtk',objectiveIds:[tp[0].id],predicate:'Cukup'});
+  const kedua=saveStudentIntracurricularSelection(kelas,siswa.id,
+    {subjectId:'mtk',objectiveIds:[tp[1].id],predicate:'Sangat Baik'});
+  assert.notEqual(kedua.description,pertama.description);
+  assert.ok(kedua.description.includes(tp[1].description));
+  assert.equal(kedua.description.includes(tp[0].description),false);
+  const manual=saveStudentIntracurricularSelection(kelas,siswa.id,
+    {subjectId:'mtk',objectiveIds:[tp[1].id],predicate:'Sangat Baik',description:'Deskripsi tulisan wali kelas.'});
+  assert.equal(manual.description,'Deskripsi tulisan wali kelas.');
+});
+
+test('Pilihan ditolak bila mapel atau TP di luar daftar',()=>{
+  useMemoryStorage();
+  const kelas=guru('5B');
+  aktifkanMapel(kelas,['mtk']);
+  const siswa=tambahSiswa(kelas);
+  const tp=listIntracurricularObjectives(kelas,'mtk');
+  assert.throws(()=>saveStudentIntracurricularSelection(kelas,siswa.id,
+    {subjectId:'bing',objectiveIds:[tp[0].id],predicate:'Baik'}),/mata pelajaran/i);
+  assert.throws(()=>saveStudentIntracurricularSelection(kelas,siswa.id,
+    {subjectId:'mtk',objectiveIds:['tp-palsu'],predicate:'Baik'}),/Tujuan Pembelajaran/i);
+  assert.throws(()=>saveStudentIntracurricularSelection(kelas,siswa.id,
+    {subjectId:'mtk',objectiveIds:[],predicate:'Baik'}),/Tujuan Pembelajaran/i);
+  assert.throws(()=>saveStudentIntracurricularSelection(kelas,siswa.id,
+    {subjectId:'mtk',objectiveIds:[tp[0].id],predicate:'Istimewa'}),/Predikat/i);
+});
+
+/* ------------------------------------------------------------- Kompatibilitas dan isolasi data */
+
+test('Data intrakurikuler lama tanpa mapel dan TP tetap terbaca',()=>{
+  useMemoryStorage();
+  const kelas=guru('5B');
+  aktifkanMapel(kelas,['mtk']);
+  const siswa=tambahSiswa(kelas);
+  const db=loadDb();
+  const key=`${kelas.academicYear}|${kelas.semester}|${kelas.classId}|${siswa.id}`;
+  db.intracurricularScores[key]={studentId:siswa.id,classId:kelas.classId,semester:kelas.semester,
+    academicYear:kelas.academicYear,activity:'Literasi Membaca',predicate:'Baik',
+    description:'Aktif membaca dan menceritakan kembali.',createdAt:'2026-01-01T00:00:00.000Z',
+    updatedAt:'2026-01-01T00:00:00.000Z'};
+  globalThis.localStorage.setItem('erapor_satria_jaya_01_v1',JSON.stringify(db));
+  invalidateDbCache();
+  const lama=getStudentIntracurricularSelection(kelas,siswa.id);
+  assert.equal(lama.activity,'Literasi Membaca');
+  assert.equal(lama.subjectId,null);
+  assert.deepEqual(lama.objectiveIds,[]);
+  assert.equal(lama.description,'Aktif membaca dan menceritakan kembali.');
+});
+
+test('Intrakurikuler tidak menimpa Kokurikuler maupun Penilaian Umum',()=>{
+  useMemoryStorage();
+  const kelas=guru('5B');
+  aktifkanMapel(kelas,['mtk']);
+  const siswa=tambahSiswa(kelas);
+  saveAssessmentSettings(kelas,'mtk',{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
+  for(const jenis of ['formative','daily','practice','scopeSummative','semesterSummative'])
+    saveAssessmentScores(kelas,'mtk',jenis,{[siswa.id]:80});
+  const tpUmum=listIntracurricularObjectives(kelas,'mtk');
+  setSelectedAssessmentObjectives(kelas,'mtk',[tpUmum[0].id]);
+  saveStudentCocurricular(kelas,siswa.id,{activity:'Projek Penguatan Profil Pelajar Pancasila',
+    predicate:'Baik',description:'Aktif dalam projek kelompok.'});
+  const nilaiSebelum=calculateReportScore(kelas,'mtk',siswa.id);
+
+  saveStudentIntracurricularSelection(kelas,siswa.id,
+    {subjectId:'mtk',objectiveIds:[tpUmum[1].id],predicate:'Cukup'});
+
+  assert.deepEqual(loadDb().assessmentObjectiveSelection[`${kelas.academicYear}|${kelas.semester}|${kelas.classId}|mtk`].objectiveIds,
+    [tpUmum[0].id],'pilihan TP Penilaian Umum tidak tersentuh');
+  assert.equal(JSON.stringify(calculateReportScore(kelas,'mtk',siswa.id)),JSON.stringify(nilaiSebelum));
+  const koku=getStudentCocurricular(kelas,siswa.id);
+  assert.equal(koku.activity,'Projek Penguatan Profil Pelajar Pancasila');
+  assert.equal(koku.description,'Aktif dalam projek kelompok.');
+  assert.equal(getStudentIntracurricular(kelas,siswa.id).activity,'Matematika');
+});
+
+/* --------------------------------------------------------------------- Tampilan rapor tetap */
+
+test('Tabel rapor Intrakurikuler tetap No, Kegiatan dengan predikat, dan Keterangan',()=>{
+  useMemoryStorage();
+  const kelas=guru('5B');
+  aktifkanMapel(kelas,['mtk']);
+  const siswa=tambahSiswa(kelas);
+  const tp=listIntracurricularObjectives(kelas,'mtk').slice(0,2);
+  const record=saveStudentIntracurricularSelection(kelas,siswa.id,
+    {subjectId:'mtk',objectiveIds:tp.map(item=>item.id),predicate:'Baik'});
+  const html=activityTable('Intrakurikuler',
+    [{name:record.activity,predicate:record.predicate,description:record.description}],
+    {studentName:siswa.name});
+  assert.match(html,/<th>No<\/th><th>Intrakurikuler<\/th><th>Keterangan<\/th>/);
+  assert.match(html,/class="activity-no">1</);
+  assert.match(html,/class="activity-name">Matematika</);
+  assert.match(html,/class="activity-predicate">BAIK</);
+  for(const item of tp)assert.ok(html.includes(item.description.replace(/&/g,'&amp;')));
+});
