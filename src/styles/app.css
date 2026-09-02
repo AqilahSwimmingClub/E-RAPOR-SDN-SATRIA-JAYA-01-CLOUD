@@ -372,66 +372,68 @@ textarea.input{color:var(--light-ink)}
 
 
 
-/* ====================== Halaman Masuk: kartu kaca di atas langit biru ======================
-   Mengikuti rujukan: langit biru berlapis dengan bulan dan siluet gunung, lalu satu kartu
-   tembus pandang memanjang di tengah. Pemandangan digambar sebagai SVG inline sehingga tidak
-   memerlukan berkas gambar dan tetap tajam di layar mana pun. Seluruh gerak hanya memakai
-   transform dan opacity, berjalan sekali, lalu diam saat guru mengetik. */
+/* ====================== Halaman Masuk: foto kiri, form kanan ======================
+   Foto sekolah mengisi kolom kiri, form Masuk berada di kolom kanan. Di ponsel keduanya
+   ditumpuk: foto menjadi panel atas yang ringkas, form tetap utuh di bawahnya sehingga
+   tidak pernah terpotong dan tidak menimbulkan gulir mendatar. */
 
-.login-stage{position:relative;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px 16px calc(18px + env(safe-area-inset-bottom));overflow-y:auto;overflow-x:hidden;background:linear-gradient(180deg,#2f6fa8 0%,#4f8dc0 55%,#7fb0d6 100%);color:#eef7ff}
-.login-sky{position:fixed;inset:0;z-index:0;pointer-events:none}
-.login-sky svg{width:100%;height:100%;display:block}
+.login-stage{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:1.05fr .95fr;background:linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%);color:var(--dark-ink)}
 
-.login-shell{position:relative;z-index:1;width:min(390px,100%);padding:26px 24px 22px;border-radius:20px;border:1px solid rgba(255,255,255,.28);background:linear-gradient(165deg,rgba(255,255,255,.2),rgba(255,255,255,.08));backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 26px 60px rgba(8,32,58,.4);transform-origin:50% 60%;animation:loginCaseOpen .55s cubic-bezier(.22,1,.36,1) both}
-
-.login-brand{display:flex;align-items:center;gap:11px;margin-bottom:16px}
-.login-brand-mark{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;flex:none;color:#eaf6ff;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3)}
+/* ---- Kolom kiri: foto sekolah ---- */
+.login-photo{position:relative;min-height:100dvh;display:flex;flex-direction:column;justify-content:space-between;padding:34px;overflow:hidden;background:var(--login-bg-pos,center 45%)/cover no-repeat url('../../assets/login-background.jpg'),linear-gradient(160deg,#1f4f7d,#2f6fa8)}
+.login-photo-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,20,38,.5) 0%,rgba(6,20,38,.28) 45%,rgba(6,20,38,.72) 100%)}
+.login-photo-content{position:relative;display:flex;flex-direction:column;justify-content:space-between;height:100%;gap:24px}
+.login-photo .login-brand{display:flex;align-items:center;gap:12px}
+.login-brand-mark{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;flex:none;color:#eaf6ff;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.32);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .login-brand-text{min-width:0}
-.login-brand-app{display:block;font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#d6ecff}
-.login-brand-text strong{display:block;font-size:15px;font-weight:850;color:#fff;line-height:1.25;text-shadow:0 2px 10px rgba(6,28,52,.4)}
-.login-brand-region{display:block;font-size:10px;letter-spacing:.13em;color:#cbe4fa;margin-top:2px}
+.login-brand-app{display:block;font-size:11px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:var(--cyan)}
+.login-brand-text strong{display:block;font-size:17px;font-weight:850;color:#fff;line-height:1.25;text-shadow:0 2px 12px rgba(4,18,34,.6)}
+.login-brand-region{display:block;font-size:10.5px;letter-spacing:.14em;color:#d3e6f8;margin-top:2px}
+.login-photo-caption h1{margin:0;font-size:clamp(26px,3.4vw,40px);font-weight:850;letter-spacing:.14em;color:#fff;text-shadow:0 4px 20px rgba(4,18,34,.6)}
+.login-photo-caption p{margin:8px 0 0;font-size:13.5px;font-style:italic;color:#e4f1ff;text-shadow:0 2px 12px rgba(4,18,34,.55)}
+
+/* ---- Kolom kanan: form Masuk ---- */
+.login-panel{position:relative;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:30px 24px calc(22px + env(safe-area-inset-bottom));overflow-y:auto;background:radial-gradient(700px 420px at 70% 8%,rgba(56,225,255,.1) 0%,transparent 60%),linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%)}
+.login-shell{position:relative;width:min(380px,100%);padding:26px 24px 20px;border-radius:20px;border:1px solid var(--glass-line);background:linear-gradient(165deg,rgba(255,255,255,.09),rgba(255,255,255,.04));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 24px 60px rgba(0,0,0,.45);transform-origin:50% 60%;animation:loginCaseOpen .55s cubic-bezier(.22,1,.36,1) both}
+.login-shell-head{margin-bottom:16px}
+.login-shell-head h2{margin:0;font-size:19px;font-weight:850;color:var(--dark-ink)}
+.login-shell-head p{margin:5px 0 0;font-size:11.5px;color:var(--dark-muted);line-height:1.5}
 
 .login-form{display:flex;flex-direction:column;gap:10px}
-.login-shell .role-switch{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.26);margin-bottom:4px}
-.login-shell .role-btn{border:0;background:transparent;color:#e2f0ff;font-size:12px;font-weight:700;padding:9px 6px;border-radius:999px;min-height:38px;transition:color .2s ease,background .2s ease,box-shadow .2s ease}
-.login-shell .role-btn.active{color:#1d4e79;background:#fff;box-shadow:0 4px 14px rgba(8,32,58,.25)}
+.login-shell .role-switch{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;border-radius:999px;background:var(--glass);border:1px solid var(--glass-line);margin-bottom:4px}
+.login-shell .role-btn{border:0;background:transparent;color:var(--dark-muted);font-size:12px;font-weight:700;padding:9px 6px;border-radius:999px;min-height:38px;transition:color .2s ease,background .2s ease,box-shadow .2s ease}
+.login-shell .role-btn.active{color:#03131f;background:linear-gradient(135deg,var(--cyan),var(--teal));box-shadow:0 5px 16px rgba(56,225,255,.28)}
 
-/* Isian berbentuk pil dengan ikon di depan, seperti pada rujukan. */
-.login-field{position:relative;display:flex;align-items:center;gap:9px;padding:0 14px;min-height:44px;border-radius:999px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);transition:border-color .18s ease,box-shadow .18s ease,background .18s ease}
-.login-field:focus-within{border-color:#fff;background:rgba(255,255,255,.24);box-shadow:0 0 0 3px rgba(255,255,255,.18)}
-.login-field-icon{display:grid;place-items:center;flex:none;color:#dceeff;opacity:.9}
-.login-shell .input{flex:1;min-width:0;width:auto;border:0;background:transparent;padding:0;color:#fff;font-size:13px;border-radius:0;outline:none}
-.login-shell .input::placeholder{color:rgba(233,244,255,.72);opacity:1}
+.login-field{position:relative;display:flex;align-items:center;gap:9px;padding:0 14px;min-height:44px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--glass-line);transition:border-color .18s ease,box-shadow .18s ease,background .18s ease}
+.login-field:focus-within{border-color:var(--cyan);background:rgba(255,255,255,.1);box-shadow:0 0 0 3px rgba(56,225,255,.16)}
+.login-field-icon{display:grid;place-items:center;flex:none;color:var(--dark-muted)}
+.login-field:focus-within .login-field-icon{color:var(--cyan)}
+.login-shell .input{flex:1;min-width:0;width:auto;border:0;background:transparent;padding:0;color:var(--dark-ink);font-size:13px;border-radius:0;outline:none}
+.login-shell .input::placeholder{color:rgba(147,170,198,.75);opacity:1}
 .login-shell select.input{appearance:none;-webkit-appearance:none;cursor:pointer}
-.login-shell select.input option{background:#245a8a;color:#fff}
-.login-shell .input#loginSchool{color:#e6f2ff}
-.login-shell .password-toggle{flex:none;border:0;background:transparent;color:#dceeff;font-size:14px;line-height:1;padding:0;transition:transform .18s ease,color .18s ease}
-.login-shell .password-toggle:hover{color:#fff;transform:scale(1.1)}
+.login-shell select.input option{background:var(--navy-2);color:var(--dark-ink)}
+.login-shell .password-toggle{flex:none;border:0;background:transparent;color:var(--dark-muted);font-size:14px;line-height:1;padding:0;transition:transform .18s ease,color .18s ease}
+.login-shell .password-toggle:hover{color:var(--cyan);transform:scale(1.1)}
 
-.login-submit{width:100%;margin-top:6px;min-height:44px;border:0;border-radius:999px;font-size:13px;font-weight:800;letter-spacing:.1em;color:#1d4e79;background:#fff;box-shadow:0 12px 26px rgba(8,32,58,.3);transition:transform .16s ease,box-shadow .2s ease,filter .2s ease}
-.login-submit:hover{filter:brightness(.98);box-shadow:0 16px 32px rgba(8,32,58,.38)}
+.login-submit{width:100%;margin-top:6px;min-height:45px;border:0;border-radius:999px;font-size:13px;font-weight:800;letter-spacing:.1em;color:#03131f;background:linear-gradient(135deg,var(--cyan),var(--teal));box-shadow:0 10px 26px rgba(56,225,255,.26);transition:transform .16s ease,box-shadow .2s ease,filter .2s ease}
+.login-submit:hover{filter:brightness(1.06);box-shadow:0 14px 32px rgba(56,225,255,.34)}
 .login-submit:active{transform:scale(.985)}
-.login-submit:disabled{opacity:.75;box-shadow:none}
+.login-submit:disabled{filter:grayscale(.35);box-shadow:none}
 
-.login-link{align-self:center;margin-top:2px;border:0;background:transparent;color:#dbecfb;font-size:11.5px;text-decoration:underline;text-underline-offset:3px;padding:6px 4px;transition:color .18s ease}
-.login-link:hover{color:#fff}
-.login-ghost{width:100%;margin-top:2px;min-height:40px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:#fff;font-weight:700;font-size:12px;transition:background .18s ease,transform .16s ease}
-.login-ghost:hover{background:rgba(255,255,255,.22)}
+.login-link{align-self:center;margin-top:2px;border:0;background:transparent;color:var(--dark-muted);font-size:11.5px;text-decoration:underline;text-underline-offset:3px;padding:6px 4px;transition:color .18s ease}
+.login-link:hover{color:var(--cyan)}
+.login-ghost{width:100%;margin-top:2px;min-height:40px;border-radius:999px;background:var(--glass);border:1px solid var(--glass-line);color:var(--dark-ink);font-weight:700;font-size:12px;transition:background .18s ease,transform .16s ease}
+.login-ghost:hover{background:var(--glass-2)}
 .login-ghost:active{transform:scale(.99)}
-.login-help{font-size:10px;color:#cfe5f8;line-height:1.5;text-align:center;margin-top:4px}
-.login-shell .login-error{background:rgba(180,40,50,.3);border:1px solid rgba(255,180,186,.55);color:#ffe3e6;border-radius:12px;padding:8px 11px;font-size:11px}
+.login-help{font-size:10px;color:var(--dark-muted);line-height:1.5;text-align:center;margin-top:4px}
+.login-shell .login-error{background:rgba(185,59,66,.18);border:1px solid rgba(255,138,148,.42);color:#ffc9ce;border-radius:12px;padding:8px 11px;font-size:11px}
 .login-shake{animation:loginShake .32s ease both}
+.login-version{display:block;margin:12px auto 0;width:max-content;font-size:10px;font-weight:700;color:var(--dark-muted);background:var(--glass-2);border:1px solid var(--glass-line);border-radius:999px;padding:3px 10px}
 
-/* Bagian bawah kartu: sambutan besar seperti rujukan, diisi identitas sekolah. */
-.login-welcome{margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,.22);text-align:center}
-.login-welcome h1{margin:0;font-size:clamp(24px,7vw,32px);font-weight:850;letter-spacing:.14em;color:#fff;text-shadow:0 3px 16px rgba(6,28,52,.45)}
-.login-welcome p{margin:6px 0 0;font-size:12px;font-style:italic;color:#dcecfb}
-.login-version{display:inline-block;margin-top:10px;font-size:10px;font-weight:700;color:#d6ecff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:3px 10px}
-
-.login-footer{position:relative;z-index:1;text-align:center;line-height:1.55}
-.login-footer span{display:block;font-size:10px;color:#cfe5f8}
-.login-footer strong{display:block;font-size:12px;font-weight:800;color:#fff;margin:2px 0 3px}
-.login-footer small{display:block;font-size:9.5px;color:#c3dcf3}
+.login-footer{text-align:center;line-height:1.55}
+.login-footer span{display:block;font-size:10px;color:var(--dark-muted)}
+.login-footer strong{display:block;font-size:12px;font-weight:800;color:var(--dark-ink);margin:2px 0 3px}
+.login-footer small{display:block;font-size:9.5px;color:var(--dark-muted)}
 
 .login-anim{animation:loginFieldRise .42s ease both;animation-delay:calc(.12s + var(--rise,0) * .05s)}
 
@@ -449,18 +451,30 @@ textarea.input{color:var(--light-ink)}
   75%{transform:translateX(5px)}
 }
 
-@media(max-width:767px){
-  .login-stage{padding:18px 14px calc(16px + env(safe-area-inset-bottom));gap:13px}
-  .login-shell{width:min(100%,390px);padding:22px 18px 18px;border-radius:18px}
-  .login-welcome{margin-top:15px;padding-top:13px}
+/* Titik fokus foto digeser per ukuran layar supaya bagian penting tetap terlihat
+   saat kolom kiri menyempit. Berkas fotonya sendiri tidak pernah dipotong. */
+:root{--login-bg-pos:center 45%}
+@media(max-width:1200px){:root{--login-bg-pos:60% 45%}}
+
+/* Tablet potret dan ponsel: dua kolom ditumpuk menjadi satu. */
+@media(max-width:900px){
+  .login-stage{grid-template-columns:1fr;min-height:100dvh}
+  .login-photo{min-height:0;height:32vh;padding:20px;justify-content:flex-end}
+  .login-photo-content{gap:14px}
+  .login-photo-caption h1{font-size:clamp(22px,7vw,30px)}
+  .login-photo-caption p{font-size:12px}
+  .login-panel{min-height:0;padding:22px 16px calc(20px + env(safe-area-inset-bottom))}
 }
-/* Layar pendek dan lanskap: kartu digulir wajar, tombol Masuk tetap terjangkau. */
-@media(max-height:620px){
-  .login-stage{justify-content:flex-start;padding-top:14px}
-  .login-shell{margin-top:2px;padding:18px 18px 16px}
-  .login-form{gap:8px}
-  .login-welcome{margin-top:12px;padding-top:11px}
-  .login-welcome h1{font-size:22px}
+@media(max-width:767px){
+  .login-photo{height:28vh;min-height:190px}
+  .login-shell{width:min(100%,380px);padding:22px 18px 18px;border-radius:18px}
+  .login-brand-text strong{font-size:15px}
+}
+/* Lanskap ponsel: layar pendek, foto dipersempit agar form tetap terjangkau. */
+@media(max-height:560px) and (max-width:900px){
+  .login-photo{height:auto;min-height:0;padding:14px}
+  .login-photo-caption{display:none}
+  .login-panel{padding-top:16px}
 }
 @media(prefers-reduced-motion:reduce){
   .login-shell,.login-anim{animation:none}

@@ -57,7 +57,7 @@ test('Label, keterangan, dropdown, dan placeholder pada permukaan terang tetap t
 test('Permukaan gelap Dashboard dan Login tidak ikut dipaksa gelap',()=>{
   const t=css();
   /* Selektor gelap memakai kekhususan lebih tinggi sehingga tetap menang. */
-  assert.match(t,/\.login-shell \.input\{[^}]*color:#fff/,'isian login memakai teks terang di atas kartu biru');
+  assert.match(t,/\.login-shell \.input\{[^}]*color:var\(--dark-ink\)/,'isian login memakai teks terang di atas kartu gelap');
   assert.match(t,/\.dash-stat-value\{[^}]*color:var\(--dark-ink\)/);
   assert.doesNotMatch(rule('.dash-panel'),/color:var\(--light-ink\)/);
 });
@@ -99,14 +99,15 @@ test('Mode ponsel tetap memakai drawer dan gulir halaman biasa',()=>{
 
 /* ---------------------------------------------- 3. Latar Login dan form yang dibuka */
 
-test('Latar Login digambar sebagai SVG inline tanpa berkas gambar luar',()=>{
-  const t=css(),source=read('src/pages/login.js'),stage=rule('.login-stage');
-  assert.match(stage,/linear-gradient\(180deg,#2f6fa8/,'gradasi langit menjadi dasar');
-  assert.match(t,/\.login-sky svg\{[^}]*width:100%/,'pemandangan mengisi layar');
-  assert.match(source,/<svg viewBox="0 0 1200 800"/,'pemandangan digambar inline');
-  assert.match(source,/preserveAspectRatio="xMidYMid slice"/,'pemandangan menutup layar tanpa gepeng');
-  /* Tidak lagi bergantung pada berkas foto luar yang bisa hilang. */
-  assert.doesNotMatch(t,/login-background\.jpg/);
+test('Foto sekolah dipakai apa adanya dengan cover dan titik fokus responsif',()=>{
+  const t=css(),foto=rule('.login-photo');
+  assert.match(foto,/login-background\.jpg/,'memakai berkas foto sekolah');
+  assert.match(foto,/cover/,'memakai background-size cover');
+  assert.match(foto,/var\(--login-bg-pos/,'titik fokus dikendalikan satu variabel');
+  assert.match(t,/--login-bg-pos\s*:/,'variabel titik fokus tersedia');
+  assert.match(t,/@media\(max-width:1200px\)[^@]*--login-bg-pos/,'titik fokus digeser saat kolom menyempit');
+  /* Gradasi cadangan menjaga halaman tetap rapi bila berkas foto belum tersedia. */
+  assert.match(foto,/linear-gradient\(160deg,#1f4f7d/,'cadangan gradasi');
 });
 
 test('Form Login langsung tampil dan isian berbentuk pil dengan ikon',()=>{
@@ -141,10 +142,10 @@ test('Mencetak melepas tinggi tetap sehingga dokumen tidak terpotong satu layar'
   assert.match(t,/\.report-a4\{padding:14mm 13mm\}/);
 });
 
-test('Pemandangan latar tetap rapi pada tiga ukuran layar',()=>{
+test('Tata letak dua kolom menumpuk rapi di tablet, ponsel, dan lanskap',()=>{
   const t=css();
+  assert.match(t,/@media\(max-width:900px\)[^@]*\.login-photo\{[^}]*height:32vh/,'foto menjadi panel atas di tablet');
   assert.match(t,/@media\(max-width:767px\)[^@]*\.login-shell\{/,'penyesuaian ponsel');
-  assert.match(t,/@media\(max-height:620px\)[^@]*\.login-stage\{/,'penyesuaian layar pendek dan lanskap');
-  assert.match(rule('.login-stage'),/overflow-y:auto/,'layar pendek tetap dapat digulir');
-  assert.match(rule('.login-sky'),/position:fixed/,'pemandangan diam saat kartu digulir');
+  assert.match(t,/@media\(max-height:560px\) and \(max-width:900px\)[^@]*\.login-photo-caption\{display:none/,'lanskap pendek menyembunyikan sambutan agar form muat');
+  assert.match(rule('.login-panel'),/overflow-y:auto/,'kolom form dapat digulir bila layar pendek');
 });

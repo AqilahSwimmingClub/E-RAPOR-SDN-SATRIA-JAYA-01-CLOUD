@@ -43,14 +43,14 @@ test('Login memakai satu panel menyatu, bukan foto besar kiri dan blok putih kan
   assert.match(t,/\.login-shell\{/);
 });
 
-test('Tema login memakai langit biru berlapis dengan kartu kaca',()=>{
+test('Tema login memakai foto di kolom kiri dan panel kaca di kolom kanan',()=>{
   const t=css();
-  const blok=t.slice(t.indexOf('.login-stage{'));
-  assert.match(blok,/linear-gradient\(180deg,#2f6fa8/,'gradasi langit biru');
-  assert.match(blok,/backdrop-filter\s*:\s*blur\(/,'glassmorphism');
-  assert.match(blok,/box-shadow/,'shadow lembut');
+  assert.match(t,/\.login-stage\{[^}]*grid-template-columns:1\.05fr \.95fr/,'dua kolom di layar lebar');
+  assert.match(t,/\.login-photo\{[^}]*login-background\.jpg/,'kolom kiri memakai foto sekolah');
+  assert.match(t,/\.login-photo-overlay\{[^}]*linear-gradient/,'foto diberi peredup agar teks terbaca');
+  assert.match(t,/\.login-panel\{[^}]*var\(--navy/,'kolom kanan memakai latar navy');
+  assert.match(t,/\.login-shell\{[^}]*backdrop-filter\s*:\s*blur\(/,'kartu form tetap kaca');
   assert.match(t,/\.login-shell\{[^}]*border:1px solid/,'border tipis');
-  assert.match(t,/\.login-sky\{[^}]*position:fixed/,'pemandangan menutup seluruh layar');
 });
 
 /* ------------------------------------------------------ 3. Animasi ringan dan stabil */
@@ -71,7 +71,7 @@ test('Animasi form memakai transform/opacity saja dan berhenti stabil',()=>{
 
 test('Input aktif dan tombol Masuk punya micro-animation tanpa pustaka luar',()=>{
   const t=css(),source=login();
-  assert.match(t,/\.login-field:focus-within\{[^}]*border-color:#fff/,'isian aktif diberi bingkai terang');
+  assert.match(t,/\.login-field:focus-within\{[^}]*border-color:var\(--cyan\)/,'isian aktif berbingkai cyan');
   assert.match(t,/\.login-field:focus-within\{[^}]*box-shadow/,'ada cahaya tipis saat aktif');
   assert.match(t,/\.login-submit/,'tombol Masuk punya gaya sendiri');
   assert.match(t,/\.login-submit:active\{[^}]*transform:/,'ada respons tekan');
@@ -152,11 +152,13 @@ test('Login nyaman di Android potret, lanskap, tablet, dan laptop',()=>{
   const t=css();
   const stage=t.match(/\.login-stage\{[^}]*\}/)[0];
   assert.match(stage,/min-height:100/,'memenuhi tinggi layar');
-  assert.match(stage,/overflow-y:auto/,'layar pendek tetap dapat digulir');
+  /* Pada tata letak dua kolom, kolom form kanan yang bergulir, bukan seluruh panggung. */
+  assert.match(t,/\.login-panel\{[^}]*overflow-y:auto/,'kolom form dapat digulir saat layar pendek');
   assert.match(t,/\.login-shell\{[^}]*width:min\(/,'lebar mengikuti layar sehingga tidak terpotong');
   assert.doesNotMatch(stage,/overflow-x:scroll/);
   assert.match(t,/@media\(max-width:767px\)[^@]*\.login-shell\{/,'penyesuaian ponsel');
-  assert.match(t,/@media\(max-height:620px\)[^@]*\.login-stage\{/,'layar pendek atau lanskap');
+  assert.match(t,/@media\(max-width:900px\)[^@]*\.login-stage\{[^}]*grid-template-columns:1fr/,'tablet dan ponsel menumpuk dua kolom');
+  assert.match(t,/@media\(max-height:560px\) and \(max-width:900px\)[^@]*\.login-photo\{/,'lanskap ponsel mempersempit foto');
   assert.match(t,/env\(safe-area-inset-bottom\)/,'aman dari area sistem dan papan ketik');
 });
 
