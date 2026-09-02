@@ -27,3 +27,8 @@ release/windows/builder-debug.yml
 release/**/*.blockmap
 .DS_Store
 Thumbs.db
+
+# Rahasia server lisensi
+server/.env
+server/secrets/
+server/data/

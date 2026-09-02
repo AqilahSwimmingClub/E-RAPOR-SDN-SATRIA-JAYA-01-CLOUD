@@ -3,6 +3,8 @@ import { getSession } from './services/auth.js';
 import { renderLogin } from './pages/login.js';
 import { renderOwnerActivation } from './pages/activation.js';
 import { renderSchoolSetup } from './pages/school-setup.js';
+import { renderLicenseActivation } from './pages/license-activation.js';
+import { checkLicense, getLicenseState } from './services/license.js';
 import { isSchoolIdentityReady } from './services/master.js';
 import { renderDashboard } from './pages/dashboard.js';
 import { renderProfile } from './pages/profile.js';
@@ -31,11 +33,17 @@ import { renderPlaceholder } from './pages/placeholder.js';
 import { renderDapodik } from './pages/dapodik.js';
 import { renderSubjectMapping, renderBackupRestore, renderAccountSettings } from './pages/settings.js';
 import { renderLayout } from './ui/layout.js';
+import { el, escapeHtml } from './ui/dom.js';
+import { icon } from './ui/icons.js';
 import { runAppMigrations } from './services/migrations.js';
 import { ensureDefaultSubjects } from './services/seed.js';
 
 const app=document.querySelector('#app');
 let startupError=null;
+/* Status lisensi perangkat ini. Dibaca dari token bertanda tangan yang tersimpan lokal,
+   sehingga penggunaan sehari-hari tidak pernah menunggu jaringan. */
+let licenseState={state:'UNLICENSED',canUseApp:false,canEditData:false,record:null};
+function refreshLicenseState(){try{licenseState=getLicenseState();}catch{licenseState={state:'UNLICENSED',canUseApp:false,canEditData:false,record:null};}return licenseState;}
 /* Migration dijalankan lebih dulu, lalu satu pengaman idempotent: mapel bawaan baru
    dipastikan ada pada Mapping lama. Tidak ada data siswa yang pernah dimasukkan otomatis.
    Kegagalan pengaman tidak boleh membuat aplikasi gagal dibuka. */
@@ -53,13 +61,22 @@ function scheduleSessionExpiry(activeSession){
 
 function mount(requestedRoute){
   session=getSession();
+  refreshLicenseState();
   scheduleSessionExpiry(session);
   /* Instalasi baru mengisi identitas sekolah lebih dulu. Setelah nama sekolah tersimpan,
      gerbang ini tidak pernah muncul lagi dan alur kembali ke aktivasi/login yang sudah ada. */
   if(!startupError&&!isSchoolIdentityReady()){
     document.documentElement.dataset.route='school-setup';
     app.innerHTML='';
-    app.append(renderSchoolSetup({onComplete:()=>navigate('login')}));
+    app.append(renderSchoolSetup({onComplete:()=>navigate('license')}));
+    return;
+  }
+  /* Setelah identitas sekolah ada, perangkat wajib punya lisensi sebelum masuk aplikasi.
+     Tidak ada pengecualian berdasarkan sekolah, NPSN, atau siapa pun penggunanya. */
+  if(!startupError&&!licenseState.canUseApp){
+    document.documentElement.dataset.route='license';
+    app.innerHTML='';
+    app.append(renderLicenseActivation({onActivated:()=>{refreshLicenseState();navigate('login');}}));
     return;
   }
   const route=resolveRoute(requestedRoute,session);
@@ -76,9 +93,23 @@ function mount(requestedRoute){
     app.append(renderOwnerActivation({onComplete:()=>navigate('login'),onBack:()=>navigate('login')}));
     return;
   }
-  const content=pageFor(route,session);
-  app.append(renderLayout({session,route,onNavigate:navigate,onLogout:()=>navigate('login'),content}));
+  const content=licenseState.canEditData||READ_ONLY_SAFE_ROUTES.has(route)
+    ?pageFor(route,session)
+    :limitedNotice();
+  app.append(renderLayout({session,route,onNavigate:navigate,onLogout:()=>navigate('login'),content,
+    licenseNotice:licenseState.canEditData?null:licenseState.message}));
 }
+/* Saat lisensi bermasalah, aplikasi TIDAK menghapus apa pun. Pengguna tetap dapat melihat
+   datanya, mencetak, dan yang terpenting membuat backup, sehingga data sekolah tidak pernah
+   menjadi sandera. Yang ditutup hanyalah halaman yang mengubah data. */
+const READ_ONLY_SAFE_ROUTES=new Set(['dashboard','profile','backup','account-settings',
+  'print-report','print-ledger','print-supplement','transcript-print',
+  'assessment-status','teacher-status','class-status','admin-progress','student-progress']);
+
+function limitedNotice(){
+  return el(`<section class="card empty-state"><div class="placeholder-icon">${icon('settings',26)}</div><h3>Mode Terbatas</h3><p>${escapeHtml(licenseState.message||'Lisensi perangkat ini sedang bermasalah.')}</p><p>Seluruh data sekolah tetap tersimpan utuh. Anda masih dapat melihat data, mencetak, dan membuat backup melalui menu Backup.</p></section>`);
+}
+
 function pageFor(route,session){
   switch(route){
     case 'dashboard': return renderDashboard(session);

@@ -38,7 +38,7 @@ function writeOpenGroups(session,openGroups){
   try{localStorage.setItem(groupStateKey(session),JSON.stringify([...openGroups]));}catch{}
 }
 
-export function renderLayout({session,route,onNavigate,onLogout,content}){
+export function renderLayout({session,route,onNavigate,onLogout,content,licenseNotice=null}){
   const groups=navigationForRole(session.role);
   const menu=flattenNavigation(session.role);
   const school=getSchoolMaster();
@@ -59,7 +59,7 @@ export function renderLayout({session,route,onNavigate,onLogout,content}){
         <div class="topbar-left"><button class="mobile-menu" data-menu aria-label="Buka menu">${icon('menu',21)}</button>${backButton}<div><div class="page-title">${activeTitle}</div><div class="page-sub">${school.name}</div></div></div>
         <div class="topbar-right"><div class="semester-chip">${session.semester}</div><div class="profile-mini" data-profile-mini>${profileAvatar(profile)}<div class="profile-text"><strong>${profile.name}</strong><span>${session.role==='teacher'?`Kelas ${session.classId}`:session.academicYear}</span></div></div></div>
       </header>
-      <div class="content" data-content></div>
+      <div class="content" data-content>${licenseNotice?`<div class="license-banner" role="status">${escapeHtml(licenseNotice)}</div>`:''}</div>
       <footer class="footer">${escapeHtml(FOOTER_CREDIT)}</footer>
     </main>
   </div>`);

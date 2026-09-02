@@ -396,6 +396,19 @@ textarea.input{color:var(--light-ink)}
 
 /* Setup Awal Sekolah: satu kartu di tengah layar dengan tema gelap yang sama seperti
    halaman Masuk. Identitas pembuat aplikasi di bawah kartu bersifat permanen. */
+/* Halaman Aktivasi Lisensi memakai kerangka Setup Awal, ditambah blok identitas sekolah
+   dan isian kunci yang lapang. Spanduk mode terbatas tampil di atas isi halaman tanpa
+   menutupi apa pun. */
+.license-card{width:min(560px,100%)}
+.license-school{display:grid;gap:9px;margin:4px 0 16px;padding:13px 14px;border-radius:12px;background:var(--glass-2);border:1px solid var(--glass-line)}
+.license-school>div{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
+.license-school span{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dark-muted)}
+.license-school strong{font-size:13.5px;font-weight:800;color:var(--dark-ink)}
+.license-school code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--cyan);word-break:break-all}
+.license-input{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;letter-spacing:.12em;text-align:center;text-transform:uppercase}
+.license-ok{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:12px;background:rgba(46,230,192,.14);border:1px solid rgba(46,230,192,.35);color:#8ff3e0}
+.license-banner{margin-bottom:14px;padding:11px 14px;border-radius:12px;font-size:12px;line-height:1.55;background:rgba(255,201,61,.14);border:1px solid rgba(255,201,61,.4);color:#7a5a05}
+@media(max-width:767px){.license-input{font-size:14px;letter-spacing:.08em}}
 .setup-stage{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:32px 18px calc(28px + env(safe-area-inset-bottom));background:radial-gradient(760px 460px at 70% 6%,rgba(56,225,255,.1) 0%,transparent 60%),linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%);color:var(--dark-ink);overflow-y:auto}
 .setup-card{width:min(880px,100%);background:linear-gradient(165deg,rgba(255,255,255,.09),rgba(255,255,255,.04));border:1px solid var(--glass-line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 24px 60px rgba(0,0,0,.45)}
 .setup-card h1{margin:0;font-size:20px;font-weight:850;color:var(--dark-ink)}

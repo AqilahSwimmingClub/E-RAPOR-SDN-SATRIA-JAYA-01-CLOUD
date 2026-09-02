@@ -1,0 +1,50 @@
+:root{--navy:#0b1a2f;--navy-2:#0f2745;--line:rgba(255,255,255,.12);--glass:rgba(255,255,255,.06);
+  --ink:#eaf3ff;--muted:#93aac6;--cyan:#38e1ff;--teal:#2ee6c0;--amber:#ffc93d;--danger:#ff6b7d;--ok:#4ade80}
+*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  color:var(--ink);background:radial-gradient(900px 520px at 75% 4%,rgba(56,225,255,.1),transparent 60%),linear-gradient(160deg,var(--navy),var(--navy-2));}
+.shell{max-width:1180px;margin:0 auto;padding:24px 18px 8px}
+.loading{color:var(--muted)}
+h1{font-size:20px;margin:0 0 3px}h2{font-size:15px;margin:0 0 10px}
+.sub{color:var(--muted);font-size:12px;margin:0}
+.topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.tab{background:var(--glass);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer}
+.tab.active{background:linear-gradient(135deg,var(--cyan),var(--teal));color:#04202c;border-color:transparent}
+.card{background:var(--glass);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;backdrop-filter:blur(14px)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--glass);border:1px solid var(--line);border-radius:14px;padding:13px}
+.stat span{display:block;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.stat b{display:block;font-size:24px;font-weight:850;margin-top:5px}
+label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px}
+input,select,textarea{width:100%;background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--ink);
+  border-radius:10px;padding:9px 11px;font-size:13px;font-family:inherit}
+input::placeholder{color:#6f89a6}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
+.btn{border:0;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:800;cursor:pointer;
+  background:linear-gradient(135deg,var(--cyan),var(--teal));color:#04202c}
+.btn.ghost{background:var(--glass);border:1px solid var(--line);color:var(--ink)}
+.btn.danger{background:linear-gradient(135deg,#ff7a8a,#ff5d72);color:#2a0509}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+.scroll{overflow-x:auto}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.05em}
+.UNUSED{background:rgba(147,170,198,.18);color:#cfe0f2}
+.ACTIVE{background:rgba(74,222,128,.16);color:var(--ok)}
+.SUSPENDED{background:rgba(255,201,61,.16);color:var(--amber)}
+.REVOKED{background:rgba(255,107,125,.16);color:var(--danger)}
+.msg{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:12px;border:1px solid var(--line)}
+.msg.ok{background:rgba(74,222,128,.12);color:var(--ok)}
+.msg.err{background:rgba(255,107,125,.12);color:var(--danger)}
+.keylist{margin:10px 0 0;padding:12px;background:rgba(0,0,0,.28);border-radius:10px;border:1px solid var(--line);
+  max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.8}
+.warn{color:var(--amber);font-size:11.5px;margin-top:8px}
+.login{max-width:380px;margin:8vh auto}
+.credit{text-align:center;padding:22px 16px 30px;line-height:1.6}
+.credit span,.credit small{display:block;font-size:10px;color:var(--muted)}
+.credit strong{display:block;font-size:12.5px;font-weight:850;color:#fff;margin:3px 0}
+@media(max-width:640px){.shell{padding:16px 12px}h1{font-size:17px}}
