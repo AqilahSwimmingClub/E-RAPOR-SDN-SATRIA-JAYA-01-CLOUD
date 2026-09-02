@@ -74,11 +74,11 @@ test('5. Tahun pelajaran lama pada database yang sudah ada tidak pernah dibuang'
 
 /* --------------------------------------------------------- 6-8. Identitas halaman Masuk */
 
-test('6. Panel Masuk menampilkan identitas e-Rapor, sekolah, dan kabupaten',()=>{
+test('6. Panel Masuk menampilkan identitas e-Rapor, sekolah, dan slogan',()=>{
   const halaman=read('src/pages/login.js');
   assert.match(halaman,/<span class="login-brand-app">e-Rapor<\/span>/);
   assert.match(halaman,/<strong>SDN SATRIA JAYA 01<\/strong>/);
-  assert.match(halaman,/<span class="login-brand-region">KABUPATEN BEKASI<\/span>/);
+  assert.match(halaman,/<span class="login-brand-tagline">Cerdas • Berkarakter • Berprestasi<\/span>/);
   assert.match(halaman,/Cerdas • Berkarakter • Berprestasi/,'slogan sekolah tampil dengan titik pemisah');
   assert.equal(SCHOOL,'SDN Satria Jaya 01');
 });

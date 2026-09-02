@@ -137,7 +137,7 @@ test('Login Admin, login Guru, recovery, dan aktivasi tetap berfungsi',async()=>
 
 test('Branding sekolah dan footer pengembang sesuai permintaan',()=>{
   const source=login();
-  for(const teks of ['e-Rapor','SDN SATRIA JAYA 01','KABUPATEN BEKASI','Cerdas • Berkarakter • Berprestasi','Dirancang &amp; Dikembangkan oleh','FAHMI DJAWAS, S.Pd.','Semua Hak Dilindungi'])
+  for(const teks of ['e-Rapor','SDN SATRIA JAYA 01','Cerdas • Berkarakter • Berprestasi','Dirancang &amp; Dikembangkan oleh','FAHMI DJAWAS, S.Pd.','Semua Hak Dilindungi'])
     assert.ok(source.includes(teks),`branding ${teks} tampil`);
   assert.match(source,/©\s*2026 e-Rapor SDN Satria Jaya 01/);
   assert.doesNotMatch(source,/System Architect/,'teks lama dibuang');

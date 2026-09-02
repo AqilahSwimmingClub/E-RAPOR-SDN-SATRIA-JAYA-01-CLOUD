@@ -390,8 +390,15 @@ textarea.input{color:var(--light-ink)}
 .login-brand-text{min-width:0}
 .login-brand-app{display:block;font-size:11px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:var(--cyan)}
 .login-brand-text strong{display:block;font-size:17px;font-weight:850;color:#fff;line-height:1.25;text-shadow:0 2px 12px rgba(4,18,34,.6)}
-.login-brand-region{display:block;font-size:10.5px;letter-spacing:.14em;color:#d3e6f8;margin-top:2px}
-.login-photo-caption p{margin:8px 0 0;font-size:13.5px;font-style:italic;color:#e4f1ff;text-shadow:0 2px 12px rgba(4,18,34,.55)}
+.login-brand-tagline{display:block;font-size:10.5px;letter-spacing:.14em;color:#d3e6f8;margin-top:3px}
+/* Identitas pembuat aplikasi berdiri langsung di atas foto: hanya garis aksen cyan
+   setipis dua piksel, tanpa kartu atau kotak yang menutupi gambar. */
+.login-photo-caption{position:relative;padding-left:14px;max-width:min(100%,430px)}
+.login-photo-caption::before{content:'';position:absolute;left:0;top:3px;bottom:3px;width:2px;border-radius:2px;background:linear-gradient(180deg,transparent,var(--cyan) 20%,var(--cyan) 80%,transparent);box-shadow:0 0 12px rgba(56,225,255,.5)}
+.login-credit-lead{display:block;font-size:10.5px;font-weight:650;letter-spacing:.18em;text-transform:uppercase;color:#cfe3f6;text-shadow:0 2px 10px rgba(4,18,34,.65)}
+.login-credit-name{display:block;margin-top:5px;font-size:clamp(17px,1.5vw,21px);font-weight:850;letter-spacing:.01em;line-height:1.2;color:#ffffff;text-shadow:0 3px 16px rgba(4,18,34,.7),0 0 24px rgba(56,225,255,.2)}
+.login-credit-role{display:block;margin-top:4px;font-size:11.5px;letter-spacing:.03em;color:#dbeaf8;text-shadow:0 2px 10px rgba(4,18,34,.6)}
+.login-credit-copy{display:block;margin-top:8px;font-size:10px;letter-spacing:.07em;color:#a9c3dc;text-shadow:0 2px 8px rgba(4,18,34,.55)}
 
 /* ---- Kolom kanan: form Masuk ---- */
 .login-panel{position:relative;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:30px 24px calc(22px + env(safe-area-inset-bottom));overflow-y:auto;background:radial-gradient(700px 420px at 70% 8%,rgba(56,225,255,.1) 0%,transparent 60%),linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%)}
@@ -462,13 +469,19 @@ textarea.input{color:var(--light-ink)}
   .login-stage{grid-template-columns:1fr;min-height:100dvh}
   .login-photo{min-height:0;height:32vh;padding:20px;justify-content:flex-end}
   .login-photo-content{gap:14px}
-  .login-photo-caption p{font-size:12px}
+  .login-photo-caption{padding-left:12px}
+  .login-credit-name{font-size:17px}
+  .login-credit-role{font-size:11px}
   .login-panel{min-height:0;padding:22px 16px calc(20px + env(safe-area-inset-bottom))}
 }
 @media(max-width:767px){
   .login-photo{height:28vh;min-height:190px}
   .login-logo,.login-logo-fallback{width:46px;height:46px}
   .login-photo .login-brand{gap:11px}
+  .login-credit-lead{font-size:9.5px;letter-spacing:.15em}
+  .login-credit-name{font-size:16px}
+  .login-credit-role{font-size:10.5px}
+  .login-credit-copy{font-size:9.5px}
   .login-shell{width:min(100%,380px);padding:22px 18px 18px;border-radius:18px}
   .login-brand-text strong{font-size:15px}
 }

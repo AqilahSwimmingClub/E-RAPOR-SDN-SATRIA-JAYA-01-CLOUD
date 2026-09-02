@@ -26,11 +26,14 @@ export function renderLogin({onSuccess,onActivate}){
           <div class="login-brand-text">
             <span class="login-brand-app">e-Rapor</span>
             <strong>SDN SATRIA JAYA 01</strong>
-            <span class="login-brand-region">KABUPATEN BEKASI</span>
+            <span class="login-brand-tagline">Cerdas • Berkarakter • Berprestasi</span>
           </div>
         </div>
         <div class="login-photo-caption">
-          <p>Cerdas • Berkarakter • Berprestasi</p>
+          <span class="login-credit-lead">Dirancang &amp; Dikembangkan oleh</span>
+          <strong class="login-credit-name">FAHMI DJAWAS, S.Pd.</strong>
+          <span class="login-credit-role">Developer &amp; UI/UX Designer e-Rapor</span>
+          <span class="login-credit-copy">© 2026 — Semua Hak Dilindungi</span>
         </div>
       </div>
     </section>
