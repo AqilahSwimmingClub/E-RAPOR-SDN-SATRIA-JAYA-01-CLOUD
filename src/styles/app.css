@@ -105,7 +105,12 @@ html,body{max-width:100%;overflow-x:hidden}button,input,select,textarea{max-widt
 @media print{.report-a4+.report-a4,.report-cover-a4+.report-cover-a4{break-before:page}}
 /* Revisi cetak rapor: margin dan spacing lebih lega, tabel mapel mengalir wajar ke halaman
    berikutnya, dan isi tidak dikecilkan hanya agar muat satu halaman. */
+/* Lembar Rapor memakai Times New Roman, sesuai kebiasaan dokumen sekolah. Penetapannya
+   hanya pada lembar rapor sehingga antarmuka aplikasi, Leger, Transkrip, dan Cover tidak
+   ikut berubah. Seluruh bagian di dalam lembar mewarisi huruf ini, jadi ukuran huruf tiap
+   bagian tidak perlu dan tidak boleh disentuh. */
 .report-a4{padding:14mm 13mm}
+.report-a4{font-family:"Times New Roman",Times,serif}
 .report-a4 .report-head-table{margin-bottom:12px;padding-bottom:8px}
 .report-a4 .report-head-table td{font-size:10.5px;padding:2px 4px;line-height:1.4}
 .report-a4 .document-heading{font-size:14px;margin:0 0 14px;letter-spacing:.03em}
@@ -123,6 +128,14 @@ html,body{max-width:100%;overflow-x:hidden}button,input,select,textarea{max-widt
    belum ada. Berlaku sama pada Preview, Cetak, dan Simpan PDF karena tidak dibungkus
    media query mana pun. Ukuran dan struktur tabel rapor tidak diubah. */
 .report-learning-table th:nth-child(3),.report-learning-table .subject-score-cell{text-align:center;vertical-align:middle}
+/* Header setiap tabel rapor rata tengah mendatar sekaligus tegak, termasuk judul bagian
+   kegiatan. Isi sel lain tetap rata atas seperti semula agar tinggi baris tidak berubah. */
+.report-a4 .document-table th,.activity-table th{vertical-align:middle}
+/* Angka kolom No rata tengah pada kedua sumbu, dengan ukuran huruf yang sama seperti isi
+   tabel. Pada tabel kegiatan satu nomor menaungi nama kegiatan dan predikatnya, sehingga
+   rata tengah tegak menempatkannya di tengah tinggi gabungan kedua baris itu. Baris
+   Kelompok A dan Kelompok B memakai satu sel penuh dan tidak tersentuh aturan ini. */
+.report-learning-table .subject-no-cell,.document-table td.activity-no{text-align:center;vertical-align:middle}
 /* Branding pembuat e-Rapor pada sidebar: foto di atas, lalu "e-Rapor" dan nama sekolah.
    Foto ini milik aplikasi, bukan foto profil guru, sehingga tidak pernah ikut berubah. */
 .sidebar .brand{flex-direction:column;align-items:center;gap:9px;text-align:center;padding:8px 8px 20px}
@@ -207,7 +220,6 @@ html,body{color-scheme:light}
 .activity-table th.activity-title{font-size:11px;letter-spacing:.05em}
 .activity-table th:nth-child(1){width:44px}
 .activity-table th:nth-child(2){width:31%}
-.activity-no{vertical-align:middle}
 .activity-table td.activity-name-cell{padding:0!important;text-align:center;vertical-align:middle}
 .activity-name-cell .activity-name,.activity-name-cell .activity-predicate{display:block;padding:6px 8px;font-weight:800}
 .activity-name-cell .activity-name:not(:last-child){border-bottom:1px solid #333}
