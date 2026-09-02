@@ -20,10 +20,12 @@ function bagianPanel(){
   assert.ok(mulai>-1,'kolom form kanan tetap ada');
   return source.slice(mulai);
 }
+/* Dua lambang pertama adalah lambang nasional dan daerah yang memang aset aplikasi.
+   Lambang ketiga adalah logo sekolah pengguna, dibaca dari identitas sekolah. */
 const LOGO=[
   ['./assets/logo-tut-wuri-handayani.png','Tut Wuri Handayani'],
   ['./assets/logo-kabupaten-bekasi.png','Kabupaten Bekasi'],
-  ['./assets/logo-sekolah.png','SDN Satria Jaya 01'],
+  ['${escapeHtml(crest)}',null],
 ];
 
 test('Tiga lambang tampil berurutan tepat di atas judul Masuk ke e-Rapor',()=>{
@@ -41,7 +43,9 @@ test('Tiga lambang tampil berurutan tepat di atas judul Masuk ke e-Rapor',()=>{
     posisi=kini;
   }
   /* Setiap lambang punya teks alternatif dan tidak ada gambar yang ditanam di kode. */
-  for(const [,nama] of LOGO)assert.match(panel,new RegExp(`alt="Logo ${nama}"`),`${nama} punya teks alternatif`);
+  for(const [,nama] of LOGO)
+    if(nama)assert.match(panel,new RegExp(`alt="Logo ${nama}"`),`${nama} punya teks alternatif`);
+  assert.match(panel,/alt="\$\{escapeHtml\(crestAlt\)\}"/,'logo sekolah punya teks alternatif dinamis');
   assert.doesNotMatch(panel,/data:image\/(png|jpe?g|webp);base64/,'lambang diambil dari berkas aset, bukan base64');
 });
 
@@ -106,7 +110,7 @@ test('Identitas pengembang tidak lagi berada di kolom kanan',()=>{
 test('Identitas pengembang di kiri bawah tetap utuh',()=>{
   const source=login();
   const foto=source.slice(source.indexOf('<section class="login-photo">'),source.indexOf('<section class="login-panel">'));
-  for(const teks of ['Dirancang &amp; Dikembangkan oleh','FAHMI DJAWAS, S.Pd.','Developer &amp; UI/UX Designer e-Rapor','© 2026 — Semua Hak Dilindungi'])
+  for(const teks of ['DEVELOPER_CREDIT_LEAD','DEVELOPER_NAME','DEVELOPER_ROLE','COPYRIGHT'])
     assert.ok(foto.includes(teks),`${teks} tetap di kolom foto`);
   assert.match(foto,/class="login-credit-name"/,'nama pengembang tetap jadi fokus di kiri bawah');
 });
@@ -115,7 +119,7 @@ test('Sisa halaman Masuk tidak ikut berubah',()=>{
   const source=login(),t=css();
   const foto=source.slice(source.indexOf('<section class="login-photo">'),source.indexOf('<section class="login-panel">'));
   /* Kolom foto, header kiri, tagline, dan mekanisme latar yang dapat ditimpa tetap sama. */
-  for(const teks of ['e-Rapor','SDN SATRIA JAYA 01','Cerdas • Berkarakter • Berprestasi','./assets/logo-sekolah.png'])
+  for(const teks of ['e-Rapor','schoolLabel.toUpperCase()','Cerdas • Berkarakter • Berprestasi','class="login-logo"'])
     assert.ok(foto.includes(teks),`${teks} tetap di kolom foto`);
   assert.equal((t.match(/login-background\.jpg/g)||[]).length,1,'berkas latar tetap disebut sekali');
   assert.match(t,/\.login-stage\{[^}]*grid-template-columns:1\.05fr \.95fr/,'tata letak dua kolom tetap');
@@ -130,6 +134,6 @@ test('Sisa halaman Masuk tidak ikut berubah',()=>{
 
 test('Ketiga lambang sudah ikut disimpan service worker tanpa perubahan tambahan',()=>{
   const sw=read('sw.js');
-  for(const berkas of ['logo-tut-wuri-handayani.png','logo-kabupaten-bekasi.png','logo-sekolah.png'])
+  for(const berkas of ['logo-tut-wuri-handayani.png','logo-kabupaten-bekasi.png','app-icon.svg'])
     assert.match(sw,new RegExp(berkas.replace('.','\\.')),`${berkas} tersedia saat offline`);
 });

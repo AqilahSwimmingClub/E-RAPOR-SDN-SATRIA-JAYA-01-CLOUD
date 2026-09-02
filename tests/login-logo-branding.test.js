@@ -14,8 +14,8 @@ function rule(selector){
 test('Header Login memakai berkas logo sekolah, bukan ikon generik',()=>{
   const source=login();
   assert.match(source,/class="login-logo"/,'ada elemen logo');
-  assert.match(source,/src="\.\/assets\/logo-sekolah\.png"/,'memakai berkas logo sekolah pada jalur tetap');
-  assert.match(source,/alt="Logo SDN Satria Jaya 01"/,'logo punya teks alternatif');
+  assert.match(source,/src="\$\{escapeHtml\(crest\)\}"/,'logo dibaca dari identitas sekolah pengguna');
+  assert.match(source,/alt="\$\{escapeHtml\(crestAlt\)\}"/,'logo punya teks alternatif yang ikut nama sekolah');
   /* Bila berkas logo belum ada, ikon sekolah lama dipakai sebagai cadangan supaya
      header tidak pernah menampilkan gambar rusak. */
   assert.match(source,/login-logo-fallback/,'ada cadangan saat berkas logo belum tersedia');
@@ -61,7 +61,6 @@ test('Aset yang boleh diganti manual tidak tersangkut cache lama',()=>{
   const sw=read('sw.js');
   assert.match(sw,/SWAPPABLE_ASSETS/,'ada daftar aset yang dapat ditimpa');
   assert.match(sw,/login-background\.jpg/,'latar termasuk aset yang dapat ditimpa');
-  assert.match(sw,/logo-sekolah\.png/,'logo termasuk aset yang dapat ditimpa');
   assert.match(sw,/isSwappableAsset\(event\.request\.url\)\?networkFirst/,'aset itu diambil dari jaringan lebih dulu');
   /* Tetap ada cadangan cache sehingga aplikasi tidak kosong saat offline. */
   assert.match(sw,/async function networkFirst\(request\)\{try\{const response=await fetch\(request\)/);
@@ -70,7 +69,7 @@ test('Aset yang boleh diganti manual tidak tersangkut cache lama',()=>{
 
 test('Panel form, tema, dan identitas pengembang tidak ikut berubah',()=>{
   const source=login(),t=css();
-  for(const teks of ['Masuk ke e-Rapor','Admin','Guru / Wali Kelas','MASUK','Lupa Password?','Aktivasi Admin Pertama','FAHMI DJAWAS, S.Pd.'])
+  for(const teks of ['Masuk ke e-Rapor','Admin','Guru / Wali Kelas','MASUK','Lupa Password?','Aktivasi Admin Pertama','DEVELOPER_NAME'])
     assert.ok(source.includes(teks),`${teks} tetap ada`);
   assert.match(source,/v\$\{escapeHtml\(APP_VERSION\)\}/,'nomor versi tetap otomatis');
   assert.match(t,/\.login-stage\{[^}]*grid-template-columns:1\.05fr \.95fr/,'tata letak dua kolom tetap');

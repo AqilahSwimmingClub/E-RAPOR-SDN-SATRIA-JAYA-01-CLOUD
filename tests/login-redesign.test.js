@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { ACADEMIC_YEAR, SCHOOL } from '../src/data/constants.js';
+import { ACADEMIC_YEAR, SCHOOL_PLACEHOLDER } from '../src/data/constants.js';
 import { authenticate, createPasswordHash, ensureSecurityBootstrap, getSecurityStatus, recoverAdmin, saveSession } from '../src/services/auth.js';
 import { updateDb } from '../src/services/storage.js';
 import { activateOwnerAdmin, getOwnerActivationStatus, isInstallationActivated } from '../src/services/owner-activation.js';
@@ -137,15 +137,15 @@ test('Login Admin, login Guru, recovery, dan aktivasi tetap berfungsi',async()=>
 
 test('Branding sekolah dan footer pengembang sesuai permintaan',()=>{
   const source=login();
-  for(const teks of ['e-Rapor','SDN SATRIA JAYA 01','Cerdas • Berkarakter • Berprestasi','Dirancang &amp; Dikembangkan oleh','FAHMI DJAWAS, S.Pd.','Semua Hak Dilindungi'])
+  for(const teks of ['e-Rapor','schoolLabel.toUpperCase()','Cerdas • Berkarakter • Berprestasi','DEVELOPER_CREDIT_LEAD','DEVELOPER_NAME','COPYRIGHT'])
     assert.ok(source.includes(teks),`branding ${teks} tampil`);
-  assert.match(source,/©\s*2026 — Semua Hak Dilindungi/);
+  assert.match(read('src/data/app-identity.js'),/COPYRIGHT='©\s*2026 — Semua Hak Dilindungi'/);
   assert.doesNotMatch(source,/System Architect/,'teks lama dibuang');
   assert.doesNotMatch(source,/Inovasi digital mandiri/,'motto lama dibuang');
   /* Identitas pengembang hanya di kiri bawah, panel kanan tidak lagi membawa footer. */
   assert.match(css(),/\.login-photo-caption\{[^}]*position:relative/,'blok identitas kiri tetap ada');
   assert.doesNotMatch(source,/login-footer/,'footer panel kanan sudah dihapus');
-  assert.equal(SCHOOL.length>0,true);
+  assert.equal(SCHOOL_PLACEHOLDER.length>0,true);
 });
 
 /* ------------------------------------------------------ 6. Responsif */

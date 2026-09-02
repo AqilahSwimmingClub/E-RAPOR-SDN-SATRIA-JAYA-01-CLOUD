@@ -94,7 +94,7 @@ test('CSS tidak menambah kotak, kartu, atau bingkai di belakang logo',()=>{
 
 test('Identitas header tetap, sambutan WELCOME dihapus',()=>{
   const source=read('src/pages/login.js');
-  for(const teks of ['e-Rapor','SDN SATRIA JAYA 01','Cerdas • Berkarakter • Berprestasi'])
+  for(const teks of ['e-Rapor','schoolLabel.toUpperCase()','Cerdas • Berkarakter • Berprestasi'])
     assert.ok(source.includes(teks),`${teks} tetap ada`);
   assert.doesNotMatch(source,/WELCOME/i,'tulisan WELCOME sudah dihapus');
   assert.doesNotMatch(css(),/\.login-photo-caption h1\{/,'gaya sambutan lama ikut dibersihkan');

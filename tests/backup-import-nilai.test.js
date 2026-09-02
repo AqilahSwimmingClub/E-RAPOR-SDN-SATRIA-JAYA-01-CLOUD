@@ -72,7 +72,7 @@ test('1. Backup memuat seluruh koleksi data penting beserta identitas sekolah',(
 test('2. Metadata backup lengkap dan jumlah data tercatat',()=>{
   const {session}=siapkanData();
   const payload=buildBackup(session);
-  assert.equal(payload.app,'e-Rapor SDN Satria Jaya 01');
+  assert.equal(payload.app,'e-Rapor','penanda produk generic, bukan nama satu sekolah');
   assert.equal(payload.backupVersion,'1.0');
   assert.equal(payload.appVersion,APP_VERSION);
   assert.equal(payload.appSchemaVersion,APP_SCHEMA_VERSION);

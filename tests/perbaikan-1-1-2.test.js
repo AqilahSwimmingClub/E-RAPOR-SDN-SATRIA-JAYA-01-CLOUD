@@ -150,7 +150,9 @@ test('D. Foto kanan atas mengikuti foto profil guru',()=>{
 
 test('D. Branding pembuat e-Rapor tidak ikut berubah saat foto profil guru diganti',()=>{
   const layout=read('src/ui/layout.js');
-  assert.match(layout,/export const BRAND_PHOTO='\.\/assets\/fahmi-djawas\.jpg'/,'branding memakai foto pembuat yang tetap');
+  /* Foto pembuat kini berasal dari satu sumber identitas permanen yang tidak membaca database. */
+  assert.match(layout,/export const BRAND_PHOTO=DEVELOPER_PHOTO/,'branding memakai foto pembuat yang tetap');
+  assert.match(read('src/data/app-identity.js'),/DEVELOPER_PHOTO='\.\/assets\/fahmi-djawas\.jpg'/,'berkas foto pembuat tidak berubah');
   assert.match(layout,/<img class="brand-photo" src="\$\{BRAND_PHOTO\}"/,'sidebar memakai foto pembuat');
   /* Susunan sidebar: foto pembuat, lalu "e-Rapor", lalu nama sekolah. */
   const brand=layout.match(/<div class="brand">.*?<\/div><\/div>/s)[0];

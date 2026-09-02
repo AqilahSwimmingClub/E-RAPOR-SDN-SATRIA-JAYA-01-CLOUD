@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
-import { STUDENTS_5B, SEED_CLASS_ID, SEED_ACADEMIC_YEAR, SEED_SEMESTER } from '../src/data/seed-5b.js';
-import { seedInitialStudents, seedStatus } from '../src/services/seed.js';
+import { ensureDefaultSubjects } from '../src/services/seed.js';
 import { commitStudentImport, formatBirthPlaceDate, listStudents, parseBirthPlaceDate, previewStudentWorkbookImport, STUDENT_CSV_HEADERS, studentRow, studentTemplateWorkbook, studentWorkbookBytes } from '../src/services/students.js';
 import { createWorkbookBytes, readWorkbookRows } from '../src/services/excel.js';
 import { getLeger, legerWorkbookRows } from '../src/services/documents.js';
-import { saveSubjectMapping } from '../src/services/storage.js';
+import { loadDb, saveSubjectMapping } from '../src/services/storage.js';
 import { moveSubjectToGroup } from '../src/services/mapping.js';
 import { listActiveSubjects } from '../src/services/subjects.js';
 import { fillAllAssessmentScores } from '../src/services/assessment-bulk.js';
@@ -67,22 +66,15 @@ test('Ekspor Data Siswa memakai format kolom yang sama dengan template',()=>{
   assert.deepEqual(studentRow(listStudents(session,{classId:'5B'})[0]).length,STUDENT_CSV_HEADERS.length);
 });
 
-test('Data awal 5B terisi sekali dan tidak menggandakan saat seed diulang',()=>{
+test('Instalasi baru tidak pernah menyemai data siswa siapa pun',()=>{
   useMemoryStorage();
-  assert.equal(STUDENTS_5B.length,33);
-  assert.equal(SEED_CLASS_ID,'5B');
-  assert.equal(SEED_ACADEMIC_YEAR,'2026/2027');
-  assert.equal(SEED_SEMESTER,'Ganjil 2026/2027');
-  const pertama=seedInitialStudents();
-  assert.equal(pertama.seeded,33);
-  assert.equal(seedInitialStudents().seeded,0,'seed kedua tidak menambah data');
-  assert.equal(seedInitialStudents().seeded,0,'seed ketiga tetap tidak menambah data');
-  assert.equal(seedStatus().count,33);
-  const session={role:'teacher',classId:'5B',academicYear:SEED_ACADEMIC_YEAR,semester:SEED_SEMESTER};
-  const siswa=listStudents(session,{classId:'5B'});
-  assert.equal(siswa.length,33);
-  assert.equal(new Set(siswa.map(item=>item.nisn)).size,33,'NISN unik');
-  assert.equal(listStudents({...session,classId:'6A'},{classId:'6A'}).length,0,'rombel lain tetap kosong');
+  /* Aplikasi dipakai banyak sekolah, jadi tidak ada roster yang ikut didistribusikan.
+     Pengaman startup hanya menyentuh mapel, tidak pernah menyentuh siswa. */
+  ensureDefaultSubjects();
+  const session={role:'teacher',classId:'5B',academicYear:'2026/2027',semester:'Ganjil 2026/2027'};
+  assert.equal(listStudents(session,{classId:'5B'}).length,0,'rombel kosong sampai Admin mengisi sendiri');
+  assert.equal(Object.keys(loadDb().students).length,0,'tidak ada satu pun siswa pada instalasi baru');
+  assert.equal(existsSync(new URL('../src/data/seed-5b.js',root)),false,'roster siswa tidak lagi ada di kode produk');
 });
 
 /* ---------------------------------------------------------------- Leger dinamis */

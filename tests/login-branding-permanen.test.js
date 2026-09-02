@@ -44,11 +44,12 @@ test('Branding adalah lapisan HTML tersendiri di atas foto',()=>{
   const iIsi=foto.indexOf('class="login-photo-content"');
   assert.ok(iOverlay>-1,'ada lapisan overlay tersendiri');
   assert.ok(iIsi>iOverlay,'isi branding berada di atas overlay');
-  for(const teks of ['logo-sekolah.png','e-Rapor','SDN SATRIA JAYA 01','Cerdas • Berkarakter • Berprestasi',
-    'Dirancang &amp; Dikembangkan oleh','FAHMI DJAWAS, S.Pd.','Developer &amp; UI/UX Designer e-Rapor','© 2026 — Semua Hak Dilindungi'])
+  for(const teks of ['login-logo','e-Rapor','schoolLabel.toUpperCase()','Cerdas • Berkarakter • Berprestasi',
+    'DEVELOPER_CREDIT_LEAD','DEVELOPER_NAME','DEVELOPER_ROLE','COPYRIGHT'])
     assert.ok(foto.indexOf(teks)>iIsi,`${teks} berada di dalam lapisan branding, bukan di gambar`);
-  /* Logo adalah berkas terpisah, jadi mengganti latar tidak menyentuhnya sama sekali. */
-  assert.match(foto,/<img class="login-logo" src="\.\/assets\/logo-sekolah\.png"/,'logo memakai berkas asetnya sendiri');
+  /* Logo sekolah adalah gambar tersendiri milik sekolah pengguna, terpisah dari foto latar. */
+  assert.match(foto,/<img class="login-logo" src="\$\{escapeHtml\(crest\)\}"/,'logo memakai sumber gambarnya sendiri');
+  assert.match(login(),/const crest=schoolLogo\|\|'\.\/assets\/app-icon\.svg'/,'tanpa logo sekolah dipakai lambang netral aplikasi');
 });
 
 test('Overlay hanya gradasi tembus pandang, tanpa gambar dan tanpa teks tertanam',()=>{
@@ -79,11 +80,9 @@ test('Urutan lapisan dikunci lewat susun tumpuk yang eksplisit',()=>{
   assert.match(isi,/position:relative/,'lapisan branding membentuk konteks tumpuknya sendiri');
 });
 
-test('Logo memakai aset transparan tersendiri, bukan bagian dari foto latar',()=>{
-  const buf=readFileSync(new URL('assets/logo-sekolah.png',root));
-  assert.equal(buf.readUInt32BE(0),0x89504e47,'aset logo berupa PNG');
-  assert.equal(buf.toString('ascii',12,16),'IHDR','IHDR berada di awal berkas');
-  assert.equal(buf[25],6,'PNG memakai kanal alpha (color type 6 = RGBA)');
+test('Logo memakai gambar tersendiri, bukan bagian dari foto latar',()=>{
+  /* Logo sekolah berasal dari masterData.school.schoolLogo yang diunggah Admin. */
+  assert.match(login(),/const schoolLogo=String\(school\.schoolLogo\|\|''\)\.trim\(\)/,'logo dibaca dari identitas sekolah');
   const logo=rule('.login-logo');
   assert.match(logo,/object-fit:contain/,'rasio asli logo dijaga');
   assert.doesNotMatch(logo,/(^|;)\s*background(-color)?:/,'logo tanpa kotak di belakangnya');
@@ -92,7 +91,7 @@ test('Logo memakai aset transparan tersendiri, bukan bagian dari foto latar',()=
 
 test('Teks lama sudah tidak ada di mana pun pada halaman Masuk',()=>{
   const source=login();
-  for(const teks of ['KABUPATEN BEKASI','WELCOME'])
+  for(const teks of ['KABUPATEN BEKASI','WELCOME','SDN SATRIA JAYA 01','SDN Satria Jaya 01'])
     assert.equal(source.includes(teks),false,`${teks} sudah dihapus`);
   assert.doesNotMatch(css(),/\.login-photo-caption h1\{/,'gaya sambutan lama ikut dibersihkan');
   assert.doesNotMatch(css(),/\.login-brand-region\{/,'gaya baris kabupaten ikut dibersihkan');
@@ -109,5 +108,4 @@ test('Mengganti berkas latar tidak menuntut kode diubah',()=>{
   const sw=read('sw.js');
   assert.match(sw,/SWAPPABLE_ASSETS/,'ada daftar aset yang dapat ditimpa');
   assert.match(sw,/login-background\.jpg/,'latar termasuk aset yang dapat ditimpa');
-  assert.match(sw,/logo-sekolah\.png/,'logo termasuk aset yang dapat ditimpa');
 });

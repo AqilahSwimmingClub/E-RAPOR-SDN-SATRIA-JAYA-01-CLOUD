@@ -30,7 +30,7 @@ function fontPx(selector){
 test('Kiri atas: logo, E-RAPOR, nama sekolah, lalu slogan menggantikan kabupaten',()=>{
   const source=login();
   assert.match(source,/<span class="login-brand-app">e-Rapor<\/span>/,'baris e-Rapor tetap');
-  assert.match(source,/<strong>SDN SATRIA JAYA 01<\/strong>/,'nama sekolah tetap');
+  assert.match(source,/<strong>\$\{escapeHtml\(schoolLabel\.toUpperCase\(\)\)\}<\/strong>/,'nama sekolah mengikuti identitas sekolah pengguna');
   assert.match(source,/<span class="login-brand-tagline">Cerdas • Berkarakter • Berprestasi<\/span>/,'slogan naik ke blok identitas sekolah');
   assert.equal(source.includes('KABUPATEN BEKASI'),false,'baris kabupaten sudah dihapus');
   /* Slogan berada di blok kiri atas, bukan lagi di bagian bawah kolom foto. */
@@ -43,7 +43,7 @@ test('Kiri bawah: identitas pembuat aplikasi lengkap dan berurutan',()=>{
   const blok=source.match(/<div class="login-photo-caption">([\s\S]*?)<\/div>/);
   assert.ok(blok,'blok bawah kolom foto tetap ada dan tidak dikosongkan');
   const isi=blok[1];
-  const urut=['Dirancang &amp; Dikembangkan oleh','FAHMI DJAWAS, S.Pd.','Developer &amp; UI/UX Designer e-Rapor','© 2026 — Semua Hak Dilindungi'];
+  const urut=['DEVELOPER_CREDIT_LEAD','DEVELOPER_NAME','DEVELOPER_ROLE','COPYRIGHT'];
   let posisi=-1;
   for(const teks of urut){
     const kini=isi.indexOf(teks);

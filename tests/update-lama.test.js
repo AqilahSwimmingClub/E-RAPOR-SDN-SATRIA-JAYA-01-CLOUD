@@ -4,9 +4,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { APP_SCHEMA_VERSION, APP_VERSION, PREVIOUS_RELEASE, VERSION_CODE } from '../src/data/version.js';
 import { runAppMigrations } from '../src/services/migrations.js';
-import { ensureDefaultSubjects, seedInitialStudents, seedStatus, SEED_FLAG_KEY } from '../src/services/seed.js';
-import { STUDENTS_5B, SEED_ACADEMIC_YEAR, SEED_CLASS_ID, SEED_SEMESTER } from '../src/data/seed-5b.js';
-import { getSubjectMapping, loadDb, storageKey } from '../src/services/storage.js';
+import { ensureDefaultSubjects } from '../src/services/seed.js';
+import { SISWA_CONTOH, TAHUN_CONTOH, KELAS_CONTOH, SEMESTER_CONTOH } from './fixtures/siswa-contoh.js';
+import { getSubjectMapping, invalidateDbCache, loadDb, storageKey } from '../src/services/storage.js';
 import { listStudents } from '../src/services/students.js';
 import { listActiveSubjects } from '../src/services/subjects.js';
 
@@ -14,7 +14,7 @@ const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
 function useMemoryStorage(){const values=new Map();globalThis.localStorage={getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};}
 
-const TAHUN=SEED_ACADEMIC_YEAR,SEM=SEED_SEMESTER,KELAS=SEED_CLASS_ID;
+const TAHUN=TAHUN_CONTOH,SEM=SEMESTER_CONTOH,KELAS=KELAS_CONTOH;
 const SCOPE=`${TAHUN}|${SEM}|${KELAS}`;
 const sesi={role:'teacher',classId:KELAS,academicYear:TAHUN,semester:SEM};
 
@@ -56,13 +56,25 @@ function databaseLama({appSchemaVersion=3,appVersion='1.1.0',students={}}={}){
   };
 }
 
-/* Urutan startup persis seperti src/app.js. */
+/* Urutan startup persis seperti src/app.js. Tidak ada penyemaian siswa: aplikasi tidak pernah
+   memasukkan data siswa siapa pun secara otomatis. */
 function jalankanUpdate(){
   const hasil={};
   hasil.migrasi=runAppMigrations();
   hasil.mapel=ensureDefaultSubjects();
-  hasil.seed=seedInitialStudents();
   return hasil;
+}
+
+/* Instalasi lama yang sudah punya banyak siswa hasil input guru. Data ini sintetis. */
+function pasangSiswaLama(){
+  const db=loadDb();
+  SISWA_CONTOH.forEach((row,index)=>{
+    const id=`tambahan-${index+1}`;
+    db.students[`${SCOPE}|${id}`]={...row,id,classId:KELAS,academicYear:TAHUN,semester:SEM,photo:'',createdAt:'2026-08-01T00:00:00.000Z',updatedAt:'2026-08-01T00:00:00.000Z'};
+  });
+  localStorage.setItem(storageKey(),JSON.stringify(db));
+  invalidateDbCache();
+  return SISWA_CONTOH.length;
 }
 
 function pasangDatabaseLama(options){useMemoryStorage();localStorage.setItem(storageKey(),JSON.stringify(databaseLama(options)));}
@@ -105,10 +117,7 @@ for(const schemaLama of [1,2,3]){
     assert.equal(mapping.find(item=>item.id==='seni_rupa').active,false,'mapel baru masuk nonaktif agar Leger dan kelengkapan rapor berjalan tidak berubah');
     assert.equal(mapping.find(item=>item.id==='bindo').group,'B','pemindahan kelompok oleh guru dipertahankan');
 
-    assert.equal(hasil.seed.seeded,STUDENTS_5B.length,'seed 5B masuk pada instalasi lama');
-    const siswa=listStudents(sesi,{classId:KELAS});
-    assert.equal(siswa.length,STUDENTS_5B.length+1,'siswa lama tetap ada bersama 33 siswa seed');
-    assert.equal(new Set(siswa.map(item=>item.nisn)).size,siswa.length,'tidak ada NISN duplikat');
+    assert.equal(listStudents(sesi,{classId:KELAS}).length,1,'siswa lama tetap ada dan tidak ada siswa asing yang disemai');
   });
 }
 
@@ -123,44 +132,32 @@ test('Menjalankan update dua kali tidak menduplikasi dan hasilnya sama',()=>{
 
   assert.equal(kedua.migrasi.migrated,false,'schema sudah terbaru, migration tidak diulang');
   assert.equal(kedua.mapel.repairedMappings,0,'mapel bawaan tidak disisipkan dua kali');
-  assert.equal(kedua.seed.seeded,0,'seed tidak menambah data pada jalan kedua');
+  assert.equal(Object.hasOwn(kedua,'seed'),false,'startup tidak lagi punya tahap penyemaian siswa');
   assert.equal(listStudents(sesi,{classId:KELAS}).length,jumlahSekali,'jumlah siswa tetap');
   assert.deepEqual(Object.keys(setelahDua.students).sort(),Object.keys(setelahSekali.students).sort(),'kunci siswa identik');
   assert.deepEqual(getSubjectMapping(sesi).map(item=>item.id),Object.freeze([...getSubjectMapping(sesi).map(item=>item.id)]),'mapping stabil');
   dataLamaUtuh();
 });
 
-test('Seed melengkapi instalasi lama yang penandanya ada tetapi datanya belum masuk',()=>{
-  pasangDatabaseLama();
-  const db=loadDb();
-  db.settings[SEED_FLAG_KEY]={completedAt:'2026-08-01T00:00:00.000Z'};
-  localStorage.setItem(storageKey(),JSON.stringify(db));
-  const hasil=seedInitialStudents();
-  assert.equal(hasil.seeded,STUDENTS_5B.length,'penanda usang tidak menghalangi data awal masuk');
-  assert.equal(seedStatus().count,STUDENTS_5B.length+1);
-  assert.equal(seedInitialStudents().seeded,0,'jalan berikutnya tetap tidak menduplikasi');
-});
+test('Update tidak pernah menambah, mengubah, atau menghapus siswa pengguna lama',()=>{
+  pasangDatabaseLama({});
+  const jumlah=pasangSiswaLama();
+  const sebelum=JSON.parse(localStorage.getItem(storageKey())).students;
 
-test('Seed tidak menimpa dan tidak menggandakan siswa 5B buatan guru',()=>{
-  const contoh=STUDENTS_5B[0];
-  pasangDatabaseLama({students:{[`${SCOPE}|buatan-guru`]:{id:'buatan-guru',classId:KELAS,nis:contoh.nis,nisn:contoh.nisn,name:'Nama Diedit Guru',gender:'L',birthPlace:'Bekasi',birthDate:'2015-01-01',parentName:'Ortu',phone:'',address:'',academicYear:TAHUN,semester:SEM}}});
-  const hasil=jalankanUpdate();
-  assert.equal(hasil.seed.seeded,STUDENTS_5B.length-1,'baris yang NISN-nya sudah dipakai dilewati');
-  const siswa=listStudents(sesi,{classId:KELAS});
-  assert.equal(siswa.filter(item=>item.nisn===contoh.nisn).length,1,'tidak ada duplikat NISN');
-  assert.equal(siswa.find(item=>item.nisn===contoh.nisn).name,'Nama Diedit Guru','perubahan guru tidak tertimpa');
-});
-
-test('Siswa seed yang dihapus guru tidak muncul kembali saat startup berikutnya',()=>{
-  pasangDatabaseLama();
   jalankanUpdate();
-  const db=loadDb();
-  const kunci=Object.keys(db.students).find(key=>key.includes('seed-5b-'));
-  delete db.students[kunci];
-  localStorage.setItem(storageKey(),JSON.stringify(db));
-  const sebelum=listStudents(sesi,{classId:KELAS}).length;
-  assert.equal(seedInitialStudents().seeded,0,'baris yang sudah pernah masuk tidak diulang');
-  assert.equal(listStudents(sesi,{classId:KELAS}).length,sebelum,'penghapusan oleh guru dihormati');
+
+  const siswa=listStudents(sesi,{classId:KELAS});
+  assert.equal(siswa.length,jumlah+1,'seluruh siswa lama tetap ada');
+  assert.deepEqual(loadDb().students,sebelum,'tidak ada satu pun baris siswa yang berubah');
+  /* Menjalankan startup berkali-kali tetap tidak menambah siapa pun. */
+  jalankanUpdate();jalankanUpdate();
+  assert.equal(listStudents(sesi,{classId:KELAS}).length,jumlah+1,'startup berulang tidak menyemai data');
+});
+
+test('Rombel kosong pada instalasi baru tetap kosong setelah startup',()=>{
+  useMemoryStorage();
+  jalankanUpdate();
+  assert.equal(Object.keys(loadDb().students).length,0,'instalasi baru dimulai dengan nol siswa');
 });
 
 test('Pengaman mapel memperbaiki Mapping lama walau penanda schema sudah terbaru',()=>{
@@ -212,7 +209,7 @@ test('Cache service worker terikat versi aplikasi sehingga rilis baru tidak mema
   assert.match(sw,/function isAppCode/,'kode aplikasi dibedakan dari aset berat');
   assert.match(sw,/isAppCode\(event\.request\.url\)\|\|isSwappableAsset\(event\.request\.url\)\?networkFirst\(event\.request\):cacheFirst\(event\.request\)/,'JavaScript, CSS, dan aset yang dapat ditimpa diambil network-first');
   assert.equal(/caches\.match\(event\.request\)\.then\(cached=>cached\|\|fetch/.test(sw),false,'tidak boleh cache-first untuk seluruh aset');
-  for(const berkas of ['./src/services/seed.js','./src/data/seed-5b.js'])
+  for(const berkas of ['./src/services/seed.js'])
     assert.ok(sw.includes(berkas),`${berkas} ikut di-precache`);
 });
 
@@ -223,7 +220,7 @@ test('Aplikasi mengaktifkan service worker baru dan memuat ulang sekali setelah 
   assert.match(app,/postMessage\(\{type:'SKIP_WAITING'\}\)/,'worker baru tidak menunggu');
   assert.match(app,/registration\.update\(\)/);
   assert.ok(app.indexOf('runAppMigrations()')<app.indexOf('ensureDefaultSubjects()'),'migration dijalankan sebelum pengaman');
-  assert.ok(app.indexOf('ensureDefaultSubjects()')<app.indexOf('seedInitialStudents()'));
+  assert.equal(app.includes('seedInitialStudents'),false,'startup tidak lagi menyemai siswa');
 });
 
 /* ---------------------------------------------------------------------------------------
@@ -231,16 +228,10 @@ test('Aplikasi mengaktifkan service worker baru dan memuat ulang sekali setelah 
    --------------------------------------------------------------------------------------- */
 
 test('Update dari rilis sebelumnya: penanda versi naik dan seluruh data pengguna utuh',()=>{
-  /* Instalasi lama yang sudah memakai rilis terakhir: schema sudah terbaru dan seed 5B
-     sudah masuk, sehingga update berikutnya tidak boleh menyentuh data apa pun. */
+  /* Instalasi lama yang sudah memakai rilis terakhir dan sudah penuh data siswa hasil input
+     guru, sehingga update berikutnya tidak boleh menyentuh data apa pun. */
   pasangDatabaseLama({appSchemaVersion:APP_SCHEMA_VERSION,appVersion:PREVIOUS_RELEASE.version});
-  const db=loadDb();
-  db.settings[SEED_FLAG_KEY]={seededIds:STUDENTS_5B.map((row,index)=>`seed-5b-${String(row.nisn||row.nis||index+1).trim()}`)};
-  STUDENTS_5B.forEach((row,index)=>{
-    const id=`seed-5b-${String(row.nisn||row.nis||index+1).trim()}`;
-    db.students[`${SCOPE}|${id}`]={...row,id,classId:KELAS,academicYear:TAHUN,semester:SEM};
-  });
-  localStorage.setItem(storageKey(),JSON.stringify(db));
+  const jumlah=pasangSiswaLama();
   const sebelum=JSON.parse(localStorage.getItem(storageKey()));
 
   const hasil=jalankanUpdate();
@@ -248,9 +239,8 @@ test('Update dari rilis sebelumnya: penanda versi naik dan seluruh data pengguna
   dataLamaUtuh();
   assert.equal(loadDb().appVersion,APP_VERSION,'penanda versi naik ke rilis baru');
   assert.equal(loadDb().appSchemaVersion,APP_SCHEMA_VERSION,'schema tetap, tidak ada migrasi paksa');
-  assert.equal(hasil.seed.seeded,0,'seed 5B tidak digandakan pada update berikutnya');
   const siswa=listStudents(sesi,{classId:KELAS});
-  assert.equal(siswa.length,STUDENTS_5B.length+1,'jumlah siswa tidak berubah setelah update');
+  assert.equal(siswa.length,jumlah+1,'jumlah siswa tidak berubah setelah update');
   assert.equal(new Set(siswa.map(item=>item.nisn)).size,siswa.length,'tidak ada NISN duplikat');
   const sesudah=loadDb();
   for(const bagian of ['students','attendance','assessmentScores','reportScores','reportDescriptions','learningObjectives','assessmentSettings','homeroomNotes','extracurricularScores','cocurricularActivities','cocurricularScores','attitudeProfiles','printSettings','transcriptScores','userAccounts'])

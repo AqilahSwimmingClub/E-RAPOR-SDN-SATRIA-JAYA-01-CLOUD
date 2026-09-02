@@ -80,7 +80,7 @@ test('Tanggal Rapor bawaan Admin dipakai rombel yang belum mengatur cetak sendir
   const guru={role:'teacher',classId:'5B',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
   assert.equal(getPrintSettings(guru).printDate,'');
   const sekolah=getSchoolMaster();
-  saveSchoolMaster(admin,{...sekolah,reportDate:'2027-06-20',reportCity:'Bekasi'});
+  saveSchoolMaster(admin,{...sekolah,name:'SDN Contoh Nusantara 02',reportDate:'2027-06-20',reportCity:'Bekasi'});
   const cetak=getPrintSettings(guru);
   assert.equal(cetak.printDate,'2027-06-20');
   assert.equal(cetak.city,'Bekasi');

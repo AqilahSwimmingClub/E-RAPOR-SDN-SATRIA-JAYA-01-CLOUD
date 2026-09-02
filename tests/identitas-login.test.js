@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ACADEMIC_YEAR, SCHOOL, academicYearOf, availableAcademicYears, currentSemesterLabel, semestersOf } from '../src/data/constants.js';
+import { ACADEMIC_YEAR, SCHOOL_PLACEHOLDER, academicYearOf, availableAcademicYears, currentSemesterLabel, semestersOf } from '../src/data/constants.js';
 import { APP_VERSION } from '../src/data/version.js';
 import { invalidateDbCache, loadDb } from '../src/services/storage.js';
 import { listLoginSemesters } from '../src/services/references.js';
@@ -77,10 +77,12 @@ test('5. Tahun pelajaran lama pada database yang sudah ada tidak pernah dibuang'
 test('6. Panel Masuk menampilkan identitas e-Rapor, sekolah, dan slogan',()=>{
   const halaman=read('src/pages/login.js');
   assert.match(halaman,/<span class="login-brand-app">e-Rapor<\/span>/);
-  assert.match(halaman,/<strong>SDN SATRIA JAYA 01<\/strong>/);
+  assert.match(halaman,/<strong>\$\{escapeHtml\(schoolLabel\.toUpperCase\(\)\)\}<\/strong>/);
   assert.match(halaman,/<span class="login-brand-tagline">Cerdas • Berkarakter • Berprestasi<\/span>/);
+  assert.match(halaman,/getSchoolMaster\(\)/,'nama sekolah dibaca dari identitas sekolah pengguna');
   assert.match(halaman,/Cerdas • Berkarakter • Berprestasi/,'slogan sekolah tampil dengan titik pemisah');
-  assert.equal(SCHOOL,'SDN Satria Jaya 01');
+  /* Tidak ada nama sekolah yang ditanam di kode; yang tersedia hanya label netral. */
+  assert.equal(SCHOOL_PLACEHOLDER,'Nama Sekolah');
 });
 
 test('7. Semester aktif tetap dapat dipilih guru pada panel Masuk',()=>{
@@ -95,9 +97,12 @@ test('7. Semester aktif tetap dapat dipilih guru pada panel Masuk',()=>{
 test('8. Identitas pengembang memuat nama dan hak cipta, tanpa teks lama',()=>{
   const halaman=read('src/pages/login.js');
   /* Identitas pengembang berada di kiri bawah kolom foto; panel kanan berakhir di nomor versi. */
-  assert.match(halaman,/<strong class="login-credit-name">FAHMI DJAWAS, S\.Pd\.<\/strong>/);
-  assert.match(halaman,/Dirancang &amp; Dikembangkan oleh/);
-  assert.match(halaman,/© 2026 — Semua Hak Dilindungi/);
+  /* Identitas pengembang berasal dari satu sumber permanen yang tidak membaca database. */
+  const identitas=read('src/data/app-identity.js');
+  assert.match(identitas,/DEVELOPER_NAME='FAHMI DJAWAS, S\.Pd\.'/);
+  assert.match(identitas,/DEVELOPER_CREDIT_LEAD='Dirancang & Dikembangkan oleh'/);
+  assert.match(identitas,/COPYRIGHT='© 2026 — Semua Hak Dilindungi'/);
+  assert.match(halaman,/<strong class="login-credit-name">\$\{escapeHtml\(DEVELOPER_NAME\)\}<\/strong>/);
   assert.equal(halaman.includes('System Architect & Lead Developer'),false,'peran lama dibuang');
   assert.equal(halaman.includes('Inovasi digital mandiri'),false,'moto lama dibuang');
   /* Nomor versi tetap otomatis dari APP_VERSION. */

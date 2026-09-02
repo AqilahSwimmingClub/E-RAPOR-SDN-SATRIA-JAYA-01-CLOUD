@@ -42,7 +42,7 @@ test('Teacher backup only contains its class, semester, and academic-year scope'
     assert.ok(keys.every(key=>!key.startsWith(scope5c)));
   }
   assert.deepEqual(payload.data.backupHistory,[]);
-  assert.equal(backupFilename(teacher5b),'ERAPOR-SDN-SATRIA-JAYA-01-KELAS-5B-GANJIL-2026-2027.backup.json');
+  assert.equal(backupFilename(teacher5b),'ERAPOR-KELAS-5B-GANJIL-2026-2027.backup.json');
 });
 
 test('Teacher restore rejects a different scope and Admin backup',()=>{
