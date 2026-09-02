@@ -284,17 +284,23 @@ Laptop B tetap wajib punya License Key sendiri.
 
 ## 10. Catatan deployment
 
-Backend ini Node.js murni tanpa dependency, jadi dapat dijalankan di mana saja yang bisa
-menjalankan Node 22+ dan menyimpan berkas.
+Produksi berjalan di Vercel Functions dengan database Neon PostgreSQL. Inti logikanya Node.js
+murni tanpa dependency, sehingga versi lokal berbasis SQLite dapat dijalankan di mana saja yang
+bisa menjalankan Node 22+.
 
-1. **Wajib HTTPS** di produksi (reverse proxy Nginx/Caddy, atau platform yang sudah TLS).
-2. Simpan `server/secrets/` dan `server/data/` di volume persisten, backup rutin —
-   kehilangan `LICENSE_HASH_PEPPER` membuat seluruh kunci lama tidak dapat dicari lagi.
-3. `server/data/licenses.db` adalah SQLite; untuk trafik pemilik + aktivasi sekolah, ini lebih
-   dari cukup. Bila kelak ingin pindah ke Postgres/Supabase, DDL di `server/src/db.js` dapat
-   dipakai hampir apa adanya — yang penting **UNIQUE INDEX parsial** ikut dibuat, karena di
-   situlah aturan satu-perangkat ditegakkan.
-4. Batasi akses `/owner/` (IP allowlist atau VPN) sebagai lapisan tambahan.
+1. **Wajib HTTPS** di produksi. Vercel sudah menyediakannya; bila dijalankan sendiri, pakai
+   reverse proxy Nginx/Caddy.
+2. Rahasia hanya hidup sebagai Environment Variables di Vercel, tidak pernah sebagai berkas di
+   repo. Simpan salinannya di tempat aman dan backup rutin — kehilangan `LICENSE_HASH_PEPPER`
+   membuat seluruh kunci lama tidak dapat dicari lagi.
+3. Aturan satu-perangkat ditegakkan oleh **UNIQUE INDEX parsial** `ux_one_active_device`
+   pada `device_activations` (lihat `server/schema-postgres.sql`), bukan oleh isolasi transaksi.
+   Pengikatan perangkat sengaja dikerjakan satu pernyataan `INSERT`, sehingga tetap benar di
+   lingkungan serverless yang menjalankan banyak instance sekaligus. Bila kelak pindah ke
+   penyedia Postgres lain, indeks parsial itu WAJIB ikut dibuat.
+   Versi SQLite pengembangan lokal memakai DDL setara di `server/src/db.js`.
+4. Batasi akses `/owner/` (IP allowlist atau VPN) sebagai lapisan tambahan. `vercel.json` sudah
+   memasang `X-Robots-Tag: noindex` pada `/owner/*`.
 5. Rate limit bawaan: 8 aktivasi/menit per IP dan per Installation ID, 6 percobaan login
    pemilik/menit per IP.
 
