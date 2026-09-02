@@ -127,7 +127,22 @@ export function saveStudentCocurricular(session,studentId,input){requireStudent(
    bentuk record sengaja sejajar dengan kokurikuler supaya perilaku keduanya konsisten,
    tetapi penyimpanannya tidak pernah bersinggungan. */
 function intracurricularKey(session,studentId){return `${scopeKey(session)}|${studentId}`;}
-function normalizeIntracurricular(input){const record={activity:clean(input?.activity,180),predicate:clean(input?.predicate,50),description:clean(input?.description,1200)};if(!record.activity)throw new Error('Kegiatan intrakurikuler wajib diisi.');if(!knownPredicate(record.predicate))throw new Error('Predikat intrakurikuler tidak valid.');if(!record.description)throw new Error('Deskripsi intrakurikuler wajib diisi.');return record;}
+/* Sejak Tahap 8E kegiatan intrakurikuler boleh mengacu pada satu mata pelajaran beserta TP-nya.
+   Kedua field itu OPSIONAL: catatan lama yang hanya berisi nama kegiatan tetap sah dan tidak
+   diubah, sehingga data instalasi lama terbaca apa adanya. */
+function normalizeIntracurricular(input){
+  const record={activity:clean(input?.activity,180),predicate:clean(input?.predicate,50),description:clean(input?.description,1200)};
+  if(!record.activity)throw new Error('Kegiatan intrakurikuler wajib diisi.');
+  if(!knownPredicate(record.predicate))throw new Error('Predikat intrakurikuler tidak valid.');
+  if(!record.description)throw new Error('Deskripsi intrakurikuler wajib diisi.');
+  const subjectId=clean(input?.subjectId,40);
+  if(subjectId)record.subjectId=subjectId;
+  const objectiveIds=Array.isArray(input?.objectiveIds)
+    ? [...new Set(input.objectiveIds.map(id=>clean(id,80)).filter(Boolean))].slice(0,20)
+    : [];
+  if(objectiveIds.length)record.objectiveIds=objectiveIds;
+  return record;
+}
 
 export function getStudentIntracurricular(session,studentId){requireStudent(session,studentId);const record=loadDb().intracurricularScores?.[intracurricularKey(session,studentId)];return record?clone(record):null;}
 

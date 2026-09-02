@@ -1,9 +1,17 @@
-import { listAssignedIntracurricularActivities } from '../services/intracurricular.js';
 import { defaultIntracurricularActivities, generateIntracurricularDescription } from '../data/intracurricular-defaults.js';
-import { ACTIVITY_PREDICATES, getStudentIntracurricular, saveIntracurricularBulk, saveStudentIntracurricular } from '../services/completeness.js';
+import { ACTIVITY_PREDICATES, DEFAULT_ACTIVITY_PREDICATE, getStudentIntracurricular, saveIntracurricularBulk, saveStudentIntracurricular } from '../services/completeness.js';
+import { composeIntracurricularDescription, getStudentIntracurricularSelection, INTRACURRICULAR_PREDICATES,
+  listAssignedIntracurricularActivities, listIntracurricularObjectives, listIntracurricularSubjects,
+  saveStudentIntracurricularSelection } from '../services/intracurricular.js';
 import { listStudents } from '../services/students.js';
 import { el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
+
+/* Alur Tahap 8E: Mata Pelajaran → Tujuan Pembelajaran → Predikat → Deskripsi otomatis.
+
+   Bila rombel belum punya mapel ber-TP, halaman kembali ke alur kegiatan lama sehingga sekolah
+   yang sudah memakainya tidak kehilangan apa pun. Tidak ada input angka pada halaman ini:
+   Intrakurikuler menghasilkan predikat dan deskripsi, bukan nilai. */
 
 function studentOptions(students,selected=''){
   return students.map(student=>`<option value="${escapeHtml(student.id)}" ${student.id===selected?'selected':''}>${escapeHtml(student.name)} · ${escapeHtml(student.nis)}</option>`).join('');
@@ -24,11 +32,71 @@ export function renderIntracurricularInput(session){
       return;
     }
     if(!students.some(student=>student.id===selectedStudentId))selectedStudentId=students[0].id;
+    const student=students.find(item=>item.id===selectedStudentId);
+    const subjects=listIntracurricularSubjects(session);
+    if(subjects.length)return drawSubjectFlow(students,student,subjects);
+    return drawLegacyFlow(students,student);
+  }
+
+  /* ------------------------------------------------- Alur baru: mapel, TP, predikat, deskripsi */
+  function drawSubjectFlow(students,student,subjects){
+    const current=getStudentIntracurricularSelection(session,selectedStudentId);
+    let subjectId=subjects.some(item=>item.id===current?.subjectId)?current.subjectId:subjects[0].id;
+    let predicate=INTRACURRICULAR_PREDICATES.includes(current?.predicate)?current.predicate:DEFAULT_ACTIVITY_PREDICATE;
+    let objectiveIds=[...(current?.objectiveIds||[])];
+
+    function render(){
+      const objectives=listIntracurricularObjectives(session,subjectId);
+      objectiveIds=objectiveIds.filter(id=>objectives.some(item=>item.id===id));
+      const subject=subjects.find(item=>item.id===subjectId);
+      const bawaan=objectives.some(item=>item.isDefault);
+      view.innerHTML=`<section class="card module-filter"><div class="field compact-field"><label>Siswa</label><select class="input" data-student>${studentOptions(students,selectedStudentId)}</select></div><div class="scope-note">Kelas ${escapeHtml(session.classId)}<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section><section class="card"><div class="section-head"><div><h3>Intrakurikuler ${escapeHtml(student.name)}</h3><p>Pilih mata pelajaran, tandai Tujuan Pembelajaran yang menjadi acuan, tentukan predikat, lalu deskripsi tersusun otomatis. Intrakurikuler tidak menghasilkan angka.</p></div></div><div class="form-grid"><div class="field"><label>Mata Pelajaran *</label><select class="input" data-subject>${subjects.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===subjectId?'selected':''}>${escapeHtml(item.name)}</option>`).join('')}</select></div><div class="field"><label>Predikat *</label><select class="input" data-predicate>${predicateOptions(predicate)}</select></div><div class="field form-span-2"><label>Tujuan Pembelajaran *</label><div class="objective-reference-list">${objectives.map(item=>`<label class="objective-reference-item"><input type="checkbox" data-objective value="${escapeHtml(item.id)}" ${objectiveIds.includes(item.id)?'checked':''}/><span><strong>${escapeHtml(item.code)}</strong> ${escapeHtml(item.description)}</span></label>`).join('')}</div><div class="objective-reference-foot">${bawaan?'TP bawaan berstatus inspiratif/acuan dan dapat disesuaikan melalui menu Tujuan Pembelajaran.':'TP berasal dari daftar TP mata pelajaran ini.'}</div></div><div class="field form-span-2"><label>Deskripsi *</label><textarea class="input" rows="4" data-description placeholder="Kosongkan untuk memakai deskripsi otomatis...">${escapeHtml(current?.description||'')}</textarea><div class="actions" style="margin-top:8px"><button class="btn btn-light" type="button" data-generate-description>${icon('activity',16)} Generate Deskripsi Otomatis</button></div></div></div><div class="actions"><button class="btn btn-primary" data-save>${icon('save',16)} Simpan Siswa Ini</button></div></section>`;
+
+      const pilihanTp=()=>[...view.querySelectorAll('[data-objective]')].filter(item=>item.checked).map(item=>item.value);
+      const susun=()=>composeIntracurricularDescription({
+        studentName:student.name,subjectName:subject?.name||'',
+        objectives:objectives.filter(item=>pilihanTp().includes(item.id)),
+        predicate:view.querySelector('[data-predicate]').value,
+      });
+      /* Deskripsi otomatis ikut menyesuaikan setiap kali TP atau predikat berubah, kecuali guru
+         sudah menuliskan kalimatnya sendiri. Tulisan guru tidak pernah ditimpa. */
+      let terakhirOtomatis=current?.description||'';
+      const segarkanDeskripsi=()=>{
+        const kotak=view.querySelector('[data-description]');
+        const isi=kotak.value.trim();
+        if(isi&&isi!==terakhirOtomatis.trim())return;
+        terakhirOtomatis=pilihanTp().length?susun():'';
+        kotak.value=terakhirOtomatis;
+      };
+      view.querySelector('[data-subject]').onchange=event=>{subjectId=event.target.value;objectiveIds=[];render();};
+      view.querySelector('[data-predicate]').onchange=event=>{predicate=event.target.value;segarkanDeskripsi();};
+      view.querySelectorAll('[data-objective]').forEach(box=>box.onchange=()=>{objectiveIds=pilihanTp();segarkanDeskripsi();});
+      view.querySelector('[data-generate-description]').onclick=()=>{
+        if(!pilihanTp().length){toast('Tandai minimal satu Tujuan Pembelajaran.','warning');return;}
+        terakhirOtomatis=susun();
+        view.querySelector('[data-description]').value=terakhirOtomatis;
+        toast('Deskripsi intrakurikuler berhasil dibuat otomatis.');
+      };
+      view.querySelector('[data-save]').onclick=()=>{
+        try{
+          saveStudentIntracurricularSelection(session,selectedStudentId,{
+            subjectId,objectiveIds:pilihanTp(),predicate:view.querySelector('[data-predicate]').value,
+            description:view.querySelector('[data-description]').value,
+          });
+          draw();toast('Intrakurikuler siswa berhasil disimpan.');
+        }catch(error){toast(error.message,'error');}
+      };
+      view.querySelector('[data-student]').onchange=event=>{selectedStudentId=event.target.value;draw();};
+    }
+    render();
+  }
+
+  /* -------------------------------- Alur lama: dipakai bila belum ada mapel aktif yang punya TP */
+  function drawLegacyFlow(students,student){
     const assigned=listAssignedIntracurricularActivities(session);
     const defaults=defaultIntracurricularActivities(session.classId);
     const activities=assigned.length?assigned:defaults;
     const current=getStudentIntracurricular(session,selectedStudentId);
-    const student=students.find(item=>item.id===selectedStudentId);
     const currentActivity=current?.activity?{name:current.activity,description:''}:null;
     const choices=[...activities];
     if(currentActivity&&!choices.some(item=>item.name===currentActivity.name))choices.unshift(currentActivity);
