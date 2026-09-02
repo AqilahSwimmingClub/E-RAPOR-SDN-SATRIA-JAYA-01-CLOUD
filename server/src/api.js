@@ -25,9 +25,20 @@ export function createRateLimiter({windowMs=60_000,max=10}={}){
   };
 }
 
-function kirim(res,status,payload){
+/* Aplikasi sekolah berjalan dari origin lain (WebView Android, Electron, atau domain sekolah),
+   sehingga dua endpoint publik perlu izin lintas origin. Izin ini TIDAK diberikan pada endpoint
+   pemilik: panel disajikan dari origin yang sama dan memakai sesi Bearer, jadi membukanya
+   lintas origin hanya memperluas permukaan serangan tanpa manfaat. */
+const PUBLIC_CORS_PATHS=new Set(['/api/v1/activate','/api/v1/check','/api/v1/public-key','/api/v1/health','/api/v1/updates/latest']);
+function corsHeaders(pathname){
+  if(!PUBLIC_CORS_PATHS.has(pathname))return {};
+  return {'access-control-allow-origin':'*','access-control-allow-headers':'content-type',
+    'access-control-allow-methods':'GET,POST,OPTIONS','access-control-max-age':'600','vary':'origin'};
+}
+
+function kirim(res,status,payload,pathname=''){
   const body=JSON.stringify(payload);
-  res.writeHead(status,{...JSON_HEADERS,'content-length':Buffer.byteLength(body)});
+  res.writeHead(status,{...JSON_HEADERS,...corsHeaders(pathname),'content-length':Buffer.byteLength(body)});
   res.end(body);
 }
 
@@ -173,13 +184,19 @@ export function createApi({db,secrets,logger=()=>{},publicDir=null}){
     const url=new URL(req.url,'http://localhost');
     const pathname=url.pathname.replace(/\/+$/,'')||'/';
     try{
+      /* Preflight hanya dijawab untuk endpoint publik. */
+      if(req.method==='OPTIONS'){
+        const headers=corsHeaders(pathname);
+        res.writeHead(Object.keys(headers).length?204:405,headers);
+        return res.end();
+      }
       if(req.method==='GET'&&!pathname.startsWith('/api/')&&sajikanStatis(req,res,url.pathname))return;
 
       const kunci=`${req.method} ${pathname}`;
       const body=req.method==='POST'?await bacaJson(req):{};
       logger({method:req.method,path:pathname,body:ringkasUntukLog(body)});
 
-      if(rute[kunci])return kirim(res,200,await rute[kunci](req,res,body,url));
+      if(rute[kunci])return kirim(res,200,await rute[kunci](req,res,body,url),pathname);
 
       const cocok=pathname.match(/^\/api\/v1\/owner\/licenses\/([A-Za-z0-9_]+)\/([a-z-]+)$/);
       if(cocok&&req.method==='POST'){
@@ -191,11 +208,11 @@ export function createApi({db,secrets,logger=()=>{},publicDir=null}){
       const detail=pathname.match(/^\/api\/v1\/owner\/licenses\/([A-Za-z0-9_]+)$/);
       if(detail&&req.method==='GET'){wajibOwner(req);return kirim(res,200,lisensi.licenseDetail(db,detail[1]));}
 
-      kirim(res,404,{error:{code:'NOT_FOUND',message:'Endpoint tidak dikenal.'}});
+      kirim(res,404,{error:{code:'NOT_FOUND',message:'Endpoint tidak dikenal.'}},pathname);
     }catch(error){
-      if(error instanceof LicenseError)return kirim(res,error.httpStatus,{error:{code:error.code,message:error.message}});
+      if(error instanceof LicenseError)return kirim(res,error.httpStatus,{error:{code:error.code,message:error.message}},pathname);
       logger({level:'error',message:error.message});
-      kirim(res,500,{error:{code:'SERVER_ERROR',message:'Terjadi kesalahan pada server lisensi.'}});
+      kirim(res,500,{error:{code:'SERVER_ERROR',message:'Terjadi kesalahan pada server lisensi.'}},pathname);
     }
   };
 }
