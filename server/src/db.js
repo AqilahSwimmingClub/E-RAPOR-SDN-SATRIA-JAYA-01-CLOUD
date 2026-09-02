@@ -85,7 +85,8 @@ CREATE TABLE IF NOT EXISTS owner_sessions(
   expires_at TEXT NOT NULL
 );
 
-/* Disiapkan untuk Tahap 9. Tabelnya ada, tetapi tidak ada updater apa pun yang memakainya. */
+/* Katalog rilis resmi e-Rapor. Hanya baris published yang pernah dilayani ke aplikasi
+   sekolah. Tabel ini tidak pernah memuat data akademik sekolah mana pun. */
 CREATE TABLE IF NOT EXISTS app_versions(
   id TEXT PRIMARY KEY,
   platform TEXT NOT NULL,
@@ -97,10 +98,28 @@ CREATE TABLE IF NOT EXISTS app_versions(
 );
 `;
 
+/* SQLite tidak mengenal ADD COLUMN IF NOT EXISTS, jadi kolom Tahap 9 ditambahkan hanya bila
+   memang belum ada. Tabel TIDAK pernah dibuat ulang, sehingga basis data pengembangan yang
+   sudah berisi baris tetap utuh. */
+const KOLOM_TAHAP_9=[
+  ['download_url','TEXT'],
+  ['published','INTEGER NOT NULL DEFAULT 0'],
+  ['created_at','TEXT'],
+  ['created_by','TEXT'],
+];
+function lengkapiAppVersions(db){
+  const ada=new Set(db.prepare('PRAGMA table_info(app_versions)').all().map(baris=>baris.name));
+  for(const [nama,tipe] of KOLOM_TAHAP_9)
+    if(!ada.has(nama))db.exec(`ALTER TABLE app_versions ADD COLUMN ${nama} ${tipe}`);
+  db.exec('CREATE INDEX IF NOT EXISTS ix_app_versions_platform ON app_versions(platform, published)');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS ux_app_versions_platform_version ON app_versions(platform, version)');
+}
+
 export function openDatabase(file=':memory:'){
   if(file!==':memory:')mkdirSync(dirname(file),{recursive:true});
   const db=new DatabaseSync(file);
   db.exec(SCHEMA);
+  lengkapiAppVersions(db);
   return db;
 }
 

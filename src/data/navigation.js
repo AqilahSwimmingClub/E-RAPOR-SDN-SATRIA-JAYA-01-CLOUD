@@ -56,7 +56,8 @@ export const NAVIGATION=Object.freeze({
       item('backup','Backup & Restore','database','backup')
     ]),
     group('admin-account','AKUN','settings',[
-      item('account-settings','Pengaturan Akun','settings','account-settings')
+      item('account-settings','Pengaturan Akun','settings','account-settings'),
+      item('about-updates','Tentang & Pembaruan','bell','about-updates')
     ])
   ]),
   teacher:Object.freeze([
@@ -118,7 +119,8 @@ export const NAVIGATION=Object.freeze({
       item('backup','Backup','database','backup')
     ]),
     group('teacher-account','AKUN','settings',[
-      item('account-settings','Pengaturan Akun','settings','account-settings')
+      item('account-settings','Pengaturan Akun','settings','account-settings'),
+      item('about-updates','Tentang & Pembaruan','bell','about-updates')
     ])
   ])
 });

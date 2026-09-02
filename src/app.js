@@ -15,6 +15,7 @@ import { renderAttendance } from './pages/attendance.js';
 import { renderAssessment } from './pages/assessment.js';
 import { renderAttitudes } from './pages/attitudes.js';
 import { renderWeights } from './pages/weights.js';
+import { renderAboutUpdates } from './pages/about-updates.js';
 import { renderObjectives } from './pages/objectives.js';
 import { renderAssessmentCheck, renderReportInput, renderSavedScores } from './pages/reports.js';
 import { renderCompleteness } from './pages/completeness.js';
@@ -109,7 +110,7 @@ function mount(requestedRoute){
 /* Sebelum Admin menekan Aktifkan e-Rapor untuk Guru, wali kelas tetap dapat masuk dan
    melihat halaman yang tidak bergantung pada konfigurasi. Menu operasional ditahan dengan
    alasan yang jelas, dan tidak ada satu pun data yang dihapus atau disembunyikan permanen. */
-const TEACHER_ALWAYS_OPEN_ROUTES=new Set(['dashboard','profile','account-settings','backup','objectives']);
+const TEACHER_ALWAYS_OPEN_ROUTES=new Set(['dashboard','profile','account-settings','backup','objectives','about-updates']);
 
 function readinessNotice(session){
   const kesiapan=getAdminReadiness(session);
@@ -119,7 +120,9 @@ function readinessNotice(session){
     </section>`);
 }
 
-const READ_ONLY_SAFE_ROUTES=new Set(['dashboard','profile','backup','account-settings',
+/* Tentang & Pembaruan sengaja ikut terbuka pada mode terbatas: justru di saat lisensi
+   bermasalah sekolah perlu dapat melihat versinya dan menghubungi pengembang. */
+const READ_ONLY_SAFE_ROUTES=new Set(['dashboard','profile','backup','account-settings','about-updates',
   'print-report','print-ledger','print-supplement','transcript-print',
   'assessment-status','teacher-status','class-status','admin-progress','student-progress']);
 
@@ -140,6 +143,7 @@ function pageFor(route,session){
     case 'attitudes': return renderAttitudes(session);
     case 'weights': return renderWeights(session);
     case 'objectives': return renderObjectives(session);
+    case 'about-updates': return renderAboutUpdates(session);
     case 'report-input': return renderReportInput(session,'input');
     case 'report-import': return renderReportInput(session,'import');
     case 'saved-scores': return renderSavedScores(session,'scores');

@@ -74,7 +74,8 @@ CREATE TABLE IF NOT EXISTS owner_sessions(
   expires_at TIMESTAMPTZ NOT NULL
 );
 
--- Disiapkan untuk Tahap 9. Tabelnya ada, tetapi tidak ada updater apa pun yang memakainya.
+-- Katalog rilis resmi e-Rapor. Hanya baris published yang pernah dilayani ke aplikasi
+-- sekolah. Tabel ini tidak pernah memuat data akademik sekolah mana pun.
 CREATE TABLE IF NOT EXISTS app_versions(
   id                    TEXT PRIMARY KEY,
   platform              TEXT NOT NULL,
@@ -84,3 +85,11 @@ CREATE TABLE IF NOT EXISTS app_versions(
   notes                 TEXT,
   released_at           TIMESTAMPTZ
 );
+-- Kolom Tahap 9 ditambahkan terpisah, bukan dengan membuat ulang tabel, supaya instalasi yang
+-- sudah berjalan tidak kehilangan satu baris pun.
+ALTER TABLE app_versions ADD COLUMN IF NOT EXISTS download_url TEXT;
+ALTER TABLE app_versions ADD COLUMN IF NOT EXISTS published    BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE app_versions ADD COLUMN IF NOT EXISTS created_at   TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE app_versions ADD COLUMN IF NOT EXISTS created_by   TEXT;
+CREATE INDEX IF NOT EXISTS ix_app_versions_platform ON app_versions(platform, published);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_app_versions_platform_version ON app_versions(platform, version);

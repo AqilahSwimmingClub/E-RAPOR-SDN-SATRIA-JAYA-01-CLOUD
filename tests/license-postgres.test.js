@@ -112,3 +112,42 @@ test('Adapter PostgreSQL tidak mengandalkan berkas atau proses yang menetap',()=
   assert.match(store,/DATABASE_URL/);
   assert.equal(/postgres(ql)?:\/\/[^$'"`\s]+:[^$'"`\s]+@/.test(store+pg),false,'tidak ada kredensial database di kode');
 });
+
+/* Tahap 9: kolom katalog versi ditambahkan ke instalasi yang SUDAH berjalan. Diuji di atas
+   PostgreSQL sungguhan karena inilah yang akan terjadi pada database Neon milik pemilik. */
+test('Migrasi app_versions menambah kolom tanpa menghilangkan baris yang sudah ada',async()=>{
+  const pg=new PGlite();
+  const store=createPostgresStore({client:pg});
+  try{
+    /* Bentuk tabel persis seperti Tahap 8, beserta satu baris yang sudah tersimpan. */
+    await pg.exec(`CREATE TABLE app_versions(id TEXT PRIMARY KEY,platform TEXT NOT NULL,version TEXT NOT NULL,
+      version_code INTEGER,min_supported_version TEXT,notes TEXT,released_at TIMESTAMPTZ);
+      INSERT INTO app_versions(id,platform,version) VALUES('lama','android','1.2.0');`);
+
+    await applySchema(store);
+
+    const kolom=(await pg.query(`SELECT column_name FROM information_schema.columns
+      WHERE table_name='app_versions'`)).rows.map(baris=>baris.column_name);
+    for(const nama of ['download_url','published','created_at','created_by'])
+      assert.ok(kolom.includes(nama),`kolom ${nama} ditambahkan`);
+
+    const baris=(await pg.query('SELECT id,platform,version,published FROM app_versions')).rows;
+    assert.equal(baris.length,1,'baris lama tidak hilang');
+    assert.equal(baris[0].id,'lama');
+    assert.equal(baris[0].version,'1.2.0');
+    assert.equal(baris[0].published,false,'baris lama tidak diterbitkan tanpa diminta');
+
+    /* Menjalankan skema berkali-kali adalah hal biasa pada Vercel: setiap instance dingin
+       memanggilnya lagi. Karena itu ia wajib idempotent. */
+    await applySchema(store);
+    await applySchema(store);
+    assert.equal((await pg.query('SELECT COUNT(*)::int AS c FROM app_versions')).rows[0].c,1);
+
+    const indeks=(await pg.query(`SELECT indexname FROM pg_indexes WHERE tablename='app_versions'`))
+      .rows.map(item=>item.indexname);
+    assert.ok(indeks.includes('ux_app_versions_platform_version'),'satu versi per platform dijaga database');
+    await assert.rejects(()=>store.run(
+      `INSERT INTO app_versions(id,platform,version) VALUES($1,$2,$3)`,['kembar','android','1.2.0']),
+      /unique|duplicate/i,'versi kembar ditolak database');
+  }finally{await pg.close();}
+});

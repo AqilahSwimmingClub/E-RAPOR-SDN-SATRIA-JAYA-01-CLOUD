@@ -57,7 +57,7 @@ async function render(){
       <div><h1>Owner Panel e-Rapor</h1><p class="sub">Kelola lisensi, perangkat, dan riwayat. Satu lisensi = satu perangkat aktif.</p></div>
       <button class="btn ghost" data-keluar>Keluar</button>
     </div>
-    <div class="tabs">${[['dashboard','Dashboard'],['licenses','Lisensi'],['customers','Sekolah/Pembeli'],['events','Riwayat']]
+    <div class="tabs">${[['dashboard','Dashboard'],['licenses','Lisensi'],['customers','Sekolah/Pembeli'],['versions','Versi Aplikasi'],['events','Riwayat']]
       .map(([id,label])=>`<button class="tab ${tab===id?'active':''}" data-tab="${id}">${label}</button>`).join('')}</div>
     ${pesan?`<div class="msg ${pesan.jenis}">${esc(pesan.teks)}</div>`:''}
     <div data-isi><p class="loading">Memuat…</p></div>`;
@@ -71,6 +71,7 @@ async function render(){
     if(tab==='dashboard')await gambarDashboard(isi);
     else if(tab==='licenses')await gambarLisensi(isi);
     else if(tab==='customers')await gambarPelanggan(isi);
+    else if(tab==='versions')await gambarVersi(isi);
     else await gambarRiwayat(isi);
   }catch(error){isi.innerHTML=`<div class="msg err">${esc(error.message)}</div>`;}
 }
@@ -196,6 +197,83 @@ async function gambarPelanggan(host){
       lapor('Data pembeli tersimpan.','ok');
     }catch(error){lapor(error.message,'err');}
   };
+}
+
+/* --------------------------------------------------------------- Versi aplikasi (Tahap 9)
+
+   Katalog rilis resmi. Hanya Pemilik yang dapat membukanya: seluruh endpoint di bawah menuntut
+   sesi Pemilik, dan server memvalidasi ulang setiap masukan. Panel ini tidak pernah mengunggah
+   berkas rilis; yang disimpan hanyalah metadata beserta alamat unduhan resmi. */
+
+async function gambarVersi(host){
+  host.innerHTML=`<section class="card">
+      <h2>Tambah Versi Aplikasi</h2>
+      <p class="sub">Alamat unduhan wajib https dan berada pada host rilis resmi. Versi baru tersimpan
+        sebagai draf; sekolah hanya menerima versi yang sudah Diterbitkan.</p>
+      <form class="row" data-tambah style="margin-top:12px">
+        <div><label>Platform</label><select name="platform" required>
+          <option value="android">android</option><option value="windows">windows</option></select></div>
+        <div><label>Versi</label><input name="version" placeholder="1.2.2" required/></div>
+        <div><label>Version Code</label><input name="versionCode" type="number" min="0" placeholder="14"/></div>
+        <div><label>Minimum Didukung</label><input name="minSupportedVersion" placeholder="1.2.0"/></div>
+        <div><label>Tanggal Rilis</label><input name="releasedAt" type="date"/></div>
+        <div style="flex:1 1 100%"><label>Alamat Unduhan Resmi</label>
+          <input name="downloadUrl" placeholder="https://github.com/.../e-rapor-1.2.2.apk"/></div>
+        <div style="flex:1 1 100%"><label>Catatan Rilis</label>
+          <textarea name="notes" rows="3" placeholder="Ringkasan perubahan yang dibaca sekolah."></textarea></div>
+        <div><button class="btn" type="submit">Simpan Versi</button></div>
+      </form>
+      <div data-hasil></div>
+    </section>
+    <section class="card"><h2>Daftar Versi</h2><div class="scroll" data-tabel style="margin-top:12px"></div></section>`;
+
+  host.querySelector('[data-tambah]').onsubmit=async event=>{
+    event.preventDefault();
+    const form=event.currentTarget,tombol=form.querySelector('button');
+    tombol.disabled=true;
+    try{
+      await api('/owner/app-versions',{method:'POST',body:{
+        platform:form.platform.value,version:form.version.value,versionCode:form.versionCode.value,
+        minSupportedVersion:form.minSupportedVersion.value,releasedAt:form.releasedAt.value,
+        downloadUrl:form.downloadUrl.value,notes:form.notes.value}});
+      host.querySelector('[data-hasil]').innerHTML='<div class="msg ok">Versi tersimpan sebagai draf. Tekan Terbitkan agar sekolah menerimanya.</div>';
+      form.reset();
+      await muatVersi(host);
+    }catch(error){host.querySelector('[data-hasil]').innerHTML=`<div class="msg err">${esc(error.message)}</div>`;}
+    tombol.disabled=false;
+  };
+  await muatVersi(host);
+}
+
+async function muatVersi(host){
+  const {versions}=await api('/owner/app-versions');
+  host.querySelector('[data-tabel]').innerHTML=versions.length?`<table><thead><tr>
+      <th>Platform</th><th>Versi</th><th>Minimum Didukung</th><th>Rilis</th><th>Unduhan</th><th>Status</th><th>Aksi</th>
+    </tr></thead><tbody>${versions.map(v=>`<tr>
+      <td><code>${esc(v.platform)}</code></td>
+      <td><b>${esc(v.version)}</b>${v.versionCode!==null?`<br/><small style="color:var(--muted)">code ${esc(v.versionCode)}</small>`:''}</td>
+      <td>${esc(v.minSupportedVersion||'—')}</td>
+      <td>${waktu(v.releasedAt)}</td>
+      <td>${v.downloadUrl?`<a href="${esc(v.downloadUrl)}" target="_blank" rel="noopener noreferrer">berkas rilis</a>`:'<span style="color:var(--muted)">belum diisi</span>'}</td>
+      <td><span class="pill ${v.published?'ACTIVE':'UNUSED'}">${v.published?'Diterbitkan':'Draf'}</span></td>
+      <td><div class="actions">
+        <button class="btn ghost" data-versi="${v.published?'unpublish':'publish'}" data-id="${esc(v.id)}">${v.published?'Tarik':'Terbitkan'}</button>
+        <button class="btn danger" data-versi="delete" data-id="${esc(v.id)}">Hapus</button>
+      </div></td></tr>`).join('')}</tbody></table>`
+    :'<p class="sub">Belum ada versi yang terdaftar.</p>';
+
+  host.querySelectorAll('[data-versi]').forEach(btn=>btn.onclick=async()=>{
+    const aksi=btn.dataset.versi;
+    const konfirmasi={publish:'Terbitkan versi ini ke seluruh sekolah?',
+      unpublish:'Tarik versi ini sehingga sekolah tidak lagi menerimanya?',
+      delete:'Hapus catatan versi ini secara permanen?'}[aksi];
+    if(!window.confirm(konfirmasi))return;
+    btn.disabled=true;
+    try{
+      await api(`/owner/app-versions/${btn.dataset.id}/${aksi}`,{method:'POST'});
+      lapor('Katalog versi diperbarui.','ok');
+    }catch(error){btn.disabled=false;lapor(error.message,'err');}
+  });
 }
 
 async function gambarRiwayat(host){

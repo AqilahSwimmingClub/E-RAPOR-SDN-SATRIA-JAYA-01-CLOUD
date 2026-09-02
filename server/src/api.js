@@ -3,6 +3,7 @@ import { extname, join, normalize } from 'node:path';
 import { hashPassword, maskLicense, newId, publicJwkFromPrivatePem, sessionToken, sha256Hex, verifyPassword } from './crypto.js';
 import * as lisensi from './licenses.js';
 import { LicenseError } from './licenses.js';
+import * as pembaruan from './updates.js';
 
 /* Lapisan HTTP. Tidak ada keputusan lisensi di sini: seluruhnya didelegasikan ke licenses.js.
    Endpoint pemilik selalu menuntut sesi pemilik yang sah; endpoint sekolah tidak pernah bisa
@@ -111,8 +112,25 @@ export function createApi({store,secrets,logger=()=>{},publicDir=null}){
       return {status:hasil.license.status,license_id:hasil.license.id,license_hint:hasil.license.license_hint,activation_token:hasil.token};
     },
 
-    /* Disiapkan untuk Tahap 9. Belum ada updater apa pun yang memakainya. */
-    'GET /api/v1/updates/latest':async()=>({implemented:false,message:'Sistem update belum diaktifkan.'}),
+    /* Metadata pembaruan resmi. Endpoint ini hanya membaca katalog rilis: ia tidak menyentuh
+       lisensi, tidak mengikat perangkat, dan tidak menerima satu pun data akademik sekolah.
+       Platform dan versi terpasang yang dikirim aplikasi divalidasi lebih dulu. */
+    'GET /api/v1/updates/latest':async(req,res,body,url)=>
+      pembaruan.latestUpdate(store,{platform:url?.searchParams.get('platform'),version:url?.searchParams.get('version')||''}),
+
+    /* Katalog versi hanya boleh dibaca dan diubah Pemilik. Admin sekolah dan Guru tidak punya
+       sesi pemilik, sehingga permintaan mereka berhenti di wajibOwner dengan 401. */
+    'GET /api/v1/owner/app-versions':async(req,res,body,url)=>{
+      await wajibOwner(req);
+      return {versions:await pembaruan.listAppVersions(store,{platform:url?.searchParams.get('platform')||null})};
+    },
+    'POST /api/v1/owner/app-versions':async(req,res,body)=>{
+      const owner=await wajibOwner(req);
+      const versi=await pembaruan.createAppVersion(store,body,{actor:owner.username});
+      await lisensi.logEvent(store,{type:'APP_VERSION_CREATED',actor:owner.username,
+        detail:`${versi.platform} ${versi.version}`});
+      return {version:versi};
+    },
 
     /* ------------------------------------------------------------------- owner: sesi */
     'POST /api/v1/owner/login':async(req,res,body)=>{
@@ -167,6 +185,14 @@ export function createApi({store,secrets,logger=()=>{},publicDir=null}){
     'recover':async(owner,id,body)=>({recovery:await lisensi.recoverLicenseKey(store,id,{actor:owner.username,reason:body?.reason},secrets)}),
   };
 
+  /* ------------------------------------------------------------- owner: versi aplikasi */
+
+  const aksiVersi={
+    publish:async(owner,id)=>({version:await pembaruan.setAppVersionPublished(store,id,true,{actor:owner.username})}),
+    unpublish:async(owner,id)=>({version:await pembaruan.setAppVersionPublished(store,id,false,{actor:owner.username})}),
+    delete:async(owner,id)=>({version:await pembaruan.deleteAppVersion(store,id)}),
+  };
+
   function sajikanStatis(req,res,pathname){
     if(!publicDir)return false;
     const relatif=pathname==='/'||pathname==='/owner'||pathname==='/owner/'?'/owner/index.html':pathname;
@@ -203,6 +229,16 @@ export function createApi({store,secrets,logger=()=>{},publicDir=null}){
         if(!aksi)throw new LicenseError('NOT_FOUND','Aksi tidak dikenal.',404);
         const owner=await wajibOwner(req);
         return kirim(res,200,await aksi(owner,cocok[1],body),pathname);
+      }
+      const versi=pathname.match(/^\/api\/v1\/owner\/app-versions\/([A-Za-z0-9_]+)\/([a-z]+)$/);
+      if(versi&&req.method==='POST'){
+        const aksi=aksiVersi[versi[2]];
+        if(!aksi)throw new LicenseError('NOT_FOUND','Aksi versi tidak dikenal.',404);
+        const owner=await wajibOwner(req);
+        const hasil=await aksi(owner,versi[1]);
+        await lisensi.logEvent(store,{type:`APP_VERSION_${versi[2].toUpperCase()}`,actor:owner.username,
+          detail:`${hasil.version.platform} ${hasil.version.version}`});
+        return kirim(res,200,hasil,pathname);
       }
       const detail=pathname.match(/^\/api\/v1\/owner\/licenses\/([A-Za-z0-9_]+)$/);
       if(detail&&req.method==='GET'){await wajibOwner(req);return kirim(res,200,await lisensi.licenseDetail(store,detail[1]),pathname);}

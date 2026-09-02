@@ -148,16 +148,21 @@ test('Owner Panel terpisah dan tidak pernah ikut ke aplikasi sekolah',()=>{
     assert.equal(navigasi.toLowerCase().includes(larangan),false,`menu sekolah tidak memuat ${larangan}`);
 });
 
-test('Tahap 9 belum dikerjakan: hanya skema versi aplikasi yang disiapkan',async t=>{
+/* Tahap 9 sudah dikerjakan: endpoint pembaruan aktif. Yang tetap dilarang adalah updater yang
+   memasang sendiri tanpa persetujuan pengguna, atau yang membersihkan berkas dan data lama.
+   Aplikasi hanya membuka alamat rilis resmi; pemasangannya tetap keputusan pengguna dan sistem
+   operasi, sehingga data e-Rapor yang sudah ada tidak pernah dihapus oleh pembaruan. */
+test('Tahap 9: endpoint pembaruan aktif tanpa pemasangan otomatis di aplikasi sekolah',async t=>{
   const server=await startTestServer();t.after(()=>server.close());
-  const {data}=await server.call('/updates/latest');
-  assert.equal(data.implemented,false,'endpoint update belum aktif');
+  const {data}=await server.call('/updates/latest?platform=android&version=1.2.1');
+  assert.equal(data.implemented,true,'endpoint update sudah aktif');
   const tabel=server.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(r=>r.name);
-  assert.ok(tabel.includes('app_versions'),'skema app_versions sudah disiapkan');
-  /* Tidak ada updater apa pun di aplikasi sekolah. */
+  assert.ok(tabel.includes('app_versions'),'katalog versi tersedia');
   for(const berkas of berkasClient()){
     const isi=read(berkas);
-    for(const larangan of ['autoUpdater','downloadUpdate','installApk','checkForUpdates'])
-      assert.equal(isi.includes(larangan),false,`${berkas} tidak memuat updater (${larangan})`);
+    for(const larangan of ['autoUpdater','installApk','silentInstall','packageInstaller'])
+      assert.equal(isi.includes(larangan),false,`${berkas} tidak memasang pembaruan sendiri (${larangan})`);
+    for(const merusak of ['localStorage.clear','rmSync','unlinkSync','deleteDatabase'])
+      assert.equal(isi.includes(merusak),false,`${berkas} tidak menghapus data saat pembaruan (${merusak})`);
   }
 });
