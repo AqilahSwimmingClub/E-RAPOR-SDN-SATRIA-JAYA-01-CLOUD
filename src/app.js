@@ -10,6 +10,7 @@ import { isSchoolIdentityReady } from './services/master.js';
 import { renderDashboard } from './pages/dashboard.js';
 import { renderProfile } from './pages/profile.js';
 import { renderStudents } from './pages/students.js';
+import { renderStudentHandover } from './pages/student-handover.js';
 import { renderAttendance } from './pages/attendance.js';
 import { renderAssessment } from './pages/assessment.js';
 import { renderAttitudes } from './pages/attitudes.js';
@@ -133,6 +134,7 @@ function pageFor(route,session){
     case 'backup': return renderBackupRestore(session);
     case 'account-settings': return renderAccountSettings(session);
     case 'student-update': return renderStudents(session);
+    case 'student-handover': return renderStudentHandover(session);
     case 'attendance': return renderAttendance(session);
     case 'assessment': return renderAssessment(session);
     case 'attitudes': return renderAttitudes(session);

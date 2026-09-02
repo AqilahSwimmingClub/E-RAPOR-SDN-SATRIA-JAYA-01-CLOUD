@@ -5,7 +5,7 @@ import { flattenNavigation, navigationForRole } from '../src/data/navigation.js'
 test('teacher Input Kelengkapan children use the approved order',()=>{
   const group=navigationForRole('teacher').find(item=>item.id==='completeness');
   assert.deepEqual(group.children.map(item=>item.label),[
-    'Update Data Siswa','Input Nilai Ekskul','Input Nilai Kokurikuler',
+    'Update Data Siswa','Serah Terima Siswa','Input Nilai Ekskul','Input Nilai Kokurikuler',
     'Input Nilai Intrakurikuler','Penilaian Sikap','Input Catatan Wali Kelas','Input Kenaikan Kelas'
   ]);
 });

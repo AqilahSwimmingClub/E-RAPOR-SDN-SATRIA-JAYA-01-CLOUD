@@ -410,6 +410,15 @@ textarea.input{color:var(--light-ink)}
 .license-banner{margin-bottom:14px;padding:11px 14px;border-radius:12px;font-size:12px;line-height:1.55;background:rgba(255,201,61,.14);border:1px solid rgba(255,201,61,.4);color:#7a5a05}
 @media(max-width:767px){.license-input{font-size:14px;letter-spacing:.08em}}
 /* Panel kesiapan penggunaan pada halaman Status Penilaian Admin. */
+/* Halaman Serah Terima Data Siswa. */
+.handover-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:12px;max-height:340px;overflow-y:auto}
+.handover-row{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--soft);cursor:pointer}
+.handover-row input{flex:none;width:17px;height:17px}
+.handover-row strong{display:block;font-size:12.5px}
+.handover-row small{display:block;font-size:10.5px;color:var(--muted);margin-top:2px}
+.handover-preview{margin-top:12px;padding:12px 14px;border-radius:12px;background:var(--soft);border:1px solid var(--line);font-size:12px;line-height:1.6}
+.handover-preview p{margin:0 0 6px}
+.handover-skip{color:var(--danger)}
 .readiness-card{margin-bottom:16px}
 .readiness-list{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:9px;margin:12px 0 0;padding:0}
 .readiness-list li{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--soft)}

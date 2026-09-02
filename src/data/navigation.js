@@ -19,6 +19,7 @@ export const NAVIGATION=Object.freeze({
       item('reference-school','Data Sekolah','school','reference-school'),
       item('reference-teachers','Data Guru','users','reference-teachers'),
       item('reference-students','Data Siswa','users','reference-students'),
+      item('student-handover','Serah Terima Siswa','shuffle','student-handover'),
       item('reference-classes','Data Kelas/Rombel','grid','reference-classes'),
       item('reference-subjects','Mata Pelajaran','book','reference-subjects'),
       item('reference-learning','Pembelajaran','target','reference-learning'),
@@ -87,6 +88,7 @@ export const NAVIGATION=Object.freeze({
     ]),
     group('completeness','Input Kelengkapan','list',[
       item('student-update','Update Data Siswa','users','student-update'),
+      item('student-handover','Serah Terima Siswa','shuffle','student-handover'),
       item('extra-input','Input Nilai Ekskul','activity','extra-input'),
       item('cocurricular-input','Input Nilai Kokurikuler','activity','cocurricular-input'),
       item('intracurricular-input','Input Nilai Intrakurikuler','activity','intracurricular-input'),

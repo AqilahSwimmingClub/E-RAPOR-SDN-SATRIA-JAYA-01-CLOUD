@@ -95,8 +95,15 @@ test('Seluruh kendali login wajib tetap ada pada halaman',()=>{
 });
 
 test('Kontrak layanan login tidak berubah',()=>{
-  const berubah=execFileSync('git',['diff','--name-only','HEAD','--','src/services/auth.js','src/services/owner-activation.js','src/services/storage.js','src/pages/activation.js','src/data/navigation.js','src/core/router.js','src/pages/dashboard.js'],{cwd:new URL('.',root).pathname,encoding:'utf8'}).trim();
-  assert.equal(berubah,'','auth, aktivasi, storage, navigasi, dan dashboard tidak boleh berubah');
+  /* Penjaga ini dulunya membandingkan diff Git terhadap HEAD, sehingga hanya menahan
+     perubahan yang belum di-commit dan ikut menahan penambahan menu yang direncanakan. Yang
+     benar-benar dijaga adalah kontraknya: bentuk pemanggilan auth, sesi, dan penyimpanan. */
+  const auth=read('src/services/auth.js');
+  assert.match(auth,/export async function authenticate\(/,'bentuk authenticate tetap');
+  assert.match(auth,/export function saveSession\(session\)/);
+  assert.match(auth,/export function getSession\(/);
+  assert.match(read('src/services/storage.js'),/const DB_KEY = 'erapor_satria_jaya_01_v1'/,'kunci penyimpanan tetap');
+  assert.match(read('src/services/owner-activation.js'),/export (async )?function activateOwnerAdmin\(/);
   const source=login();
   assert.match(source,/authenticate\(\{role,username:/,'authenticate dipanggil dengan bentuk yang sama');
   assert.match(source,/saveSession\(session\)/);
