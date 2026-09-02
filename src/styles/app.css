@@ -409,6 +409,15 @@ textarea.input{color:var(--light-ink)}
 .license-ok{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:12px;background:rgba(46,230,192,.14);border:1px solid rgba(46,230,192,.35);color:#8ff3e0}
 .license-banner{margin-bottom:14px;padding:11px 14px;border-radius:12px;font-size:12px;line-height:1.55;background:rgba(255,201,61,.14);border:1px solid rgba(255,201,61,.4);color:#7a5a05}
 @media(max-width:767px){.license-input{font-size:14px;letter-spacing:.08em}}
+/* Panel kesiapan penggunaan pada halaman Status Penilaian Admin. */
+.readiness-card{margin-bottom:16px}
+.readiness-list{list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:9px;margin:12px 0 0;padding:0}
+.readiness-list li{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--soft)}
+.readiness-list strong{display:block;font-size:12.5px}
+.readiness-list span{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+.readiness-list li.done{border-color:rgba(74,222,128,.45);background:#eaf7f0}
+.readiness-list li.done strong{color:var(--success)}
+.readiness-note{margin:10px 0 0;font-size:11px;color:var(--danger);line-height:1.55}
 .setup-stage{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:32px 18px calc(28px + env(safe-area-inset-bottom));background:radial-gradient(760px 460px at 70% 6%,rgba(56,225,255,.1) 0%,transparent 60%),linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%);color:var(--dark-ink);overflow-y:auto}
 .setup-card{width:min(880px,100%);background:linear-gradient(165deg,rgba(255,255,255,.09),rgba(255,255,255,.04));border:1px solid var(--glass-line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 24px 60px rgba(0,0,0,.45)}
 .setup-card h1{margin:0;font-size:20px;font-weight:850;color:var(--dark-ink)}

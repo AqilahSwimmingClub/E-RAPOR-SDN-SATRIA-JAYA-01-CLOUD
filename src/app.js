@@ -5,6 +5,7 @@ import { renderOwnerActivation } from './pages/activation.js';
 import { renderSchoolSetup } from './pages/school-setup.js';
 import { renderLicenseActivation } from './pages/license-activation.js';
 import { checkLicense, getLicenseState } from './services/license.js';
+import { getAdminReadiness, isTeacherUsageActive } from './services/admin-readiness.js';
 import { isSchoolIdentityReady } from './services/master.js';
 import { renderDashboard } from './pages/dashboard.js';
 import { renderProfile } from './pages/profile.js';
@@ -93,15 +94,30 @@ function mount(requestedRoute){
     app.append(renderOwnerActivation({onComplete:()=>navigate('login'),onBack:()=>navigate('login')}));
     return;
   }
-  const content=licenseState.canEditData||READ_ONLY_SAFE_ROUTES.has(route)
-    ?pageFor(route,session)
-    :limitedNotice();
+  /* Dua gerbang berlapis: lisensi perangkat, lalu kesiapan yang diatur Admin sekolah. */
+  const terkunciLisensi=!licenseState.canEditData&&!READ_ONLY_SAFE_ROUTES.has(route);
+  const terkunciAdmin=!terkunciLisensi&&session?.role==='teacher'
+    &&!TEACHER_ALWAYS_OPEN_ROUTES.has(route)&&!isTeacherUsageActive(session);
+  const content=terkunciLisensi?limitedNotice():terkunciAdmin?readinessNotice(session):pageFor(route,session);
   app.append(renderLayout({session,route,onNavigate:navigate,onLogout:()=>navigate('login'),content,
     licenseNotice:licenseState.canEditData?null:licenseState.message}));
 }
 /* Saat lisensi bermasalah, aplikasi TIDAK menghapus apa pun. Pengguna tetap dapat melihat
    datanya, mencetak, dan yang terpenting membuat backup, sehingga data sekolah tidak pernah
    menjadi sandera. Yang ditutup hanyalah halaman yang mengubah data. */
+/* Sebelum Admin menekan Aktifkan e-Rapor untuk Guru, wali kelas tetap dapat masuk dan
+   melihat halaman yang tidak bergantung pada konfigurasi. Menu operasional ditahan dengan
+   alasan yang jelas, dan tidak ada satu pun data yang dihapus atau disembunyikan permanen. */
+const TEACHER_ALWAYS_OPEN_ROUTES=new Set(['dashboard','profile','account-settings','backup','objectives']);
+
+function readinessNotice(session){
+  const kesiapan=getAdminReadiness(session);
+  return el(`<section class="card empty-state"><div class="placeholder-icon">${icon('settings',26)}</div>
+    <h3>Menu Belum Dibuka Admin</h3><p>${escapeHtml(kesiapan.lockMessage)}</p>
+    <p>Yang masih perlu dilengkapi Admin: ${escapeHtml(kesiapan.missing.join(', ')||'menunggu Admin menekan tombol aktivasi')}.</p>
+    </section>`);
+}
+
 const READ_ONLY_SAFE_ROUTES=new Set(['dashboard','profile','backup','account-settings',
   'print-report','print-ledger','print-supplement','transcript-print',
   'assessment-status','teacher-status','class-status','admin-progress','student-progress']);
