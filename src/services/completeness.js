@@ -10,9 +10,11 @@ export const GRADUATION_STATUSES=[
   {id:'GRADUATED',label:'Lulus'},
   {id:'NOT_GRADUATED',label:'Tidak Lulus'},
 ];
-export const ACTIVITY_PREDICATES=['Baik','Sangat Baik'];
-/* Predikat lama tetap dapat dibaca agar data sebelum revisi ini tidak menjadi tidak valid. */
-export const LEGACY_ACTIVITY_PREDICATES=['Cukup'];
+export const ACTIVITY_PREDICATES=['Cukup','Baik','Sangat Baik'];
+/* Baik tetap menjadi pilihan awal setiap form, bukan predikat pertama pada daftar. */
+export const DEFAULT_ACTIVITY_PREDICATE='Baik';
+/* Predikat di luar daftar yang pernah dipakai versi lama tetap dapat dibaca. */
+export const LEGACY_ACTIVITY_PREDICATES=['Perlu Bimbingan'];
 function knownPredicate(value){return ACTIVITY_PREDICATES.includes(value)||LEGACY_ACTIVITY_PREDICATES.includes(value);}
 export const ACTIVITY_DESCRIPTIONS={
   'Sangat Baik':'Menunjukkan partisipasi, kedisiplinan, dan tanggung jawab yang sangat baik dalam kegiatan.',
@@ -66,7 +68,7 @@ function normalizeActivity(input){
 /* Terapkan ke Semua Siswa: kegiatan, predikat, dan deskripsi yang sama untuk seluruh siswa
    rombel, ditulis dalam SATU commit. Data individual dengan kegiatan yang sama hanya ditimpa
    bila pemanggil memang meminta overwrite, sehingga hasil edit per siswa tidak hilang diam-diam. */
-export function saveExtracurricularBulk(session,input,{overwrite=true}={}){
+export function saveExtracurricularBulk(session,input,{overwrite=true,onlyEmpty=false}={}){
   assertTeacher(session);
   const predicate=clean(input?.predicate,50);
   if(!ACTIVITY_PREDICATES.includes(predicate))throw new Error('Predikat ekstrakurikuler tidak valid.');
@@ -80,6 +82,9 @@ export function saveExtracurricularBulk(session,input,{overwrite=true}={}){
     students.forEach(student=>{
       const prefix=`${scopeKey(session)}|${student.id}|`;
       const entri=Object.entries(db.extracurricularScores||{}).filter(([key])=>key.startsWith(prefix));
+      /* onlyEmpty melewati siswa yang sudah punya kegiatan apa pun, sehingga isian
+         individual guru tidak pernah tertimpa oleh tombol massal. */
+      if(onlyEmpty&&entri.length){dilewati+=1;saved.push(clone(entri[0][1]));return;}
       const cocok=entri.find(([,record])=>String(record.name||'').toLowerCase()===name.toLowerCase());
       if(cocok&&!overwrite){dilewati+=1;saved.push(clone(cocok[1]));return;}
       const id=cocok?cocok[1].id:newId('extra');
@@ -90,6 +95,25 @@ export function saveExtracurricularBulk(session,input,{overwrite=true}={}){
     return db;
   });
   return {saved:clone(saved),studentCount:students.length,skipped:dilewati};
+}
+
+/* Form Ekstrakurikuler yang baru bekerja pada satu kegiatan per siswa, tetapi penyimpanannya
+   tetap koleksi lama yang bisa memuat beberapa kegiatan. getStudentExtracurricular memilih
+   kegiatan yang terakhir disunting, dan penyimpanan menimpa kegiatan bernama sama bila ada
+   sehingga data rombel dari versi sebelumnya tidak pernah hilang atau terduplikasi. */
+export function getStudentExtracurricular(session,studentId){
+  const daftar=listExtracurriculars(session,studentId);
+  if(!daftar.length)return null;
+  return [...daftar].sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')))[0];
+}
+
+export function saveStudentExtracurricular(session,studentId,input){
+  requireStudent(session,studentId);
+  const value=normalizeActivity(input);
+  const existing=listExtracurriculars(session,studentId).find(item=>String(item.name||'').toLowerCase()===value.name.toLowerCase());
+  return existing
+    ?updateExtracurricular(session,studentId,existing.id,value)
+    :createExtracurricular(session,studentId,value);
 }
 
 function cocurricularKey(session,studentId){return `${scopeKey(session)}|${studentId}`;}

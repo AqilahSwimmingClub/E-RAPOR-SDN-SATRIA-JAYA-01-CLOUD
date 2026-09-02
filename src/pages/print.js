@@ -76,14 +76,24 @@ export function activityTable(label,items,{studentName=''}={}){
   }).join('')}</tbody></table>`;
 }
 
-/* Kedua bagian ini opsional: tidak dicetak sama sekali bila memang belum diisi. */
+/* Ketiga bagian ini opsional dan dinilai per siswa yang sedang dicetak. Bagian yang belum
+   diisi siswa itu tidak menghasilkan HTML sama sekali: tidak ada judul, tabel, maupun baris
+   kosong sebagai placeholder. Data siswa lain di rombel yang sama tidak pernah ikut terbawa
+   karena seluruh isinya berasal dari dokumen satu siswa. */
 export function extracurricularTable(doc){
   return activityTable('Ekstrakurikuler',doc?.extracurricular,{studentName:doc?.student?.name});
 }
 
+function singleActivityRows(item){
+  return item?.activity?[{name:item.activity,predicate:item.predicate,description:item.description}]:[];
+}
+
 export function cocurricularTable(doc){
-  const item=doc?.cocurricular;
-  return activityTable('Kokurikuler',item?[{name:item.activity,predicate:item.predicate,description:item.description}]:[],{studentName:doc?.student?.name});
+  return activityTable('Kokurikuler',singleActivityRows(doc?.cocurricular),{studentName:doc?.student?.name});
+}
+
+export function intracurricularTable(doc){
+  return activityTable('Intrakurikuler',singleActivityRows(doc?.intracurricular),{studentName:doc?.student?.name});
 }
 
 const PRINT_MODES=Object.freeze({
@@ -323,7 +333,7 @@ export function renderPrint(session,initialTab='ledger'){
     const student=doc.student,school=doc.master.school,teacher=doc.master.teacher,settings=doc.printSettings;
     const head=`<table class="report-head-table"><tbody><tr><td>Nama Murid</td><td>:</td><td>${escapeHtml(student.name)}</td><td>Kelas</td><td>:</td><td>${escapeHtml(doc.classLabel)}</td></tr><tr><td>NIS/NISN</td><td>:</td><td>${escapeHtml(student.nis)} / ${escapeHtml(student.nisn)}</td><td>Semester</td><td>:</td><td>${doc.semesterNumber}</td></tr><tr><td>Sekolah</td><td>:</td><td>${escapeHtml(school.name)}</td><td>Tahun Ajaran</td><td>:</td><td>${escapeHtml(doc.academicYear)}</td></tr><tr><td>Alamat</td><td>:</td><td colspan="4">${blank(school.address)}</td></tr></tbody></table>`;
     const signatures=`<div class="report-signatures"><div><span>Orang Tua Murid</span><span class="signature-spacer"></span><strong>${DOTS}</strong></div><div><span>Kepala Sekolah</span><span class="signature-spacer"></span>${signatureBlock(school.principalName,school.principalNip)}</div><div><span>${escapeHtml(settings.printDateLabel||`${settings.city||'Bekasi'}, ${DOTS.slice(0,18)}`)}</span><span>Wali Kelas</span><span class="signature-spacer"></span>${signatureBlock(teacher.name,teacher.nip)}</div></div>`;
-    return `<section class="document-a4 document-sheet report-a4">${head}<h2 class="document-heading">LAPORAN HASIL BELAJAR</h2>${attitudeBlock(doc)}<h3 class="document-section">B. Pengetahuan dan Keterampilan</h3><table class="document-table report-learning-table"><thead><tr><th>No</th><th>Mata Pelajaran</th><th>Nilai Akhir</th><th>Capaian Kompetensi</th></tr></thead><tbody>${subjectRows(doc)}</tbody></table>${extracurricularTable(doc)}${cocurricularTable(doc)}<div class="report-lower-grid"><section class="document-box"><div class="document-box-head">Ketidakhadiran</div><div class="document-box-body"><table class="absence-document-table"><tbody><tr><th>Sakit</th><td>: ${doc.attendance.Sakit} hari</td></tr><tr><th>Izin</th><td>: ${doc.attendance.Izin} hari</td></tr><tr><th>Tanpa Keterangan</th><td>: ${doc.attendance.Alpa} hari</td></tr></tbody></table></div></section><section class="document-box"><div class="document-box-head">Catatan Wali Kelas</div><div class="document-box-body"><p>${escapeHtml(doc.homeroomNote||'')}</p></div></section></div>${finalStatusBlock(doc)}<section class="document-box response-box"><div class="document-box-head">Tanggapan Orang Tua/Wali Murid</div><div class="document-box-body"></div></section>${signatures}<div class="document-foot">${escapeHtml(doc.classLabel)} | ${escapeHtml(student.name)} | ${escapeHtml(student.nis)}</div></section>`;
+    return `<section class="document-a4 document-sheet report-a4">${head}<h2 class="document-heading">LAPORAN HASIL BELAJAR</h2>${attitudeBlock(doc)}<h3 class="document-section">B. Pengetahuan dan Keterampilan</h3><table class="document-table report-learning-table"><thead><tr><th>No</th><th>Mata Pelajaran</th><th>Nilai Akhir</th><th>Capaian Kompetensi</th></tr></thead><tbody>${subjectRows(doc)}</tbody></table>${extracurricularTable(doc)}${cocurricularTable(doc)}${intracurricularTable(doc)}<div class="report-lower-grid"><section class="document-box"><div class="document-box-head">Ketidakhadiran</div><div class="document-box-body"><table class="absence-document-table"><tbody><tr><th>Sakit</th><td>: ${doc.attendance.Sakit} hari</td></tr><tr><th>Izin</th><td>: ${doc.attendance.Izin} hari</td></tr><tr><th>Tanpa Keterangan</th><td>: ${doc.attendance.Alpa} hari</td></tr></tbody></table></div></section><section class="document-box"><div class="document-box-head">Catatan Wali Kelas</div><div class="document-box-body"><p>${escapeHtml(doc.homeroomNote||'')}</p></div></section></div>${finalStatusBlock(doc)}<section class="document-box response-box"><div class="document-box-head">Tanggapan Orang Tua/Wali Murid</div><div class="document-box-body"></div></section>${signatures}<div class="document-foot">${escapeHtml(doc.classLabel)} | ${escapeHtml(student.name)} | ${escapeHtml(student.nis)}</div></section>`;
   }
 
   /* Mapel agama hanya bisa ditentukan dari agama siswa dan tidak pernah ditebak. Ketika kolom

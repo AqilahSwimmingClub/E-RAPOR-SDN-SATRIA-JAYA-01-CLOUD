@@ -5,7 +5,10 @@ import { flattenNavigation } from '../src/data/navigation.js';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
-const COMPLETENESS_SECTIONS=[['extra-input','extracurricular'],['cocurricular-input','cocurricular'],['homeroom-note','note'],['promotion-input','promotion']];
+/* Ekstrakurikuler, Kokurikuler, dan Intrakurikuler kini punya halaman input sederhana
+   masing-masing. Halaman kelengkapan hanya menyisakan catatan wali kelas dan kenaikan kelas. */
+const COMPLETENESS_SECTIONS=[['homeroom-note','note'],['promotion-input','promotion']];
+const ACTIVITY_ROUTES=[['extra-input','renderExtracurricularInput'],['cocurricular-input','renderCocurricularInput'],['intracurricular-input','renderIntracurricularInput']];
 const MENU_ROUTES=['extra-input','cocurricular-input','intracurricular-input','attitudes','homeroom-note','promotion-input'];
 
 test('Route anak Input Kelengkapan membuka bagian yang sesuai',()=>{
@@ -13,7 +16,8 @@ test('Route anak Input Kelengkapan membuka bagian yang sesuai',()=>{
   for(const [route,section] of COMPLETENESS_SECTIONS){
     assert.match(app,new RegExp(`case '${route}': return renderCompleteness\\(session,'${section}'\\)`),`${route} membuka bagian ${section}`);
   }
-  assert.match(app,/case 'intracurricular-input': return renderIntracurricularInput\(session\)/,'intracurricular-input memakai renderer stabil tersendiri');
+  for(const [route,renderer] of ACTIVITY_ROUTES)
+    assert.match(app,new RegExp(`case '${route}': return ${renderer}\\(session\\)`),`${route} memakai halaman input tersendiri`);
   assert.match(app,/case 'attitudes': return renderAttitudes\(session\)/,'Penilaian Sikap tetap memakai renderer khusus');
 });
 
@@ -26,10 +30,21 @@ test('Update Data Siswa dan Kehadiran tetap halaman tersendiri',()=>{
 
 test('Halaman kelengkapan menerima initialSection dan membatasi bagian yang sah',()=>{
   const page=read('src/pages/completeness.js');
-  assert.match(page,/export function renderCompleteness\(session,initialSection='extracurricular'\)/);
+  assert.match(page,/export function renderCompleteness\(session,initialSection='note'\)/);
   for(const [,section] of COMPLETENESS_SECTIONS)assert.match(page,new RegExp(`'${section}'`),`bagian ${section} dikenali`);
   assert.doesNotMatch(page,/completeness-tabs/);
   assert.doesNotMatch(page,/data-tab=/);
+});
+
+test('Setiap halaman input kegiatan memakai pola dan layanan yang sama',()=>{
+  for(const [label,path,layanan] of [
+    ['Ekstrakurikuler','src/pages/extracurricular-input.js',['getStudentExtracurricular','saveStudentExtracurricular','saveExtracurricularBulk']],
+    ['Kokurikuler','src/pages/cocurricular-input.js',['getStudentCocurricular','saveStudentCocurricular','saveCocurricularBulk']],
+  ]){
+    const page=read(path);
+    for(const fungsi of layanan)assert.match(page,new RegExp(fungsi),`${label} memakai ${fungsi}`);
+    assert.match(page,/data-generate-description/,`${label} punya Generate Deskripsi Otomatis`);
+  }
 });
 
 test('Input Nilai Intrakurikuler memakai layanan Intrakurikuler pada renderer stabil',()=>{

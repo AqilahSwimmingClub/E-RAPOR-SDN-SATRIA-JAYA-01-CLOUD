@@ -197,7 +197,7 @@ test('Catatan wali kelas massal tidak menimpa catatan individual tanpa diminta',
 });
 
 test('Ekstrakurikuler dan kokurikuler memakai preset kelas serta dua predikat',()=>{
-  assert.deepEqual(ACTIVITY_PREDICATES,['Baik','Sangat Baik']);
+  assert.deepEqual(ACTIVITY_PREDICATES,['Cukup','Baik','Sangat Baik']);
   assert.equal(pramukaPresetForClass('2A'),'Pramuka Siaga');
   assert.equal(pramukaPresetForClass('5B'),'Pramuka Penggalang');
   assert.equal(pramukaDescriptionsForClass('2A').length,5);

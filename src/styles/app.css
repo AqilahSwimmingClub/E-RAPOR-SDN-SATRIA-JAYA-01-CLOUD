@@ -212,6 +212,11 @@ html,body{color-scheme:light}
 .activity-name-cell .activity-name,.activity-name-cell .activity-predicate{display:block;padding:6px 8px;font-weight:800}
 .activity-name-cell .activity-name:not(:last-child){border-bottom:1px solid #333}
 .activity-note-cell{text-align:left!important;vertical-align:middle;line-height:1.5}
+/* Dengan tiga bagian kegiatan, lembar rapor bisa melewati satu halaman A4. Tabel boleh
+   berlanjut ke halaman berikutnya, tetapi satu baris kegiatan tidak pernah terbelah dan
+   judul bagiannya selalu ikut tercetak ulang di halaman lanjutan. Ukuran huruf tidak
+   dikecilkan sama sekali agar tetap terbaca. */
+@media print{.activity-table{break-inside:auto}.activity-table tr{break-inside:avoid}.activity-table thead{display:table-header-group}.activity-table+.activity-table{margin-top:10px}}
 /* Pratinjau rapor pada layar sempit (HP). Margin lembar 14mm/13mm memakan hampir 100px sehingga
    tabel rapor terpotong pada layar 360px. Pada layar kecil margin pratinjau dikecilkan dan lembar
    boleh digeser mendatar bila masih kurang. Sengaja memakai "screen and" supaya aturan ini TIDAK

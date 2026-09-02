@@ -1,3 +1,5 @@
+import { composeActivityDescription } from './activity-description.js';
+
 const PHASE_BY_GRADE=Object.freeze({1:'A',2:'A',3:'B',4:'B',5:'C',6:'C'});
 
 const ACTIVITIES=Object.freeze({
@@ -35,18 +37,12 @@ export function defaultIntracurricularActivities(classId){
   return ACTIVITIES[phase].map((item,index)=>({id:`default-${grade}-${index+1}`,name:item.name,description:item.description,phase,grade,active:true,isDefault:true}));
 }
 
-const PREDICATE_SENTENCES=Object.freeze({
-  'Sangat Baik':'menunjukkan penguasaan yang sangat baik, aktif, mandiri, dan konsisten',
-  'Baik':'menunjukkan penguasaan yang baik dan mampu menyelesaikan kegiatan dengan cukup mandiri',
-  'Cukup':'menunjukkan penguasaan yang cukup dan masih memerlukan arahan pada beberapa bagian',
-  'Perlu Bimbingan':'masih memerlukan bimbingan bertahap agar dapat memahami dan menyelesaikan kegiatan dengan lebih baik'
-});
-
 export function generateIntracurricularDescription({studentName='',activity,predicate='Baik'}={}){
-  const name=String(studentName||'Siswa').trim()||'Siswa';
-  const activityName=String(activity?.name||activity||'kegiatan intrakurikuler').trim();
-  const detail=String(activity?.description||'').trim();
-  const achievement=PREDICATE_SENTENCES[predicate]||PREDICATE_SENTENCES.Baik;
-  const focus=detail?` Fokus kegiatan mencakup ${detail.charAt(0).toLowerCase()}${detail.slice(1)}`:'';
-  return `${name} ${achievement} pada kegiatan ${activityName}.${focus}`.replace(/\.\./g,'.');
+  return composeActivityDescription({
+    studentName,
+    activityName:String(activity?.name||activity||'').trim(),
+    detail:activity?.description,
+    predicate,
+    fallbackActivity:'kegiatan intrakurikuler',
+  });
 }
