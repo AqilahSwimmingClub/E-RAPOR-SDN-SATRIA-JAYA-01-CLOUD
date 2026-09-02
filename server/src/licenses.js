@@ -1,9 +1,10 @@
-import { nowIso } from './db.js';
 import { decryptRecovery, encryptRecovery, generateLicenseKey, licenseHash, licenseHint,
   newId, normalizeLicenseKey, signActivationToken } from './crypto.js';
+import { isUniqueViolation } from './store.js';
 
-/* Seluruh keputusan lisensi berada di sini, di sisi server. Client tidak pernah menentukan
-   apakah sebuah aktivasi sah; ia hanya menerima hasilnya beserta token bertanda tangan.
+/* Seluruh keputusan lisensi berada di sini, di sisi server, dan ditulis satu kali untuk kedua
+   database. Client tidak pernah menentukan apakah sebuah aktivasi sah; ia hanya menerima
+   hasilnya beserta token bertanda tangan.
 
    Tidak ada satu pun jalur di berkas ini yang memberi pengecualian berdasarkan nama sekolah,
    NPSN, atau identitas siapa pun. Setiap perangkat tunduk pada aturan yang sama. */
@@ -18,9 +19,12 @@ export class LicenseError extends Error{
   constructor(code,message,httpStatus=400){super(message);this.code=code;this.httpStatus=httpStatus;}
 }
 
-function catat(db,{licenseId=null,type,actor,detail=null}){
-  db.prepare('INSERT INTO license_events(id,license_id,type,actor,detail,created_at) VALUES(?,?,?,?,?,?)')
-    .run(newId('evt'),licenseId,type,actor,detail?JSON.stringify(detail):null,nowIso());
+const iso=value=>value instanceof Date?value.toISOString():value;
+const nowIso=()=>new Date().toISOString();
+
+async function catat(store,{licenseId=null,type,actor,detail=null}){
+  await store.run('INSERT INTO license_events(id,license_id,type,actor,detail,created_at) VALUES($1,$2,$3,$4,$5,$6)',
+    [newId('evt'),licenseId,type,actor,detail?JSON.stringify(detail):null,nowIso()]);
 }
 export const logEvent=catat;
 
@@ -28,12 +32,10 @@ function bersih(value,max=180){return String(value??'').trim().slice(0,max);}
 
 /* ------------------------------------------------------------------ Pembuatan lisensi */
 
-export function createLicenses(db,{count=1,customerId=null,schoolName='',npsn='',notes='',actor,recoverySecret}){
+export async function createLicenses(store,{count=1,customerId=null,schoolName='',npsn='',notes='',actor,recoverySecret}){
   const jumlah=Number.parseInt(count,10);
   if(!Number.isInteger(jumlah)||jumlah<1||jumlah>500)throw new LicenseError('INVALID_COUNT','Jumlah lisensi harus 1 sampai 500.');
   const hasil=[];
-  const insert=db.prepare(`INSERT INTO licenses(id,license_hash,license_hint,encrypted_recovery,status,customer_id,school_name,npsn,created_at,notes)
-    VALUES(?,?,?,?,'UNUSED',?,?,?,?,?)`);
   for(let i=0;i<jumlah;i++){
     /* Tabrakan kunci praktis mustahil, tetapi UNIQUE pada license_hash tetap menjadi
        penjaga terakhir dan percobaan diulang bila benar-benar terjadi. */
@@ -42,13 +44,16 @@ export function createLicenses(db,{count=1,customerId=null,schoolName='',npsn=''
       const key=generateLicenseKey();
       const id=newId('lic');
       try{
-        insert.run(id,licenseHash(key,recoverySecret.pepper),licenseHint(key),
-          encryptRecovery(key,recoverySecret.recoveryKey),customerId,bersih(schoolName),bersih(npsn,40),nowIso(),bersih(notes,500));
+        await store.run(`INSERT INTO licenses(id,license_hash,license_hint,encrypted_recovery,status,customer_id,school_name,npsn,created_at,notes)
+          VALUES($1,$2,$3,$4,'UNUSED',$5,$6,$7,$8,$9)`,
+          [id,licenseHash(key,recoverySecret.pepper),licenseHint(key),encryptRecovery(key,recoverySecret.recoveryKey),
+           customerId||null,bersih(schoolName),bersih(npsn,40),nowIso(),bersih(notes,500)]);
         simpan={id,key,hint:licenseHint(key)};
-      }catch(error){if(!String(error.message).includes('UNIQUE'))throw error;}
+      }catch(error){if(!isUniqueViolation(error))throw error;}
     }
     if(!simpan)throw new LicenseError('GENERATE_FAILED','Gagal membuat License Key unik.',500);
-    catat(db,{licenseId:simpan.id,type:'LICENSE_CREATED',actor,detail:{hint:simpan.hint,customerId,schoolName:bersih(schoolName)}});
+    await catat(store,{licenseId:simpan.id,type:'LICENSE_CREATED',actor,
+      detail:{hint:simpan.hint,customerId,schoolName:bersih(schoolName)}});
     hasil.push(simpan);
   }
   return hasil;
@@ -56,10 +61,10 @@ export function createLicenses(db,{count=1,customerId=null,schoolName='',npsn=''
 
 /* ------------------------------------------------------------------------- Aktivasi */
 
-function licenseByKey(db,key,pepper){
+async function licenseByKey(store,key,pepper){
   const normal=normalizeLicenseKey(key);
   if(!normal)throw new LicenseError('INVALID_KEY','License Key tidak valid.',400);
-  const row=db.prepare('SELECT * FROM licenses WHERE license_hash=?').get(licenseHash(normal,pepper));
+  const row=await store.one('SELECT * FROM licenses WHERE license_hash=$1',[licenseHash(normal,pepper)]);
   if(!row)throw new LicenseError('INVALID_KEY','License Key tidak valid.',404);
   return row;
 }
@@ -85,11 +90,12 @@ export function buildActivationToken(license,activation,secrets){
 }
 
 /* Aktivasi berjalan dalam satu transaksi. Bila dua perangkat menekan Aktifkan pada detik yang
-   sama, hanya satu yang lolos UNIQUE INDEX; yang lain menerima penolakan, bukan aktivasi kedua. */
-export function activateLicense(db,input,secrets){
+   sama, hanya satu yang lolos UNIQUE INDEX parsial; yang lain menerima penolakan, bukan
+   aktivasi kedua. */
+export async function activateLicense(store,input,secrets){
   const installationId=bersih(input?.installation_id,80);
   if(!/^inst_[0-9a-f]{32}$/.test(installationId))throw new LicenseError('INVALID_INSTALLATION','Installation ID tidak valid.');
-  const license=licenseByKey(db,input?.license_key,secrets.pepper);
+  const license=await licenseByKey(store,input?.license_key,secrets.pepper);
   pastikanDapatDipakai(license.status);
 
   const platform=bersih(input?.platform,40)||'web';
@@ -98,37 +104,39 @@ export function activateLicense(db,input,secrets){
   const npsn=bersih(input?.npsn,40);
   const appVersion=bersih(input?.app_version,40);
 
-  const aktif=db.prepare('SELECT * FROM device_activations WHERE license_id=? AND is_active=1').get(license.id);
+  const aktif=await store.one('SELECT * FROM device_activations WHERE license_id=$1 AND is_active=TRUE',[license.id]);
   if(aktif&&aktif.installation_id!==installationId){
-    catat(db,{licenseId:license.id,type:'ACTIVATION_REJECTED',actor:'system',
+    await catat(store,{licenseId:license.id,type:'ACTIVATION_REJECTED',actor:'system',
       detail:{reason:'ALREADY_BOUND',installation_id:installationId,bound_to:aktif.installation_id}});
     throw new LicenseError('ALREADY_ACTIVATED','License Key ini sudah terikat pada perangkat lain.',409);
   }
 
-  db.exec('BEGIN IMMEDIATE');
+  /* Pengikatan perangkat sengaja dikerjakan oleh SATU pernyataan INSERT yang dijaga partial
+     unique index, bukan oleh isolasi transaksi. Satu pernyataan selalu atomik pada PostgreSQL
+     maupun SQLite, sehingga aturan satu-perangkat tetap utuh walau permintaan datang bersamaan
+     dari koneksi yang berbeda, dari fungsi serverless yang berbeda, atau bahkan berbagi satu
+     koneksi. Pemenangnya ditentukan database; yang kalah menerima penolakan. */
   try{
     let activation=aktif;
     if(activation){
-      db.prepare('UPDATE device_activations SET last_seen_at=?,platform=?,device_label=?,app_version=? WHERE id=?')
-        .run(nowIso(),platform,deviceLabel,appVersion,activation.id);
+      await store.run('UPDATE device_activations SET last_seen_at=$1,platform=$2,device_label=$3,app_version=$4 WHERE id=$5',
+        [nowIso(),platform,deviceLabel,appVersion,activation.id]);
     }else{
       const id=newId('act');
-      db.prepare(`INSERT INTO device_activations(id,license_id,installation_id,platform,device_label,app_version,activated_at,last_seen_at,is_active)
-        VALUES(?,?,?,?,?,?,?,?,1)`).run(id,license.id,installationId,platform,deviceLabel,appVersion,nowIso(),nowIso());
+      await store.run(`INSERT INTO device_activations(id,license_id,installation_id,platform,device_label,app_version,activated_at,last_seen_at,is_active)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,TRUE)`,[id,license.id,installationId,platform,deviceLabel,appVersion,nowIso(),nowIso()]);
       activation={id,license_id:license.id,installation_id:installationId};
     }
-    db.prepare(`UPDATE licenses SET status='ACTIVE',activated_at=COALESCE(activated_at,?),last_check_at=?,
-      school_name=COALESCE(NULLIF(?,''),school_name),npsn=COALESCE(NULLIF(?,''),npsn) WHERE id=?`)
-      .run(nowIso(),nowIso(),schoolName,npsn,license.id);
-    catat(db,{licenseId:license.id,type:aktif?'ACTIVATION_REFRESHED':'ACTIVATION_CREATED',actor:'system',
+    await store.run(`UPDATE licenses SET status='ACTIVE',activated_at=COALESCE(activated_at,$1),last_check_at=$2,
+      school_name=COALESCE(NULLIF($3,''),school_name),npsn=COALESCE(NULLIF($4,''),npsn) WHERE id=$5`,
+      [nowIso(),nowIso(),schoolName,npsn,license.id]);
+    await catat(store,{licenseId:license.id,type:aktif?'ACTIVATION_REFRESHED':'ACTIVATION_CREATED',actor:'system',
       detail:{installation_id:installationId,platform,school_name:schoolName,npsn}});
-    db.exec('COMMIT');
-    const segar=db.prepare('SELECT * FROM licenses WHERE id=?').get(license.id);
+    const segar=await store.one('SELECT * FROM licenses WHERE id=$1',[license.id]);
     return {license:segar,activation,token:buildActivationToken(segar,activation,secrets)};
   }catch(error){
-    db.exec('ROLLBACK');
-    if(String(error.message).includes('UNIQUE constraint failed: device_activations.license_id')){
-      catat(db,{licenseId:license.id,type:'ACTIVATION_REJECTED',actor:'system',
+    if(isUniqueViolation(error,'ux_one_active_device')){
+      await catat(store,{licenseId:license.id,type:'ACTIVATION_REJECTED',actor:'system',
         detail:{reason:'RACE_LOST',installation_id:installationId}});
       throw new LicenseError('ALREADY_ACTIVATED','License Key ini sudah terikat pada perangkat lain.',409);
     }
@@ -137,108 +145,108 @@ export function activateLicense(db,input,secrets){
 }
 
 /* Pemeriksaan berkala. Tidak pernah menghapus apa pun; hanya melaporkan status terkini. */
-export function checkLicense(db,input,secrets){
+export async function checkLicense(store,input,secrets){
   const installationId=bersih(input?.installation_id,80);
   const licenseId=bersih(input?.license_id,80);
-  const license=db.prepare('SELECT * FROM licenses WHERE id=?').get(licenseId);
+  const license=await store.one('SELECT * FROM licenses WHERE id=$1',[licenseId]);
   if(!license)throw new LicenseError('INVALID_KEY','Lisensi tidak ditemukan.',404);
-  const activation=db.prepare('SELECT * FROM device_activations WHERE license_id=? AND installation_id=? AND is_active=1')
-    .get(license.id,installationId);
+  const activation=await store.one('SELECT * FROM device_activations WHERE license_id=$1 AND installation_id=$2 AND is_active=TRUE',
+    [license.id,installationId]);
   if(!activation)throw new LicenseError('NOT_BOUND','Perangkat ini tidak lagi terdaftar pada lisensi tersebut.',409);
-  db.prepare('UPDATE device_activations SET last_seen_at=? WHERE id=?').run(nowIso(),activation.id);
-  db.prepare('UPDATE licenses SET last_check_at=? WHERE id=?').run(nowIso(),license.id);
+  await store.run('UPDATE device_activations SET last_seen_at=$1 WHERE id=$2',[nowIso(),activation.id]);
+  await store.run('UPDATE licenses SET last_check_at=$1 WHERE id=$2',[nowIso(),license.id]);
   pastikanDapatDipakai(license.status);
   return {license,activation,token:buildActivationToken(license,activation,secrets)};
 }
 
 /* --------------------------------------------------------------- Tindakan pemilik saja */
 
-export function resetDevice(db,licenseId,{actor,reason=''}){
-  const license=db.prepare('SELECT * FROM licenses WHERE id=?').get(licenseId);
+export async function resetDevice(store,licenseId,{actor,reason=''}){
+  const license=await store.one('SELECT * FROM licenses WHERE id=$1',[licenseId]);
   if(!license)throw new LicenseError('NOT_FOUND','Lisensi tidak ditemukan.',404);
-  const aktif=db.prepare('SELECT * FROM device_activations WHERE license_id=? AND is_active=1').get(licenseId);
+  const aktif=await store.one('SELECT * FROM device_activations WHERE license_id=$1 AND is_active=TRUE',[licenseId]);
   if(!aktif)throw new LicenseError('NO_ACTIVE_DEVICE','Lisensi ini belum terikat perangkat mana pun.',409);
-  db.exec('BEGIN IMMEDIATE');
-  try{
-    db.prepare('UPDATE device_activations SET is_active=0,released_at=? WHERE id=?').run(nowIso(),aktif.id);
-    db.prepare("UPDATE licenses SET status='UNUSED' WHERE id=? AND status='ACTIVE'").run(licenseId);
-    catat(db,{licenseId,type:'DEVICE_RESET',actor,detail:{old_installation_id:aktif.installation_id,reason:bersih(reason,300)}});
-    db.exec('COMMIT');
-  }catch(error){db.exec('ROLLBACK');throw error;}
+  await store.transaction(async tx=>{
+    await tx.run('UPDATE device_activations SET is_active=FALSE,released_at=$1 WHERE id=$2',[nowIso(),aktif.id]);
+    await tx.run("UPDATE licenses SET status='UNUSED' WHERE id=$1 AND status='ACTIVE'",[licenseId]);
+  });
+  await catat(store,{licenseId,type:'DEVICE_RESET',actor,
+    detail:{old_installation_id:aktif.installation_id,reason:bersih(reason,300)}});
   return {released:aktif.installation_id};
 }
 
-export function setStatus(db,licenseId,status,{actor,reason=''}){
+export async function setStatus(store,licenseId,status,{actor,reason=''}){
   if(!LICENSE_STATUS.includes(status))throw new LicenseError('INVALID_STATUS','Status lisensi tidak dikenal.');
-  const license=db.prepare('SELECT * FROM licenses WHERE id=?').get(licenseId);
+  const license=await store.one('SELECT * FROM licenses WHERE id=$1',[licenseId]);
   if(!license)throw new LicenseError('NOT_FOUND','Lisensi tidak ditemukan.',404);
-  db.prepare('UPDATE licenses SET status=? WHERE id=?').run(status,licenseId);
-  catat(db,{licenseId,type:`STATUS_${status}`,actor,detail:{from:license.status,to:status,reason:bersih(reason,300)}});
-  return db.prepare('SELECT * FROM licenses WHERE id=?').get(licenseId);
+  await store.run('UPDATE licenses SET status=$1 WHERE id=$2',[status,licenseId]);
+  await catat(store,{licenseId,type:`STATUS_${status}`,actor,detail:{from:license.status,to:status,reason:bersih(reason,300)}});
+  return store.one('SELECT * FROM licenses WHERE id=$1',[licenseId]);
 }
 
 /* Pemulihan kunci hilang. Tidak membuat lisensi baru, tidak menambah slot aktivasi, dan
    selalu tercatat di audit log. */
-export function recoverLicenseKey(db,licenseId,{actor,reason=''},secrets){
-  const license=db.prepare('SELECT * FROM licenses WHERE id=?').get(licenseId);
+export async function recoverLicenseKey(store,licenseId,{actor,reason=''},secrets){
+  const license=await store.one('SELECT * FROM licenses WHERE id=$1',[licenseId]);
   if(!license)throw new LicenseError('NOT_FOUND','Lisensi tidak ditemukan.',404);
   if(!license.encrypted_recovery)throw new LicenseError('NO_RECOVERY','Lisensi ini tidak menyimpan nilai pemulihan.',409);
   const key=decryptRecovery(license.encrypted_recovery,secrets.recoveryKey);
-  catat(db,{licenseId,type:'KEY_RECOVERED',actor,detail:{hint:license.license_hint,reason:bersih(reason,300)}});
+  await catat(store,{licenseId,type:'KEY_RECOVERED',actor,detail:{hint:license.license_hint,reason:bersih(reason,300)}});
   return {license_key:key,hint:license.license_hint};
 }
 
 /* ------------------------------------------------------------------------ Pembacaan */
 
-export function summary(db){
-  const baris=db.prepare('SELECT status,COUNT(*) AS jumlah FROM licenses GROUP BY status').all();
-  const total=db.prepare('SELECT COUNT(*) AS jumlah FROM licenses').get().jumlah;
+export async function summary(store){
+  const baris=(await store.query('SELECT status,COUNT(*) AS jumlah FROM licenses GROUP BY status')).rows;
+  const total=(await store.one('SELECT COUNT(*) AS jumlah FROM licenses')).jumlah;
   const hitung=Object.fromEntries(LICENSE_STATUS.map(status=>[status,0]));
-  baris.forEach(row=>{hitung[row.status]=row.jumlah;});
-  return {total,...hitung,
-    devices:db.prepare('SELECT COUNT(*) AS jumlah FROM device_activations WHERE is_active=1').get().jumlah};
+  baris.forEach(row=>{hitung[row.status]=Number(row.jumlah);});
+  const devices=(await store.one('SELECT COUNT(*) AS jumlah FROM device_activations WHERE is_active=TRUE')).jumlah;
+  return {total:Number(total),...hitung,devices:Number(devices)};
 }
 
-export function listLicenses(db,{q='',status='',limit=100}={}){
+export async function listLicenses(store,{q='',status='',limit=100}={}){
   const cari=`%${bersih(q,80).toLowerCase()}%`;
-  const baris=db.prepare(`SELECT l.*, c.name AS customer_name,
-      (SELECT installation_id FROM device_activations d WHERE d.license_id=l.id AND d.is_active=1) AS active_installation,
-      (SELECT platform FROM device_activations d WHERE d.license_id=l.id AND d.is_active=1) AS active_platform,
-      (SELECT last_seen_at FROM device_activations d WHERE d.license_id=l.id AND d.is_active=1) AS active_last_seen
+  const hasil=await store.query(`SELECT l.*, c.name AS customer_name,
+      (SELECT d.installation_id FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE LIMIT 1) AS active_installation,
+      (SELECT d.platform FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE LIMIT 1) AS active_platform,
+      (SELECT d.last_seen_at FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE LIMIT 1) AS active_last_seen
     FROM licenses l LEFT JOIN customers c ON c.id=l.customer_id
-    WHERE (?='' OR l.status=?)
-      AND (?='%%' OR lower(COALESCE(l.school_name,'')) LIKE ? OR lower(COALESCE(l.npsn,'')) LIKE ?
-           OR lower(l.license_hint) LIKE ? OR lower(COALESCE(c.name,'')) LIKE ? OR lower(l.id) LIKE ?)
-    ORDER BY l.created_at DESC LIMIT ?`)
-    .all(status,status,cari,cari,cari,cari,cari,cari,Math.min(Number(limit)||100,500));
-  return baris;
+    WHERE ($1='' OR l.status=$1)
+      AND ($2='%%' OR lower(COALESCE(l.school_name,'')) LIKE $2 OR lower(COALESCE(l.npsn,'')) LIKE $2
+           OR lower(l.license_hint) LIKE $2 OR lower(COALESCE(c.name,'')) LIKE $2 OR lower(l.id) LIKE $2)
+    ORDER BY l.created_at DESC LIMIT $3`,[status,cari,Math.min(Number(limit)||100,500)]);
+  return hasil.rows.map(row=>({...row,created_at:iso(row.created_at),active_last_seen:iso(row.active_last_seen)}));
 }
 
-export function licenseDetail(db,licenseId){
-  const license=db.prepare('SELECT * FROM licenses WHERE id=?').get(licenseId);
+export async function licenseDetail(store,licenseId){
+  const license=await store.one('SELECT * FROM licenses WHERE id=$1',[licenseId]);
   if(!license)throw new LicenseError('NOT_FOUND','Lisensi tidak ditemukan.',404);
   return {
     license,
-    devices:db.prepare('SELECT * FROM device_activations WHERE license_id=? ORDER BY activated_at DESC').all(licenseId),
-    events:db.prepare('SELECT * FROM license_events WHERE license_id=? ORDER BY created_at DESC LIMIT 100').all(licenseId),
+    devices:(await store.query('SELECT * FROM device_activations WHERE license_id=$1 ORDER BY activated_at DESC',[licenseId])).rows,
+    events:(await store.query('SELECT * FROM license_events WHERE license_id=$1 ORDER BY created_at DESC LIMIT 100',[licenseId])).rows,
   };
 }
 
-export function listEvents(db,{limit=200}={}){
-  return db.prepare('SELECT * FROM license_events ORDER BY created_at DESC LIMIT ?').all(Math.min(Number(limit)||200,1000));
+export async function listEvents(store,{limit=200}={}){
+  const hasil=await store.query('SELECT * FROM license_events ORDER BY created_at DESC LIMIT $1',[Math.min(Number(limit)||200,1000)]);
+  return hasil.rows.map(row=>({...row,created_at:iso(row.created_at)}));
 }
 
-export function upsertCustomer(db,{name,npsn='',contact='',notes='',actor}){
+export async function upsertCustomer(store,{name,npsn='',contact='',notes='',actor}){
   const nama=bersih(name,150);
   if(!nama)throw new LicenseError('INVALID_CUSTOMER','Nama sekolah/pembeli wajib diisi.');
   const id=newId('cus');
-  db.prepare('INSERT INTO customers(id,name,npsn,contact,notes,created_at) VALUES(?,?,?,?,?,?)')
-    .run(id,nama,bersih(npsn,40),bersih(contact,150),bersih(notes,500),nowIso());
-  catat(db,{type:'CUSTOMER_CREATED',actor,detail:{id,name:nama}});
-  return db.prepare('SELECT * FROM customers WHERE id=?').get(id);
+  await store.run('INSERT INTO customers(id,name,npsn,contact,notes,created_at) VALUES($1,$2,$3,$4,$5,$6)',
+    [id,nama,bersih(npsn,40),bersih(contact,150),bersih(notes,500),nowIso()]);
+  await catat(store,{type:'CUSTOMER_CREATED',actor,detail:{id,name:nama}});
+  return store.one('SELECT * FROM customers WHERE id=$1',[id]);
 }
 
-export function listCustomers(db){
-  return db.prepare(`SELECT c.*,(SELECT COUNT(*) FROM licenses l WHERE l.customer_id=c.id) AS license_count
-    FROM customers c ORDER BY c.created_at DESC`).all();
+export async function listCustomers(store){
+  const hasil=await store.query(`SELECT c.*,(SELECT COUNT(*) FROM licenses l WHERE l.customer_id=c.id) AS license_count
+    FROM customers c ORDER BY c.created_at DESC`);
+  return hasil.rows.map(row=>({...row,license_count:Number(row.license_count),created_at:iso(row.created_at)}));
 }

@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { openDatabase } from './db.js';
+import { createSqliteStore } from './store.js';
 import { createApi, ensureOwnerAccount } from './api.js';
 import { loadSecrets, loadServerConfig } from './config.js';
 import { fileURLToPath } from 'node:url';
@@ -7,13 +8,14 @@ import { dirname, join } from 'node:path';
 
 const here=dirname(fileURLToPath(import.meta.url));
 
-export function startLicenseServer({env=process.env,silent=false}={}){
+export async function startLicenseServer({env=process.env,silent=false}={}){
   const config=loadServerConfig(env);
   const secrets=loadSecrets(env);
   const db=openDatabase(config.databaseFile);
-  const owner=ensureOwnerAccount(db,{username:config.ownerUsername,password:config.ownerPassword});
+  const store=createSqliteStore(db);
+  const owner=await ensureOwnerAccount(store,{username:config.ownerUsername,password:config.ownerPassword});
   const logger=silent?()=>{}:entry=>{console.log(JSON.stringify({at:new Date().toISOString(),...entry}));};
-  const handle=createApi({db,secrets,publicDir:join(here,'..','public'),logger});
+  const handle=createApi({store,secrets,publicDir:join(here,'..','public'),logger});
   const server=createServer((req,res)=>{handle(req,res);});
   return new Promise(resolve=>{
     server.listen(config.port,config.host,()=>{
@@ -22,7 +24,7 @@ export function startLicenseServer({env=process.env,silent=false}={}){
         console.log(`Owner Panel: http://${config.host}:${config.port}/owner/`);
         if(!owner)console.log('Peringatan: OWNER_USERNAME/OWNER_PASSWORD belum diisi, Owner Panel belum bisa dipakai.');
       }
-      resolve({server,db,config,secrets});
+      resolve({server,db,store,config,secrets});
     });
   });
 }

@@ -1,6 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
-import { nowIso } from './db.js';
 import { hashPassword, maskLicense, newId, publicJwkFromPrivatePem, sessionToken, sha256Hex, verifyPassword } from './crypto.js';
 import * as lisensi from './licenses.js';
 import { LicenseError } from './licenses.js';
@@ -63,26 +62,26 @@ function ringkasUntukLog(body){
   return salin;
 }
 
-export function createApi({db,secrets,logger=()=>{},publicDir=null}){
+export function createApi({store,secrets,logger=()=>{},publicDir=null}){
   const batasAktivasi=createRateLimiter({windowMs:60_000,max:8});
   const batasLogin=createRateLimiter({windowMs:60_000,max:6});
 
-  function ownerDariRequest(req){
+  async function ownerDariRequest(req){
     const header=String(req.headers.authorization||'');
     if(!header.startsWith('Bearer '))return null;
     const hash=sha256Hex(header.slice(7));
-    const sesi=db.prepare('SELECT * FROM owner_sessions WHERE token_hash=?').get(hash);
+    const sesi=await store.one('SELECT * FROM owner_sessions WHERE token_hash=$1',[hash]);
     if(!sesi)return null;
     if(new Date(sesi.expires_at).getTime()<=Date.now()){
-      db.prepare('DELETE FROM owner_sessions WHERE token_hash=?').run(hash);
+      await store.run('DELETE FROM owner_sessions WHERE token_hash=$1',[hash]);
       return null;
     }
-    const akun=db.prepare('SELECT * FROM owner_accounts WHERE id=? AND active=1').get(sesi.owner_id);
+    const akun=await store.one('SELECT * FROM owner_accounts WHERE id=$1 AND active=TRUE',[sesi.owner_id]);
     return akun?{id:akun.id,username:akun.username}:null;
   }
 
-  function wajibOwner(req){
-    const owner=ownerDariRequest(req);
+  async function wajibOwner(req){
+    const owner=await ownerDariRequest(req);
     if(!owner)throw new LicenseError('UNAUTHORIZED','Akses ini hanya untuk Pemilik aplikasi.',401);
     return owner;
   }
@@ -91,13 +90,13 @@ export function createApi({db,secrets,logger=()=>{},publicDir=null}){
 
   const rute={
     /* ---------------------------------------------------------- publik / client sekolah */
-    'GET /api/v1/health':async()=>({ok:true,time:nowIso()}),
+    'GET /api/v1/health':async()=>({ok:true,time:new Date().toISOString()}),
     'GET /api/v1/public-key':async()=>({algorithm:'ECDSA-P256-SHA256',public_jwk:publicJwkFromPrivatePem(secrets.signingPrivateKeyPem)}),
 
     'POST /api/v1/activate':async(req,res,body)=>{
       if(!batasAktivasi(`ip:${ip(req)}`)||!batasAktivasi(`inst:${String(body?.installation_id||'').slice(0,80)}`))
         throw new LicenseError('RATE_LIMITED','Terlalu banyak percobaan aktivasi. Coba lagi beberapa menit lagi.',429);
-      const hasil=lisensi.activateLicense(db,body,secrets);
+      const hasil=await lisensi.activateLicense(store,body,secrets);
       return {
         status:hasil.license.status,
         license_id:hasil.license.id,
@@ -108,7 +107,7 @@ export function createApi({db,secrets,logger=()=>{},publicDir=null}){
     },
 
     'POST /api/v1/check':async(req,res,body)=>{
-      const hasil=lisensi.checkLicense(db,body,secrets);
+      const hasil=await lisensi.checkLicense(store,body,secrets);
       return {status:hasil.license.status,license_id:hasil.license.id,license_hint:hasil.license.license_hint,activation_token:hasil.token};
     },
 
@@ -118,37 +117,37 @@ export function createApi({db,secrets,logger=()=>{},publicDir=null}){
     /* ------------------------------------------------------------------- owner: sesi */
     'POST /api/v1/owner/login':async(req,res,body)=>{
       if(!batasLogin(`ip:${ip(req)}`))throw new LicenseError('RATE_LIMITED','Terlalu banyak percobaan masuk.',429);
-      const akun=db.prepare('SELECT * FROM owner_accounts WHERE username=? AND active=1').get(String(body?.username||'').trim());
+      const akun=await store.one('SELECT * FROM owner_accounts WHERE username=$1 AND active=TRUE',[String(body?.username||'').trim()]);
       if(!akun||!verifyPassword(String(body?.password||''),akun.password_salt,akun.password_hash))
         throw new LicenseError('UNAUTHORIZED','Username atau password Pemilik salah.',401);
       const token=sessionToken();
-      db.prepare('INSERT INTO owner_sessions(token_hash,owner_id,created_at,expires_at) VALUES(?,?,?,?)')
-        .run(sha256Hex(token),akun.id,nowIso(),new Date(Date.now()+SESSION_HOURS*3600_000).toISOString());
-      lisensi.logEvent(db,{type:'OWNER_LOGIN',actor:akun.username});
+      await store.run('INSERT INTO owner_sessions(token_hash,owner_id,created_at,expires_at) VALUES($1,$2,$3,$4)',
+        [sha256Hex(token),akun.id,new Date().toISOString(),new Date(Date.now()+SESSION_HOURS*3600_000).toISOString()]);
+      await lisensi.logEvent(store,{type:'OWNER_LOGIN',actor:akun.username});
       return {token,username:akun.username,expires_in_hours:SESSION_HOURS};
     },
     'POST /api/v1/owner/logout':async req=>{
       const header=String(req.headers.authorization||'');
-      if(header.startsWith('Bearer '))db.prepare('DELETE FROM owner_sessions WHERE token_hash=?').run(sha256Hex(header.slice(7)));
+      if(header.startsWith('Bearer '))await store.run('DELETE FROM owner_sessions WHERE token_hash=$1',[sha256Hex(header.slice(7))]);
       return {ok:true};
     },
-    'GET /api/v1/owner/me':async req=>({owner:wajibOwner(req)}),
+    'GET /api/v1/owner/me':async req=>({owner:await wajibOwner(req)}),
 
     /* ------------------------------------------------------------- owner: data lisensi */
-    'GET /api/v1/owner/summary':async req=>{wajibOwner(req);return lisensi.summary(db);},
+    'GET /api/v1/owner/summary':async req=>{await wajibOwner(req);return lisensi.summary(store);},
     'GET /api/v1/owner/licenses':async(req,res,body,url)=>{
-      wajibOwner(req);
-      return {licenses:lisensi.listLicenses(db,{q:url.searchParams.get('q')||'',status:url.searchParams.get('status')||''})};
+      await wajibOwner(req);
+      return {licenses:await lisensi.listLicenses(store,{q:url.searchParams.get('q')||'',status:url.searchParams.get('status')||''})};
     },
-    'GET /api/v1/owner/events':async req=>{wajibOwner(req);return {events:lisensi.listEvents(db,{})};},
-    'GET /api/v1/owner/customers':async req=>{wajibOwner(req);return {customers:lisensi.listCustomers(db)};},
+    'GET /api/v1/owner/events':async req=>{await wajibOwner(req);return {events:await lisensi.listEvents(store,{})};},
+    'GET /api/v1/owner/customers':async req=>{await wajibOwner(req);return {customers:await lisensi.listCustomers(store)};},
     'POST /api/v1/owner/customers':async(req,res,body)=>{
-      const owner=wajibOwner(req);
-      return {customer:lisensi.upsertCustomer(db,{...body,actor:owner.username})};
+      const owner=await wajibOwner(req);
+      return {customer:await lisensi.upsertCustomer(store,{...body,actor:owner.username})};
     },
     'POST /api/v1/owner/licenses':async(req,res,body)=>{
-      const owner=wajibOwner(req);
-      const dibuat=lisensi.createLicenses(db,{...body,actor:owner.username,recoverySecret:secrets});
+      const owner=await wajibOwner(req);
+      const dibuat=await lisensi.createLicenses(store,{...body,actor:owner.username,recoverySecret:secrets});
       /* Kunci utuh hanya dikembalikan sekali, saat pembuatan, kepada Pemilik. */
       return {created:dibuat.length,licenses:dibuat};
     },
@@ -156,16 +155,16 @@ export function createApi({db,secrets,logger=()=>{},publicDir=null}){
 
   /* Aksi per lisensi memakai pola /owner/licenses/:id/<aksi>. */
   const aksiLisensi={
-    'reset-device':(owner,id,body)=>({result:lisensi.resetDevice(db,id,{actor:owner.username,reason:body?.reason})}),
-    'suspend':(owner,id,body)=>({license:lisensi.setStatus(db,id,'SUSPENDED',{actor:owner.username,reason:body?.reason})}),
-    'reactivate':(owner,id,body)=>{
-      const detail=lisensi.licenseDetail(db,id);
+    'reset-device':async(owner,id,body)=>({result:await lisensi.resetDevice(store,id,{actor:owner.username,reason:body?.reason})}),
+    'suspend':async(owner,id,body)=>({license:await lisensi.setStatus(store,id,'SUSPENDED',{actor:owner.username,reason:body?.reason})}),
+    'reactivate':async(owner,id,body)=>{
+      const detail=await lisensi.licenseDetail(store,id);
       if(detail.license.status!=='SUSPENDED')throw new LicenseError('NOT_SUSPENDED','Hanya lisensi yang ditangguhkan yang dapat diaktifkan kembali.',409);
-      const adaPerangkat=detail.devices.some(item=>item.is_active===1);
-      return {license:lisensi.setStatus(db,id,adaPerangkat?'ACTIVE':'UNUSED',{actor:owner.username,reason:body?.reason})};
+      const adaPerangkat=detail.devices.some(item=>item.is_active===true);
+      return {license:await lisensi.setStatus(store,id,adaPerangkat?'ACTIVE':'UNUSED',{actor:owner.username,reason:body?.reason})};
     },
-    'revoke':(owner,id,body)=>({license:lisensi.setStatus(db,id,'REVOKED',{actor:owner.username,reason:body?.reason})}),
-    'recover':(owner,id,body)=>({recovery:lisensi.recoverLicenseKey(db,id,{actor:owner.username,reason:body?.reason},secrets)}),
+    'revoke':async(owner,id,body)=>({license:await lisensi.setStatus(store,id,'REVOKED',{actor:owner.username,reason:body?.reason})}),
+    'recover':async(owner,id,body)=>({recovery:await lisensi.recoverLicenseKey(store,id,{actor:owner.username,reason:body?.reason},secrets)}),
   };
 
   function sajikanStatis(req,res,pathname){
@@ -202,11 +201,11 @@ export function createApi({db,secrets,logger=()=>{},publicDir=null}){
       if(cocok&&req.method==='POST'){
         const aksi=aksiLisensi[cocok[2]];
         if(!aksi)throw new LicenseError('NOT_FOUND','Aksi tidak dikenal.',404);
-        const owner=wajibOwner(req);
-        return kirim(res,200,aksi(owner,cocok[1],body));
+        const owner=await wajibOwner(req);
+        return kirim(res,200,await aksi(owner,cocok[1],body),pathname);
       }
       const detail=pathname.match(/^\/api\/v1\/owner\/licenses\/([A-Za-z0-9_]+)$/);
-      if(detail&&req.method==='GET'){wajibOwner(req);return kirim(res,200,lisensi.licenseDetail(db,detail[1]));}
+      if(detail&&req.method==='GET'){await wajibOwner(req);return kirim(res,200,await lisensi.licenseDetail(store,detail[1]),pathname);}
 
       kirim(res,404,{error:{code:'NOT_FOUND',message:'Endpoint tidak dikenal.'}},pathname);
     }catch(error){
@@ -218,13 +217,13 @@ export function createApi({db,secrets,logger=()=>{},publicDir=null}){
 }
 
 /* Akun pemilik pertama dibuat dari environment, bukan dari nilai yang ditanam di kode. */
-export function ensureOwnerAccount(db,{username,password}){
+export async function ensureOwnerAccount(store,{username,password}){
   if(!username||!password)return null;
-  const ada=db.prepare('SELECT * FROM owner_accounts WHERE username=?').get(username);
+  const ada=await store.one('SELECT * FROM owner_accounts WHERE username=$1',[username]);
   if(ada)return ada;
   const {salt,hash}=hashPassword(password);
   const id=newId('own');
-  db.prepare('INSERT INTO owner_accounts(id,username,password_salt,password_hash,active,created_at) VALUES(?,?,?,?,1,?)')
-    .run(id,username,salt,hash,nowIso());
-  return db.prepare('SELECT * FROM owner_accounts WHERE id=?').get(id);
+  await store.run('INSERT INTO owner_accounts(id,username,password_salt,password_hash,active,created_at) VALUES($1,$2,$3,$4,TRUE,$5)',
+    [id,username,salt,hash,new Date().toISOString()]);
+  return store.one('SELECT * FROM owner_accounts WHERE id=$1',[id]);
 }

@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { openDatabase } from '../../server/src/db.js';
 import { createApi, ensureOwnerAccount } from '../../server/src/api.js';
+import { createSqliteStore } from '../../server/src/store.js';
 import { generateSigningKeyPair, publicJwkFromPrivatePem } from '../../server/src/crypto.js';
 
 /* Server lisensi sungguhan di atas HTTP dan SQLite, dipakai test integrasi. Rahasianya dibuat
@@ -12,13 +13,14 @@ export async function startTestServer(){
   const {privateKeyPem}=generateSigningKeyPair();
   const secrets={signingPrivateKeyPem:privateKeyPem,pepper:`pepper-uji-${Math.random()}`,recoveryKey:`recovery-uji-${Math.random()}`};
   const db=openDatabase(':memory:');
-  ensureOwnerAccount(db,OWNER);
-  const handle=createApi({db,secrets,logger:()=>{}});
+  const store=createSqliteStore(db);
+  await ensureOwnerAccount(store,OWNER);
+  const handle=createApi({store,secrets,logger:()=>{}});
   const server=createServer((req,res)=>{handle(req,res);});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${server.address().port}`;
   const konteks={
-    db,secrets,base,server,
+    db,store,secrets,base,server,
     publicJwk:publicJwkFromPrivatePem(privateKeyPem),
     async close(){await new Promise(resolve=>server.close(resolve));db.close();},
     async call(path,{method='GET',body=null,token=''}={}){
