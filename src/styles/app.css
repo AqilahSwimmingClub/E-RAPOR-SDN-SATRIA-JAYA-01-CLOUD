@@ -381,8 +381,12 @@ textarea.input{color:var(--light-ink)}
 
 /* ---- Kolom kiri: foto sekolah ---- */
 .login-photo{position:relative;min-height:100dvh;display:flex;flex-direction:column;justify-content:space-between;padding:34px;overflow:hidden;background:var(--login-bg-pos,center 45%)/cover no-repeat url('../../assets/login-background.jpg'),linear-gradient(160deg,#1f4f7d,#2f6fa8)}
-.login-photo-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,20,38,.5) 0%,rgba(6,20,38,.28) 45%,rgba(6,20,38,.72) 100%)}
-.login-photo-content{position:relative;display:flex;flex-direction:column;justify-content:space-between;height:100%;gap:24px}
+/* Lapisan peredup berdiri sendiri di antara foto dan branding. Kedua ujungnya dibuat
+   lebih pekat karena identitas sekolah menempel di tepi atas dan identitas pengembang
+   di tepi bawah, sehingga foto latar apa pun yang dipasang nanti tetap menyisakan
+   kontras untuk teks putih. Bagian tengah dibiarkan bening agar foto tetap terlihat. */
+.login-photo-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(6,20,38,.58) 0%,rgba(6,20,38,.34) 45%,rgba(6,20,38,.78) 100%)}
+.login-photo-content{position:relative;z-index:2;display:flex;flex-direction:column;justify-content:space-between;height:100%;gap:24px}
 .login-photo .login-brand{display:flex;align-items:center;gap:14px}
 .login-brand-mark{display:grid;place-items:center;flex:none;color:#eaf6ff}
 .login-logo{width:58px;height:58px;object-fit:contain;flex:none;display:block;filter:drop-shadow(0 3px 10px rgba(4,18,34,.45))}
