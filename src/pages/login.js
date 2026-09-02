@@ -19,7 +19,10 @@ export function renderLogin({onSuccess,onActivate}){
       <div class="login-photo-overlay" aria-hidden="true"></div>
       <div class="login-photo-content">
         <div class="login-brand">
-          <div class="login-brand-mark">${icon('school',24)}</div>
+          <div class="login-brand-mark">
+            <img class="login-logo" src="./assets/logo-sekolah.png" alt="Logo SDN Satria Jaya 01" data-login-logo/>
+            <span class="login-logo-fallback hidden" aria-hidden="true">${icon('school',26)}</span>
+          </div>
           <div class="login-brand-text">
             <span class="login-brand-app">e-Rapor</span>
             <strong>SDN SATRIA JAYA 01</strong>
@@ -28,7 +31,7 @@ export function renderLogin({onSuccess,onActivate}){
         </div>
         <div class="login-photo-caption">
           <h1>WELCOME</h1>
-          <p>Cerdas Berkarakter Berprestasi</p>
+          <p>Cerdas • Berkarakter • Berprestasi</p>
         </div>
       </div>
     </section>
@@ -109,6 +112,8 @@ export function renderLogin({onSuccess,onActivate}){
       errorBox.classList.remove('login-shake');void errorBox.offsetWidth;errorBox.classList.add('login-shake');
     }finally{button.disabled=false;button.textContent='Masuk';}
   };
+  const logo=root.querySelector('[data-login-logo]');
+  if(logo)logo.onerror=()=>{logo.classList.add('hidden');root.querySelector('.login-logo-fallback')?.classList.remove('hidden');};
   refreshStatus();
   return root;
 }

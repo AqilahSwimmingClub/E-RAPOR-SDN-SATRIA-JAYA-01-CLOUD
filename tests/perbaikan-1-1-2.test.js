@@ -225,7 +225,7 @@ test('E. Update dari data versi 1.1.1 tanpa uninstall: data lama tetap utuh',()=
 test('E. Mekanisme update APK versi 1.1.1 tidak diubah dan berkas baru ikut di-precache',()=>{
   const sw=read('sw.js');
   assert.match(sw,new RegExp(`APP_CACHE_VERSION='${APP_VERSION.replace(/\./g,'\\.')}-${VERSION_CODE}'`),'nama cache mengikuti versi rilis');
-  assert.match(sw,/isAppCode\(event\.request\.url\)\?networkFirst\(event\.request\):cacheFirst\(event\.request\)/,'kode aplikasi tetap network-first');
+  assert.match(sw,/isAppCode\(event\.request\.url\)\|\|isSwappableAsset\(event\.request\.url\)\?networkFirst\(event\.request\):cacheFirst\(event\.request\)/,'kode aplikasi tetap network-first');
   assert.match(read('src/app.js'),/updateViaCache:'none'/,'pemeriksaan sw.js tetap tidak memakai HTTP cache lama');
   assert.ok(VERSION_CODE>PREVIOUS_RELEASE.versionCode,'versionCode tetap lebih tinggi dari rilis sebelumnya');
 

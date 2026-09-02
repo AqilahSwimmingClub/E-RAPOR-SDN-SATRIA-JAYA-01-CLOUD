@@ -210,7 +210,7 @@ test('Cache service worker terikat versi aplikasi sehingga rilis baru tidak mema
   assert.match(sw,new RegExp(`APP_CACHE_VERSION='${versi.replace('.','\\.')}'`),'nama cache wajib naik setiap rilis');
   assert.match(sw,/const CACHE=`erapor-satria-\$\{APP_CACHE_VERSION\}`/);
   assert.match(sw,/function isAppCode/,'kode aplikasi dibedakan dari aset berat');
-  assert.match(sw,/isAppCode\(event\.request\.url\)\?networkFirst\(event\.request\):cacheFirst\(event\.request\)/,'JavaScript dan CSS diambil network-first');
+  assert.match(sw,/isAppCode\(event\.request\.url\)\|\|isSwappableAsset\(event\.request\.url\)\?networkFirst\(event\.request\):cacheFirst\(event\.request\)/,'JavaScript, CSS, dan aset yang dapat ditimpa diambil network-first');
   assert.equal(/caches\.match\(event\.request\)\.then\(cached=>cached\|\|fetch/.test(sw),false,'tidak boleh cache-first untuk seluruh aset');
   for(const berkas of ['./src/services/seed.js','./src/data/seed-5b.js'])
     assert.ok(sw.includes(berkas),`${berkas} ikut di-precache`);

@@ -79,7 +79,7 @@ test('6. Panel Masuk menampilkan identitas e-Rapor, sekolah, dan kabupaten',()=>
   assert.match(halaman,/<span class="login-brand-app">e-Rapor<\/span>/);
   assert.match(halaman,/<strong>SDN SATRIA JAYA 01<\/strong>/);
   assert.match(halaman,/<span class="login-brand-region">KABUPATEN BEKASI<\/span>/);
-  assert.match(halaman,/Cerdas Berkarakter Berprestasi/,'slogan sekolah tampil');
+  assert.match(halaman,/Cerdas • Berkarakter • Berprestasi/,'slogan sekolah tampil dengan titik pemisah');
   assert.equal(SCHOOL,'SDN Satria Jaya 01');
 });
 

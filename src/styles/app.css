@@ -383,8 +383,10 @@ textarea.input{color:var(--light-ink)}
 .login-photo{position:relative;min-height:100dvh;display:flex;flex-direction:column;justify-content:space-between;padding:34px;overflow:hidden;background:var(--login-bg-pos,center 45%)/cover no-repeat url('../../assets/login-background.jpg'),linear-gradient(160deg,#1f4f7d,#2f6fa8)}
 .login-photo-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,20,38,.5) 0%,rgba(6,20,38,.28) 45%,rgba(6,20,38,.72) 100%)}
 .login-photo-content{position:relative;display:flex;flex-direction:column;justify-content:space-between;height:100%;gap:24px}
-.login-photo .login-brand{display:flex;align-items:center;gap:12px}
-.login-brand-mark{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;flex:none;color:#eaf6ff;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.32);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.login-photo .login-brand{display:flex;align-items:center;gap:14px}
+.login-brand-mark{display:grid;place-items:center;flex:none;color:#eaf6ff}
+.login-logo{width:58px;height:58px;object-fit:contain;flex:none;display:block;filter:drop-shadow(0 3px 10px rgba(4,18,34,.45))}
+.login-logo-fallback{display:grid;place-items:center;width:58px;height:58px;border-radius:16px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.32)}
 .login-brand-text{min-width:0}
 .login-brand-app{display:block;font-size:11px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:var(--cyan)}
 .login-brand-text strong{display:block;font-size:17px;font-weight:850;color:#fff;line-height:1.25;text-shadow:0 2px 12px rgba(4,18,34,.6)}
@@ -467,12 +469,15 @@ textarea.input{color:var(--light-ink)}
 }
 @media(max-width:767px){
   .login-photo{height:28vh;min-height:190px}
+  .login-logo,.login-logo-fallback{width:46px;height:46px}
+  .login-photo .login-brand{gap:11px}
   .login-shell{width:min(100%,380px);padding:22px 18px 18px;border-radius:18px}
   .login-brand-text strong{font-size:15px}
 }
 /* Lanskap ponsel: layar pendek, foto dipersempit agar form tetap terjangkau. */
 @media(max-height:560px) and (max-width:900px){
   .login-photo{height:auto;min-height:0;padding:14px}
+  .login-logo,.login-logo-fallback{width:40px;height:40px}
   .login-photo-caption{display:none}
   .login-panel{padding-top:16px}
 }
