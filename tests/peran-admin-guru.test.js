@@ -228,11 +228,18 @@ test('10. Guru tidak dapat mengubah penugasannya sendiri',()=>{
 
 test('11. CP tanpa naskah resmi dilaporkan apa adanya, bukan diisi karangan',()=>{
   const kurang=cpNaskahGaps();
-  /* Selama naskah resmi belum dimuat, daftar ini yang menjadi laporannya. */
+  /* Selama naskah resmi belum dimuat, daftar ini yang menjadi laporannya. Setiap barisnya
+     wajib bisa menjawab "kenapa kosong" — laporan tanpa alasan hanya memindahkan tebakan
+     dari data ke pembacanya. */
   for(const entri of kurang){
     assert.ok(entri.subjectId&&['A','B','C'].includes(entri.phase));
-    assert.match(entri.decision,/BSKAP Nomor 046\/H\/KR\/2025|BKPDM Nomor 020 Tahun 2026/,
-      'setiap CP tetap menyebut regulasinya');
+    assert.equal(entri.naskah,null);
+    assert.ok(entri.reason&&entri.reason.length>20,`${entri.subjectId} ${entri.phase} beralasan`);
+    if(entri.verified===false)
+      assert.equal(entri.decision,null,`${entri.subjectId} tidak meminjam nomor keputusan`);
+    else
+      assert.match(entri.decision,/BSKAP Nomor 046\/H\/KR\/2025|BKPDM Nomor 020 Tahun 2026|Koding dan Kecerdasan Artifisial/,
+        'setiap CP tetap menyebut regulasinya');
   }
   /* Yang dilarang adalah naskah karangan, bukan naskah kosong. */
   const sumber=read('src/data/curriculum-cp.js');

@@ -54,7 +54,10 @@ export const SUBJECTS_DEFAULT = [
   { id:'seni_rupa', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Seni Rupa', active:true, order:9 },
   { id:'bing', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', name:'Bahasa Inggris', active:true, order:1 },
   { id:'sunda', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', parent:'Muatan Lokal', name:'Bahasa Sunda', active:true, order:2 },
-  { id:'koding', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', parent:'Muatan Lokal', name:'Koding dan Kecerdasan Artifisial', active:true, order:3 },
+  /* Koding dan Kecerdasan Artifisial BUKAN muatan lokal: CP-nya ditetapkan secara nasional
+     lewat Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial. Ia mata pelajaran pilihan,
+     dan pada jenjang SD baru berlaku mulai Fase C. */
+  { id:'koding', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', name:'Koding dan Kecerdasan Artifisial', active:true, order:3 },
 ];
 
 export const ASSESSMENT_DEFAULT = {

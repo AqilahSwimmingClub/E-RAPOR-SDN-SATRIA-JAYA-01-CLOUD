@@ -52,7 +52,13 @@ test('TP bawaan berstatus inspiratif, dapat diubah, dan mencantumkan sumber resm
       for(const tp of defaultLearningObjectives(classId,subjectId)){
         assert.equal(tp.status,'inspiratif',`${subjectId} ${classId} berstatus inspiratif`);
         assert.equal(tp.editable,true,`${subjectId} ${classId} dapat disesuaikan guru`);
-        assert.ok(tp.source?.decision&&tp.source?.title&&tp.source?.url,`${subjectId} mencantumkan sumber`);
+        assert.ok(tp.source?.title&&tp.source?.authority,`${subjectId} menyebut lembaga sumbernya`);
+        /* Sumber yang belum terverifikasi tidak boleh MEMINJAM nomor keputusan milik mapel
+           lain. Muatan Lokal yang dilabeli 046/H/KR/2025 akan terbaca sebagai CP nasional. */
+        if(tp.source.verified===false){
+          assert.equal(tp.source.decision,null,`${subjectId} tidak meminjam nomor keputusan`);
+          assert.equal(tp.source.url,null,`${subjectId} tidak meminjam tautan regulasi`);
+        }else assert.ok(tp.source.decision&&tp.source.url,`${subjectId} mencantumkan sumber`);
         assert.equal(tp.phase,phaseForClassId(classId));
         assert.ok(tp.description.length>25,'deskripsi TP operasional, bukan sekadar judul');
       }
@@ -69,8 +75,16 @@ test('Sumber rujukan menyebut keputusan resmi terbaru untuk mapel umum dan agama
   assert.match(TP_SOURCES.cp_umum.decision,/046\/H\/KR\/2025/);
   assert.match(TP_SOURCES.cp_pabp.decision,/020 Tahun 2026/);
   assert.ok(TP_SOURCES.cp_pabp.year>=2026,'PABP memakai pembaruan 2026');
-  for(const sumber of Object.values(TP_SOURCES))
-    assert.match(sumber.url,/^https:\/\/[a-z0-9.-]*(kemdikbud|kemendikdasmen)\.go\.id/,`${sumber.id} merujuk domain resmi`);
+  assert.match(TP_SOURCES.cp_koding_ka.decision,/Koding dan Kecerdasan Artifisial/);
+  for(const sumber of Object.values(TP_SOURCES)){
+    assert.ok(sumber.authority,`${sumber.id} menyebut lembaga yang berwenang`);
+    if(sumber.verified===false){
+      /* Belum terverifikasi berarti kosong, bukan diisi yang terdekat. */
+      assert.equal(sumber.decision,null,`${sumber.id} tidak mengarang nomor keputusan`);
+      assert.equal(sumber.url,null,`${sumber.id} tidak mengarang tautan`);
+      assert.match(sumber.note,/menunggu|belum/i,`${sumber.id} menyatakan apa yang ditunggu`);
+    }else assert.match(sumber.url,/^https:\/\/[a-z0-9.-]*(kemdikbud|kemendikdasmen)\.go\.id/,`${sumber.id} merujuk domain resmi`);
+  }
 });
 
 /* -------------------------------------------------------- Scope dan TP buatan guru */

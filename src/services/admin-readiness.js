@@ -1,4 +1,6 @@
 import { CLASSES, SUBJECTS_DEFAULT } from '../data/constants.js';
+import { cpBerlaku } from '../data/curriculum-cp.js';
+import { phaseForClassId } from '../data/learning-objective-defaults.js';
 import { listObjectivesForAssessment } from './learning-objectives.js';
 import { getSchoolMaster, getTeacherProfile } from './master.js';
 import { listStudents } from './students.js';
@@ -18,6 +20,15 @@ export const READINESS_ITEMS=Object.freeze([
 ]);
 
 const COLLECTION='teacherUsageActivation';
+
+/* Sebuah mata pelajaran hanya dapat dituntut mempunyai TP bila ia memang mempunyai CP pada
+   fase rombel itu. Koding dan Kecerdasan Artifisial baru berlaku mulai Fase C, sehingga
+   menuntut TP-nya di kelas 1-4 akan menjadi syarat yang mustahil dipenuhi: Admin tidak akan
+   pernah bisa membuka menu Guru selama mapel itu aktif di Mapping rombel tersebut. */
+function wajibPunyaTP(classId,subjectId){
+  const phase=phaseForClassId(classId);
+  return Boolean(phase)&&cpBerlaku(subjectId,phase);
+}
 
 export function teacherUsageScopeKey(session){
   return `${String(session?.academicYear||'').trim()}|${String(session?.semester||'').trim()}`;
@@ -94,7 +105,7 @@ export function getAdminReadiness(session){
     const mapping=getSubjectMapping({...scope,role:'teacher',classId,adminContext:true});
     const aktif=(Array.isArray(mapping)?mapping:[]).filter(item=>item.active);
     if(!aktif.length)return false;
-    return aktif.every(item=>{
+    return aktif.filter(item=>wajibPunyaTP(classId,item.id)).every(item=>{
       try{return listObjectivesForAssessment({...scope,role:'teacher',classId,adminContext:true},item.id,{activeOnly:true}).length>0;}
       catch{return false;}
     });
@@ -118,9 +129,11 @@ export function getAdminReadiness(session){
     catch{rincianSiswa.push(`Data siswa ${classId}`);}
     const prefix=`${scopeKey(konteks)}|`;
     for(const mapel of aktif){
-      let tp=[];
-      try{tp=listObjectivesForAssessment(konteks,mapel.id,{activeOnly:true});}catch{tp=[];}
-      if(!tp.length)rincianTP.push(`TP ${namaMapel(mapel.id)} ${classId}`);
+      if(wajibPunyaTP(classId,mapel.id)){
+        let tp=[];
+        try{tp=listObjectivesForAssessment(konteks,mapel.id,{activeOnly:true});}catch{tp=[];}
+        if(!tp.length)rincianTP.push(`TP ${namaMapel(mapel.id)} ${classId}`);
+      }
       const setting=tersimpan[`${prefix}${mapel.id}`];
       const bobot=['formative','daily','practice','scopeSummative','semesterSummative']
         .reduce((total,field)=>total+(Number(setting?.[field])||0),0);

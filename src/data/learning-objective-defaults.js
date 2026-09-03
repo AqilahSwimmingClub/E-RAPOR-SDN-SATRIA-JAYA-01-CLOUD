@@ -17,6 +17,9 @@ export const TP_SOURCES=Object.freeze({
     id:'cp_umum',
     title:'Capaian Pembelajaran pada PAUD, Jenjang Pendidikan Dasar, dan Jenjang Pendidikan Menengah',
     decision:'Keputusan Kepala BSKAP Nomor 046/H/KR/2025',
+    authority:'Badan Standar, Kurikulum, dan Asesmen Pendidikan, Kementerian Pendidikan Dasar dan Menengah',
+    scope:'nasional',
+    verified:true,
     note:'Perubahan atas Keputusan Kepala BSKAP Nomor 032/H/KR/2024. Berlaku untuk seluruh mata pelajaran selain Agama dan Budi Pekerti.',
     year:2025,
     url:'https://kurikulum.kemdikbud.go.id/rujukan/regulasi-kurikulum-merdeka',
@@ -25,6 +28,9 @@ export const TP_SOURCES=Object.freeze({
     id:'cp_pabp',
     title:'Capaian Pembelajaran mata pelajaran Pendidikan Agama dan Budi Pekerti',
     decision:'Keputusan Kepala BKPDM Nomor 020 Tahun 2026',
+    authority:'BKPDM, Kementerian Pendidikan Dasar dan Menengah',
+    scope:'nasional',
+    verified:true,
     note:'Perubahan atas Keputusan Kepala BSKAP Nomor 046/H/KR/2025; perubahannya terbatas pada mata pelajaran Agama dan Budi Pekerti.',
     year:2026,
     url:'https://bkpdm.kemendikdasmen.go.id/publikasi/bkpdm-dan-kementerian-agama-tegaskan-perubahan-capaian-pembelajaran-hanya-berlaku-untuk-mata-pelajaran-pendidikan-agama-dan-budi-pekerti',
@@ -33,9 +39,42 @@ export const TP_SOURCES=Object.freeze({
     id:'inspirasi_atp',
     title:'Inspirasi Alur Tujuan Pembelajaran (ATP) — Referensi Penerapan Kurikulum',
     decision:'Ruang GTK Kemendikdasmen',
+    authority:'Ruang GTK, Kementerian Pendidikan Dasar dan Menengah',
+    scope:'inspirasi',
+    verified:true,
     note:'Pemerintah menyediakan ATP sebagai INSPIRASI, bukan kewajiban. Satuan pendidikan tetap menyusun TP-nya sendiri.',
     year:2026,
     url:'https://guru.kemendikdasmen.go.id/kurikulum/referensi-penerapan/capaian-pembelajaran/',
+  }),
+  /* Koding dan Kecerdasan Artifisial tidak ditetapkan lewat keputusan CP umum, melainkan lewat
+     panduan mata pelajarannya sendiri. Karena itu ia diberi sumber terpisah: memaksakan
+     046/H/KR/2025 kepadanya akan menyebut regulasi yang bukan sumbernya. */
+  cp_koding_ka:Object.freeze({
+    id:'cp_koding_ka',
+    title:'Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial',
+    decision:'Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial (Pusat Kurikulum dan Pembelajaran, 2025)',
+    authority:'Pusat Kurikulum dan Pembelajaran, Kementerian Pendidikan Dasar dan Menengah',
+    scope:'nasional',
+    verified:true,
+    note:'Pada jenjang SD, Koding dan Kecerdasan Artifisial dimulai pada Fase C (kelas 5-6). Fase A dan Fase B tidak memiliki CP mata pelajaran ini.',
+    year:2025,
+    url:'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/33.%20Final%20Panduan%20Mata%20Pelajaran%20Panduan%20Mata%20Pelajaran%20Koding%20dan%20Kecerdasan%20Artifisial_12_Sep_2025_revisi%203.pdf',
+  }),
+  /* Bahasa Sunda adalah MUATAN LOKAL Jawa Barat, bukan mata pelajaran nasional. Kewenangan
+     penetapan CP-nya ada pada Pemerintah Provinsi Jawa Barat, sehingga nomor regulasi dan
+     naskahnya sengaja dibiarkan kosong sampai dokumen resmi provinsi tersedia. `verified:false`
+     adalah pernyataan jujur bahwa identitas regulasinya pun belum dipastikan - bukan celah
+     untuk diisi tebakan. */
+  cp_mulok_jabar:Object.freeze({
+    id:'cp_mulok_jabar',
+    title:'Kurikulum Muatan Lokal Bahasa Sunda Provinsi Jawa Barat',
+    decision:null,
+    authority:'Pemerintah Provinsi Jawa Barat / Dinas Pendidikan Provinsi Jawa Barat',
+    scope:'muatan_lokal',
+    verified:false,
+    note:'Bahasa Sunda tidak tercantum sebagai CP nasional pada Keputusan Kepala BSKAP Nomor 046/H/KR/2025. Nomor regulasi dan naskah CP-nya menunggu dokumen resmi Pemerintah Provinsi Jawa Barat.',
+    year:null,
+    url:null,
   }),
 });
 
@@ -156,7 +195,8 @@ const CATALOGUE={
     C:[['TP-1','memahami teks lisan dan tulis sangat sederhana serta informasi pokoknya'],
        ['TP-2','menyampaikan informasi sederhana secara lisan maupun tulis dengan percaya diri']]}},
 
-  sunda:{source:'cp_umum',phases:{
+  /* Muatan Lokal Jawa Barat: sumbernya bukan keputusan CP nasional. */
+  sunda:{source:'cp_mulok_jabar',phases:{
     A:[['TP-1','mengenal kosakata basa Sunda sederhana dalam kehidupan sehari-hari'],
        ['TP-2','menggunakan ungkapan santun sesuai undak usuk basa yang sederhana']],
     B:[['TP-1','memahami dan menggunakan basa Sunda dalam percakapan sehari-hari'],
@@ -164,13 +204,13 @@ const CATALOGUE={
     C:[['TP-1','menggunakan basa Sunda secara santun sesuai tingkatannya'],
        ['TP-2','memahami dan menyajikan kembali teks berbahasa Sunda serta nilai budayanya']]}},
 
-  koding:{source:'cp_umum',phases:{
-    A:[['TP-1','mengenal pola dan urutan langkah sederhana dalam menyelesaikan tugas'],
-       ['TP-2','menggunakan perangkat digital secara aman dan bertanggung jawab']],
-    B:[['TP-1','menyusun urutan langkah atau algoritma sederhana untuk memecahkan masalah'],
-       ['TP-2','memanfaatkan teknologi secara bijak dan menjaga keamanan data pribadi']],
+  /* Fase A dan Fase B sengaja TIDAK ADA. Pada jenjang SD, Koding dan Kecerdasan Artifisial
+     dimulai pada Fase C, sehingga TP untuk kelas 1-4 akan menjadi turunan dari CP yang tidak
+     pernah ditetapkan. Katalog kosong lebih jujur daripada katalog yang tampak lengkap. */
+  koding:{source:'cp_koding_ka',phases:{
     C:[['TP-1','merancang algoritma dan menguji langkah penyelesaian masalah secara bertahap'],
-       ['TP-2','menjelaskan pemanfaatan kecerdasan artifisial secara bijak, aman, dan beretika']]}},
+       ['TP-2','memanfaatkan teknologi digital secara aman serta menjaga data pribadi'],
+       ['TP-3','menjelaskan pemanfaatan kecerdasan artifisial secara bijak, aman, dan beretika']]}},
 };
 
 function gradeOf(classId){const grade=Number.parseInt(String(classId||'').trim(),10);return Number.isInteger(grade)?grade:null;}
@@ -200,7 +240,8 @@ export function defaultLearningObjectives(classId,subjectId){
     status:OBJECTIVE_STATUS,
     editable:true,
     isDefault:true,
-    source:{id:source.id,title:source.title,decision:source.decision,year:source.year,url:source.url},
+    source:{id:source.id,title:source.title,decision:source.decision,authority:source.authority,
+      scope:source.scope,verified:source.verified,year:source.year,url:source.url},
   }));
 }
 

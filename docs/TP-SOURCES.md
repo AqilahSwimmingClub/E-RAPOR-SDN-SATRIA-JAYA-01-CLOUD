@@ -30,15 +30,32 @@ Formatif + Penilaian Harian + Penilaian Praktik
 ```
 
 Yang disimpan pada pemilihan TP hanyalah **daftar ID TP** yang dicentang guru pada menu
-Penilaian. Tidak ada satu pun angka di dalamnya.
+Tujuan Pembelajaran. Tidak ada satu pun angka di dalamnya.
 
 ## 3. Rujukan resmi
 
-| Kelompok | Dokumen | Nomor keputusan | Tahun | Tautan |
-| --- | --- | --- | --- | --- |
-| Mata pelajaran umum | Capaian Pembelajaran pada PAUD, Jenjang Pendidikan Dasar, dan Jenjang Pendidikan Menengah | Keputusan Kepala BSKAP Nomor 046/H/KR/2025 | 2025 | https://kurikulum.kemdikbud.go.id/rujukan/regulasi-kurikulum-merdeka |
-| Pendidikan Agama dan Budi Pekerti | Capaian Pembelajaran mata pelajaran Pendidikan Agama dan Budi Pekerti | Keputusan Kepala BKPDM Nomor 020 Tahun 2026 | 2026 | https://bkpdm.kemendikdasmen.go.id/publikasi/bkpdm-dan-kementerian-agama-tegaskan-perubahan-capaian-pembelajaran-hanya-berlaku-untuk-mata-pelajaran-pendidikan-agama-dan-budi-pekerti |
-| Inspirasi penurunan CP menjadi TP/ATP | Inspirasi Alur Tujuan Pembelajaran (ATP) — Referensi Penerapan Kurikulum | Ruang GTK Kemendikdasmen | 2026 | https://guru.kemendikdasmen.go.id/kurikulum/referensi-penerapan/capaian-pembelajaran/ |
+| Kelompok | Dokumen | Lembaga berwenang | Nomor keputusan | Tahun | Tautan |
+| --- | --- | --- | --- | --- | --- |
+| Mata pelajaran umum | Capaian Pembelajaran pada PAUD, Jenjang Pendidikan Dasar, dan Jenjang Pendidikan Menengah | Badan Standar, Kurikulum, dan Asesmen Pendidikan, Kementerian Pendidikan Dasar dan Menengah | Keputusan Kepala BSKAP Nomor 046/H/KR/2025 | 2025 | https://kurikulum.kemdikbud.go.id/rujukan/regulasi-kurikulum-merdeka |
+| Pendidikan Agama dan Budi Pekerti | Capaian Pembelajaran mata pelajaran Pendidikan Agama dan Budi Pekerti | BKPDM, Kementerian Pendidikan Dasar dan Menengah | Keputusan Kepala BKPDM Nomor 020 Tahun 2026 | 2026 | https://bkpdm.kemendikdasmen.go.id/publikasi/bkpdm-dan-kementerian-agama-tegaskan-perubahan-capaian-pembelajaran-hanya-berlaku-untuk-mata-pelajaran-pendidikan-agama-dan-budi-pekerti |
+| Koding dan Kecerdasan Artifisial | Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial | Pusat Kurikulum dan Pembelajaran, Kementerian Pendidikan Dasar dan Menengah | Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial (Pusat Kurikulum dan Pembelajaran, 2025) | 2025 | https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/33.%20Final%20Panduan%20Mata%20Pelajaran%20Panduan%20Mata%20Pelajaran%20Koding%20dan%20Kecerdasan%20Artifisial_12_Sep_2025_revisi%203.pdf |
+| Muatan Lokal Jawa Barat | Kurikulum Muatan Lokal Bahasa Sunda Provinsi Jawa Barat | Pemerintah Provinsi Jawa Barat / Dinas Pendidikan Provinsi Jawa Barat | _belum diverifikasi_ | — | — |
+| Inspirasi penurunan CP menjadi TP/ATP | Inspirasi Alur Tujuan Pembelajaran (ATP) — Referensi Penerapan Kurikulum | Ruang GTK, Kementerian Pendidikan Dasar dan Menengah | Ruang GTK Kemendikdasmen | 2026 | https://guru.kemendikdasmen.go.id/kurikulum/referensi-penerapan/capaian-pembelajaran/ |
+
+Empat catatan atas tabel di atas:
+
+- **Koding dan Kecerdasan Artifisial** tidak ditetapkan lewat keputusan CP umum melainkan lewat
+  panduan mata pelajarannya sendiri. Pada jenjang SD mata pelajaran ini dimulai pada **Fase C**
+  (kelas 5-6); Fase A dan Fase B sengaja tidak berkatalog karena CP-nya memang belum ada.
+- **Bahasa Sunda** adalah Muatan Lokal Jawa Barat, bukan mata pelajaran nasional. Ia sengaja
+  TIDAK memakai Keputusan Kepala BSKAP Nomor 046/H/KR/2025: menempelkan nomor keputusan
+  nasional pada muatan lokal akan menjadikannya tampak sebagai CP nasional. Nomor regulasi dan
+  naskahnya menunggu dokumen resmi Pemerintah Provinsi Jawa Barat.
+- Kolom **naskah CP** pada seluruh baris masih `null`. Aplikasi menampilkan elemen CP dan
+  kutipan regulasinya, tidak pernah teks pengganti. Jalankan `cpNaskahReport()` pada
+  `src/data/curriculum-cp.js` untuk melihat daftar terkini beserta alasan tiap kekosongan.
+- Sumber yang belum terverifikasi ditandai `verified:false` dan wajib mempunyai `decision`,
+  `year`, serta `url` bernilai `null`. Kontrak itu dijaga `tests/tp-source-integrity.test.js`.
 
 Catatan penting atas dokumen PABP: perubahan tahun 2026 hanya berlaku untuk mata pelajaran
 Pendidikan Agama dan Budi Pekerti. Mata pelajaran lain tetap memakai CP yang ditetapkan
@@ -62,13 +79,15 @@ melalui Mapping Mata Pelajaran.
 
 ## 5. Cara memakai dan mengganti
 
-1. Buka menu **Tujuan Pembelajaran**, pilih mata pelajaran, lalu sesuaikan TP dengan rencana
-   pembelajaran sekolah. Begitu sekolah punya TP sendiri, katalog bawaan berhenti dipakai untuk
-   mata pelajaran tersebut.
-2. Buka menu **Penilaian**, centang TP yang menjadi acuan penilaian mata pelajaran itu.
-3. Isi nilai seperti biasa pada lima jenis penilaian. Nilai Akhir tidak terpengaruh oleh TP.
-4. Buat deskripsi rapor. Deskripsi disusun dari TP yang dicentang beserta Nilai Akhir yang
-   sudah ada, tanpa menambah kompetensi di luar TP pilihan guru.
+1. Buka menu **Tujuan Pembelajaran**, pilih mata pelajaran, lihat acuan CP-nya, lalu tekan
+   **+ Tambah TP** dan centang TP yang dipakai. TP terpilih itulah yang menjadi TP sekolah, dan
+   status Aktif/Nonaktifnya hanya diatur dari menu ini.
+2. Buka menu **Penilaian** dan isi nilai seperti biasa. Penilaian **tidak memilih TP**: ia
+   membaca TP aktif sebagai konteks. Nilai Akhir tidak terpengaruh oleh TP.
+3. Buka menu **Intrakurikuler** dan pilih TP yang benar-benar diajarkan. Hanya TP **aktif** yang
+   ditawarkan untuk input baru; TP yang sudah dinonaktifkan tetap aman pada riwayat lama.
+4. Buat deskripsi rapor. Deskripsi diringkas dari TP yang dipilih beserta Nilai Akhir yang sudah
+   ada, tanpa menambah kompetensi di luar TP pilihan guru.
 
 ## 6. Berkas terkait
 

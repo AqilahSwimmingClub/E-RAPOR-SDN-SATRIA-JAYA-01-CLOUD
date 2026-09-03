@@ -34,7 +34,40 @@ const ELEMENTS=Object.freeze({
   seni:['Mengalami','Menciptakan','Merefleksikan','Berpikir dan Bekerja Artistik','Berdampak'],
   seni_rupa:['Mengalami','Menciptakan','Merefleksikan','Berpikir dan Bekerja Artistik','Berdampak'],
   bing:['Menyimak – Berbicara','Membaca – Memirsa','Menulis – Mempresentasikan'],
+  /* Elemen Koding dan Kecerdasan Artifisial mengikuti Panduan Mata Pelajaran Koding dan
+     Kecerdasan Artifisial (Pusat Kurikulum dan Pembelajaran, 2025). Yang dicantumkan hanya
+     NAMA elemen; rumusan capaian tiap elemen tetap milik dokumen resmi. */
+  koding:['Berpikir Komputasional','Literasi Digital','Literasi dan Etika Kecerdasan Artifisial','Pemanfaatan dan Pengembangan Kecerdasan Artifisial'],
+  /* Bahasa Sunda sengaja tidak punya entri: elemen CP Muatan Lokal Jawa Barat belum dapat
+     diverifikasi dari dokumen resmi provinsi. Menuliskan elemen tebakan sama saja dengan
+     mengarang CP, hanya pada tingkat yang lebih halus. */
 });
+
+/* Fase tempat sebuah mata pelajaran benar-benar mempunyai CP pada jenjang SD. Mata pelajaran
+   yang tidak terdaftar di sini berlaku pada seluruh fase (A, B, C).
+
+   Ini bukan preferensi aplikasi melainkan konsekuensi dokumen: Koding dan Kecerdasan
+   Artifisial baru dimulai pada Fase C, dan IPAS baru berdiri sendiri mulai Fase B. Menyediakan
+   CP di luar fase tersebut berarti menampilkan capaian yang tidak pernah ditetapkan. */
+const PHASES_BY_SUBJECT=Object.freeze({
+  koding:Object.freeze(['C']),
+  ipas:Object.freeze(['B','C']),
+});
+
+/* Alasan sebuah mata pelajaran tidak berlaku pada suatu fase — ditampilkan apa adanya kepada
+   guru, supaya kolom kosong tidak disalahartikan sebagai data yang hilang. */
+const ALASAN_DI_LUAR_FASE=Object.freeze({
+  koding:'Pada jenjang SD, Koding dan Kecerdasan Artifisial dimulai pada Fase C (kelas 5-6).',
+  ipas:'IPAS berdiri sebagai mata pelajaran tersendiri mulai Fase B (kelas 3-4).',
+});
+
+export function cpPhasesFor(subjectId){
+  return [...(PHASES_BY_SUBJECT[subjectId]||['A','B','C'])];
+}
+
+export function cpBerlaku(subjectId,phase){
+  return cpPhasesFor(subjectId).includes(phase);
+}
 
 /* Mata pelajaran yang memakai CP Pendidikan Agama dan Budi Pekerti. Regulasi 2026 hanya
    mengubah kelompok ini; mata pelajaran lain tetap memakai regulasi 2025. */
@@ -44,13 +77,22 @@ export function elementIdOf(subjectId,name){
   return `${subjectId}:${String(name).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}`;
 }
 
-export function cpElements(subjectId){
+/* Elemen CP selalu membawa kolom `naskah` sendiri. Struktur resmi CP memang berlapis — CP fase
+   terdiri atas capaian per elemen — sehingga naskahnya tidak boleh diratakan menjadi satu
+   string ketika dokumen resminya nanti dimuat. */
+export function cpElements(subjectId,phase){
+  if(phase&&!cpBerlaku(subjectId,phase))return [];
   return (ELEMENTS[subjectId]||[]).map((name,index)=>Object.freeze({
-    id:elementIdOf(subjectId,name),name,order:index+1,subjectId,
+    id:elementIdOf(subjectId,name),name,order:index+1,subjectId,naskah:null,
   }));
 }
 
+/* Mata pelajaran yang CP-nya TIDAK ditetapkan oleh keputusan CP nasional umum. Memaksakan
+   046/H/KR/2025 kepada keduanya akan mengutip regulasi yang bukan sumbernya. */
+const REGULASI_KHUSUS=Object.freeze({koding:'cp_koding_ka',sunda:'cp_mulok_jabar'});
+
 export function cpRegulationFor(subjectId){
+  if(Object.hasOwn(REGULASI_KHUSUS,subjectId))return TP_SOURCES[REGULASI_KHUSUS[subjectId]];
   return TP_SOURCES[PABP.has(subjectId)?'cp_pabp':'cp_umum'];
 }
 
@@ -60,18 +102,41 @@ export function capaianPembelajaran(classId,subjectId){
   const phase=phaseForClassId(classId);
   if(!phase||!subjectId)return null;
   const regulation=cpRegulationFor(subjectId);
+  const berlaku=cpBerlaku(subjectId,phase);
   return {
     subjectId,phase,
     grade:Number.parseInt(String(classId||'').trim(),10)||null,
     status:CP_STATUS,
-    elements:cpElements(subjectId),
+    available:berlaku,
+    elements:cpElements(subjectId,phase),
     naskah:null,
+    naskahReason:alasanNaskahKosong(subjectId,phase,regulation,berlaku),
     regulation:{
       id:regulation.id,title:regulation.title,decision:regulation.decision,
+      authority:regulation.authority,scope:regulation.scope,verified:regulation.verified,
       year:regulation.year,url:regulation.url,note:regulation.note,
     },
   };
 }
+
+/* Mengapa naskah CP ini kosong. Jawabannya selalu salah satu dari tiga hal, dan ketiganya
+   ditulis apa adanya: mata pelajarannya memang belum ada pada fase itu, regulasinya sendiri
+   belum terverifikasi, atau naskah resminya belum dimuat ke dataset. Tidak ada kemungkinan
+   keempat berupa "diisi seadanya". */
+function alasanNaskahKosong(subjectId,phase,regulation,berlaku){
+  if(!berlaku)
+    return ALASAN_DI_LUAR_FASE[subjectId]
+      ||`Mata pelajaran ini tidak mempunyai CP pada Fase ${phase} untuk jenjang SD.`;
+  if(regulation.verified===false)
+    return `Sumber resmi CP belum berhasil diverifikasi. Kewenangan penetapannya ada pada ${regulation.authority}.`;
+  return `Naskah resmi ${regulation.decision} belum dimuat ke dataset aplikasi.`;
+}
+
+/* Seluruh mata pelajaran yang wajib diaudit CP-nya. Daftar ini sengaja eksplisit dan tidak
+   diturunkan dari ELEMENTS: mata pelajaran yang elemennya belum diketahui (Bahasa Sunda) justru
+   yang paling perlu muncul di laporan, bukan yang paling mudah hilang darinya. */
+export const CP_SUBJECTS=Object.freeze(['agama','agama_kristen','pancasila','bindo','mtk','ipas',
+  'pjok','seni','seni_rupa','bing','sunda','koding']);
 
 export function cpElementById(subjectId,elementId){
   return cpElements(subjectId).find(item=>item.id===elementId)||null;
@@ -113,6 +178,7 @@ const OBJECTIVE_ELEMENTS=Object.freeze({
   'bing|A':['Menyimak – Berbicara','Menyimak – Berbicara'],
   'bing|B':['Membaca – Memirsa','Menyimak – Berbicara'],
   'bing|C':['Membaca – Memirsa','Menulis – Mempresentasikan'],
+  'koding|C':['Berpikir Komputasional','Literasi Digital','Literasi dan Etika Kecerdasan Artifisial'],
 });
 
 /* Elemen CP untuk TP referensi ke-`order` (mulai 1) pada satu mapel dan fase. */
@@ -122,18 +188,44 @@ export function cpElementForObjective(subjectId,phase,order){
   return cpElementById(subjectId,elementIdOf(subjectId,nama));
 }
 
-/* Mata pelajaran dan fase yang naskah CP resminya belum dimuat.
+/* Laporan CP yang naskah resminya belum ada — dipakai untuk menjawab "apa yang masih kurang"
+   tanpa harus membaca kode.
 
-   Dipakai untuk melaporkan sisa pekerjaan secara jujur: selama daftar ini tidak kosong,
-   aplikasi menampilkan elemen CP beserta kutipan regulasinya, bukan naskah karangan. */
-export function cpNaskahGaps(subjectIds=Object.keys(ELEMENTS)){
+   Laporannya dihitung, bukan ditulis tangan: selama satu kombinasi mapel x fase masih
+   mengembalikan naskah null, ia muncul di sini lengkap dengan regulasi yang diharapkan dan
+   alasan kekosongannya. Tidak ada cara membuat daftar ini tampak pendek selain benar-benar
+   memuat naskah resminya. */
+export function cpNaskahGaps(subjectIds=CP_SUBJECTS){
   const contoh={A:'1A',B:'3A',C:'5A'};
   const kurang=[];
   for(const subjectId of subjectIds)
     for(const phase of ['A','B','C']){
       const cp=capaianPembelajaran(contoh[phase],subjectId);
       if(cp&&cp.naskah===null)
-        kurang.push({subjectId,phase,decision:cp.regulation.decision});
+        kurang.push({
+          subjectId,phase,
+          decision:cp.regulation.decision,
+          authority:cp.regulation.authority,
+          verified:cp.regulation.verified,
+          available:cp.available,
+          naskah:null,
+          reason:cp.naskahReason,
+        });
     }
   return kurang;
+}
+
+/* Ringkasan per status, supaya laporan audit tidak perlu menghitung ulang di banyak tempat. */
+export function cpNaskahReport(subjectIds=CP_SUBJECTS){
+  const gaps=cpNaskahGaps(subjectIds);
+  const total=subjectIds.length*3;
+  return {
+    total,
+    kosong:gaps.length,
+    terisi:total-gaps.length,
+    diLuarFase:gaps.filter(item=>!item.available).length,
+    sumberBelumTerverifikasi:gaps.filter(item=>item.available&&item.verified===false).length,
+    menungguNaskah:gaps.filter(item=>item.available&&item.verified!==false).length,
+    gaps,
+  };
 }

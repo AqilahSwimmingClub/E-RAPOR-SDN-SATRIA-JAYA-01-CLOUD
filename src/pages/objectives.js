@@ -47,9 +47,25 @@ export function renderObjectives(session){
     const cp=capaianPembelajaranFor(session,subjectId);
     if(!cp){cpHost.innerHTML='';return;}
     const nama=subjects.find(item=>item.id===subjectId)?.name||'';
-    cpHost.innerHTML=`<section class="card cp-card"><div class="section-head"><div><h3>Capaian Pembelajaran — Fase ${escapeHtml(cp.phase)}</h3><p>${escapeHtml(nama)} · Kelas ${escapeHtml(String(cp.grade||''))} · acuan kompetensi resmi yang menjadi dasar penyusunan TP.</p></div><span class="badge badge-a">Fase ${escapeHtml(cp.phase)}</span></div>
+    /* Status Muatan Lokal dibaca dari KEWENANGAN penetapan CP-nya, bukan dari label yang
+       tersimpan pada Mapping. Mapping lama sebuah sekolah bisa saja masih menggolongkan
+       Koding & KA sebagai muatan lokal, padahal CP-nya ditetapkan secara nasional. */
+    const mulok=cp.regulation.scope==='muatan_lokal';
+    /* Rujukan ditulis dari metadata yang benar-benar ada. Mata pelajaran yang regulasinya belum
+       terverifikasi menyebut lembaga yang berwenang, bukan nomor keputusan yang tidak dimilikinya. */
+    const rujukan=cp.regulation.decision
+      ? `Rujukan: <strong>${escapeHtml(cp.regulation.decision)}</strong> — ${escapeHtml(cp.regulation.title)}.`
+      : `Rujukan: <strong>${escapeHtml(cp.regulation.title)}</strong> — kewenangan ${escapeHtml(cp.regulation.authority||'pemerintah daerah')}.`;
+    /* Naskah CP tidak pernah diganti teks pengganti. Selama kosong, yang ditampilkan adalah
+       alasan kosongnya. */
+    const naskah=cp.naskah
+      ? `<div class="cp-naskah">${escapeHtml(cp.naskah)}</div>`
+      : `<p class="cp-empty">Naskah CP resmi belum tersedia pada dataset aplikasi. ${escapeHtml(cp.naskahReason)}</p>`;
+    cpHost.innerHTML=`<section class="card cp-card"><div class="section-head"><div><h3>Capaian Pembelajaran — Fase ${escapeHtml(cp.phase)}</h3><p>${escapeHtml(nama)} · Kelas ${escapeHtml(String(cp.grade||''))} · acuan kompetensi resmi yang menjadi dasar penyusunan TP.</p></div><div class="cp-badges">${mulok?'<span class="badge badge-c">Muatan Lokal</span>':''}<span class="badge badge-a">Fase ${escapeHtml(cp.phase)}</span></div></div>
+      ${cp.available?'':`<p class="cp-empty">Mata pelajaran ini belum berlaku pada Fase ${escapeHtml(cp.phase)}. ${escapeHtml(cp.naskahReason)}</p>`}
       ${cp.elements.length?`<div class="cp-elements">${cp.elements.map(item=>`<span class="cp-element">${escapeHtml(item.name)}</span>`).join('')}</div>`:''}
-      <p class="cp-source">Rujukan: <strong>${escapeHtml(cp.regulation.decision)}</strong> — ${escapeHtml(cp.regulation.title)}.${cp.regulation.note?` ${escapeHtml(cp.regulation.note)}`:''} Naskah CP lengkap mengikuti dokumen resmi tersebut; aplikasi tidak menyalinnya agar tidak menjadi sumber kedua.</p></section>`;
+      ${cp.available?naskah:''}
+      <p class="cp-source">${rujukan}${cp.regulation.note?` ${escapeHtml(cp.regulation.note)}`:''} Naskah CP lengkap mengikuti dokumen resmi tersebut; aplikasi tidak menyalinnya agar tidak menjadi sumber kedua.</p></section>`;
   }
 
   /* ------------------------------------------------------------------ Modal + Tambah TP */

@@ -47,6 +47,17 @@ test('Mapel opsional tetap tersedia tetapi tidak dipaksakan',()=>{
   }
 });
 
+test('Koding & KA hanya berkatalog pada Fase C, sesuai jenjang SD',()=>{
+  for(const kelas of ['1A','1D','2A','2D','3A','3D','4A','4D'])
+    assert.equal(defaultLearningObjectives(kelas,'koding').length,0,
+      `${kelas} tidak boleh punya TP Koding & KA — CP-nya belum ada pada fase itu`);
+  for(const kelas of ['5A','5B','5C','5D','6A','6B','6C','6D'])
+    assert.ok(defaultLearningObjectives(kelas,'koding').length>=2,`${kelas} punya TP Koding & KA`);
+  assert.equal(hasDefaultsFor('1A','koding'),false);
+  assert.equal(hasDefaultsFor('3C','koding'),false);
+  assert.equal(hasDefaultsFor('6D','koding'),true);
+});
+
 test('Seluruh mapel katalog terdaftar pada daftar mapel aplikasi',()=>{
   const dikenal=new Set(SUBJECTS_DEFAULT.map(subject=>subject.id));
   for(const subjectId of subjectsWithDefaults())
@@ -77,9 +88,19 @@ test('Setiap TP mencantumkan metadata sumber resmi yang lengkap',()=>{
         assert.ok(tp.source,`${subjectId} ${tp.code} punya sumber`);
         assert.ok(sumberDikenal.has(tp.source.id),`sumber ${tp.source.id} dikenal`);
         assert.ok(tp.source.title.length>10);
-        assert.ok(tp.source.decision.length>5);
-        assert.ok(Number.isInteger(tp.source.year)&&tp.source.year>=2024);
-        assert.match(tp.source.url,/^https:\/\//);
+        assert.ok(tp.source.authority.length>10,`${subjectId} menyebut lembaga berwenang`);
+        /* Dua kontrak berbeda, dan yang belum terverifikasi justru yang lebih ketat: ia harus
+           benar-benar kosong. Sumber Muatan Lokal yang diam-diam memakai nomor keputusan
+           nasional akan lolos pemeriksaan "ada isinya", padahal itu persis kesalahannya. */
+        if(tp.source.verified===false){
+          assert.equal(tp.source.decision,null,`${subjectId} tidak meminjam nomor keputusan`);
+          assert.equal(tp.source.year,null,`${subjectId} tidak meminjam tahun regulasi`);
+          assert.equal(tp.source.url,null,`${subjectId} tidak meminjam tautan regulasi`);
+        }else{
+          assert.ok(tp.source.decision.length>5);
+          assert.ok(Number.isInteger(tp.source.year)&&tp.source.year>=2024);
+          assert.match(tp.source.url,/^https:\/\//);
+        }
         assert.ok(tp.description.length>=20,`${subjectId} ${tp.code} deskripsi operasional`);
         assert.equal(tp.status,OBJECTIVE_STATUS);
         assert.equal(tp.editable,true);
@@ -93,6 +114,9 @@ test('PABP memakai keputusan 2026 dan mapel umum memakai CP yang masih berlaku',
     assert.equal(defaultLearningObjectives('5A',subjectId)[0].source.id,'cp_pabp');
   for(const subjectId of ['pancasila','bindo','mtk','ipas','pjok'])
     assert.equal(defaultLearningObjectives('5A',subjectId)[0].source.id,'cp_umum');
+  /* Koding & KA dan Muatan Lokal punya sumber sendiri; keduanya tidak boleh jatuh ke cp_umum. */
+  assert.equal(defaultLearningObjectives('5A','koding')[0].source.id,'cp_koding_ka');
+  assert.equal(defaultLearningObjectives('5A','sunda')[0].source.id,'cp_mulok_jabar');
   assert.equal(TP_SOURCES.cp_pabp.year,2026);
   assert.match(TP_SOURCES.cp_pabp.decision,/020/);
   assert.match(TP_SOURCES.cp_umum.decision,/046\/H\/KR\/2025/);
@@ -118,6 +142,9 @@ test('Katalog tidak mengklaim TP sebagai teks nasional wajib',()=>{
 test('Dokumentasi sumber TP tersedia dan menyebut ketiga rujukan',()=>{
   const dokumen=read('docs/TP-SOURCES.md');
   for(const sumber of Object.values(TP_SOURCES)){
+    assert.ok(dokumen.includes(sumber.title),`${sumber.id} tercantum di dokumentasi`);
+    assert.ok(dokumen.includes(sumber.authority),`lembaga ${sumber.id} tercantum di dokumentasi`);
+    if(sumber.verified===false)continue;
     assert.ok(dokumen.includes(sumber.decision),`${sumber.decision} tercantum di dokumentasi`);
     assert.ok(dokumen.includes(sumber.url),`URL ${sumber.id} tercantum di dokumentasi`);
   }
