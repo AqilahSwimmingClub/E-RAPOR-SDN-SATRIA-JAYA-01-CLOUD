@@ -31,10 +31,13 @@ test('halaman input intrakurikuler memakai kegiatan bawaan dan tombol generate d
   assert.match(page,/data-generate-description/);
 });
 
-test('guru mendapat Mapping Mata Pelajaran dan route dapat diakses',()=>{
+test('Mapping Mata Pelajaran menjadi konfigurasi master milik Admin',()=>{
+  /* Guru memakai hasil mapping lewat layanan mata pelajaran, bukan mengaturnya sendiri. */
+  const adminItems=navigationForRole('admin').flatMap(group=>group.children);
+  assert.ok(adminItems.some(item=>item.route==='reference-mapping'&&item.label==='Mapping Mata Pelajaran'));
+  assert.equal(canAccessRoute('reference-mapping','admin'),true);
   const teacherItems=navigationForRole('teacher').flatMap(group=>group.children);
-  assert.ok(teacherItems.some(item=>item.route==='reference-mapping'&&item.label==='Mapping Mata Pelajaran'));
-  assert.equal(canAccessRoute('reference-mapping','teacher'),true);
+  assert.equal(teacherItems.some(item=>item.route==='reference-mapping'),false);
 });
 
 test('mapping guru tetap tersimpan pada scope rombel guru sendiri',()=>{

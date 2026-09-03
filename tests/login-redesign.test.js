@@ -179,6 +179,7 @@ test('Navigasi dan dashboard tidak ikut berubah',()=>{
   assert.equal(new Set(admin).size,admin.length);
   assert.equal(new Set(teacher).size,teacher.length);
   assert.ok(admin.includes('dashboard')&&teacher.includes('dashboard'));
-  assert.ok(teacher.includes('reference-mapping'),'Mapping Mata Pelajaran Guru tetap ada');
+  /* Mapping Mata Pelajaran kini konfigurasi master milik Admin saja. */
+  assert.ok(admin.includes('reference-mapping'),'Mapping Mata Pelajaran tetap ada pada Admin');
   assert.match(read('src/pages/dashboard.js'),/dash-hero/,'dashboard baru tetap utuh');
 });

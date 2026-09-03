@@ -11,7 +11,7 @@ test('menu guru kembali menyediakan Absensi dan Penilaian lama',()=>{
   const menu=flattenNavigation('teacher');
   const attendance=menu.find(item=>item.route==='attendance');
   const assessment=menu.find(item=>item.route==='assessment');
-  assert.equal(attendance?.label,'Absensi');
+  assert.equal(attendance?.label,'Absensi Siswa');
   assert.equal(assessment?.label,'Penilaian');
 });
 

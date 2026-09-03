@@ -2,18 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { flattenNavigation, navigationForRole } from '../src/data/navigation.js';
 
-test('teacher Input Kelengkapan children use the approved order',()=>{
-  const group=navigationForRole('teacher').find(item=>item.id==='completeness');
-  assert.deepEqual(group.children.map(item=>item.label),[
-    'Update Data Siswa','Serah Terima Siswa','Input Nilai Ekskul','Input Nilai Kokurikuler',
-    'Input Nilai Intrakurikuler','Penilaian Sikap','Input Catatan Wali Kelas','Input Kenaikan Kelas'
+/* Menu Guru disusun mengikuti pekerjaan rombel: data kelas, pembelajaran, kegiatan,
+   kehadiran, lalu rapor. Kelompoknya tetap, isinya yang dijaga di sini. */
+test('teacher KEGIATAN group holds the three activity inputs',()=>{
+  const group=navigationForRole('teacher').find(item=>item.id==='teacher-activities');
+  assert.deepEqual(group.children.map(item=>[item.route,item.label]),[
+    ['intracurricular-input','Intrakurikuler'],
+    ['cocurricular-input','Kokurikuler'],
+    ['extra-input','Ekstrakurikuler']
   ]);
 });
 
-test('teacher penilaian group contains attendance assessment and weight tools only',()=>{
-  const group=navigationForRole('teacher').find(item=>item.id==='legacy-assessment');
+test('teacher PEMBELAJARAN group holds TP, KKTP, and assessment tools',()=>{
+  const group=navigationForRole('teacher').find(item=>item.id==='teacher-learning');
   assert.deepEqual(group.children.map(item=>[item.route,item.label]),[
-    ['attendance','Absensi'],['assessment','Penilaian'],['weights','Bobot Penilaian']
+    ['objectives','Tujuan Pembelajaran'],['weights','KKTP'],
+    ['assessment','Penilaian'],['attitudes','Penilaian Sikap']
+  ]);
+  const kehadiran=navigationForRole('teacher').find(item=>item.id==='teacher-attendance');
+  assert.deepEqual(kehadiran.children.map(item=>[item.route,item.label]),[
+    ['attendance','Absensi Siswa']
   ]);
 });
 
@@ -24,13 +32,13 @@ test('each role has one canonical menu entry per route',()=>{
   }
 });
 
-test('teacher menu keeps one Mapping entry and no deprecated Dimensi Penilaian entry',()=>{
+test('teacher menu leaves master configuration to Admin',()=>{
   const items=flattenNavigation('teacher');
   const labels=items.map(item=>item.label);
-  /* Mapping Mata Pelajaran memang disediakan untuk akun Guru. Yang dijaga adalah entrinya
-     tunggal dan memakai route kanonik yang sama dengan milik Admin, bukan route duplikat. */
-  assert.equal(labels.filter(label=>label==='Mapping Mata Pelajaran').length,1);
-  assert.equal(items.filter(item=>item.route==='reference-mapping').length,1);
+  /* Mapping Mata Pelajaran adalah konfigurasi master milik Admin; Guru memakai hasilnya,
+     bukan mengaturnya sendiri. */
+  assert.equal(items.some(item=>item.route==='reference-mapping'),false);
+  assert.equal(flattenNavigation('admin').filter(item=>item.route==='reference-mapping').length,1);
   assert.equal(labels.includes('Dimensi Penilaian'),false);
 });
 

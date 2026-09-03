@@ -116,6 +116,11 @@ export function clearTeacherAssignment(session,classId,{reason=''}={}){
    Array berarti Admin sudah menentukan, dan hanya mapel di dalamnya yang boleh dikerjakan. */
 export function assignedSubjectIds(session){
   if(session?.role!=='teacher'||!session.classId)return null;
+  /* Halaman Admin (Kesiapan Guru, Monitoring) menyusun sesi guru sintetis hanya untuk MEMBACA
+     konfigurasi satu rombel. Pandangan Admin tidak boleh ikut dipersempit oleh penugasan guru
+     tertentu — kalau ikut, Kesiapan Guru akan melaporkan mapel yang sebenarnya sudah lengkap
+     sebagai "belum tersedia", dan Monitoring akan melihat sebagian sekolah saja. */
+  if(session.adminContext===true)return null;
   const record=getTeacherAssignment(session,session.classId);
   if(!record)return null;
   if(!record.active)return [];

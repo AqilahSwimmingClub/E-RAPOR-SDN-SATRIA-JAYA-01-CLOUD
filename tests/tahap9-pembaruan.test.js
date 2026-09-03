@@ -484,9 +484,13 @@ test('26. Migrasi app_versions bersifat menambah kolom, bukan membuat ulang tabe
   assert.equal(/DROP TABLE/i.test(sqlite),false);
 });
 
-test('27. Menu Tentang & Pembaruan tersedia bagi Admin dan Guru serta tetap terbuka saat terbatas',()=>{
+test('27. Menu Tentang & Pembaruan menjadi milik Admin dan tetap terbuka saat terbatas',()=>{
   const navigasi=read('src/data/navigation.js');
-  assert.equal((navigasi.match(/'about-updates'/g)||[]).length,4,'satu entri untuk Admin dan satu untuk Guru');
+  /* Pembaruan aplikasi adalah urusan sistem, jadi pemiliknya Admin. Route-nya tetap terdaftar
+     sebagai route yang selalu terbuka supaya perilaku mode terbatas tidak berubah. */
+  assert.equal((navigasi.match(/'about-updates'/g)||[]).length,2,'satu entri, milik Admin');
+  assert.equal(navigasi.slice(navigasi.indexOf('teacher:Object.freeze')).includes('about-updates'),false,
+    'menu Guru tidak lagi memuatnya');
   assert.match(navigasi,/item\('about-updates','Tentang & Pembaruan'/);
   const aplikasi=read('src/app.js');
   assert.match(aplikasi,/case 'about-updates': return renderAboutUpdates\(session\)/);

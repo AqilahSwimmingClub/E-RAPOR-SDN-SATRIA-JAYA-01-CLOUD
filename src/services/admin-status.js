@@ -15,7 +15,7 @@ function scopeOf(session,{semester=session.semester,academicYear=session.academi
 }
 
 function summarizeClass(session,classId,filters){
-  const scope=scopeOf(session,filters);const teacherSession={...session,role:'teacher',classId,accountId:`teacher:${classId}`,...scope};
+  const scope=scopeOf(session,filters);const teacherSession={...session,role:'teacher',classId,accountId:`teacher:${classId}`,adminContext:true,...scope};
   const assessment=getClassCompletion(teacherSession);const report=getReportCompleteness(teacherSession);
   const scoreComplete=assessment.subjects.reduce((sum,item)=>sum+item.scoreComplete,0);const descriptionComplete=assessment.subjects.reduce((sum,item)=>sum+item.descriptionComplete,0);const total=assessment.subjectCount*assessment.studentCount;
   return {

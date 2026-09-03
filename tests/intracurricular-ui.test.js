@@ -28,7 +28,11 @@ test('Halaman Intrakurikuler memakai keempat fungsi layanan dan referensi rombel
 
 test('Intrakurikuler hanya muncul sekali pada menu Admin dan tidak ada di menu Guru',()=>{
   const nav=read('src/data/navigation.js');
-  assert.equal((nav.match(/'intracurricular'/g)||[]).length,2,'satu entri menu Admin: id dan route');
+  /* Input kegiatan adalah pekerjaan Guru, jadi Admin tidak lagi punya menunya. Halaman dan
+     layanannya TIDAK dihapus: yang hilang hanya akses menu yang menduplikasi. */
+  assert.equal((nav.match(/'intracurricular'/g)||[]).length,0,'Admin tidak lagi punya menu input Intrakurikuler');
+  assert.match(nav,/'intracurricular-input','Intrakurikuler'/,'Guru pemiliknya');
+  assert.match(read('src/app.js'),/case 'intracurricular':/,'route dan halamannya tetap ada');
   /* Route ini harus memakai halaman sungguhan, bukan lagi stub renderPlaceholder. */
   assert.doesNotMatch(read('src/pages/intracurricular.js'),/pages\/placeholder\.js/);
   assert.doesNotMatch(read('src/app.js'),/case 'intracurricular': return renderPlaceholder/);

@@ -75,11 +75,12 @@ test('Redesign dashboard tidak mengubah menu Admin maupun Guru',()=>{
   const teacher=flattenNavigation('teacher').map(item=>item.route);
   assert.equal(new Set(admin).size,admin.length,'route Admin tetap unik');
   assert.equal(new Set(teacher).size,teacher.length,'route Guru tetap unik');
-  assert.ok(navigationForRole('admin').length>=11,'grup menu Admin tetap lengkap');
-  assert.ok(navigationForRole('teacher').length>=10,'grup menu Guru tetap lengkap');
-  for(const route of ['dashboard','dapodik-service','reference-students','print-report','backup','account-settings'])
+  assert.ok(navigationForRole('admin').length>=8,'grup menu Admin tetap lengkap');
+  assert.ok(navigationForRole('teacher').length>=7,'grup menu Guru tetap lengkap');
+  /* Setelah pembagian peran: cetak rapor milik Guru, Dapodik dan backup milik Admin. */
+  for(const route of ['dashboard','dapodik-service','reference-students','backup','account-settings'])
     assert.ok(admin.includes(route),`menu Admin ${route} tetap ada`);
-  for(const route of ['dashboard','student-update','attendance','report-input','print-report','backup'])
+  for(const route of ['dashboard','student-update','attendance','report-input','print-report'])
     assert.ok(teacher.includes(route),`menu Guru ${route} tetap ada`);
 });
 

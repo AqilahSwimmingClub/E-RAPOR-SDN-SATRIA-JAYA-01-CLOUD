@@ -51,10 +51,13 @@ test('Pengaturan cetak lengkap dirender sebelum pemilihan rombel',()=>{
   assert.match(read('src/styles/app.css'),/print-settings-grid/);
 });
 
-test('Tiga route cetak muncul sekali pada masing-masing menu',()=>{
-  for(const role of ['admin','teacher']){
-    const menu=flattenNavigation(role).map(item=>item.route);
-    for(const route of ['print-ledger','print-supplement','print-report'])
-      assert.equal(menu.filter(item=>item===route).length,1,`${route} muncul sekali pada menu ${role}`);
+test('Tiga route cetak menjadi milik Guru dan muncul sekali di sana',()=>{
+  /* Cetak rapor adalah pekerjaan operasional Guru. Admin memantau lewat Monitoring,
+     tanpa menu cetak yang menduplikasi. Halaman dan layanan cetaknya tidak dihapus. */
+  const guru=flattenNavigation('teacher').map(item=>item.route);
+  const admin=flattenNavigation('admin').map(item=>item.route);
+  for(const route of ['print-ledger','print-supplement','print-report']){
+    assert.equal(guru.filter(item=>item===route).length,1,`${route} muncul sekali pada menu Guru`);
+    assert.equal(admin.includes(route),false,`${route} tidak ada pada menu Admin`);
   }
 });

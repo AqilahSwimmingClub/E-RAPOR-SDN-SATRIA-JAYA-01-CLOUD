@@ -175,7 +175,6 @@ function pageFor(route,session){
     case 'print-ledger': return renderPrint(session,'ledger');
     case 'print-supplement': return renderPrint(session,'supplement');
     case 'print-report': return renderPrint(session,'report');
-    case 'users': return renderUsers(session,'users');
     case 'teacher-assignments': return renderUsers(session,'assignments');
     case 'teacher-readiness': return renderUsers(session,'readiness');
     case 'teacher-access': return renderUsers(session,'access');

@@ -121,3 +121,19 @@ export function cpElementForObjective(subjectId,phase,order){
   if(!nama)return null;
   return cpElementById(subjectId,elementIdOf(subjectId,nama));
 }
+
+/* Mata pelajaran dan fase yang naskah CP resminya belum dimuat.
+
+   Dipakai untuk melaporkan sisa pekerjaan secara jujur: selama daftar ini tidak kosong,
+   aplikasi menampilkan elemen CP beserta kutipan regulasinya, bukan naskah karangan. */
+export function cpNaskahGaps(subjectIds=Object.keys(ELEMENTS)){
+  const contoh={A:'1A',B:'3A',C:'5A'};
+  const kurang=[];
+  for(const subjectId of subjectIds)
+    for(const phase of ['A','B','C']){
+      const cp=capaianPembelajaran(contoh[phase],subjectId);
+      if(cp&&cp.naskah===null)
+        kurang.push({subjectId,phase,decision:cp.regulation.decision});
+    }
+  return kurang;
+}

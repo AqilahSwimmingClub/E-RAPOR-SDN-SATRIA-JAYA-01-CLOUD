@@ -1,4 +1,4 @@
-import { CLASSES } from '../data/constants.js';
+import { CLASSES, SUBJECTS_DEFAULT } from '../data/constants.js';
 import { listObjectivesForAssessment } from './learning-objectives.js';
 import { getSchoolMaster, getTeacherProfile } from './master.js';
 import { listStudents } from './students.js';
@@ -65,15 +65,15 @@ export function getAdminReadiness(session){
   const scope={academicYear:session?.academicYear,semester:session?.semester};
 
   const cekMapping=rombel.filter(classId=>{
-    const mapping=getSubjectMapping({...scope,role:'teacher',classId});
+    const mapping=getSubjectMapping({...scope,role:'teacher',classId,adminContext:true});
     return Array.isArray(mapping)&&mapping.some(item=>item.active);
   });
   /* Bobot dan KKTP tersimpan per mata pelajaran. Sebuah rombel dianggap siap bila setiap
      mapel aktifnya sudah punya pengaturan tersimpan, bukan sekadar memakai nilai bawaan. */
   const tersimpan=loadDb().assessmentSettings||{};
   const cekPenilaian=rombel.filter(classId=>{
-    const prefix=`${scopeKey({...scope,role:'teacher',classId})}|`;
-    const mapping=getSubjectMapping({...scope,role:'teacher',classId});
+    const prefix=`${scopeKey({...scope,role:'teacher',classId,adminContext:true})}|`;
+    const mapping=getSubjectMapping({...scope,role:'teacher',classId,adminContext:true});
     const aktif=(Array.isArray(mapping)?mapping:[]).filter(item=>item.active);
     if(!aktif.length)return false;
     return aktif.every(item=>{
@@ -88,14 +88,14 @@ export function getAdminReadiness(session){
      supaya sekolah kecil tidak dipaksa melengkapi seluruh 24 rombel. */
   const akun=loadDb().userAccounts||{};
   const cekSiswa=rombel.filter(classId=>{
-    try{return listStudents({...scope,role:'teacher',classId},{classId}).length>0;}catch{return false;}
+    try{return listStudents({...scope,role:'teacher',classId,adminContext:true},{classId}).length>0;}catch{return false;}
   });
   const cekTP=rombel.filter(classId=>{
-    const mapping=getSubjectMapping({...scope,role:'teacher',classId});
+    const mapping=getSubjectMapping({...scope,role:'teacher',classId,adminContext:true});
     const aktif=(Array.isArray(mapping)?mapping:[]).filter(item=>item.active);
     if(!aktif.length)return false;
     return aktif.every(item=>{
-      try{return listObjectivesForAssessment({...scope,role:'teacher',classId},item.id,{activeOnly:true}).length>0;}
+      try{return listObjectivesForAssessment({...scope,role:'teacher',classId,adminContext:true},item.id,{activeOnly:true}).length>0;}
       catch{return false;}
     });
   });
@@ -104,6 +104,33 @@ export function getAdminReadiness(session){
     const record=getTeacherAssignment({...scope},classId);
     return Boolean(record?.active&&Array.isArray(record.subjectIds)&&record.subjectIds.length);
   });
+
+  /* Penyebab "belum siap" disusun dari keadaan nyata, bukan kalimat tetap: mapel mana pada
+     rombel mana yang belum punya TP, KKTP, atau bobot. Guru dan Admin butuh tahu persis apa
+     yang harus dilengkapi, bukan sekadar bahwa ada yang kurang. */
+  const namaMapel=id=>SUBJECTS_DEFAULT.find(item=>item.id===id)?.name||id;
+  const rincianTP=[];const rincianKKTP=[];const rincianBobot=[];const rincianSiswa=[];
+  for(const classId of rombel){
+    const konteks={...scope,role:'teacher',classId,adminContext:true};
+    const mapping=getSubjectMapping(konteks);
+    const aktif=(Array.isArray(mapping)?mapping:[]).filter(item=>item.active);
+    try{if(!listStudents(konteks,{classId}).length)rincianSiswa.push(`Data siswa ${classId}`);}
+    catch{rincianSiswa.push(`Data siswa ${classId}`);}
+    const prefix=`${scopeKey(konteks)}|`;
+    for(const mapel of aktif){
+      let tp=[];
+      try{tp=listObjectivesForAssessment(konteks,mapel.id,{activeOnly:true});}catch{tp=[];}
+      if(!tp.length)rincianTP.push(`TP ${namaMapel(mapel.id)} ${classId}`);
+      const setting=tersimpan[`${prefix}${mapel.id}`];
+      const bobot=['formative','daily','practice','scopeSummative','semesterSummative']
+        .reduce((total,field)=>total+(Number(setting?.[field])||0),0);
+      if(!(Number(setting?.kktp)>0))rincianKKTP.push(`KKTP ${namaMapel(mapel.id)} ${classId}`);
+      if(!(bobot>0))rincianBobot.push(`Bobot ${namaMapel(mapel.id)} ${classId}`);
+    }
+  }
+  const sebab=(daftar,batas=4)=>daftar.length
+    ? ` Belum siap: ${daftar.slice(0,batas).join(', ')}${daftar.length>batas?`, dan ${daftar.length-batas} lainnya`:''}.`
+    : '';
 
   const items=[
     {id:'school-identity',label:'Identitas sekolah',done:isi(school.name)&&isi(school.npsn),
@@ -117,11 +144,14 @@ export function getAdminReadiness(session){
     {id:'subject-mapping',label:'Mapping mata pelajaran',done:rombel.length>0&&cekMapping.length===rombel.length,
       reason:'Setiap rombel yang dipakai harus punya mata pelajaran aktif pada Mapping Mata Pelajaran.'},
     {id:'assessment-settings',label:'Bobot penilaian dan KKTP',done:rombel.length>0&&cekPenilaian.length===rombel.length,
-      reason:'Setiap rombel yang dipakai harus punya bobot penilaian dan KKTP pada Bobot Penilaian.'},
+      reason:`Setiap mata pelajaran aktif harus punya bobot penilaian dan KKTP.${sebab([...rincianKKTP,...rincianBobot])}`,
+      detail:[...rincianKKTP,...rincianBobot]},
     {id:'students',label:'Data siswa',done:rombel.length>0&&cekSiswa.length===rombel.length,
-      reason:'Setiap rombel yang dipakai harus sudah berisi siswa pada Data Referensi → Data Siswa.'},
+      reason:`Setiap rombel yang dipakai harus sudah berisi siswa.${sebab(rincianSiswa)}`,
+      detail:rincianSiswa},
     {id:'learning-objectives',label:'CP dan Tujuan Pembelajaran',done:rombel.length>0&&cekTP.length===rombel.length,
-      reason:'Setiap mata pelajaran aktif harus punya Tujuan Pembelajaran, baik katalog bawaan sesuai fase maupun TP susunan guru.'},
+      reason:`Setiap mata pelajaran aktif harus punya TP aktif; CP-nya mengikuti fase rombel.${sebab(rincianTP)}`,
+      detail:rincianTP},
     {id:'teacher-accounts',label:'Akun Guru',done:rombel.length>0&&cekAkun.length===rombel.length,
       reason:'Akun Guru untuk rombel yang dipakai harus dalam keadaan aktif pada Akun Guru & Penugasan.'},
     {id:'teacher-assignments',label:'Penugasan Guru',done:rombel.length>0&&cekPenugasan.length===rombel.length,
@@ -129,10 +159,12 @@ export function getAdminReadiness(session){
   ];
 
   const missing=items.filter(item=>!item.done).map(item=>item.label);
+  /* Daftar penyebab konkret, dipakai layar Kesiapan Guru untuk menyebut apa yang kurang. */
+  const blockers=items.filter(item=>!item.done).flatMap(item=>item.detail?.length?item.detail:[item.label]);
   const record=loadDb()[COLLECTION]?.[teacherUsageScopeKey(session)]||null;
   const grandfathered=!record&&adaJejakPemakaian(session);
   return {
-    items,missing,ready:missing.length===0,
+    items,missing,blockers,ready:missing.length===0,
     active:record?Boolean(record.active):grandfathered,
     grandfathered,
     activatedAt:record?.activatedAt||null,

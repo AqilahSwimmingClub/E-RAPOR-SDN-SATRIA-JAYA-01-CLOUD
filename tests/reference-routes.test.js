@@ -9,7 +9,9 @@ const read=path=>readFileSync(new URL(path,root),'utf8');
 const ROUTES=['reference-school','reference-teachers','reference-students','reference-classes','reference-subjects','reference-learning','reference-mapping','reference-branding','reference-report-date'];
 /* Mapping Mata Pelajaran dipakai bersama: Admin mengelolanya dari Data Referensi, Guru
    memakainya untuk rombelnya sendiri. Route referensi lain tetap khusus Admin. */
-const SHARED_ROUTES=['reference-mapping'];
+/* Seluruh Data Referensi kini konfigurasi master milik Admin, termasuk Mapping Mata
+   Pelajaran. Guru memakai hasilnya lewat layanan mata pelajaran, bukan mengaturnya. */
+const SHARED_ROUTES=[];
 const ADMIN_ONLY_ROUTES=ROUTES.filter(route=>!SHARED_ROUTES.includes(route));
 
 test('Route anak Data Referensi milik Admin, kecuali Mapping yang dipakai bersama',()=>{
@@ -24,6 +26,7 @@ test('Route anak Data Referensi milik Admin, kecuali Mapping yang dipakai bersam
     assert.equal(resolveRoute(route,teacher),route,`${route} tetap terbuka bagi Guru`);
   }
   assert.equal(resolveRoute('reference-mapping',{role:'admin'}),'reference-mapping');
+  assert.equal(canAccessRoute('reference-mapping','teacher'),false,'Guru tidak mengatur mapping');
 });
 
 test('Setiap route referensi memanggil modul yang sudah ada secara eksplisit',()=>{
