@@ -126,11 +126,14 @@ test('Tidak ada satu pun nilai yang tersimpan per TP',()=>{
   const tersedia=listObjectivesForAssessment(session,'mtk');
   setSelectedAssessmentObjectives(session,'mtk',tersedia.map(item=>item.id));
   const record=loadDb().assessmentObjectiveSelection[`${ACADEMIC_YEAR}|Ganjil ${ACADEMIC_YEAR}|5B|mtk`];
+  /* assessmentType hanyalah label komponen penilaian (Formatif/Harian/...), bukan angka.
+     Yang dijaga di sini: record pemilihan TP tidak pernah memuat nilai. */
   assert.deepEqual(Object.keys(record).sort(),
-    ['academicYear','classId','objectiveIds','semester','subjectId','updatedAt'].sort(),
-    'yang tersimpan hanya daftar ID TP, tanpa satu pun kolom angka');
+    ['academicYear','assessmentType','classId','objectiveIds','semester','subjectId','updatedAt'].sort(),
+    'yang tersimpan hanya daftar ID TP beserta lingkupnya, tanpa satu pun kolom angka');
   for(const nilai of Object.values(record))
     assert.equal(typeof nilai==='number',false,'tidak ada angka pada record pemilihan TP');
+  assert.equal(record.assessmentType,null,'acuan tingkat mata pelajaran tidak terikat satu komponen');
   /* Layanan TP tidak menyentuh koleksi nilai mana pun. */
   const layanan=read('src/services/learning-objectives.js');
   for(const larangan of ['assessmentScores','reportScores','finalScore','score'])

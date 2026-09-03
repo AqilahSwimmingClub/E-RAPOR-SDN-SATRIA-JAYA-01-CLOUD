@@ -1,5 +1,6 @@
 import { RELIGION_SUBJECTS, SUBJECTS_DEFAULT, isReligionSubject, religionMatches, religionOfSubject } from '../data/constants.js';
 import { getSubjectMapping } from './storage.js';
+import { assignedSubjectIds } from './teacher-assignments.js';
 
 function assertTeacherSession(session){
   if(!session || session.role!=='teacher' || !session.classId) throw new Error('Session Guru tidak valid.');
@@ -7,17 +8,28 @@ function assertTeacherSession(session){
 
 function bySubjectOrder(a,b){return (a.group==='A'?0:1)-(b.group==='A'?0:1)||a.order-b.order;}
 
+/* Satu-satunya pintu masuk daftar mapel milik Guru, sehingga penugasan Admin ikut berlaku
+   pada penilaian, deskripsi, rapor, dan leger sekaligus — bukan sekadar menyembunyikan menu.
+   Rombel yang belum pernah ditugaskan Admin tidak dibatasi, supaya pemasangan lama tetap
+   dapat membuka datanya sendiri. */
 export function listActiveSubjects(session){
   assertTeacherSession(session);
+  const izin=assignedSubjectIds(session);
   return getSubjectMapping(session)
     .filter(subject=>subject.active)
+    .filter(subject=>izin===null||izin.includes(subject.id))
     .sort(bySubjectOrder)
     .map(subject=>({...subject}));
 }
 
 export function requireActiveSubject(session,subjectId){
   const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
-  if(!subject) throw new Error('Mata pelajaran tidak aktif pada Mapping Mata Pelajaran scope ini.');
+  if(!subject){
+    const izin=assignedSubjectIds(session);
+    if(izin!==null&&!izin.includes(String(subjectId)))
+      throw new Error('Mata pelajaran ini tidak termasuk penugasan Anda. Hubungi Admin sekolah.');
+    throw new Error('Mata pelajaran tidak aktif pada Mapping Mata Pelajaran scope ini.');
+  }
   return subject;
 }
 

@@ -13,7 +13,10 @@ export const NAVIGATION=Object.freeze({
       item('dapodik-push','Kirim Nilai ke Dapodik','upload','dapodik-push')
     ]),
     group('users','DATA PENGGUNA','users',[
-      item('users','Data Pengguna','users','users')
+      item('users','Data Pengguna','users','users'),
+      item('teacher-assignments','Akun Guru & Penugasan','users','teacher-assignments'),
+      item('teacher-readiness','Kesiapan Guru','check','teacher-readiness'),
+      item('teacher-access','Hak Akses Guru','settings','teacher-access')
     ]),
     group('reference','Data Referensi','database',[
       item('reference-school','Data Sekolah','school','reference-school'),

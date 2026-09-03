@@ -1,6 +1,7 @@
 import { ASSESSMENT_TYPES, SCOPE_SUMMATIVE_PARTS, SCOPE_SUMMATIVE_TYPE, getAssessmentSheet, saveAssessmentScores, scopeSummativeAverage } from '../services/assessment.js';
 import { fillAllAssessmentScores } from '../services/assessment-bulk.js';
-import { getSelectedAssessmentObjectives, listObjectivesForAssessment, setSelectedAssessmentObjectives } from '../services/learning-objectives.js';
+import { getComponentObjectiveSummary, listObjectivesForAssessment,
+  phaseForClassId, setSelectedAssessmentObjectives } from '../services/learning-objectives.js';
 import { assessmentTemplateFilename, assessmentTemplateWorkbook, commitAssessmentImport, previewAssessmentImport } from '../services/assessment-import.js';
 import { pickFile, saveFile } from '../services/file-io.js';
 import { attendanceDerivedSheet, getDailyAttendanceMode } from '../services/report.js';
@@ -87,29 +88,77 @@ export function renderAssessment(session){
     listHost.querySelectorAll(`[data-average-cell][data-id="${CSS.escape(studentId)}"]`).forEach(cell=>{cell.textContent=rata===null?'—':rata;});
   }
 
-  /* Tujuan Pembelajaran dipakai sebagai ACUAN penilaian, bukan sebagai nilai. Guru hanya
-     mencentang TP mana yang menjadi acuan mapel ini; tidak ada satu pun kotak angka per TP.
-     Nilai Akhir tetap berasal dari lima jenis penilaian di bawah. */
+  /* Tujuan Pembelajaran dipakai sebagai ACUAN penilaian, bukan sebagai nilai. Guru mencentang
+     TP mana yang menjadi acuan komponen penilaian yang sedang dibuka; tidak ada satu pun kotak
+     angka per TP. Satu komponen tetap menghasilkan SATU nilai per siswa seperti semula.
+
+     Daftar TP sengaja TIDAK dicetak ke dalam tabel nilai: teksnya panjang dan akan membuat
+     kolom nilai menjadi sempit. Yang tampil hanya ringkasan "n TP dipilih" beserta tombol
+     untuk melihat dan mengubahnya lewat panel tersendiri. */
+  function openObjectivePicker(type,objectives,terpilih,done){
+    const dipilih=new Set(terpilih);
+    const fase=(()=>{try{return phaseForClassId(session.classId);}catch{return '';}})();
+    const namaMapel=subjects.find(item=>item.id===subjectId)?.name||subjectId;
+    const modal=el(`<div class="modal-backdrop"><div class="modal-card modal-wide objective-picker" role="dialog" aria-modal="true" aria-labelledby="tpPickerTitle">
+      <div class="modal-head"><div><h3 id="tpPickerTitle">Pilih Tujuan Pembelajaran</h3>
+        <p>${escapeHtml(namaMapel)}${fase?` · Fase ${escapeHtml(fase)}`:''} · ${escapeHtml(type.label)}</p></div>
+        <button type="button" class="btn btn-light btn-icon" data-close aria-label="Tutup">${icon('x',17)}</button></div>
+      <p class="objective-picker-note">TP yang dicentang menjadi acuan komponen ini. Beberapa TP boleh dipilih sekaligus dan tetap menghasilkan SATU nilai per siswa.</p>
+      <div class="objective-reference-list" data-picker-list>${objectives.map(item=>`<label class="objective-reference-item"><input type="checkbox" data-pick value="${escapeHtml(item.id)}" ${dipilih.has(item.id)?'checked':''}/><span><strong>${escapeHtml(item.code)}</strong> ${escapeHtml(item.description)}</span></label>`).join('')}</div>
+      <div class="modal-actions"><span class="objective-picker-count" data-pick-count>${dipilih.size} TP dipilih</span>
+        <button type="button" class="btn btn-light" data-cancel>Batal</button>
+        <button type="button" class="btn btn-primary" data-apply>Simpan Pilihan</button></div></div></div>`);
+    document.body.append(modal);
+    const tutup=()=>modal.remove();
+    const kotak=()=>[...modal.querySelectorAll('[data-pick]')];
+    const hitung=()=>{modal.querySelector('[data-pick-count]').textContent=`${kotak().filter(item=>item.checked).length} TP dipilih`;};
+    kotak().forEach(box=>box.onchange=hitung);
+    modal.querySelector('[data-close]').onclick=tutup;
+    modal.querySelector('[data-cancel]').onclick=tutup;
+    modal.querySelector('[data-apply]').onclick=()=>{
+      const ids=kotak().filter(item=>item.checked).map(item=>item.value);
+      try{setSelectedAssessmentObjectives(session,subjectId,ids,type.id);tutup();done();
+        toast(`Acuan TP ${type.label} tersimpan.`);}
+      catch(error){toast(error.message,'error');}
+    };
+  }
+
+  function openObjectiveViewer(type,objectives){
+    const modal=el(`<div class="modal-backdrop"><div class="modal-card modal-wide" role="dialog" aria-modal="true">
+      <div class="modal-head"><div><h3>Tujuan Pembelajaran ${escapeHtml(type.label)}</h3>
+        <p>${objectives.length} TP menjadi acuan komponen ini.</p></div>
+        <button type="button" class="btn btn-light btn-icon" data-close aria-label="Tutup">${icon('x',17)}</button></div>
+      <ol class="objective-view-list">${objectives.map(item=>`<li><strong>${escapeHtml(item.code)}</strong> ${escapeHtml(item.description)}</li>`).join('')}</ol>
+      <div class="modal-actions"><button type="button" class="btn btn-primary" data-ok>Tutup</button></div></div></div>`);
+    document.body.append(modal);
+    const tutup=()=>modal.remove();
+    modal.querySelector('[data-close]').onclick=tutup;modal.querySelector('[data-ok]').onclick=tutup;
+  }
+
   function drawObjectives(){
     let objectives=[];
     try{objectives=listObjectivesForAssessment(session,subjectId,{activeOnly:true});}catch{objectives=[];}
     if(!objectives.length){
-      objectiveHost.innerHTML='<section class="card source-banner">Belum ada Tujuan Pembelajaran untuk mata pelajaran ini. Tambahkan melalui menu Tujuan Pembelajaran agar deskripsi rapor punya acuan.</section>';
+      objectiveHost.innerHTML='<section class="card source-banner">Belum ada Tujuan Pembelajaran untuk mata pelajaran ini. Tambahkan melalui menu Tujuan Pembelajaran agar penilaian dan deskripsi rapor punya acuan.</section>';
       return;
     }
-    const dipilih=new Set(getSelectedAssessmentObjectives(session,subjectId));
+    const ringkasan=getComponentObjectiveSummary(session,subjectId);
+    const aktif=ringkasan.find(item=>item.id===assessmentType)||ringkasan[0];
     const bawaan=objectives.some(item=>item.isDefault);
+    const fase=(()=>{try{return phaseForClassId(session.classId);}catch{return '';}})();
     const catatan=bawaan
       ? 'TP bawaan berstatus inspiratif/acuan dan dapat disesuaikan guru melalui menu Tujuan Pembelajaran.'
       : 'TP berikut berasal dari daftar TP mata pelajaran ini.';
-    objectiveHost.innerHTML=`<section class="card objective-reference"><div class="objective-reference-head"><h2>Acuan Tujuan Pembelajaran</h2><p>TP menjadi acuan penilaian dan bahan deskripsi rapor. Tidak ada nilai per TP; Nilai Akhir tetap dari Formatif, Harian, Praktik, Sumatif Lingkup Materi, dan Sumatif Akhir. ${escapeHtml(catatan)}</p></div><div class="objective-reference-list">${objectives.map(item=>`<label class="objective-reference-item"><input type="checkbox" data-objective value="${escapeHtml(item.id)}" ${dipilih.has(item.id)?'checked':''}/><span><strong>${escapeHtml(item.code)}</strong> ${escapeHtml(item.description)}</span></label>`).join('')}</div><div class="objective-reference-foot"><span data-objective-count>${dipilih.size} TP dijadikan acuan</span></div></section>`;
-    objectiveHost.querySelectorAll('[data-objective]').forEach(box=>box.onchange=()=>{
-      const ids=[...objectiveHost.querySelectorAll('[data-objective]')].filter(item=>item.checked).map(item=>item.value);
-      try{
-        setSelectedAssessmentObjectives(session,subjectId,ids);
-        objectiveHost.querySelector('[data-objective-count]').textContent=`${ids.length} TP dijadikan acuan`;
-        toast('Acuan Tujuan Pembelajaran tersimpan.');
-      }catch(error){box.checked=!box.checked;toast(error.message,'error');}
+    objectiveHost.innerHTML=`<section class="card objective-reference"><div class="objective-reference-head"><h2>Acuan Tujuan Pembelajaran</h2><p>TP menjadi acuan penilaian dan bahan deskripsi rapor. Setiap komponen boleh memakai TP yang berbeda, dan tetap menghasilkan SATU nilai per siswa. ${escapeHtml(catatan)}</p></div>
+      <div class="objective-component-grid">${ringkasan.map(item=>`<article class="objective-component${item.id===assessmentType?' is-active':''}"><header><strong>${escapeHtml(item.label)}</strong>${item.id===assessmentType?'<span class="badge badge-active">Sedang dibuka</span>':''}</header><p data-count="${escapeHtml(item.id)}">${item.count?`${item.count} TP dipilih`:'Belum ada TP dipilih'}</p><div class="row-actions"><button class="btn btn-light btn-small" data-view-tp="${escapeHtml(item.id)}"${item.count?'':' disabled'}>Lihat TP</button><button class="btn btn-light btn-small" data-edit-tp="${escapeHtml(item.id)}">${item.count?'Ubah TP':'Pilih Tujuan Pembelajaran'}</button></div></article>`).join('')}</div>
+      <div class="objective-reference-foot"><span data-objective-count>${aktif?`${aktif.label}: ${aktif.count} TP dipilih`:''}</span>${fase?`<span>Fase ${escapeHtml(fase)}</span>`:''}</div></section>`;
+    objectiveHost.querySelectorAll('[data-edit-tp]').forEach(button=>button.onclick=()=>{
+      const type=ringkasan.find(item=>item.id===button.dataset.editTp);
+      openObjectivePicker(type,objectives,type.objectiveIds,drawObjectives);
+    });
+    objectiveHost.querySelectorAll('[data-view-tp]').forEach(button=>button.onclick=()=>{
+      const type=ringkasan.find(item=>item.id===button.dataset.viewTp);
+      openObjectiveViewer(type,type.objectives);
     });
   }
 

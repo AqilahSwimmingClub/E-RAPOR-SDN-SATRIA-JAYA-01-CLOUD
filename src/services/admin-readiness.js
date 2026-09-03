@@ -1,6 +1,9 @@
 import { CLASSES } from '../data/constants.js';
+import { listObjectivesForAssessment } from './learning-objectives.js';
 import { getSchoolMaster, getTeacherProfile } from './master.js';
+import { listStudents } from './students.js';
 import { getSubjectMapping, loadDb, scopeKey, updateDb } from './storage.js';
+import { getTeacherAssignment } from './teacher-assignments.js';
 
 /* Kesiapan penggunaan e-Rapor oleh Guru, dikendalikan Admin lokal per tahun pelajaran dan
    semester pada perangkat ini.
@@ -10,7 +13,8 @@ import { getSubjectMapping, loadDb, scopeKey, updateDb } from './storage.js';
    Menonaktifkan penggunaan tidak pernah menghapus satu pun data. */
 
 export const READINESS_ITEMS=Object.freeze([
-  'school-identity','principal','period','class-teachers','subject-mapping','assessment-settings',
+  'school-identity','principal','period','class-teachers','students','subject-mapping',
+  'assessment-settings','learning-objectives','teacher-accounts','teacher-assignments',
 ]);
 
 const COLLECTION='teacherUsageActivation';
@@ -80,6 +84,27 @@ export function getAdminReadiness(session){
     });
   });
 
+  /* Data siswa, TP, akun, dan penugasan diperiksa hanya pada rombel yang benar-benar dipakai,
+     supaya sekolah kecil tidak dipaksa melengkapi seluruh 24 rombel. */
+  const akun=loadDb().userAccounts||{};
+  const cekSiswa=rombel.filter(classId=>{
+    try{return listStudents({...scope,role:'teacher',classId},{classId}).length>0;}catch{return false;}
+  });
+  const cekTP=rombel.filter(classId=>{
+    const mapping=getSubjectMapping({...scope,role:'teacher',classId});
+    const aktif=(Array.isArray(mapping)?mapping:[]).filter(item=>item.active);
+    if(!aktif.length)return false;
+    return aktif.every(item=>{
+      try{return listObjectivesForAssessment({...scope,role:'teacher',classId},item.id,{activeOnly:true}).length>0;}
+      catch{return false;}
+    });
+  });
+  const cekAkun=rombel.filter(classId=>akun[`teacher:${classId}`]?.active);
+  const cekPenugasan=rombel.filter(classId=>{
+    const record=getTeacherAssignment({...scope},classId);
+    return Boolean(record?.active&&Array.isArray(record.subjectIds)&&record.subjectIds.length);
+  });
+
   const items=[
     {id:'school-identity',label:'Identitas sekolah',done:isi(school.name)&&isi(school.npsn),
       reason:'Nama sekolah dan NPSN diisi melalui Data Referensi → Data Sekolah.'},
@@ -93,6 +118,14 @@ export function getAdminReadiness(session){
       reason:'Setiap rombel yang dipakai harus punya mata pelajaran aktif pada Mapping Mata Pelajaran.'},
     {id:'assessment-settings',label:'Bobot penilaian dan KKTP',done:rombel.length>0&&cekPenilaian.length===rombel.length,
       reason:'Setiap rombel yang dipakai harus punya bobot penilaian dan KKTP pada Bobot Penilaian.'},
+    {id:'students',label:'Data siswa',done:rombel.length>0&&cekSiswa.length===rombel.length,
+      reason:'Setiap rombel yang dipakai harus sudah berisi siswa pada Data Referensi → Data Siswa.'},
+    {id:'learning-objectives',label:'CP dan Tujuan Pembelajaran',done:rombel.length>0&&cekTP.length===rombel.length,
+      reason:'Setiap mata pelajaran aktif harus punya Tujuan Pembelajaran, baik katalog bawaan sesuai fase maupun TP susunan guru.'},
+    {id:'teacher-accounts',label:'Akun Guru',done:rombel.length>0&&cekAkun.length===rombel.length,
+      reason:'Akun Guru untuk rombel yang dipakai harus dalam keadaan aktif pada Akun Guru & Penugasan.'},
+    {id:'teacher-assignments',label:'Penugasan Guru',done:rombel.length>0&&cekPenugasan.length===rombel.length,
+      reason:'Tentukan mata pelajaran yang ditugaskan untuk setiap rombel pada Akun Guru & Penugasan.'},
   ];
 
   const missing=items.filter(item=>!item.done).map(item=>item.label);

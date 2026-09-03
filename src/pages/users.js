@@ -1,5 +1,8 @@
+import { activateTeacherUsage, deactivateTeacherUsage, getAdminReadiness } from '../services/admin-readiness.js';
+import { getAdminAssessmentStatus } from '../services/admin-status.js';
 import { listUserAccounts, resetTeacherPassword, setTeacherActive } from '../services/auth.js';
 import { getTeacherProfile, listMasterClasses, saveTeacherProfile } from '../services/master.js';
+import { listTeacherAssignments, setTeacherAssignment } from '../services/teacher-assignments.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 
@@ -8,7 +11,10 @@ function avatar(profile){return profile.photo?`<img class="student-photo student
 
 const USER_SECTIONS=Object.freeze({
   users:{title:'Data Pengguna',lead:'24 akun Guru/Wali Kelas lokal beserta status aktifnya.'},
-  teachers:{title:'Data Guru',lead:'Identitas wali kelas yang dipakai pada rapor, transkrip, dan area tanda tangan.'}
+  teachers:{title:'Data Guru',lead:'Identitas wali kelas yang dipakai pada rapor, transkrip, dan area tanda tangan.'},
+  assignments:{title:'Akun Guru & Penugasan',lead:'Admin menentukan rombel dan mata pelajaran yang menjadi hak kerja setiap Guru pada tahun pelajaran dan semester aktif.'},
+  readiness:{title:'Kesiapan Guru',lead:'Periksa kelengkapan data sebelum membuka penggunaan e-Rapor untuk Guru.'},
+  access:{title:'Hak Akses Guru',lead:'Ringkasan batas akses dan progres pekerjaan setiap Guru. Admin memantau, tanpa mengubah nilai Guru.'}
 });
 
 export function renderUsers(session,section='users'){
@@ -33,5 +39,120 @@ export function renderUsers(session,section='users'){
       catch(error){const box=modal.querySelector('[data-error]');box.textContent=error.message;box.classList.remove('hidden');}
     };
   }
-  function draw(){if(bagian==='teachers')drawTeachers();else drawAccounts();}draw();return root;
+  /* ------------------------------------------------ Akun Guru & Penugasan (kendali Admin)
+
+     Guru tidak menentukan sendiri rombel maupun mapel yang dikerjakannya. Halaman inilah
+     sumber otorisasinya, dan pilihannya tersimpan per tahun pelajaran dan semester sehingga
+     penugasan tahun berikutnya tidak menimpa arsip tahun sebelumnya. */
+  function openAssignmentForm(row,done){
+    const dipilih=new Set(row.subjectIds);
+    const modal=el(`<div class="modal-backdrop"><div class="modal-card modal-wide" role="dialog" aria-modal="true">
+      <div class="modal-head"><div><h3>Penugasan Kelas ${escapeHtml(row.classId)}</h3>
+        <p>${escapeHtml(row.teacher.name)} · ${escapeHtml(row.semester)} · ${escapeHtml(row.academicYear)}</p></div>
+        <button type="button" class="btn btn-light btn-icon" data-close aria-label="Tutup">${icon('x',17)}</button></div>
+      ${row.availableSubjects.length
+        ?`<p class="objective-picker-note">Centang mata pelajaran yang menjadi hak kerja Guru rombel ini. Mapel di luar centang tidak dapat dibuka Guru.</p>
+          <div class="objective-reference-list assignment-list">${row.availableSubjects.map(item=>`<label class="objective-reference-item"><input type="checkbox" data-subject-pick value="${escapeHtml(item.id)}" ${dipilih.has(item.id)?'checked':''}/><span><strong>${escapeHtml(item.name)}</strong></span></label>`).join('')}</div>`
+        :'<p class="objective-picker-note">Rombel ini belum punya mata pelajaran aktif pada Mapping Mata Pelajaran. Lengkapi mapping terlebih dahulu.</p>'}
+      <label class="objective-reference-item assignment-active"><input type="checkbox" data-assignment-active ${row.assigned?(row.active?'checked':''):'checked'}/><span><strong>Penugasan aktif</strong> — Guru dapat bekerja pada rombel ini.</span></label>
+      <div class="modal-actions"><span class="objective-picker-count" data-pick-count>${dipilih.size} mapel dipilih</span>
+        <button type="button" class="btn btn-light" data-cancel>Batal</button>
+        <button type="button" class="btn btn-primary" data-apply${row.availableSubjects.length?'':' disabled'}>Simpan Penugasan</button></div></div></div>`);
+    document.body.append(modal);
+    const tutup=()=>modal.remove();
+    const kotak=()=>[...modal.querySelectorAll('[data-subject-pick]')];
+    kotak().forEach(box=>box.onchange=()=>{
+      modal.querySelector('[data-pick-count]').textContent=`${kotak().filter(item=>item.checked).length} mapel dipilih`;});
+    modal.querySelector('[data-close]').onclick=tutup;
+    modal.querySelector('[data-cancel]').onclick=tutup;
+    modal.querySelector('[data-apply]').onclick=()=>{
+      try{
+        setTeacherAssignment(session,row.classId,{
+          subjectIds:kotak().filter(item=>item.checked).map(item=>item.value),
+          active:modal.querySelector('[data-assignment-active]').checked});
+        tutup();done();toast(`Penugasan Kelas ${row.classId} tersimpan.`);
+      }catch(error){toast(error.message,'error');}
+    };
+  }
+
+  async function drawAssignments(){
+    view.innerHTML='<section class="card empty-state"><h3>Memuat penugasan Guru...</h3></section>';
+    try{
+      const akun=await listUserAccounts(session);
+      const status=new Map(akun.map(item=>[item.classId,item]));
+      const rows=listTeacherAssignments(session);
+      const ditugaskan=rows.filter(row=>row.assigned&&row.active&&row.subjectIds.length);
+      view.innerHTML=`<section class="card user-summary"><div><strong>${ditugaskan.length}</strong><span>rombel sudah ditugaskan</span></div><div><strong>${rows.length-ditugaskan.length}</strong><span>belum ditugaskan</span></div><div><strong>${escapeHtml(session.semester)}</strong><span>${escapeHtml(session.academicYear)}</span></div></section>
+        <section class="card users-table-card"><div class="section-head"><div><h3>Penugasan Guru</h3><p>Guru mengikuti penugasan ini saat login. Rombel yang belum pernah ditugaskan tidak dibatasi, sehingga data lama tetap dapat dibuka.</p></div></div>
+        <div class="table-scroll"><table class="data-table users-table"><thead><tr><th>Guru</th><th>Rombel</th><th>Status Akun</th><th>Mata Pelajaran Ditugaskan</th><th>Aksi</th></tr></thead><tbody>${rows.map(row=>`<tr><td><div class="user-profile-cell">${avatar(row.teacher)}<span><strong>${escapeHtml(row.teacher.name)}</strong><small>${escapeHtml(row.teacher.nip||'NIP belum diisi')}</small></span></div></td><td><span class="badge badge-a">${escapeHtml(row.classId)}</span></td><td>${status.get(row.classId)?.active?'<span class="badge badge-active">Aktif</span>':'<span class="badge badge-inactive">Nonaktif</span>'}</td><td>${row.assigned?(row.subjectIds.length?`<strong>${row.subjects.length} mapel</strong><span>${escapeHtml(row.subjects.map(item=>item.name).join(', '))}</span>${row.active?'':'<span class="badge badge-inactive">Penugasan nonaktif</span>'}`:'<span class="badge badge-inactive">Tidak ada mapel</span>'):'<span class="muted">Belum ditugaskan</span>'}</td><td><button class="btn btn-light btn-small" data-assign="${escapeHtml(row.classId)}">${row.assigned?'Ubah Penugasan':'Tugaskan'}</button></td></tr>`).join('')}</tbody></table></div></section>
+        <div class="teacher-account-cards">${rows.map(row=>`<article class="card"><div class="user-profile-cell">${avatar(row.teacher)}<span><strong>${escapeHtml(row.teacher.name)}</strong><small>Kelas ${escapeHtml(row.classId)} · ${row.assigned?`${row.subjects.length} mapel`:'Belum ditugaskan'}</small></span></div><div class="row-actions"><button class="btn btn-light btn-small" data-assign="${escapeHtml(row.classId)}">${row.assigned?'Ubah Penugasan':'Tugaskan'}</button></div></article>`).join('')}</div>`;
+      view.querySelectorAll('[data-assign]').forEach(button=>button.onclick=()=>{
+        const row=rows.find(item=>item.classId===button.dataset.assign);
+        openAssignmentForm(row,drawAssignments);
+      });
+    }catch(error){view.innerHTML=`<section class="card empty-state"><h3>Penugasan gagal dimuat</h3><p>${escapeHtml(error.message)}</p></section>`;}
+  }
+
+  /* ------------------------------------------------------------------- Kesiapan Guru */
+  function drawReadiness(){
+    const kesiapan=getAdminReadiness(session);
+    const status=kesiapan.active?'AKTIF':(kesiapan.ready?'SIAP DIAKTIFKAN':'BELUM SIAP');
+    view.innerHTML=`<section class="card readiness-head"><div><h3>Status: <span class="badge ${kesiapan.active?'badge-active':(kesiapan.ready?'badge-a':'badge-inactive')}" data-readiness-status>${status}</span></h3>
+      <p>${escapeHtml(kesiapan.active?'Guru sudah dapat memakai menu penilaian pada periode ini.':(kesiapan.ready?'Seluruh syarat terpenuhi. Tekan tombol di bawah untuk membuka penggunaan e-Rapor bagi Guru.':'Lengkapi syarat yang belum tercentang sebelum mengaktifkan.'))}</p>
+      <p class="muted">${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</p></div>
+      <div class="row-actions">${kesiapan.active
+        ?'<button class="btn btn-light" data-deactivate>Tutup Penggunaan</button>'
+        :`<button class="btn btn-primary" data-activate${kesiapan.ready?'':' disabled'}>AKTIFKAN e-RAPOR UNTUK GURU</button>`}</div></section>
+      <section class="card"><div class="section-head"><div><h3>Checklist Kesiapan</h3><p>Seluruh butir wajib tercentang sebelum penggunaan dibuka.</p></div><span class="badge ${kesiapan.ready?'badge-active':'badge-inactive'}">${kesiapan.items.filter(item=>item.done).length}/${kesiapan.items.length} siap</span></div>
+      <div class="readiness-list">${kesiapan.items.map(item=>`<article class="readiness-item${item.done?' is-done':''}"><span class="readiness-mark">${item.done?icon('check',15):icon('x',15)}</span><div><strong>${escapeHtml(item.label)}</strong><p>${escapeHtml(item.reason)}</p></div></article>`).join('')}</div>
+      ${kesiapan.missing.length?`<p class="readiness-missing">Belum siap karena: ${escapeHtml(kesiapan.missing.join(', '))}.</p>`:''}</section>`;
+    const aktifkan=view.querySelector('[data-activate]');
+    if(aktifkan)aktifkan.onclick=async()=>{
+      if(!await confirmDialog({title:'Aktifkan e-Rapor untuk Guru',
+        message:`Buka penggunaan e-Rapor untuk seluruh Guru pada ${session.semester} ${session.academicYear}?`,
+        confirmText:'Aktifkan'}))return;
+      try{activateTeacherUsage(session);drawReadiness();toast('Penggunaan e-Rapor untuk Guru diaktifkan.');}
+      catch(error){toast(error.message,'error');}
+    };
+    const tutup=view.querySelector('[data-deactivate]');
+    if(tutup)tutup.onclick=async()=>{
+      if(!await confirmDialog({title:'Tutup Penggunaan',
+        message:'Menu penilaian Guru ditutup sementara. Tidak ada satu pun data yang dihapus. Lanjutkan?',
+        confirmText:'Tutup Penggunaan'}))return;
+      try{deactivateTeacherUsage(session);drawReadiness();toast('Penggunaan e-Rapor untuk Guru ditutup.');}
+      catch(error){toast(error.message,'error');}
+    };
+  }
+
+  /* ------------------------------------------------ Hak Akses Guru dan progres pekerjaan */
+  async function drawAccess(){
+    view.innerHTML='<section class="card empty-state"><h3>Memuat hak akses Guru...</h3></section>';
+    try{
+      const akun=await listUserAccounts(session);
+      const status=new Map(akun.map(item=>[item.classId,item]));
+      const rows=listTeacherAssignments(session);
+      let progres=[];
+      try{progres=getAdminAssessmentStatus(session)?.classes||[];}catch{progres=[];}
+      const capaian=new Map(progres.map(item=>[item.classId,item]));
+      view.innerHTML=`<section class="card source-banner">Guru hanya dapat membuka tahun pelajaran, semester, rombel, dan mata pelajaran sesuai penugasan Admin. Pembatasan ini juga berlaku pada lapisan data, bukan sekadar menyembunyikan menu. Admin memantau progres di sini tanpa mengubah nilai Guru.</section>
+        <section class="card users-table-card"><div class="section-head"><div><h3>Hak Akses dan Progres</h3><p>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</p></div></div>
+        <div class="table-scroll"><table class="data-table users-table"><thead><tr><th>Guru</th><th>Rombel</th><th>Mapel</th><th>Status Akun</th><th>Penilaian</th><th>Deskripsi</th><th>Kelengkapan Rapor</th></tr></thead><tbody>${rows.map(row=>{
+          const ringkas=capaian.get(row.classId)||{};
+          const akses=row.assigned?(row.active?(row.subjectIds.length?`${row.subjects.length} mapel`:'Tidak ada mapel'):'Penugasan nonaktif'):'Tanpa batas (belum ditugaskan)';
+          /* Angka progres diambil apa adanya dari Status Penilaian yang sudah ada; halaman ini
+             hanya membacanya, tidak pernah menulis nilai Guru. */
+          const rasio=(selesai,total)=>Number(total)>0?`${selesai}/${total}`:'—';
+          const lengkap=ringkas.status==='COMPLETE';
+          return `<tr><td><strong>${escapeHtml(row.teacher.name)}</strong></td><td><span class="badge badge-a">${escapeHtml(row.classId)}</span></td><td>${escapeHtml(akses)}</td><td>${status.get(row.classId)?.active?'<span class="badge badge-active">Aktif</span>':'<span class="badge badge-inactive">Nonaktif</span>'}</td><td>${escapeHtml(rasio(ringkas.scoreComplete,ringkas.scoreTotal))}</td><td>${escapeHtml(rasio(ringkas.descriptionComplete,ringkas.descriptionTotal))}</td><td>${escapeHtml(rasio(ringkas.reportCompletedItems,ringkas.reportTotalItems))}${ringkas.status?` <span class="badge ${lengkap?'badge-active':'badge-inactive'}">${lengkap?'Lengkap':'Belum'}</span>`:''}</td></tr>`;
+        }).join('')}</tbody></table></div></section>`;
+    }catch(error){view.innerHTML=`<section class="card empty-state"><h3>Hak akses gagal dimuat</h3><p>${escapeHtml(error.message)}</p></section>`;}
+  }
+
+  function draw(){
+    if(bagian==='teachers')drawTeachers();
+    else if(bagian==='assignments')drawAssignments();
+    else if(bagian==='readiness')drawReadiness();
+    else if(bagian==='access')drawAccess();
+    else drawAccounts();
+  }draw();return root;
 }

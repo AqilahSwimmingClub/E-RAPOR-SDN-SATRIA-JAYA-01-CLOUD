@@ -8,6 +8,8 @@ import { saveSchoolIdentitySetup, saveTeacherProfile } from '../src/services/mas
 import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
 import { saveAssessmentScores, saveAssessmentSettings } from '../src/services/assessment.js';
 import { createStudent } from '../src/services/students.js';
+import { setTeacherAssignment } from '../src/services/teacher-assignments.js';
+import { ensureSecurityBootstrap } from '../src/services/auth.js';
 
 /* Admin lokal mengendalikan kapan Guru boleh mulai memakai e-Rapor pada satu tahun pelajaran
    dan semester. Statusnya tersimpan di database lokal perangkat dan sama sekali tidak
@@ -20,7 +22,7 @@ function useMemoryStorage(){const values=new Map();globalThis.localStorage={getI
 const admin={role:'admin',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
 const guru=(classId='5B')=>({role:'teacher',classId,academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`});
 
-function lengkapiChecklist(){
+async function lengkapiChecklist(){
   saveSchoolIdentitySetup({name:'SDN Contoh Nusantara 02',npsn:'12345678',status:'Negeri',address:'Jl Contoh',
     village:'Desa',district:'Kecamatan',city:'Kabupaten Contoh',province:'Provinsi',postalCode:'17510',phone:'021',
     email:'a@contoh.sch.id',website:'',registrationNumber:'',principalName:'Kepala Sekolah Contoh',
@@ -31,6 +33,12 @@ function lengkapiChecklist(){
   saveSubjectMapping(sesiGuru,SUBJECTS_DEFAULT.map((item,index)=>({...item,active:aktif.includes(item.id),order:index+1})));
   for(const subjectId of aktif)
     saveAssessmentSettings(sesiGuru,subjectId,{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
+  /* Checklist juga menuntut data siswa, akun Guru yang aktif, dan penugasan mata pelajaran. */
+  createStudent(sesiGuru,{classId:'5B',nis:'5B01',nisn:'0051000001',name:'Siswa Contoh',gender:'L',
+    religion:'Islam',birthPlace:'Kota',birthDate:'2015-01-02',parentName:'Orang Tua',phone:'08',
+    address:'Jl. Contoh',photo:''});
+  await ensureSecurityBootstrap();
+  setTeacherAssignment(admin,'5B',{subjectIds:aktif,active:true});
 }
 
 test('Checklist kesiapan menyebut seluruh syarat dan menolak aktivasi bila belum lengkap',()=>{
@@ -45,9 +53,9 @@ test('Checklist kesiapan menyebut seluruh syarat dan menolak aktivasi bila belum
   assert.equal(isTeacherUsageActive(guru()),false);
 });
 
-test('Checklist lengkap membuat Admin dapat mengaktifkan penggunaan Guru',()=>{
+test('Checklist lengkap membuat Admin dapat mengaktifkan penggunaan Guru',async()=>{
   useMemoryStorage();
-  lengkapiChecklist();
+  await lengkapiChecklist();
   const kesiapan=getAdminReadiness(admin);
   assert.equal(kesiapan.ready,true,`seharusnya siap, yang kurang: ${kesiapan.missing.join(', ')}`);
   const hasil=activateTeacherUsage(admin);
@@ -58,9 +66,9 @@ test('Checklist lengkap membuat Admin dapat mengaktifkan penggunaan Guru',()=>{
   assert.equal(isTeacherUsageActive(guru('1A')),true,'aktivasi berlaku untuk seluruh rombel pada scope itu');
 });
 
-test('Status kesiapan terscope per tahun pelajaran dan semester',()=>{
+test('Status kesiapan terscope per tahun pelajaran dan semester',async()=>{
   useMemoryStorage();
-  lengkapiChecklist();
+  await lengkapiChecklist();
   activateTeacherUsage(admin);
   assert.equal(isTeacherUsageActive(guru()),true);
   const semesterLain={...guru(),semester:`Genap ${ACADEMIC_YEAR}`};
@@ -68,9 +76,9 @@ test('Status kesiapan terscope per tahun pelajaran dan semester',()=>{
   assert.notEqual(teacherUsageScopeKey(admin),teacherUsageScopeKey(semesterLain));
 });
 
-test('Hanya Admin yang boleh mengaktifkan; Guru tidak dapat menugaskan dirinya sendiri',()=>{
+test('Hanya Admin yang boleh mengaktifkan; Guru tidak dapat menugaskan dirinya sendiri',async()=>{
   useMemoryStorage();
-  lengkapiChecklist();
+  await lengkapiChecklist();
   assert.throws(()=>activateTeacherUsage(guru()),/Hanya Admin/i);
   assert.throws(()=>deactivateTeacherUsage(guru()),/Hanya Admin/i);
   /* Penugasan rombel tetap milik Admin: Guru tidak dapat menugaskan dirinya ke rombel lain. */
@@ -83,9 +91,9 @@ test('Hanya Admin yang boleh mengaktifkan; Guru tidak dapat menugaskan dirinya s
     assert.equal(menuGuru.includes(larangan),false,`menu Guru tidak memuat ${larangan}`);
 });
 
-test('Sebelum diaktifkan, Guru tetap masuk tetapi menu operasional terkunci dengan alasan',()=>{
+test('Sebelum diaktifkan, Guru tetap masuk tetapi menu operasional terkunci dengan alasan',async()=>{
   useMemoryStorage();
-  lengkapiChecklist();
+  await lengkapiChecklist();
   const sesi=guru();
   assert.equal(isTeacherUsageActive(sesi),false);
   const kunci=getAdminReadiness(admin);
@@ -98,9 +106,9 @@ test('Sebelum diaktifkan, Guru tetap masuk tetapi menu operasional terkunci deng
     assert.match(app,new RegExp(`'${aman}'`),`route aman ${aman} tetap terbuka`);
 });
 
-test('Aktivasi dan penonaktifan tidak menghapus data dan tidak menyentuh lisensi',()=>{
+test('Aktivasi dan penonaktifan tidak menghapus data dan tidak menyentuh lisensi',async()=>{
   const values=useMemoryStorage();
-  lengkapiChecklist();
+  await lengkapiChecklist();
   const sebelum=JSON.stringify(loadDb());
   activateTeacherUsage(admin);
   deactivateTeacherUsage(admin,{reason:'perbaikan konfigurasi'});
@@ -119,9 +127,9 @@ test('Aktivasi dan penonaktifan tidak menghapus data dan tidak menyentuh lisensi
     assert.equal(layanan.includes(larangan),false,`layanan kesiapan tidak menyentuh ${larangan}`);
 });
 
-test('Riwayat perubahan status kesiapan tercatat tanpa menghapus riwayat lama',()=>{
+test('Riwayat perubahan status kesiapan tercatat tanpa menghapus riwayat lama',async()=>{
   useMemoryStorage();
-  lengkapiChecklist();
+  await lengkapiChecklist();
   activateTeacherUsage(admin);
   deactivateTeacherUsage(admin,{reason:'ganti KKTP'});
   activateTeacherUsage(admin);
