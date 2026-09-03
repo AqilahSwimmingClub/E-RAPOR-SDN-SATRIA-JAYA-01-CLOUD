@@ -1,6 +1,6 @@
 {
   "appId": "id.sch.sdn.satriajaya01.erapor",
-  "appName": "e-Rapor SDN Satria Jaya 01",
+  "appName": "e-Rapor",
   "webDir": "dist",
   "backgroundColor": "#ffffff",
   "loggingBehavior": "debug",

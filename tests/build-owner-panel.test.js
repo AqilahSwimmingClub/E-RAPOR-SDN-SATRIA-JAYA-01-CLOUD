@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs';
+import { relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,11 +41,19 @@ test('1. Build web menyalin seluruh Owner Panel ke dist/owner',()=>{
   const temp=bangunDiDirektoriSementara();
   try{
     assert.ok(existsSync(join(temp,'dist/owner/index.html')),'dist/owner/index.html wajib ada');
-    const sumber=readdirSync(join(rootPath,SUMBER)).sort();
-    const hasil=readdirSync(join(temp,'dist/owner')).sort();
+    /* Panel punya subdirektori icons/ berisi ikon pintasan "Owner e-Rapor", jadi
+       perbandingannya menelusuri seluruh isi folder, bukan hanya entri di tingkat teratas. */
+    const daftar=pangkal=>readdirSync(pangkal,{recursive:true,withFileTypes:true})
+      .filter(entri=>entri.isFile())
+      .map(entri=>relative(pangkal,join(entri.parentPath??entri.path,entri.name)).split('\\').join('/'))
+      .sort();
+    const sumber=daftar(join(rootPath,SUMBER));
+    const hasil=daftar(join(temp,'dist/owner'));
     assert.deepEqual(hasil,sumber,'seluruh berkas Owner Panel ikut tersalin');
+    assert.ok(sumber.includes('icons/owner-icon-192.png'),'ikon pintasan Owner ikut tersalin');
     for(const berkas of sumber){
-      assert.equal(readFileSync(join(temp,'dist/owner',berkas),'utf8'),read(`${SUMBER}/${berkas}`),
+      assert.deepEqual(readFileSync(join(temp,'dist/owner',berkas)),
+        readFileSync(join(rootPath,SUMBER,berkas)),
         `${berkas} tersalin apa adanya tanpa diubah`);
     }
   }finally{rmSync(temp,{recursive:true,force:true});}

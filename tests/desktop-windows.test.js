@@ -21,10 +21,14 @@ test('Identitas aplikasi tidak berubah antar versi sehingga installer mengenali 
   const builder=read('electron-builder.yml');
   const main=read('electron/main.cjs');
   assert.match(builder,/^appId: id\.sch\.sdn\.satriajaya01\.erapor$/m,'appId sama dengan Android dan tidak boleh berubah');
+  /* productName ikut menentukan folder instalasi dan nama .exe, jadi ia DIPERTAHANKAN.
+     Nama produk yang dilihat pengguna diatur lewat shortcutName dan uninstallDisplayName. */
   assert.match(builder,/^productName: e-Rapor SDN Satria Jaya 01$/m);
+  assert.match(builder,/^\s*shortcutName: e-Rapor$/m,'pintasan memakai nama produk umum');
+  assert.match(builder,/^\s*uninstallDisplayName: e-Rapor$/m,'daftar aplikasi Windows memakai nama umum');
   assert.match(builder,/guid: 9a3f0d21-6c4b-5e88-9d17-2f6a1b7c4e30/,'GUID uninstall dikunci agar upgrade terdeteksi');
   assert.match(main,/app\.setAppUserModelId\('id\.sch\.sdn\.satriajaya01\.erapor'\)/,'AppUserModelId sama dengan appId installer');
-  assert.match(main,/app\.setName\('e-Rapor SDN Satria Jaya 01'\)/);
+  assert.match(main,/app\.setName\('e-Rapor'\)/,'nama yang terlihat adalah nama produk, bukan nama sekolah');
 });
 
 /* --------------------------------------------------------- Data pengguna dan update in-place */

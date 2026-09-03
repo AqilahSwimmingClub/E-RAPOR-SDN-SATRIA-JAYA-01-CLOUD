@@ -74,7 +74,7 @@ test('3. Metadata halaman layak dibagikan dan metadata aplikasi tidak diubah',()
   /* Judul dan deskripsi aplikasi sekolah tetap seperti semula. */
   const aplikasi=read('index.html');
   assert.match(aplikasi,/<title>e-Rapor<\/title>/);
-  assert.match(aplikasi,/content="Aplikasi e-Rapor sekolah, berjalan penuh secara lokal\."/);
+  assert.match(aplikasi,/content="e-Rapor — Solusi Digital Pengelolaan Rapor Sekolah\."/);
 });
 
 /* -------------------------------------------------------------------- 4-9. Formulir */

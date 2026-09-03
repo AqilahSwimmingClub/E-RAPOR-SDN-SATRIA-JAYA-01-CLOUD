@@ -9,7 +9,9 @@ function exists(path){return existsSync(new URL(path,root));}
 
 test('Capacitor config uses one web build for the requested app identity',()=>{
   const config=JSON.parse(read('capacitor.config.json'));
-  assert.equal(config.appName,'e-Rapor SDN Satria Jaya 01');
+  /* appName menjadi label peluncur Android. Produk dipakai banyak sekolah, jadi labelnya
+     adalah nama produk; appId di bawahnya tetap dikunci demi pembaruan instalasi lama. */
+  assert.equal(config.appName,'e-Rapor');
   assert.equal(config.appId,'id.sch.sdn.satriajaya01.erapor');
   assert.equal(config.webDir,'dist');
   assert.equal(config.server.cleartext,false);

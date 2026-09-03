@@ -10,7 +10,7 @@ const CACHE=`erapor-satria-${APP_CACHE_VERSION}`;
 const OFFLINE_SHELL='./index.html';
 const APP_SHELL=[
   './','./index.html','./manifest.webmanifest',
-  './assets/app-icon.svg','./assets/app-icon-192.svg','./assets/app-icon-512.svg','./assets/fahmi-djawas.jpg','./assets/vendor/xlsx.mjs',
+  './assets/app-icon.svg','./assets/app-icon-192.png','./assets/app-icon-512.png','./assets/fahmi-djawas.jpg','./assets/vendor/xlsx.mjs',
   './assets/logo-tut-wuri-handayani.png','./assets/logo-kabupaten-bekasi.png',
   './src/styles/app.css','./src/app.js','./src/core/router.js','./src/data/constants.js','./src/data/navigation.js','./src/data/version.js','./src/data/activity-description.js','./src/data/app-identity.js','./src/data/license-config.js','./src/data/cocurricular.js','./src/data/extracurricular-defaults.js','./src/data/intracurricular-defaults.js','./src/data/learning-objective-defaults.js','./src/data/version-compare.js','./src/data/update-config.js',
   './src/ui/dom.js','./src/ui/icons.js','./src/ui/layout.js','./src/ui/digital-gauge.js',

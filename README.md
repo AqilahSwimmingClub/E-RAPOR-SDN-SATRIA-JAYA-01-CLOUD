@@ -1,6 +1,6 @@
-# e-Rapor SDN Satria Jaya 01
+# e-Rapor — Solusi Digital Pengelolaan Rapor Sekolah
 
-Aplikasi e-Rapor lokal untuk SDN Satria Jaya 01. Frontend yang sama digunakan untuk web/PWA, Android melalui Capacitor, dan Windows melalui Electron. Data disimpan lokal pada browser atau WebView perangkat; aplikasi tidak memakai Supabase, Firebase, atau layanan cloud. Sinkronisasi Dapodik tersedia khusus pada aplikasi Windows dan menghubungi layanan Dapodik lokal di komputer sekolah, bukan layanan internet.
+Aplikasi e-Rapor untuk sekolah. Identitas sekolah diisi sendiri oleh setiap sekolah pada Setup Awal. Frontend yang sama digunakan untuk web/PWA, Android melalui Capacitor, dan Windows melalui Electron. Data disimpan lokal pada browser atau WebView perangkat; aplikasi tidak memakai Supabase, Firebase, atau layanan cloud. Sinkronisasi Dapodik tersedia khusus pada aplikasi Windows dan menghubungi layanan Dapodik lokal di komputer sekolah, bukan layanan internet.
 
 Folder `design_reference/`, `docs/`, `tests/`, dan `src/` merupakan bagian project dan tidak boleh dihapus.
 

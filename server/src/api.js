@@ -10,7 +10,13 @@ import * as pembaruan from './updates.js';
    membuat, mereset, atau mengubah status lisensi. */
 
 const JSON_HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};
-const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.json':'application/json'};
+/* Jawaban statis memakai header nosniff, jadi tipe yang salah bukan sekadar kurang rapi:
+   browser akan menolak berkasnya. Manifest dan ikon Owner Panel wajib ada di peta ini,
+   kalau tidak pintasan "Owner e-Rapor" tidak pernah bisa dipasang. */
+const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8',
+  '.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.json':'application/json',
+  '.webmanifest':'application/manifest+json','.png':'image/png','.ico':'image/x-icon',
+  '.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp'};
 const SESSION_HOURS=12;
 
 /* Pembatas laju sederhana per IP dan per Installation ID. Tujuannya menahan penebakan kunci

@@ -20,6 +20,12 @@ const copiedDirectories=[
   {from:'public/beli',to:'beli'},
 ];
 
+/* assets/brand berisi berkas master logo beresolusi penuh. Ia hanya bahan baku bagi
+   scripts/generate-icons.mjs; seluruh ikon yang dipakai aplikasi sudah dibuat dari sana.
+   Menyertakannya hanya menambah beberapa megabyte ke dist dan ke APK tanpa pernah dibuka. */
+const excludedPaths=[resolve(projectRoot,'assets','brand')];
+const isCopied=source=>!excludedPaths.some(path=>source===path||source.startsWith(`${path}/`));
+
 if(dirname(output)!==projectRoot||basename(output)!=='dist')throw new Error('Target build web tidak aman.');
 for(const entry of [...files,...copiedDirectories.map(item=>item.from)])await access(resolve(projectRoot,entry));
 await access(resolve(projectRoot,'server/public/owner/index.html'));
@@ -27,5 +33,6 @@ await access(resolve(projectRoot,'public/beli/index.html'));
 await rm(output,{recursive:true,force:true});
 await mkdir(output,{recursive:true});
 for(const file of files)await cp(resolve(projectRoot,file),resolve(output,file));
-for(const {from,to} of copiedDirectories)await cp(resolve(projectRoot,from),resolve(output,to),{recursive:true});
+for(const {from,to} of copiedDirectories)
+  await cp(resolve(projectRoot,from),resolve(output,to),{recursive:true,filter:isCopied});
 console.log(`Web build siap: ${output}`);

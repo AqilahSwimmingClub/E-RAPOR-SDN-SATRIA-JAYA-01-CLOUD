@@ -1,0 +1,20 @@
+{
+  "id": "/owner/",
+  "name": "Owner e-Rapor",
+  "short_name": "Owner e-Rapor",
+  "description": "Panel pemilik sistem e-Rapor: kelola lisensi, perangkat, dan versi aplikasi.",
+  "lang": "id-ID",
+  "start_url": "/owner/",
+  "scope": "/owner/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1a2f",
+  "theme_color": "#0b1a2f",
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
+  "icons": [
+    {"src":"./icons/owner-icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"./icons/owner-icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
+    {"src":"./icons/owner-icon-maskable.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
+  ]
+}

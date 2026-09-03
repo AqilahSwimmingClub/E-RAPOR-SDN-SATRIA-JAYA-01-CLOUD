@@ -1,4 +1,4 @@
-# Build rilis e-Rapor SDN Satria Jaya 01: APK Android dan installer Windows.
+# Build rilis e-Rapor: APK Android dan installer Windows.
 #
 # Dijalankan manual dari tab Actions (tombol "Run workflow"). Sengaja tidak otomatis pada setiap
 # push supaya keystore hanya dipakai ketika guru memang meminta rilis baru.

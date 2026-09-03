@@ -1,12 +1,14 @@
-# Installer Windows e-Rapor SDN Satria Jaya 01.
+# Installer Windows e-Rapor.
 #
 # appId dan productName WAJIB tetap sama di setiap rilis. NSIS memakai appId untuk mengenali
 # instalasi sebelumnya, sehingga installer versi baru memperbarui instalasi lama di tempat
 # tanpa perlu uninstall. Mengganti salah satunya akan membuat Windows menganggapnya aplikasi
 # berbeda sehingga terpasang dua kali dan data guru seolah hilang.
 appId: id.sch.sdn.satriajaya01.erapor
+# productName ikut menentukan folder instalasi dan nama .exe, jadi ia DIPERTAHANKAN demi
+# instalasi lama. Nama yang dilihat pengguna diatur lewat shortcutName dan uninstallDisplayName.
 productName: e-Rapor SDN Satria Jaya 01
-copyright: SDN Satria Jaya 01
+copyright: Fahmi Djawas, S.Pd.
 
 directories:
   output: release/windows
@@ -42,9 +44,9 @@ nsis:
   runAfterFinish: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: e-Rapor SDN Satria Jaya 01
+  shortcutName: e-Rapor
   # GUID dikunci agar kunci registri uninstall tetap sama antar versi. Inilah yang membuat
   # installer baru mengenali instalasi lama dan memperbaruinya, bukan memasang salinan kedua.
   guid: 9a3f0d21-6c4b-5e88-9d17-2f6a1b7c4e30
-  uninstallDisplayName: e-Rapor SDN Satria Jaya 01
+  uninstallDisplayName: e-Rapor
   differentialPackage: false

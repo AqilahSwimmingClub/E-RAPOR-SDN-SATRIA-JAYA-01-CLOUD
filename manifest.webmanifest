@@ -2,7 +2,7 @@
   "id": "./",
   "name": "e-Rapor",
   "short_name": "e-Rapor",
-  "description": "Aplikasi e-Rapor sekolah, berjalan penuh secara lokal.",
+  "description": "e-Rapor — Solusi Digital Pengelolaan Rapor Sekolah.",
   "lang": "id-ID",
   "start_url": "./?source=pwa",
   "scope": "./",
@@ -13,8 +13,8 @@
   "theme_color": "#711827",
   "categories": ["education", "productivity"],
   "icons": [
-    {"src":"./assets/app-icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any"},
-    {"src":"./assets/app-icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any"},
-    {"src":"./assets/app-icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"maskable"}
+    {"src":"./assets/app-icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"./assets/app-icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
+    {"src":"./assets/app-icon-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
   ]
 }

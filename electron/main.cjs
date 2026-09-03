@@ -15,12 +15,14 @@ const {createDapodikBridge,DAPODIK_BRIDGE_PREFIX}=require('./dapodik-bridge.cjs'
 
 if(require('electron-squirrel-startup'))app.quit();
 
-app.setName('e-Rapor SDN Satria Jaya 01');
+app.setName('e-Rapor');
 app.setAppUserModelId('id.sch.sdn.satriajaya01.erapor');
 
 /* Data guru disimpan di folder pengguna Windows (%APPDATA%), bukan di folder instalasi .exe,
    sehingga installer versi baru yang menimpa versi lama tidak pernah menyentuh datanya.
    Nama folder dikunci eksplisit agar tetap sama walau nama produk berubah di kemudian hari. */
+/* Nama folder ini SENGAJA memakai nama produk lama. Ia menentukan letak %APPDATA% milik
+   pengguna lama; menggantinya membuat seluruh data guru yang sudah ada seolah hilang. */
 const USER_DATA_FOLDER='e-Rapor SDN Satria Jaya 01';
 const userDataPath=path.join(app.getPath('appData'),USER_DATA_FOLDER);
 app.setPath('userData',userDataPath);
@@ -226,7 +228,7 @@ function pasangTray(){
   try{
     const ikon=nativeImage.createFromPath(path.join(distPath,'assets','icon-only.png'));
     tray=new Tray(ikon.isEmpty()?nativeImage.createEmpty():ikon.resize({width:16,height:16}));
-    tray.setToolTip(`e-Rapor SDN Satria Jaya 01 · ${appUrl()}`);
+    tray.setToolTip(`e-Rapor · ${appUrl()}`);
     tray.setContextMenu(Menu.buildFromTemplate([
       {label:`e-Rapor berjalan di ${appUrl()}`,enabled:false},
       {type:'separator'},

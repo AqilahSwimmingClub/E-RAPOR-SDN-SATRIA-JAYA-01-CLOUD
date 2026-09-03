@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">e-Rapor SDN Satria Jaya 01</string>
-    <string name="title_activity_main">e-Rapor SDN Satria Jaya 01</string>
+    <string name="app_name">e-Rapor</string>
+    <string name="title_activity_main">e-Rapor</string>
     <string name="package_name">id.sch.sdn.satriajaya01.erapor</string>
     <string name="custom_url_scheme">id.sch.sdn.satriajaya01.erapor</string>
 </resources>

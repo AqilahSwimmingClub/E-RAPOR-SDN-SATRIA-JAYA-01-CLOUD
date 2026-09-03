@@ -9,6 +9,14 @@
    melalui getSchoolMaster(). Jangan pernah mencampur keduanya di satu tempat penyimpanan. */
 
 export const APP_NAME='e-Rapor';
+
+/* Tagline resmi produk. e-Rapor dipakai banyak sekolah, jadi nama produk TIDAK PERNAH memuat
+   nama sekolah mana pun. Nama sekolah adalah identitas dinamis dari Setup Awal. */
+export const APP_TAGLINE='Solusi Digital Pengelolaan Rapor Sekolah';
+
+/* Panel pemilik sistem memakai nama dan ikon sendiri supaya pintasannya di layar utama tidak
+   tertukar dengan aplikasi sekolah. Ini hanya penamaan; keamanannya tetap sama. */
+export const OWNER_APP_NAME='Owner e-Rapor';
 export const DEVELOPER_NAME='FAHMI DJAWAS, S.Pd.';
 export const DEVELOPER_ROLE='Developer & UI/UX Designer e-Rapor';
 export const DEVELOPER_CREDIT_LEAD='Dirancang & Dikembangkan oleh';
