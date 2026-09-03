@@ -4,7 +4,9 @@
   "rewrites": [
     { "source": "/api/v1/:path*", "destination": "/api/[...route]" },
     { "source": "/owner", "destination": "/owner/index.html" },
-    { "source": "/owner/", "destination": "/owner/index.html" }
+    { "source": "/owner/", "destination": "/owner/index.html" },
+    { "source": "/beli", "destination": "/beli/index.html" },
+    { "source": "/beli/", "destination": "/beli/index.html" }
   ],
   "headers": [
     {

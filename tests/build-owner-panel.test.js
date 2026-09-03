@@ -30,6 +30,8 @@ function bangunDiDirektoriSementara(){
     cpSync(join(rootPath,berkas),join(temp,berkas));
   for(const direktori of ['assets','src'])symlinkSync(join(rootPath,direktori),join(temp,direktori),'dir');
   cpSync(join(rootPath,'server/public'),join(temp,'server/public'),{recursive:true});
+  /* Halaman publik /beli juga wajib ada: build memeriksanya sebelum menyalin apa pun. */
+  cpSync(join(rootPath,'public'),join(temp,'public'),{recursive:true});
   execFileSync(process.execPath,[join(temp,'scripts/build-web.mjs')],{cwd:temp,stdio:'pipe'});
   return temp;
 }

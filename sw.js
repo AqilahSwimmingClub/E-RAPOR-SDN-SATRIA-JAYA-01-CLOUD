@@ -35,5 +35,10 @@ async function cacheFirst(request){const cached=await caches.match(request);if(c
 async function networkFirst(request){try{const response=await fetch(request);if(response.ok)(await caches.open(CACHE)).put(request,response.clone());return response;}catch{const cached=await caches.match(request);return cached||new Response('Aset tidak tersedia saat offline.',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});}}
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE);try{await cache.addAll(APP_SHELL);}catch{await Promise.allSettled(APP_SHELL.map(url=>cache.add(url)));}await self.skipWaiting();})());});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});
-self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;if(event.request.mode==='navigate'){event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(OFFLINE_SHELL,copy));return response;}).catch(()=>caches.match(OFFLINE_SHELL)));return;}event.respondWith(isAppCode(event.request.url)||isSwappableAsset(event.request.url)?networkFirst(event.request):cacheFirst(event.request));});
+/* Halaman publik /beli dan Owner Panel /owner berdiri sendiri di origin yang sama, tetapi
+   BUKAN kerangka aplikasi sekolah. Keduanya dibiarkan lewat apa adanya: bila ikut disimpan
+   sebagai OFFLINE_SHELL, sekolah yang sedang offline akan membuka halaman promosi alih-alih
+   e-Rapor. */
+function isAppNavigation(url){const path=new URL(url).pathname;return !/^\/(?:beli|owner)(?:\/|$)/.test(path);}
+self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;if(event.request.mode==='navigate'){if(!isAppNavigation(event.request.url))return;event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(OFFLINE_SHELL,copy));return response;}).catch(()=>caches.match(OFFLINE_SHELL)));return;}event.respondWith(isAppCode(event.request.url)||isSwappableAsset(event.request.url)?networkFirst(event.request):cacheFirst(event.request));});
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting();});

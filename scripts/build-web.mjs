@@ -11,14 +11,19 @@ const directories=['assets','src'];
    hanya disalin apa adanya ke dist/owner supaya Vercel — yang menyajikan Output Directory dist —
    punya berkas nyata untuk rewrite /owner dan /owner/ ke /owner/index.html. Tanpa salinan ini
    rewrite mengarah ke berkas yang tidak ada, dan Vercel menjawab 404 NOT_FOUND. */
+/* Halaman publik pemesanan lisensi juga berdiri sendiri: ia bukan bagian dari aplikasi
+   sekolah, tidak memerlukan login, dan hanya perlu tersedia sebagai berkas nyata di dist/beli
+   supaya rewrite /beli dan /beli/ pada Vercel menemukan halamannya. */
 const copiedDirectories=[
   ...directories.map(name=>({from:name,to:name})),
   {from:'server/public/owner',to:'owner'},
+  {from:'public/beli',to:'beli'},
 ];
 
 if(dirname(output)!==projectRoot||basename(output)!=='dist')throw new Error('Target build web tidak aman.');
 for(const entry of [...files,...copiedDirectories.map(item=>item.from)])await access(resolve(projectRoot,entry));
 await access(resolve(projectRoot,'server/public/owner/index.html'));
+await access(resolve(projectRoot,'public/beli/index.html'));
 await rm(output,{recursive:true,force:true});
 await mkdir(output,{recursive:true});
 for(const file of files)await cp(resolve(projectRoot,file),resolve(output,file));
