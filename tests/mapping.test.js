@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { canReorderWithinGroup, moveSubjectToGroup, normalizeMappingGroups, reorderWithinGroup } from '../src/services/mapping.js';
+import { ensureDefaultSubjects } from '../src/services/seed.js';
 import { getSubjectMapping, mappingKey, saveSubjectMapping } from '../src/services/storage.js';
 
 function useMemoryStorage(){
@@ -13,12 +14,46 @@ function useMemoryStorage(){
   };
 }
 
-test('Default mapping has Islam, Christian, required, and optional subjects',()=>{assert.equal(SUBJECTS_DEFAULT.length,12);assert.equal(SUBJECTS_DEFAULT[0].name,'Pendidikan Agama Islam dan Budi Pekerti');assert.equal(SUBJECTS_DEFAULT[1].name,'Pendidikan Agama Kristen dan Budi Pekerti');assert.equal(SUBJECTS_DEFAULT.at(-1).name,'Koding dan Kecerdasan Artifisial');});
+test('Default mapping has Islam, Christian, required, and optional subjects',()=>{assert.equal(SUBJECTS_DEFAULT.length,16);assert.equal(SUBJECTS_DEFAULT[0].name,'Pendidikan Agama Islam dan Budi Pekerti');assert.equal(SUBJECTS_DEFAULT[1].name,'Pendidikan Agama Kristen dan Budi Pekerti');assert.equal(SUBJECTS_DEFAULT.at(-1).name,'Koding dan Kecerdasan Artifisial');});
+
+test('Empat mapel agama tambahan dibawa nonaktif supaya Mapping sekolah lama tidak berubah',()=>{
+  const tambahan=['agama_katolik','agama_hindu','agama_buddha','agama_khonghucu'];
+  for(const id of tambahan){
+    const mapel=SUBJECTS_DEFAULT.find(item=>item.id===id);
+    assert.ok(mapel,`${id} ada pada master mapel`);
+    assert.equal(mapel.active,false,`${id} tidak menyala sendiri di sekolah yang sudah berjalan`);
+    assert.equal(mapel.group,'A');
+  }
+  for(const id of ['agama','agama_kristen','pancasila','bindo','mtk','ipas','pjok','seni','seni_rupa','bing','sunda','koding'])
+    assert.equal(SUBJECTS_DEFAULT.find(item=>item.id===id).active,true,`${id} tetap aktif seperti sebelumnya`);
+});
+
+test('Keempat mapel agama baru masuk ke Mapping lama lewat pengaman startup, dalam keadaan nonaktif',()=>{
+  useMemoryStorage();
+  const sesi={role:'teacher',classId:'5B',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
+  const baru=['agama_katolik','agama_hindu','agama_buddha','agama_khonghucu'];
+  /* Mapping sekolah lama: seluruh mapel aktif, tetapi keempat mapel agama baru belum dikenal. */
+  const lama=SUBJECTS_DEFAULT.filter(item=>!baru.includes(item.id)).map(item=>({...item,active:true}));
+  saveSubjectMapping(sesi,lama);
+  for(const id of baru)
+    assert.equal(getSubjectMapping(sesi).some(item=>item.id===id),false,`${id} memang belum ada`);
+
+  /* Pengaman startup yang menambahkannya - jalur yang sama seperti ketika Seni Rupa dulu
+     ditambahkan - sehingga tidak ada mekanisme baru yang perlu dipercaya. */
+  const hasil=ensureDefaultSubjects();
+  assert.equal(hasil.repairedMappings,1);
+  assert.deepEqual(hasil.addedSubjects.sort(),[...baru].sort());
+  const sesudah=getSubjectMapping(sesi);
+  assert.equal(sesudah.find(item=>item.id==='mtk').active,true,'mapel lama tidak tersentuh');
+  for(const id of baru)
+    assert.equal(sesudah.find(item=>item.id===id).active,false,`${id} masuk dalam keadaan nonaktif`);
+  assert.equal(ensureDefaultSubjects().repairedMappings,0,'pengaman idempotent');
+});
 test('Default subject orders are contiguous and separate inside groups',()=>{for(const group of ['A','B'])assert.deepEqual(SUBJECTS_DEFAULT.filter(x=>x.group===group).map(x=>x.order),Array.from({length:SUBJECTS_DEFAULT.filter(x=>x.group===group).length},(_,index)=>index+1));});
 
 test('Reorder only moves subjects inside the same group',()=>{
-  const moved=reorderWithinGroup(SUBJECTS_DEFAULT,'pancasila',-1);
-  assert.deepEqual(moved.slice(0,3).map(item=>item.id),['agama','pancasila','agama_kristen']);
+  const moved=reorderWithinGroup(SUBJECTS_DEFAULT,'agama_kristen',-1);
+  assert.deepEqual(moved.slice(0,3).map(item=>item.id),['agama_kristen','agama','agama_katolik']);
   assert.deepEqual(moved.filter(item=>item.group==='B').map(item=>item.id),SUBJECTS_DEFAULT.filter(item=>item.group==='B').map(item=>item.id));
   assert.deepEqual(moved.filter(item=>item.group==='A').map(item=>item.order),sequence(countOf('A')));
   assert.deepEqual(moved.filter(item=>item.group==='B').map(item=>item.order),sequence(countOf('B')));

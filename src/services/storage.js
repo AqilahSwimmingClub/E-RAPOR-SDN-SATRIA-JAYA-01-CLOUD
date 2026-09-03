@@ -24,8 +24,12 @@ function normalizeReferenceData(input){
   const defaults=defaultReferenceData();const source=input&&typeof input==='object'?input:{};
   const academicYears=uniqueRecords([...(Array.isArray(source.academicYears)?source.academicYears:[]),...defaults.academicYears].map(item=>({id:String(item?.id||item?.label||'').trim(),label:String(item?.label||item?.id||'').trim(),active:item?.active!==false})),item=>item.id);
   const semesters=uniqueRecords([...(Array.isArray(source.semesters)?source.semesters:[]),...defaults.semesters].map(item=>({id:String(item?.id||item?.label||'').trim(),label:String(item?.label||item?.id||'').trim(),name:String(item?.name||'').trim(),academicYear:String(item?.academicYear||'').trim(),active:item?.active!==false})),item=>item.id);
+  /* Mapping tersimpan menang atas bawaan, TETAPI hanya untuk mapel yang memang ada di dalamnya.
+     Mapel bawaan yang belum pernah dikenal Mapping sebuah sekolah memakai status bawaannya
+     sendiri - itulah yang membuat mapel baru dapat ditambahkan dalam keadaan nonaktif tanpa
+     mengubah konfigurasi sekolah yang sudah berjalan. */
   const savedSubjects=new Map((Array.isArray(source.subjects)?source.subjects:[]).map(item=>[item?.id,item]));
-  const subjects=normalizeMappingGroups(SUBJECTS_DEFAULT.map(subject=>({...subject,...(savedSubjects.get(subject.id)||{}),id:subject.id,name:String(savedSubjects.get(subject.id)?.name||subject.name),active:savedSubjects.get(subject.id)?.active!==false})));
+  const subjects=normalizeMappingGroups(SUBJECTS_DEFAULT.map(subject=>({...subject,...(savedSubjects.get(subject.id)||{}),id:subject.id,name:String(savedSubjects.get(subject.id)?.name||subject.name),active:savedSubjects.has(subject.id)?savedSubjects.get(subject.id)?.active!==false:subject.active!==false})));
   return {academicYears,semesters,subjects};
 }
 

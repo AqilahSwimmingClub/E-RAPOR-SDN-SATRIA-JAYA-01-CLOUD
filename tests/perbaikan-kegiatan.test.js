@@ -262,7 +262,7 @@ test('17. Pindah mata pelajaran tidak memicu pembacaan database berlebihan',()=>
   const session=guru('5B');
   aktifkan(session,SUBJECTS_DEFAULT.map(item=>item.id));
   Array.from({length:12},(_,index)=>siswa(session,`S${index}`));
-  SUBJECTS_DEFAULT.slice(0,3).forEach(item=>fillAllAssessmentScores(session,item.id,'80'));
+  ['agama','pancasila','bindo'].forEach(id=>fillAllAssessmentScores(session,id,'80'));
 
   const sebelum=bacaan;
   const mulai=Date.now();

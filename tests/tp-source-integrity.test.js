@@ -98,8 +98,11 @@ test('Setiap TP mencantumkan metadata sumber resmi yang lengkap',()=>{
           assert.equal(tp.source.url,null,`${subjectId} tidak meminjam tautan regulasi`);
         }else{
           assert.ok(tp.source.decision.length>5);
-          assert.ok(Number.isInteger(tp.source.year)&&tp.source.year>=2024);
-          assert.match(tp.source.url,/^https:\/\//);
+          assert.ok(Number.isInteger(tp.source.year)&&tp.source.year>=2000);
+          /* Tautan hanya wajib bagi sumber nasional; keputusan daerah dirujuk lewat dokumen
+             cetaknya. Menuntut URL kepadanya hanya akan melahirkan tautan karangan. */
+          if(tp.source.scope==='muatan_lokal')assert.ok(tp.source.decision.includes('Nomor'));
+          else assert.match(tp.source.url,/^https:\/\//);
         }
         assert.ok(tp.description.length>=20,`${subjectId} ${tp.code} deskripsi operasional`);
         assert.equal(tp.status,OBJECTIVE_STATUS);
@@ -109,7 +112,7 @@ test('Setiap TP mencantumkan metadata sumber resmi yang lengkap',()=>{
   }
 });
 
-test('PABP memakai keputusan 2026 dan mapel umum memakai CP yang masih berlaku',()=>{
+test('PABP dan mapel umum memakai keputusan 2025, masing-masing lewat entri sumbernya',()=>{
   for(const subjectId of ['agama','agama_kristen'])
     assert.equal(defaultLearningObjectives('5A',subjectId)[0].source.id,'cp_pabp');
   for(const subjectId of ['pancasila','bindo','mtk','ipas','pjok'])
@@ -117,9 +120,14 @@ test('PABP memakai keputusan 2026 dan mapel umum memakai CP yang masih berlaku',
   /* Koding & KA dan Muatan Lokal punya sumber sendiri; keduanya tidak boleh jatuh ke cp_umum. */
   assert.equal(defaultLearningObjectives('5A','koding')[0].source.id,'cp_koding_ka');
   assert.equal(defaultLearningObjectives('5A','sunda')[0].source.id,'cp_mulok_jabar');
-  assert.equal(TP_SOURCES.cp_pabp.year,2026);
-  assert.match(TP_SOURCES.cp_pabp.decision,/020/);
+  assert.equal(TP_SOURCES.cp_pabp.year,2025);
+  assert.match(TP_SOURCES.cp_pabp.decision,/046\/H\/KR\/2025/);
   assert.match(TP_SOURCES.cp_umum.decision,/046\/H\/KR\/2025/);
+  /* Keduanya memakai keputusan yang sama tetapi tetap dua entri, karena catatannya berbeda:
+     satu berlaku untuk mapel selain Agama, satunya justru bagian Agamanya. */
+  assert.notEqual(TP_SOURCES.cp_pabp.id,TP_SOURCES.cp_umum.id);
+  assert.match(TP_SOURCES.cp_umum.note,/selain Agama/i);
+  assert.match(TP_SOURCES.cp_pabp.note,/Agama dan Budi Pekerti/i);
 });
 
 test('Fase mengikuti tingkat kelas dan menolak rombel di luar SD',()=>{
@@ -146,7 +154,7 @@ test('Dokumentasi sumber TP tersedia dan menyebut ketiga rujukan',()=>{
     assert.ok(dokumen.includes(sumber.authority),`lembaga ${sumber.id} tercantum di dokumentasi`);
     if(sumber.verified===false)continue;
     assert.ok(dokumen.includes(sumber.decision),`${sumber.decision} tercantum di dokumentasi`);
-    assert.ok(dokumen.includes(sumber.url),`URL ${sumber.id} tercantum di dokumentasi`);
+    if(sumber.url)assert.ok(dokumen.includes(sumber.url),`URL ${sumber.id} tercantum di dokumentasi`);
   }
   assert.match(dokumen,/inspiratif/i);
   assert.match(dokumen,/Capaian Pembelajaran/);

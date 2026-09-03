@@ -34,7 +34,7 @@ const admin=(academicYear=ACADEMIC_YEAR,semester=`Ganjil ${academicYear}`)=>
 const guru=(classId='5B',academicYear=ACADEMIC_YEAR,semester=`Ganjil ${academicYear}`)=>
   ({role:'teacher',classId,academicYear,semester});
 
-const MAPEL=SUBJECTS_DEFAULT.slice(0,4).map(item=>item.id);
+const MAPEL=['agama','pancasila','bindo','mtk'];
 function aktifkanMapel(session,ids=MAPEL){
   saveSubjectMapping(session,SUBJECTS_DEFAULT.map((item,index)=>
     ({...item,active:ids.includes(item.id),order:index+1})));

@@ -58,7 +58,13 @@ test('TP bawaan berstatus inspiratif, dapat diubah, dan mencantumkan sumber resm
         if(tp.source.verified===false){
           assert.equal(tp.source.decision,null,`${subjectId} tidak meminjam nomor keputusan`);
           assert.equal(tp.source.url,null,`${subjectId} tidak meminjam tautan regulasi`);
-        }else assert.ok(tp.source.decision&&tp.source.url,`${subjectId} mencantumkan sumber`);
+        }else{
+          assert.ok(tp.source.decision,`${subjectId} mencantumkan nomor keputusan`);
+          /* Tautan hanya dituntut untuk sumber nasional. Keputusan daerah dirujuk lewat
+             dokumen cetaknya, dan memaksakan URL kepadanya akan mengundang tautan karangan. */
+          if(tp.source.scope!=='muatan_lokal')
+            assert.ok(tp.source.url,`${subjectId} mencantumkan tautan resmi`);
+        }
         assert.equal(tp.phase,phaseForClassId(classId));
         assert.ok(tp.description.length>25,'deskripsi TP operasional, bukan sekadar judul');
       }
@@ -73,9 +79,14 @@ test('TP bawaan berstatus inspiratif, dapat diubah, dan mencantumkan sumber resm
 
 test('Sumber rujukan menyebut keputusan resmi terbaru untuk mapel umum dan agama',()=>{
   assert.match(TP_SOURCES.cp_umum.decision,/046\/H\/KR\/2025/);
-  assert.match(TP_SOURCES.cp_pabp.decision,/020 Tahun 2026/);
-  assert.ok(TP_SOURCES.cp_pabp.year>=2026,'PABP memakai pembaruan 2026');
+  /* Agama memakai keputusan resmi 2025 yang sama, dengan entri sumbernya sendiri. */
+  assert.match(TP_SOURCES.cp_pabp.decision,/046\/H\/KR\/2025/);
+  assert.equal(TP_SOURCES.cp_pabp.year,2025);
   assert.match(TP_SOURCES.cp_koding_ka.decision,/Koding dan Kecerdasan Artifisial/);
+  /* Muatan lokal bersumber pada keputusan daerah, dan itu harus terbaca dari metadatanya. */
+  assert.equal(TP_SOURCES.cp_mulok_jabar.scope,'muatan_lokal');
+  assert.equal(TP_SOURCES.cp_mulok_jabar.authority,'Dinas Pendidikan Provinsi Jawa Barat');
+  assert.equal(TP_SOURCES.cp_mulok_jabar.decisionNumber,'32817/Pk.05.02/Sekre/2022');
   for(const sumber of Object.values(TP_SOURCES)){
     assert.ok(sumber.authority,`${sumber.id} menyebut lembaga yang berwenang`);
     if(sumber.verified===false){
@@ -83,6 +94,11 @@ test('Sumber rujukan menyebut keputusan resmi terbaru untuk mapel umum dan agama
       assert.equal(sumber.decision,null,`${sumber.id} tidak mengarang nomor keputusan`);
       assert.equal(sumber.url,null,`${sumber.id} tidak mengarang tautan`);
       assert.match(sumber.note,/menunggu|belum/i,`${sumber.id} menyatakan apa yang ditunggu`);
+    }else if(sumber.scope==='muatan_lokal'){
+      /* Sumber daerah dirujuk lewat nomor keputusan dan dokumennya, bukan domain nasional. */
+      assert.ok(sumber.decisionNumber&&sumber.document,`${sumber.id} menyebut dokumen resminya`);
+      assert.equal(/kemdikbud|kemendikdasmen|BSKAP/.test(String(sumber.decision)),false,
+        `${sumber.id} tidak memakai identitas regulasi nasional`);
     }else assert.match(sumber.url,/^https:\/\/[a-z0-9.-]*(kemdikbud|kemendikdasmen)\.go\.id/,`${sumber.id} merujuk domain resmi`);
   }
 });

@@ -45,13 +45,27 @@ export const CLASSES = Array.from({length: 6}, (_, gi) => gi + 1)
 export const SUBJECTS_DEFAULT = [
   { id:'agama', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Agama Islam dan Budi Pekerti', active:true, order:1 },
   { id:'agama_kristen', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Agama Kristen dan Budi Pekerti', active:true, order:2 },
-  { id:'pancasila', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Pancasila', active:true, order:3 },
-  { id:'bindo', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Bahasa Indonesia', active:true, order:4 },
-  { id:'mtk', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Matematika', active:true, order:5 },
-  { id:'ipas', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Ilmu Pengetahuan Alam dan Sosial (IPAS)', active:true, order:6 },
-  { id:'pjok', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Jasmani, Olahraga, dan Kesehatan', active:true, order:7 },
-  { id:'seni', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Seni dan Budaya', active:true, order:8 },
-  { id:'seni_rupa', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Seni Rupa', active:true, order:9 },
+  /* Empat mapel agama berikut dibawa NONAKTIF. Aplikasi sudah lama mengenal enam agama pada
+     Data Siswa, tetapi hanya menyediakan dua mapel agamanya, sehingga siswa Katolik, Hindu,
+     Buddha, dan Khonghucu tidak mempunyai mata pelajaran agama sama sekali.
+
+     Nonaktif, bukan aktif, karena Mapping sekolah yang sudah berjalan tidak boleh berubah
+     sendiri: mengaktifkan empat mapel baru secara serentak akan menuntut TP, KKTP, dan bobot
+     yang belum pernah disiapkan sekolah mana pun. Sekolah menyalakannya sendiri lewat Mapping
+     Mata Pelajaran ketika memang punya siswanya. Rapor siswa tetap aman tanpa itu:
+     `religionSubjectForStudent` mencari mapel agama sampai ke master bawaan, sehingga siswa
+     Katolik tetap mendapat mapel agamanya walau Mapping belum diaktifkan. */
+  { id:'agama_katolik', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Agama Katolik dan Budi Pekerti', active:false, order:3 },
+  { id:'agama_hindu', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Agama Hindu dan Budi Pekerti', active:false, order:4 },
+  { id:'agama_buddha', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Agama Buddha dan Budi Pekerti', active:false, order:5 },
+  { id:'agama_khonghucu', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Agama Khonghucu dan Budi Pekerti', active:false, order:6 },
+  { id:'pancasila', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Pancasila', active:true, order:7 },
+  { id:'bindo', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Bahasa Indonesia', active:true, order:8 },
+  { id:'mtk', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Matematika', active:true, order:9 },
+  { id:'ipas', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Ilmu Pengetahuan Alam dan Sosial (IPAS)', active:true, order:10 },
+  { id:'pjok', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Jasmani, Olahraga, dan Kesehatan', active:true, order:11 },
+  { id:'seni', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Seni dan Budaya', active:true, order:12 },
+  { id:'seni_rupa', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Seni Rupa', active:true, order:13 },
   { id:'bing', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', name:'Bahasa Inggris', active:true, order:1 },
   { id:'sunda', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', parent:'Muatan Lokal', name:'Bahasa Sunda', active:true, order:2 },
   /* Koding dan Kecerdasan Artifisial BUKAN muatan lokal: CP-nya ditetapkan secara nasional
@@ -76,7 +90,11 @@ export const MENU_TEACHER=legacyMenu('teacher');
 /* Mapel agama dipetakan ke agama siswa. Master mapel tidak dihapus; hanya disaring per siswa
    sehingga siswa Kristen tidak dianggap belum lengkap karena nilai Agama Islam kosong. */
 export const RELIGIONS=['Islam','Kristen','Katolik','Hindu','Buddha','Konghucu'];
-export const RELIGION_SUBJECTS=Object.freeze({agama:'Islam',agama_kristen:'Kristen'});
+/* Pemetaan mapel agama ke agama siswa. Khonghucu perlu entri eksplisit di sini: pencocokan
+   cadangan lewat nama tidak akan mengenali "khonghucu" sebagai "Konghucu", dan pemetaan
+   berdasarkan id memang diperiksa lebih dulu. */
+export const RELIGION_SUBJECTS=Object.freeze({agama:'Islam',agama_kristen:'Kristen',
+  agama_katolik:'Katolik',agama_hindu:'Hindu',agama_buddha:'Buddha',agama_khonghucu:'Konghucu'});
 export function isReligionSubject(subjectId){return Object.hasOwn(RELIGION_SUBJECTS,subjectId);}
 
 function normalizeReligionText(value){return String(value||'').trim().toLowerCase();}

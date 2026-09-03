@@ -24,16 +24,24 @@ export const TP_SOURCES=Object.freeze({
     year:2025,
     url:'https://kurikulum.kemdikbud.go.id/rujukan/regulasi-kurikulum-merdeka',
   }),
+  /* Pendidikan Agama dan Budi Pekerti memakai CP versi 2025, yaitu keputusan yang sama dengan
+     mata pelajaran nasional lainnya. Sumbernya tetap dipisahkan dari cp_umum karena keduanya
+     menyampaikan hal berbeda kepada guru: cp_umum menyatakan berlaku untuk mapel SELAIN Agama,
+     sedangkan entri ini menyatakan bagian Agama dari keputusan yang sama.
+
+     Keputusan Kepala BKPDM Nomor 020 Tahun 2026 memang sudah terbit dan memperbarui CP Agama,
+     tetapi pada tahap ini aplikasi sengaja memakai versi 2025 lebih dulu. Catatan di bawah
+     menyimpan fakta itu supaya keputusan tersebut tidak terlupakan ketika naskahnya dimuat. */
   cp_pabp:Object.freeze({
     id:'cp_pabp',
     title:'Capaian Pembelajaran mata pelajaran Pendidikan Agama dan Budi Pekerti',
-    decision:'Keputusan Kepala BKPDM Nomor 020 Tahun 2026',
-    authority:'BKPDM, Kementerian Pendidikan Dasar dan Menengah',
+    decision:'Keputusan Kepala BSKAP Nomor 046/H/KR/2025',
+    authority:'BSKAP Kemendikdasmen',
     scope:'nasional',
     verified:true,
-    note:'Perubahan atas Keputusan Kepala BSKAP Nomor 046/H/KR/2025; perubahannya terbatas pada mata pelajaran Agama dan Budi Pekerti.',
-    year:2026,
-    url:'https://bkpdm.kemendikdasmen.go.id/publikasi/bkpdm-dan-kementerian-agama-tegaskan-perubahan-capaian-pembelajaran-hanya-berlaku-untuk-mata-pelajaran-pendidikan-agama-dan-budi-pekerti',
+    note:'Bagian Pendidikan Agama dan Budi Pekerti pada Keputusan Kepala BSKAP Nomor 046/H/KR/2025. Keputusan Kepala BKPDM Nomor 020 Tahun 2026 memperbarui CP Agama, namun pada tahap ini aplikasi sengaja memakai versi resmi 2025.',
+    year:2025,
+    url:'https://kurikulum.kemdikbud.go.id/rujukan/regulasi-kurikulum-merdeka',
   }),
   inspirasi_atp:Object.freeze({
     id:'inspirasi_atp',
@@ -60,20 +68,25 @@ export const TP_SOURCES=Object.freeze({
     year:2025,
     url:'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/33.%20Final%20Panduan%20Mata%20Pelajaran%20Panduan%20Mata%20Pelajaran%20Koding%20dan%20Kecerdasan%20Artifisial_12_Sep_2025_revisi%203.pdf',
   }),
-  /* Bahasa Sunda adalah MUATAN LOKAL Jawa Barat, bukan mata pelajaran nasional. Kewenangan
-     penetapan CP-nya ada pada Pemerintah Provinsi Jawa Barat, sehingga nomor regulasi dan
-     naskahnya sengaja dibiarkan kosong sampai dokumen resmi provinsi tersedia. `verified:false`
-     adalah pernyataan jujur bahwa identitas regulasinya pun belum dipastikan - bukan celah
-     untuk diisi tebakan. */
+  /* Bahasa Sunda adalah MUATAN LOKAL Jawa Barat, bukan mata pelajaran nasional: kewenangan
+     penetapan CP-nya ada pada Dinas Pendidikan Provinsi Jawa Barat, bukan Kemendikdasmen.
+
+     Identitas regulasinya kini diketahui dari dokumen resminya sendiri - Buku Saku Kurikulum
+     Merdeka Bahasa Sunda, yang memuat Keputusan Kepala Dinas Pendidikan Provinsi Jawa Barat
+     Nomor 32817/Pk.05.02/Sekre/2022 - sehingga `verified` berubah menjadi true. Yang masih
+     kosong adalah NASKAH capaiannya: berkas PDF-nya belum ada di workspace, dan naskah CP
+     tidak boleh diambil dari sumber lain. */
   cp_mulok_jabar:Object.freeze({
     id:'cp_mulok_jabar',
-    title:'Kurikulum Muatan Lokal Bahasa Sunda Provinsi Jawa Barat',
-    decision:null,
-    authority:'Pemerintah Provinsi Jawa Barat / Dinas Pendidikan Provinsi Jawa Barat',
+    title:'Capaian Pembelajaran Muatan Lokal Bahasa Sunda',
+    decision:'Keputusan Kepala Dinas Pendidikan Provinsi Jawa Barat Nomor 32817/Pk.05.02/Sekre/2022',
+    decisionNumber:'32817/Pk.05.02/Sekre/2022',
+    authority:'Dinas Pendidikan Provinsi Jawa Barat',
+    document:'Buku Saku Kurikulum Merdeka Bahasa Sunda',
     scope:'muatan_lokal',
-    verified:false,
-    note:'Bahasa Sunda tidak tercantum sebagai CP nasional pada Keputusan Kepala BSKAP Nomor 046/H/KR/2025. Nomor regulasi dan naskah CP-nya menunggu dokumen resmi Pemerintah Provinsi Jawa Barat.',
-    year:null,
+    verified:true,
+    note:'Ditetapkan Pemerintah Provinsi Jawa Barat, bukan Kemendikdasmen. Bahasa Sunda tidak tercantum sebagai CP nasional pada Keputusan Kepala BSKAP Nomor 046/H/KR/2025. Naskah capaiannya diambil dari Lampiran II dokumen tersebut, khusus jenjang SD (Fase A, B, dan C).',
+    year:2022,
     url:null,
   }),
 });

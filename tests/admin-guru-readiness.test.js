@@ -30,7 +30,7 @@ async function lengkapiChecklist(){
     principalNip:'198001012006041001',schoolLogo:''});
   saveTeacherProfile(admin,'5B',{name:'Wali Kelas 5B',nip:'198502022010012001',phone:'08',email:'w@contoh.sch.id',photo:''});
   const sesiGuru=guru();
-  const aktif=SUBJECTS_DEFAULT.slice(0,3).map(item=>item.id);
+  const aktif=['agama','pancasila','bindo'];
   saveSubjectMapping(sesiGuru,SUBJECTS_DEFAULT.map((item,index)=>({...item,active:aktif.includes(item.id),order:index+1})));
   for(const subjectId of aktif)
     saveAssessmentSettings(sesiGuru,subjectId,{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});

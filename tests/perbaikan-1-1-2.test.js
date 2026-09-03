@@ -72,17 +72,20 @@ test('Tidak ada siswa yang pernah menerima dua mapel agama sekaligus',()=>{
   useMemoryStorage();
   const session=guru('5B');
   aktifkan(session,['agama','agama_kristen','mtk']);
-  /* Agama kosong maupun agama yang belum punya mapel khusus tidak pernah menerima PAI/PAK. */
+  /* Yang dijaga adalah SATU mapel agama per siswa - tidak pernah dua, tidak pernah mapel milik
+     agama lain, dan tidak ada tebakan ketika agamanya kosong. Keenam agama kini punya mapelnya
+     masing-masing, sehingga siswa Katolik tidak lagi berakhir tanpa mata pelajaran agama. */
+  const seharusnya={Islam:'agama',Kristen:'agama_kristen',Katolik:'agama_katolik',
+    Hindu:'agama_hindu',Buddha:'agama_buddha',Konghucu:'agama_khonghucu'};
   const daftar=['',...RELIGIONS].map((religion,index)=>siswa(session,`AG${index}`,religion?{religion}:{}));
   daftar.forEach(anak=>{
-    const agama=listSubjectsForStudent(session,anak).filter(item=>item.id==='agama'||item.id==='agama_kristen');
-    const harapan=anak.religion==='Islam'?['agama']:anak.religion==='Kristen'?['agama_kristen']:[];
+    const agama=listSubjectsForStudent(session,anak).filter(item=>item.id.startsWith('agama'));
+    const harapan=anak.religion?[seharusnya[anak.religion]]:[];
     assert.deepEqual(agama.map(item=>item.id),harapan,`siswa dengan agama "${anak.religion||'(kosong)'}" hanya menerima mapel yang sesuai`);
   });
-  assert.equal(religionSubjectIdFor({religion:'Islam'}),'agama');
-  assert.equal(religionSubjectIdFor({religion:'Kristen'}),'agama_kristen');
+  for(const [religion,subjectId] of Object.entries(seharusnya))
+    assert.equal(religionSubjectIdFor({religion}),subjectId,`${religion} memakai ${subjectId}`);
   assert.equal(religionSubjectIdFor({}),null,'agama kosong tidak ditebak');
-  assert.equal(religionSubjectIdFor({religion:'Katolik'}),null,'agama tanpa mapel khusus tidak memakai PAI/PAK');
   assert.equal(hasStudentReligion({religion:'Islam'}),true);
   assert.equal(hasStudentReligion({}),false);
 });

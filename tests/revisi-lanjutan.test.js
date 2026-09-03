@@ -229,7 +229,9 @@ test('Mapel agama mengikuti agama masing-masing siswa',()=>{
   const mapelTanpa=listSubjectsForStudent(session,tanpa).map(item=>item.id);
   assert.equal(mapelTanpa.includes('agama')||mapelTanpa.includes('agama_kristen'),false,'agama kosong tidak menampilkan PAI maupun PAK');
   assert.equal(listSubjectsForStudent(session,tanpa).length,listActiveSubjects(session).length-2,'kedua mapel agama dikeluarkan');
-  assert.deepEqual(RELIGION_SUBJECTS,{agama:'Islam',agama_kristen:'Kristen'});
+  /* Keenam agama pada Data Siswa kini punya pasangan mapelnya masing-masing. */
+  assert.deepEqual(RELIGION_SUBJECTS,{agama:'Islam',agama_kristen:'Kristen',
+    agama_katolik:'Katolik',agama_hindu:'Hindu',agama_buddha:'Buddha',agama_khonghucu:'Konghucu'});
   assert.equal(isReligionSubject('mtk'),false);
   assert.ok(SUBJECTS_DEFAULT.some(item=>item.id==='agama_kristen'),'master mapel agama tidak dihapus');
 });

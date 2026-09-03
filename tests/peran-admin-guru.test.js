@@ -238,7 +238,7 @@ test('11. CP tanpa naskah resmi dilaporkan apa adanya, bukan diisi karangan',()=
     if(entri.verified===false)
       assert.equal(entri.decision,null,`${entri.subjectId} tidak meminjam nomor keputusan`);
     else
-      assert.match(entri.decision,/BSKAP Nomor 046\/H\/KR\/2025|BKPDM Nomor 020 Tahun 2026|Koding dan Kecerdasan Artifisial/,
+      assert.match(entri.decision,/BSKAP Nomor 046\/H\/KR\/2025|Koding dan Kecerdasan Artifisial|Dinas Pendidikan Provinsi Jawa Barat Nomor 32817\/Pk\.05\.02\/Sekre\/2022/,
         'setiap CP tetap menyebut regulasinya');
   }
   /* Yang dilarang adalah naskah karangan, bukan naskah kosong. */

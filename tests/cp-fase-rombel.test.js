@@ -83,11 +83,16 @@ test('3. CP ditentukan dari mata pelajaran dan fase, bukan dari huruf rombel',()
   assert.notEqual(capaianPembelajaran('1B','mtk').phase,capaianPembelajaran('4C','mtk').phase);
 });
 
-test('4. Sumber CP dibedakan: Agama memakai regulasi 2026, mapel lain 2025',()=>{
+test('4. Sumber CP Agama dan mapel umum sama-sama memakai keputusan resmi 2025',()=>{
+  /* Agama dan mapel umum kini bersumber pada keputusan yang sama, tetapi entrinya tetap
+     dipisah: cp_umum menyatakan berlaku untuk mapel SELAIN Agama, sedangkan cp_pabp menyatakan
+     bagian Agamanya. Menggabungkan keduanya akan membuat salah satu kutipan menjadi keliru. */
   const pabp=cpRegulationFor('agama');
-  assert.match(pabp.decision,/BKPDM Nomor 020 Tahun 2026/);
-  assert.equal(pabp.year,2026);
-  assert.equal(cpRegulationFor('agama_kristen').id,pabp.id,'seluruh Agama dan Budi Pekerti');
+  assert.match(pabp.decision,/BSKAP Nomor 046\/H\/KR\/2025/);
+  assert.equal(pabp.year,2025);
+  assert.equal(pabp.id,'cp_pabp','Agama tetap punya entri sumbernya sendiri');
+  for(const mapel of ['agama_kristen','agama_katolik','agama_hindu','agama_buddha','agama_khonghucu'])
+    assert.equal(cpRegulationFor(mapel).id,pabp.id,'seluruh Agama dan Budi Pekerti');
 
   const umum=cpRegulationFor('mtk');
   assert.match(umum.decision,/BSKAP Nomor 046\/H\/KR\/2025/);
@@ -96,7 +101,7 @@ test('4. Sumber CP dibedakan: Agama memakai regulasi 2026, mapel lain 2025',()=>
 
   /* Kutipan regulasi ikut pada setiap CP sehingga dapat diaudit. */
   const cp=capaianPembelajaran('2C','agama');
-  assert.match(cp.regulation.decision,/BKPDM Nomor 020 Tahun 2026/);
+  assert.match(cp.regulation.decision,/BSKAP Nomor 046\/H\/KR\/2025/);
   assert.ok(cp.regulation.url&&cp.regulation.title);
 });
 

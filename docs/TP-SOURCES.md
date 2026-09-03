@@ -37,29 +37,43 @@ Tujuan Pembelajaran. Tidak ada satu pun angka di dalamnya.
 | Kelompok | Dokumen | Lembaga berwenang | Nomor keputusan | Tahun | Tautan |
 | --- | --- | --- | --- | --- | --- |
 | Mata pelajaran umum | Capaian Pembelajaran pada PAUD, Jenjang Pendidikan Dasar, dan Jenjang Pendidikan Menengah | Badan Standar, Kurikulum, dan Asesmen Pendidikan, Kementerian Pendidikan Dasar dan Menengah | Keputusan Kepala BSKAP Nomor 046/H/KR/2025 | 2025 | https://kurikulum.kemdikbud.go.id/rujukan/regulasi-kurikulum-merdeka |
-| Pendidikan Agama dan Budi Pekerti | Capaian Pembelajaran mata pelajaran Pendidikan Agama dan Budi Pekerti | BKPDM, Kementerian Pendidikan Dasar dan Menengah | Keputusan Kepala BKPDM Nomor 020 Tahun 2026 | 2026 | https://bkpdm.kemendikdasmen.go.id/publikasi/bkpdm-dan-kementerian-agama-tegaskan-perubahan-capaian-pembelajaran-hanya-berlaku-untuk-mata-pelajaran-pendidikan-agama-dan-budi-pekerti |
+| Pendidikan Agama dan Budi Pekerti | Capaian Pembelajaran mata pelajaran Pendidikan Agama dan Budi Pekerti | BSKAP Kemendikdasmen | Keputusan Kepala BSKAP Nomor 046/H/KR/2025 | 2025 | https://kurikulum.kemdikbud.go.id/rujukan/regulasi-kurikulum-merdeka |
 | Koding dan Kecerdasan Artifisial | Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial | Pusat Kurikulum dan Pembelajaran, Kementerian Pendidikan Dasar dan Menengah | Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial (Pusat Kurikulum dan Pembelajaran, 2025) | 2025 | https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/33.%20Final%20Panduan%20Mata%20Pelajaran%20Panduan%20Mata%20Pelajaran%20Koding%20dan%20Kecerdasan%20Artifisial_12_Sep_2025_revisi%203.pdf |
-| Muatan Lokal Jawa Barat | Kurikulum Muatan Lokal Bahasa Sunda Provinsi Jawa Barat | Pemerintah Provinsi Jawa Barat / Dinas Pendidikan Provinsi Jawa Barat | _belum diverifikasi_ | — | — |
+| Muatan Lokal Jawa Barat | Capaian Pembelajaran Muatan Lokal Bahasa Sunda | Dinas Pendidikan Provinsi Jawa Barat | Keputusan Kepala Dinas Pendidikan Provinsi Jawa Barat Nomor 32817/Pk.05.02/Sekre/2022 | 2022 | Buku Saku Kurikulum Merdeka Bahasa Sunda (dokumen cetak) |
 | Inspirasi penurunan CP menjadi TP/ATP | Inspirasi Alur Tujuan Pembelajaran (ATP) — Referensi Penerapan Kurikulum | Ruang GTK, Kementerian Pendidikan Dasar dan Menengah | Ruang GTK Kemendikdasmen | 2026 | https://guru.kemendikdasmen.go.id/kurikulum/referensi-penerapan/capaian-pembelajaran/ |
 
-Empat catatan atas tabel di atas:
+Catatan atas tabel di atas:
 
 - **Koding dan Kecerdasan Artifisial** tidak ditetapkan lewat keputusan CP umum melainkan lewat
   panduan mata pelajarannya sendiri. Pada jenjang SD mata pelajaran ini dimulai pada **Fase C**
   (kelas 5-6); Fase A dan Fase B sengaja tidak berkatalog karena CP-nya memang belum ada.
+- **Pendidikan Agama dan Budi Pekerti** memakai keputusan yang sama dengan mapel nasional
+  lainnya, yaitu 046/H/KR/2025. Keputusan Kepala BKPDM Nomor 020 Tahun 2026 memang sudah terbit
+  dan memperbarui CP Agama, tetapi pada tahap ini aplikasi sengaja memakai versi resmi 2025
+  lebih dulu. Entri sumbernya tetap dipisah dari mapel umum karena keduanya menyampaikan hal
+  berbeda: yang satu berlaku untuk mapel SELAIN Agama, yang satu justru bagian Agamanya.
 - **Bahasa Sunda** adalah Muatan Lokal Jawa Barat, bukan mata pelajaran nasional. Ia sengaja
   TIDAK memakai Keputusan Kepala BSKAP Nomor 046/H/KR/2025: menempelkan nomor keputusan
-  nasional pada muatan lokal akan menjadikannya tampak sebagai CP nasional. Nomor regulasi dan
-  naskahnya menunggu dokumen resmi Pemerintah Provinsi Jawa Barat.
+  nasional pada muatan lokal akan menjadikannya tampak sebagai CP nasional. Yang menetapkannya
+  adalah Dinas Pendidikan Provinsi Jawa Barat lewat Keputusan Nomor 32817/Pk.05.02/Sekre/2022,
+  yang dimuat pada Buku Saku Kurikulum Merdeka Bahasa Sunda. Naskah capaiannya diambil dari
+  Lampiran II dokumen tersebut, khusus jenjang SD (Fase A, B, dan C).
+- **Mata pelajaran agama** tersedia untuk keenam agama pada Data Siswa. Empat di antaranya —
+  Katolik, Hindu, Buddha, dan Khonghucu — dibawa dalam keadaan **nonaktif** supaya Mapping
+  sekolah yang sudah berjalan tidak berubah sendiri; sekolah mengaktifkannya lewat Mapping Mata
+  Pelajaran ketika memang punya siswanya.
 - Kolom **naskah CP** pada seluruh baris masih `null`. Aplikasi menampilkan elemen CP dan
   kutipan regulasinya, tidak pernah teks pengganti. Jalankan `cpNaskahReport()` pada
   `src/data/curriculum-cp.js` untuk melihat daftar terkini beserta alasan tiap kekosongan.
+  Naskahnya diisi pada `src/data/curriculum-cp-naskah.js` — berkas data terpisah, sehingga
+  memuat naskah resmi tidak menyentuh satu baris logika pun.
 - Sumber yang belum terverifikasi ditandai `verified:false` dan wajib mempunyai `decision`,
   `year`, serta `url` bernilai `null`. Kontrak itu dijaga `tests/tp-source-integrity.test.js`.
 
-Catatan penting atas dokumen PABP: perubahan tahun 2026 hanya berlaku untuk mata pelajaran
-Pendidikan Agama dan Budi Pekerti. Mata pelajaran lain tetap memakai CP yang ditetapkan
-Keputusan Kepala BSKAP Nomor 046/H/KR/2025.
+Catatan penting atas dokumen PABP: perubahan tahun 2026 (Keputusan Kepala BKPDM Nomor 020
+Tahun 2026) hanya berlaku untuk mata pelajaran Pendidikan Agama dan Budi Pekerti, dan belum
+dipakai pada tahap ini. Seluruh mata pelajaran, termasuk Agama, mengacu pada Keputusan Kepala
+BSKAP Nomor 046/H/KR/2025.
 
 ATP yang diterbitkan pemerintah disediakan sebagai **inspirasi**, bukan kewajiban. Satuan
 pendidikan tetap menyusun TP-nya sendiri.
