@@ -20,207 +20,492 @@
 </head>
 <body>
 
+<!-- Lambang WhatsApp dan tanda centang dipakai berulang, jadi didefinisikan sekali lalu
+     diacu dengan <use>. Tidak ada emoji sebagai pengganti lambang. -->
+<svg class="svg-simpanan" aria-hidden="true" focusable="false">
+  <symbol id="ikon-wa" viewBox="0 0 24 24">
+    <path d="M12 2a10 10 0 0 0-8.7 15L2 22l5.2-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.3 1.2-1.8 1.3-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.4-3.9-4.5-4.1-.1-.2-1.1-1.4-1.1-2.6 0-1.2.6-1.8.9-2.1.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.3 0 .5l-.3.4-.3.3c-.1.1-.2.2-.1.5.2.3.7 1.2 1.5 1.9 1 .9 1.8 1.1 2.1 1.3.2.1.4.1.5-.1l.8-.9c.2-.2.3-.2.5-.1l1.8.9c.2.1.4.2.4.3.1.2.1.7-.1 1.2Z"/>
+  </symbol>
+  <symbol id="ikon-centang" viewBox="0 0 24 24">
+    <path d="m5 12.5 4.2 4.2L19 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<!-- ----------------------------------------------------------------------------- Navbar -->
+<header class="navbar" id="navbar">
+  <div class="shell nav-isi">
+    <a class="nav-merek" href="#beranda">
+      <img class="nav-logo" src="/assets/app-icon.svg" alt="Lambang e-Rapor" width="42" height="42"/>
+      <span><strong>e-Rapor</strong><small>Solusi Digital Pengelolaan Rapor Sekolah</small></span>
+    </a>
+    <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Buka menu navigasi">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="nav-menu" id="nav-menu" aria-label="Navigasi utama">
+      <ul>
+        <li><a class="nav-tautan" href="#beranda" data-nav="beranda">Beranda</a></li>
+        <li><a class="nav-tautan" href="#keunggulan" data-nav="keunggulan">Keunggulan</a></li>
+        <li><a class="nav-tautan" href="#cara-pemesanan" data-nav="cara-pemesanan">Cara Pemesanan</a></li>
+        <li><a class="nav-tautan" href="#tutorial" data-nav="tutorial">Tutorial</a></li>
+      </ul>
+      <a class="btn btn-emas btn-nav" id="tautan-developer" href="#" target="_blank" rel="noopener noreferrer">
+        <svg class="ikon" width="18" height="18" aria-hidden="true"><use href="#ikon-wa"/></svg>
+        Hubungi Developer
+      </a>
+    </nav>
+  </div>
+</header>
+
 <!-- ------------------------------------------------------------------------------- Hero -->
-<header class="hero">
+<section class="hero" id="beranda">
   <div class="hero-glow" aria-hidden="true"></div>
   <div class="shell hero-grid">
     <div class="hero-copy reveal">
       <span class="badge">e-Rapor Sekolah</span>
-      <h1>Kelola Rapor Sekolah Lebih Mudah, Rapi, dan Terintegrasi</h1>
-      <p class="hero-lead">e-Rapor membantu sekolah mengelola data siswa, penilaian, kegiatan
-        pembelajaran, rapor, dan leger dalam satu aplikasi yang praktis.</p>
+      <h1>Kelola Rapor Sekolah<br/><span class="emas">Lebih Mudah, Rapi,<br/>dan Terintegrasi</span></h1>
+      <p class="hero-lead">e-Rapor membantu sekolah mengelola data siswa, penilaian,
+        kegiatan pembelajaran, rapor, dan leger dalam satu aplikasi yang praktis.</p>
       <div class="hero-aksi">
-        <a class="btn btn-emas" href="#form-pemesanan">Daftarkan Sekolah Anda</a>
-        <a class="btn btn-garis" id="tautan-developer" href="#" target="_blank" rel="noopener noreferrer">Hubungi Developer</a>
+        <a class="btn btn-emas" href="#form-pemesanan">
+          <svg class="ikon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M10 21v-6h4v6"/></svg>
+          Daftarkan Sekolah Anda
+        </a>
+        <a class="btn btn-garis" data-wa-developer href="#" target="_blank" rel="noopener noreferrer">
+          <svg class="ikon" width="19" height="19" aria-hidden="true"><use href="#ikon-wa"/></svg>
+          Hubungi Developer
+        </a>
       </div>
-      <p class="hero-nota">Aktivasi resmi &middot; Berjalan offline &middot; Data akademik tetap di perangkat sekolah</p>
+      <ul class="hero-trust">
+        <li>
+          <span class="trust-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-2.9 7.9-7 9-4.1-1.1-7-4.6-7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+          <div><strong>Aman &amp; Terpercaya</strong><small>Data tetap milik sekolah</small></div>
+        </li>
+        <li>
+          <span class="trust-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg></span>
+          <div><strong>Offline-first</strong><small>Bisa digunakan tanpa internet</small></div>
+        </li>
+        <li>
+          <span class="trust-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg></span>
+          <div><strong>Mudah Digunakan</strong><small>Antarmuka sederhana</small></div>
+        </li>
+      </ul>
     </div>
 
-    <!-- Mockup disusun dari elemen HTML/CSS yang meniru tampilan aplikasi e-Rapor, bukan
-         tangkapan layar maupun gambar stok. -->
+    <!-- Visual disusun dari elemen HTML/CSS yang meniru tampilan e-Rapor: bukan tangkapan
+         layar, bukan gambar stok, bukan foto orang. Seluruhnya bersifat gambaran saja dan
+         tidak ada satu pun bagian yang dapat diklik. -->
     <div class="hero-visual reveal" aria-hidden="true">
-      <div class="mock">
-        <div class="mock-bar"><span></span><span></span><span></span><b>e-Rapor</b></div>
-        <div class="mock-body">
-          <aside class="mock-nav">
-            <i class="aktif"></i><i></i><i></i><i></i><i></i><i></i>
-          </aside>
-          <div class="mock-isi">
-            <div class="mock-head">
-              <div><strong>Nilai Rapor</strong><small>Kelas 5B &middot; Semester Ganjil</small></div>
-              <span class="mock-pill">Lengkap</span>
+      <div class="perangkat">
+        <div class="laptop">
+          <div class="laptop-layar">
+            <div class="app">
+              <div class="app-bar"><img src="/assets/app-icon.svg" alt="" width="16" height="16"/><b>e-Rapor</b></div>
+              <div class="app-body">
+                <aside class="app-nav">
+                  <i class="aktif">Dashboard</i><i>Data Siswa</i><i>Absensi</i><i>Penilaian</i>
+                  <i>Ekstrakurikuler</i><i>Rapor</i><i>Leger</i><i>Pengaturan</i>
+                </aside>
+                <div class="app-isi">
+                  <div class="app-salam">
+                    <span class="avatar"></span>
+                    <div><strong>Selamat Datang,</strong><small>SDN CONTOH NUSANTARA 01</small></div>
+                    <div class="app-tahun"><small>Tahun Pelajaran</small><b>2025/2026</b></div>
+                  </div>
+                  <div class="app-stat">
+                    <div class="s1"><small>Jumlah Siswa</small><b>128</b></div>
+                    <div class="s2"><small>Jumlah Kelas</small><b>12</b></div>
+                    <div class="s3"><small>Kehadiran</small><b>96%</b></div>
+                    <div class="s4"><small>Rata-rata</small><b>88.5</b></div>
+                  </div>
+                  <div class="app-panel">
+                    <div class="panel">
+                      <small>Rekap Nilai Kelas</small>
+                      <div class="batang"><i style="height:38%"></i><i style="height:62%"></i><i style="height:48%"></i><i style="height:78%"></i><i style="height:56%"></i><i style="height:88%"></i></div>
+                    </div>
+                    <div class="panel">
+                      <small>Kehadiran Siswa</small>
+                      <div class="donat"><span></span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="mock-stat">
-              <div><small>Rata-rata</small><b>85</b></div>
-              <div><small>Tuntas</small><b>28</b></div>
-              <div><small>Mapel</small><b>11</b></div>
-            </div>
-            <table class="mock-tabel">
-              <thead><tr><th>Mata Pelajaran</th><th>Nilai</th><th>Predikat</th></tr></thead>
-              <tbody>
-                <tr><td>Bahasa Indonesia</td><td>88</td><td><em class="baik">Sangat Baik</em></td></tr>
-                <tr><td>Matematika</td><td>84</td><td><em class="baik">Baik</em></td></tr>
-                <tr><td>IPAS</td><td>86</td><td><em class="baik">Sangat Baik</em></td></tr>
-                <tr><td>Pendidikan Pancasila</td><td>90</td><td><em class="baik">Sangat Baik</em></td></tr>
-              </tbody>
-            </table>
+          </div>
+          <div class="laptop-kaki"></div>
+        </div>
+        <div class="ponsel">
+          <div class="ponsel-layar">
+            <img class="ponsel-logo" src="/assets/app-icon.svg" alt="" width="38" height="38"/>
+            <strong>e-Rapor</strong>
+            <small>SDN CONTOH NUSANTARA 01</small>
+            <span class="kolom-palsu">Username</span>
+            <span class="kolom-palsu">Password</span>
+            <span class="tombol-palsu">Masuk</span>
+            <div class="ponsel-gambar"></div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</header>
+</section>
 
 <main>
-<!-- ------------------------------------------------------------------------- Keunggulan -->
-<section class="bagian" aria-labelledby="judul-keunggulan">
-  <div class="shell">
-    <div class="bagian-head reveal">
-      <span class="kicker">Keunggulan</span>
-      <h2 id="judul-keunggulan">Satu Aplikasi untuk Seluruh Administrasi Rapor</h2>
-      <p>Setiap bagian pekerjaan sekolah punya tempatnya sendiri, saling terhubung, dan tetap
-        dapat dijalankan tanpa internet.</p>
+<!-- --------------------------------------------------------- Keunggulan + form pemesanan -->
+<section class="bagian" id="keunggulan">
+  <div class="shell dua-kolom">
+    <div class="kolom-keunggulan">
+      <div class="bagian-head reveal">
+        <h2><span class="head-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>Keunggulan e-Rapor</h2>
+        <p>Fitur lengkap untuk mendukung administrasi dan penilaian sekolah secara modern.</p>
+      </div>
+      <div class="kartu-grid">
+        <article class="kartu warna-biru reveal">
+          <h3><span class="kartu-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M10 21v-6h4v6"/></svg></span>Administrasi Sekolah</h3>
+          <ul><li>Identitas sekolah</li><li>Akun Admin &amp; Guru</li><li>Data siswa</li><li>Absensi</li></ul>
+        </article>
+        <article class="kartu warna-ungu reveal">
+          <h3><span class="kartu-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M15 3v5h5"/><path d="M9 13h6M9 17h4"/></svg></span>Penilaian</h3>
+          <ul><li>Penilaian &amp; nilai akhir</li><li>TP semua mata pelajaran</li><li>Deskripsi rapor otomatis</li></ul>
+        </article>
+        <article class="kartu warna-hijau reveal">
+          <h3><span class="kartu-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M17 14c2.2 0 4 1.8 4 4"/></svg></span>Kegiatan Pembelajaran</h3>
+          <ul><li>Intrakurikuler</li><li>Kokurikuler</li><li>Ekstrakurikuler</li></ul>
+        </article>
+        <article class="kartu warna-merah reveal">
+          <h3><span class="kartu-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="7" rx="2"/><path d="M7 16h10v5H7z"/></svg></span>Rapor &amp; Data</h3>
+          <ul><li>Cetak Rapor</li><li>Cetak Leger</li><li>Backup &amp; Restore data</li><li>Offline-first</li></ul>
+        </article>
+        <article class="kartu warna-emas reveal">
+          <h3><span class="kartu-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-2.9 7.9-7 9-4.1-1.1-7-4.6-7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></span>Lisensi &amp; Pembaruan</h3>
+          <ul><li>Sistem lisensi resmi</li><li>Pembaruan aplikasi resmi</li></ul>
+        </article>
+        <article class="kartu warna-toska reveal">
+          <h3><span class="kartu-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></svg></span>Data Aman di Sekolah</h3>
+          <ul><li>Data akademik tersimpan lokal di perangkat sekolah</li><li>Data tetap menjadi milik sekolah</li></ul>
+        </article>
+      </div>
     </div>
-    <div class="kartu-grid">
-      <article class="kartu reveal">
-        <span class="kartu-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M10 21v-6h4v6"/></svg></span>
-        <h3>Administrasi Sekolah</h3>
-        <ul><li>Identitas sekolah</li><li>Admin &amp; Guru</li><li>Data siswa</li><li>Absensi</li></ul>
-      </article>
-      <article class="kartu reveal">
-        <span class="kartu-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M15 3v5h5"/><path d="M9 13h6"/><path d="M9 17h4"/></svg></span>
-        <h3>Penilaian</h3>
-        <ul><li>Penilaian &amp; nilai akhir</li><li>TP mata pelajaran</li><li>Deskripsi otomatis</li></ul>
-      </article>
-      <article class="kartu reveal">
-        <span class="kartu-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4"/><circle cx="12" cy="10" r="3"/><path d="M5 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg></span>
-        <h3>Kegiatan Pembelajaran</h3>
-        <ul><li>Intrakurikuler</li><li>Kokurikuler</li><li>Ekstrakurikuler</li></ul>
-      </article>
-      <article class="kartu reveal">
-        <span class="kartu-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="7" rx="2"/><path d="M7 16h10v5H7z"/></svg></span>
-        <h3>Rapor &amp; Data</h3>
-        <ul><li>Cetak Rapor</li><li>Cetak Leger</li><li>Backup &amp; Restore</li><li>Offline-first</li></ul>
-      </article>
-      <article class="kartu reveal">
-        <span class="kartu-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-2.9 7.9-7 9-4.1-1.1-7-4.6-7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></span>
-        <h3>Lisensi &amp; Pembaruan</h3>
-        <ul><li>Sistem lisensi resmi</li><li>Pembaruan aplikasi resmi</li></ul>
-      </article>
+
+    <!-- ------------------------------------------------------------------ Form pemesanan -->
+    <div class="kolom-form" id="form-pemesanan">
+      <div class="kartu-form reveal">
+        <div class="form-head">
+          <span class="form-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M10 21v-6h4v6"/></svg></span>
+          <div>
+            <h2 id="judul-form">Daftarkan Sekolah Anda</h2>
+            <p>Isi data berikut untuk mendapatkan informasi pembelian lisensi e-Rapor.</p>
+          </div>
+        </div>
+
+        <form id="form-pesan" novalidate>
+          <div class="grid">
+            <div class="field">
+              <label for="schoolName">Nama Sekolah <span class="wajib">*</span></label>
+              <input id="schoolName" name="schoolName" type="text" autocomplete="organization" maxlength="120" placeholder="Contoh: SDN Maju Jaya 01" required/>
+              <p class="galat" data-galat="schoolName" hidden></p>
+            </div>
+            <div class="field">
+              <label for="npsn">NPSN <span class="wajib">*</span></label>
+              <input id="npsn" name="npsn" type="text" inputmode="numeric" maxlength="8" placeholder="8 digit angka" required/>
+              <p class="galat" data-galat="npsn" hidden></p>
+            </div>
+            <div class="field">
+              <label for="contactName">Nama Pemesan/Penanggung Jawab <span class="wajib">*</span></label>
+              <input id="contactName" name="contactName" type="text" autocomplete="name" maxlength="120" placeholder="Nama lengkap" required/>
+              <p class="galat" data-galat="contactName" hidden></p>
+            </div>
+            <div class="field">
+              <label for="whatsapp">Nomor WhatsApp <span class="wajib">*</span></label>
+              <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="08xxxxxxxxxx" required/>
+              <p class="galat" data-galat="whatsapp" hidden></p>
+            </div>
+            <div class="field">
+              <label for="email">Email <span class="opsional">(Opsional)</span></label>
+              <input id="email" name="email" type="email" autocomplete="email" maxlength="120" placeholder="nama@email.com"/>
+              <p class="galat" data-galat="email" hidden></p>
+            </div>
+            <div class="field">
+              <label for="province">Provinsi <span class="wajib">*</span></label>
+              <input id="province" name="province" type="text" maxlength="80" placeholder="Contoh: Jawa Barat" required/>
+              <p class="galat" data-galat="province" hidden></p>
+            </div>
+            <div class="field span-2">
+              <label for="city">Kabupaten/Kota <span class="wajib">*</span></label>
+              <input id="city" name="city" type="text" maxlength="80" placeholder="Contoh: Kabupaten Bekasi" required/>
+              <p class="galat" data-galat="city" hidden></p>
+            </div>
+          </div>
+
+          <label class="persetujuan">
+            <input id="konfirmasi" name="konfirmasi" type="checkbox"/>
+            <span>Saya memastikan data sekolah yang saya isi sudah benar.</span>
+          </label>
+          <p class="galat" data-galat="konfirmasi" hidden></p>
+
+          <div class="pratinjau">
+            <div class="pratinjau-head">
+              <span class="pratinjau-judul">
+                <svg class="ikon" width="17" height="17" aria-hidden="true"><use href="#ikon-wa"/></svg>
+                Pratinjau Pesan WhatsApp
+              </span>
+              <span class="pratinjau-nota">Dapat Anda periksa dan ubah sebelum dikirim</span>
+            </div>
+            <label class="sr-only" for="pesan">Pesan WhatsApp</label>
+            <textarea id="pesan" name="pesan" rows="12" spellcheck="false"></textarea>
+          </div>
+
+          <button class="btn btn-hijau btn-blok" id="tombol-pesan" type="submit" disabled>
+            <svg class="ikon" width="20" height="20" aria-hidden="true"><use href="#ikon-wa"/></svg>
+            PESAN LISENSI e-RAPOR VIA WHATSAPP
+          </button>
+          <p class="catatan" id="catatan-tombol">Centang pernyataan di atas dan lengkapi data wajib untuk mengaktifkan tombol.</p>
+          <p class="catatan">Tombol ini membuka WhatsApp. Pemesanan diproses manual oleh pengembang; halaman ini
+            tidak membuat License Key sendiri dan tidak mengaktifkan lisensi apa pun.</p>
+        </form>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ------------------------------------------------------------------- Cara mendapatkan -->
-<section class="bagian bagian-alt" aria-labelledby="judul-alur">
+<!-- ------------------------------------------------------------------ Cara mendapatkan -->
+<section class="bagian bagian-alt" id="cara-pemesanan">
   <div class="shell">
     <div class="bagian-head reveal">
-      <span class="kicker">Alur Pembelian</span>
-      <h2 id="judul-alur">Cara Mendapatkan Lisensi</h2>
-      <p>Enam langkah sederhana, dari mengisi data sekolah sampai e-Rapor siap dipakai.</p>
+      <h2><span class="head-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg></span>Cara Mendapatkan Lisensi e-Rapor</h2>
+      <p>Proses mudah dan jelas untuk menggunakan e-Rapor di sekolah Anda.</p>
     </div>
-    <ol class="langkah-grid">
-      <li class="langkah reveal"><span class="langkah-no">01</span><strong>Isi Data Sekolah</strong><span>Lengkapi formulir pemesanan di halaman ini.</span></li>
-      <li class="langkah reveal"><span class="langkah-no">02</span><strong>Kirim Pemesanan</strong><span>Pesan WhatsApp terbuka lebih dulu agar dapat Anda periksa.</span></li>
-      <li class="langkah reveal"><span class="langkah-no">03</span><strong>Developer Memverifikasi</strong><span>Data sekolah dicek dan Anda dihubungi kembali.</span></li>
-      <li class="langkah reveal"><span class="langkah-no">04</span><strong>License Key Diberikan</strong><span>Kunci resmi dibuat khusus untuk sekolah Anda.</span></li>
-      <li class="langkah reveal"><span class="langkah-no">05</span><strong>Aktivasi e-Rapor</strong><span>Satu License Key untuk satu perangkat aktif.</span></li>
-      <li class="langkah reveal"><span class="langkah-no">06</span><strong>Siap Digunakan</strong><span>Data akademik tersimpan lokal di perangkat sekolah.</span></li>
+    <ol class="langkah-baris">
+      <li class="langkah reveal">
+        <span class="langkah-no">01</span>
+        <strong>Isi Data Sekolah</strong>
+        <span class="langkah-visual" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span>
+        <span class="langkah-teks">Isi formulir pemesanan dengan data sekolah Anda.</span>
+      </li>
+      <li class="langkah reveal">
+        <span class="langkah-no">02</span>
+        <strong>Kirim Pemesanan</strong>
+        <span class="langkah-visual hijau" aria-hidden="true"><svg width="26" height="26"><use href="#ikon-wa"/></svg></span>
+        <span class="langkah-teks">Kirim permintaan melalui WhatsApp ke developer.</span>
+      </li>
+      <li class="langkah reveal">
+        <span class="langkah-no">03</span>
+        <strong>Developer Memverifikasi</strong>
+        <span class="langkah-visual" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h4"/><circle cx="16" cy="16" r="3.4"/><path d="m14.6 16 1 1 2-2"/></svg></span>
+        <span class="langkah-teks">Data sekolah akan diverifikasi oleh developer.</span>
+      </li>
+      <li class="langkah reveal">
+        <span class="langkah-no">04</span>
+        <strong>License Key Diberikan</strong>
+        <span class="langkah-visual emas" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="14" r="4"/><path d="m11 11 8-8 2 2-2 2 2 2-2 2-2-2-2 2"/></svg></span>
+        <span class="langkah-teks">Anda akan menerima License Key resmi.</span>
+      </li>
+      <li class="langkah reveal">
+        <span class="langkah-no">05</span>
+        <strong>Aktivasi e-Rapor</strong>
+        <span class="langkah-visual" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M2 20h20"/><path d="M9 11h6"/></svg></span>
+        <span class="langkah-teks">Masukkan License Key pada aplikasi e-Rapor.</span>
+      </li>
+      <li class="langkah reveal">
+        <span class="langkah-no">06</span>
+        <strong>Siap Digunakan</strong>
+        <span class="langkah-visual hijau" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.6 2.6L16 9.5"/></svg></span>
+        <span class="langkah-teks">e-Rapor siap digunakan untuk mengelola data dan nilai sekolah Anda.</span>
+      </li>
     </ol>
   </div>
 </section>
 
-<!-- ---------------------------------------------------------------------- Form pemesanan -->
-<section class="bagian" id="form-pemesanan" aria-labelledby="judul-form">
-  <div class="shell shell-sempit">
-    <div class="kartu-form reveal">
-      <div class="form-head">
-        <span class="kicker">Pemesanan</span>
-        <h2 id="judul-form">Daftarkan Sekolah Anda</h2>
-        <p>Isi data berikut untuk mendapatkan informasi pembelian lisensi e-Rapor.</p>
-      </div>
+<!-- ---------------------------------------------------------------------------- Tutorial -->
+<section class="bagian" id="tutorial">
+  <div class="shell">
+    <div class="bagian-head reveal">
+      <h2><span class="head-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3H11v18H5.5A2.5 2.5 0 0 1 3 18.5Z"/><path d="M21 5.5A2.5 2.5 0 0 0 18.5 3H13v18h5.5a2.5 2.5 0 0 0 2.5-2.5Z"/></svg></span>Panduan Tutorial Penggunaan e-Rapor</h2>
+      <p>Panduan lengkap dari pembelian lisensi hingga mengelola nilai di aplikasi.</p>
+    </div>
 
-      <form id="form-pesan" novalidate>
-        <div class="grid">
-          <div class="field">
-            <label for="schoolName">Nama Sekolah <span class="wajib">*</span></label>
-            <input id="schoolName" name="schoolName" type="text" autocomplete="organization" maxlength="120" placeholder="SD Negeri Contoh 01" required/>
-            <p class="galat" data-galat="schoolName" hidden></p>
-          </div>
-          <div class="field">
-            <label for="npsn">NPSN <span class="wajib">*</span></label>
-            <input id="npsn" name="npsn" type="text" inputmode="numeric" maxlength="8" placeholder="8 digit angka" required/>
-            <p class="galat" data-galat="npsn" hidden></p>
-          </div>
-          <div class="field">
-            <label for="contactName">Nama Pemesan / Penanggung Jawab <span class="wajib">*</span></label>
-            <input id="contactName" name="contactName" type="text" autocomplete="name" maxlength="120" placeholder="Nama lengkap" required/>
-            <p class="galat" data-galat="contactName" hidden></p>
-          </div>
-          <div class="field">
-            <label for="whatsapp">Nomor WhatsApp <span class="wajib">*</span></label>
-            <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="08xxxxxxxxxx" required/>
-            <p class="galat" data-galat="whatsapp" hidden></p>
-          </div>
-          <div class="field">
-            <label for="email">Email <span class="opsional">(opsional)</span></label>
-            <input id="email" name="email" type="email" autocomplete="email" maxlength="120" placeholder="sekolah@contoh.sch.id"/>
-            <p class="galat" data-galat="email" hidden></p>
-          </div>
-          <div class="field">
-            <label for="city">Kabupaten / Kota <span class="wajib">*</span></label>
-            <input id="city" name="city" type="text" maxlength="80" placeholder="Kabupaten Bekasi" required/>
-            <p class="galat" data-galat="city" hidden></p>
-          </div>
-          <div class="field span-2">
-            <label for="province">Provinsi <span class="wajib">*</span></label>
-            <input id="province" name="province" type="text" maxlength="80" placeholder="Jawa Barat" required/>
-            <p class="galat" data-galat="province" hidden></p>
+    <div class="tutorial-grid">
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">1</span><h3>Pemesanan Lisensi</h3></div>
+        <div class="tutorial-visual" aria-hidden="true">
+          <div class="mini-form">
+            <span class="mini-label">Nama Sekolah</span><span class="mini-kolom">SDN Maju Jaya 01</span>
+            <span class="mini-label">NPSN</span><span class="mini-kolom">12345678</span>
+            <span class="mini-tombol hijau">Pesan via WhatsApp</span>
           </div>
         </div>
+        <ul class="tutorial-daftar">
+          <li>Buka halaman <code>/beli</code>.</li>
+          <li>Isi Nama Sekolah dan NPSN.</li>
+          <li>Isi Nama Penanggung Jawab dan Nomor WhatsApp.</li>
+          <li>Isi Kabupaten/Kota dan Provinsi.</li>
+          <li>Klik <strong>Pesan Lisensi e-Rapor via WhatsApp</strong>.</li>
+          <li>Periksa pesannya, lalu kirim kepada developer.</li>
+        </ul>
+      </article>
 
-        <label class="persetujuan">
-          <input id="konfirmasi" name="konfirmasi" type="checkbox"/>
-          <span>Saya memastikan data sekolah yang saya isi sudah benar.</span>
-        </label>
-        <p class="galat" data-galat="konfirmasi" hidden></p>
-
-        <div class="pratinjau">
-          <div class="pratinjau-head">
-            <span class="pratinjau-judul">
-              <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.7 15L2 22l5.2-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.3 1.2-1.8 1.3-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.4-3.9-4.5-4.1-.1-.2-1.1-1.4-1.1-2.6 0-1.2.6-1.8.9-2.1.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.3 0 .5l-.3.4-.3.3c-.1.1-.2.2-.1.5.2.3.7 1.2 1.5 1.9 1 .9 1.8 1.1 2.1 1.3.2.1.4.1.5-.1l.8-.9c.2-.2.3-.2.5-.1l1.8.9c.2.1.4.2.4.3.1.2.1.7-.1 1.2Z"/></svg>
-              Pratinjau Pesan WhatsApp
-            </span>
-            <span class="pratinjau-nota">Dapat Anda periksa dan ubah sebelum dikirim</span>
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">2</span><h3>Terima License Key</h3></div>
+        <div class="tutorial-visual" aria-hidden="true">
+          <div class="mini-chat">
+            <span>Berikut License Key untuk SDN Maju Jaya 01:</span>
+            <code>ERAPOR-XXXX-XXXX-XXXX</code>
           </div>
-          <label class="sr-only" for="pesan">Pesan WhatsApp</label>
-          <textarea id="pesan" name="pesan" rows="14" spellcheck="false"></textarea>
         </div>
+        <p class="tutorial-teks">Setelah pemesanan diverifikasi, developer mengirimkan License Key resmi
+          melalui WhatsApp. Bentuk kunci hanya ditampilkan tersamar seperti contoh di atas.</p>
+      </article>
 
-        <button class="btn btn-emas btn-blok" id="tombol-pesan" type="submit" disabled>
-          <svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.7 15L2 22l5.2-1.3A10 10 0 1 0 12 2Zm5.6 14.1c-.2.6-1.3 1.2-1.8 1.3-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.5-.6-2.7-1.2-4.4-3.9-4.5-4.1-.1-.2-1.1-1.4-1.1-2.6 0-1.2.6-1.8.9-2.1.2-.2.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.3 0 .5l-.3.4-.3.3c-.1.1-.2.2-.1.5.2.3.7 1.2 1.5 1.9 1 .9 1.8 1.1 2.1 1.3.2.1.4.1.5-.1l.8-.9c.2-.2.3-.2.5-.1l1.8.9c.2.1.4.2.4.3.1.2.1.7-.1 1.2Z"/></svg>
-          PESAN LISENSI VIA WHATSAPP
-        </button>
-        <p class="catatan" id="catatan-tombol">Centang pernyataan di atas dan lengkapi data wajib untuk mengaktifkan tombol.</p>
-        <p class="catatan">Tombol ini membuka WhatsApp. Pemesanan diproses manual oleh pengembang; halaman ini
-          tidak membuat License Key sendiri dan tidak mengaktifkan lisensi apa pun.</p>
-      </form>
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">3</span><h3>Aktivasi di Aplikasi</h3></div>
+        <div class="tutorial-visual" aria-hidden="true">
+          <div class="mini-aktivasi">
+            <strong>Aktivasi Lisensi</strong>
+            <span class="mini-kolom mono">ERAPOR-XXXX-XXXX-XXXX</span>
+            <span class="mini-tombol biru">Aktivasi</span>
+          </div>
+        </div>
+        <ul class="tutorial-daftar">
+          <li>Buka aplikasi e-Rapor.</li>
+          <li>Masukkan License Key.</li>
+          <li>Pastikan perangkat terhubung internet saat aktivasi pertama.</li>
+          <li>Tekan <strong>Aktivasi</strong>, lalu tunggu sampai lisensi terverifikasi.</li>
+        </ul>
+        <p class="tutorial-nota">Hanya aktivasi pertama yang membutuhkan internet. Setelah aktif,
+          penggunaan sehari-hari tetap offline-first sesuai aturan lisensi yang berlaku.</p>
+      </article>
+
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">4</span><h3>Setup Awal Sekolah</h3></div>
+        <div class="tutorial-visual" aria-hidden="true">
+          <div class="mini-form">
+            <strong class="mini-judul">Setup Awal e-Rapor</strong>
+            <span class="mini-label">Nama Sekolah</span><span class="mini-kolom">SDN Maju Jaya 01</span>
+            <span class="mini-label">NPSN</span><span class="mini-kolom">12345678</span>
+          </div>
+        </div>
+        <p class="tutorial-teks">Setelah aktivasi berhasil, isi identitas sekolah: Nama Sekolah, NPSN,
+          NIS/NSS/NDS bila ada, Alamat, Desa/Kelurahan, Kecamatan, Kabupaten/Kota, Provinsi, Kode Pos,
+          Nomor Telepon, Email, Website, Nama dan NIP Kepala Sekolah, serta Status Sekolah.</p>
+        <p class="tutorial-nota">Logo sekolah bersifat opsional. Bila sekolah punya logo, unggah logonya
+          dan seluruh bagian aplikasi akan memakai logo itu. Bila belum punya, aplikasi memakai lambang
+          bawaan e-Rapor yang netral. Nama sekolah juga dinamis: identitas yang Anda isi dipakai pada
+          Masuk, Dashboard, rapor, cover, leger, transkrip, dan hasil cetak.</p>
+      </article>
+
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">5</span><h3>Siapkan Admin &amp; Guru</h3></div>
+        <p class="tutorial-teks">Admin sekolah mengatur Tahun Pelajaran, Semester, Kelas/Rombel,
+          Mata Pelajaran, KKTP, Bobot Penilaian, data Guru, dan penugasan kelas.</p>
+        <p class="tutorial-nota">Setelah konfigurasi lengkap, Admin mengaktifkan e-Rapor untuk Guru
+          melalui halaman Status Penilaian sesuai mekanisme yang sudah ada.</p>
+      </article>
+
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">6</span><h3>Kelola Data Siswa</h3></div>
+        <ul class="tutorial-daftar">
+          <li>Masuk ke menu <strong>Data Siswa</strong>.</li>
+          <li>Tambah atau impor data siswa sesuai fitur yang tersedia.</li>
+          <li>Pastikan siswa masuk kelas dan Tahun Pelajaran yang benar.</li>
+        </ul>
+        <p class="tutorial-nota">Data tersimpan lokal pada perangkat sekolah.</p>
+      </article>
+
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">7</span><h3>Kelola Absensi</h3></div>
+        <ul class="tutorial-daftar">
+          <li>Buka menu <strong>Absensi</strong>.</li>
+          <li>Pilih siswa dan tanggal sesuai alur aplikasi.</li>
+          <li>Simpan kehadiran.</li>
+        </ul>
+      </article>
+
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">8</span><h3>Mengelola Nilai</h3></div>
+        <div class="tutorial-visual" aria-hidden="true">
+          <div class="mini-tabel">
+            <span>Formatif</span><span>Harian</span><span>Praktik</span>
+            <span>Sumatif LM</span><span>Sumatif Akhir</span><span class="mini-hasil">Nilai Akhir</span>
+          </div>
+        </div>
+        <p class="tutorial-teks">Guru memilih Mata Pelajaran, lalu siswa, lalu komponen penilaian yang
+          tersedia: Formatif, Harian, Praktik, Sumatif Lingkup Materi, dan Sumatif Akhir.</p>
+        <p class="tutorial-nota">Nilai yang dimasukkan diolah sistem sesuai konfigurasi penilaian yang
+          sudah ada sehingga menghasilkan Nilai Akhir rapor.</p>
+      </article>
+
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">9</span><h3>Pilih Tujuan Pembelajaran</h3></div>
+        <div class="tutorial-visual" aria-hidden="true">
+          <div class="mini-tp"><span>TP 1</span><span>TP 2</span><span>TP 3</span><b>→</b><span class="mini-hasil">Satu Nilai Akhir</span></div>
+        </div>
+        <p class="tutorial-teks">Pada satu Mata Pelajaran, guru memilih satu atau beberapa Tujuan
+          Pembelajaran sebagai acuan penilaian.</p>
+        <p class="tutorial-nota">TP tidak memiliki nilai sendiri-sendiri. Beberapa TP menjadi acuan bagi
+          SATU penilaian yang sudah ada, dan penilaian itulah yang menghasilkan Nilai Akhir.</p>
+      </article>
+
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">10</span><h3>Intrakurikuler</h3></div>
+        <div class="tutorial-visual" aria-hidden="true">
+          <div class="mini-alur"><span>Mapel</span><b>→</b><span>TP</span><b>→</b><span>Predikat</span><b>→</b><span>Deskripsi</span></div>
+        </div>
+        <p class="tutorial-teks">Alurnya: pilih Mata Pelajaran, tandai TP, tentukan Predikat, lalu
+          deskripsi tersusun otomatis.</p>
+        <p class="tutorial-nota">Predikat yang tersedia: Cukup, Baik, dan Sangat Baik. Intrakurikuler
+          tidak membuat skor per TP.</p>
+      </article>
+
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">11</span><h3>Kegiatan Sekolah</h3></div>
+        <p class="tutorial-teks">Guru dapat mengisi Kokurikuler dan Ekstrakurikuler melalui menunya
+          masing-masing, sesuai konfigurasi kegiatan yang sudah ditetapkan Admin.</p>
+      </article>
+
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">12</span><h3>Cetak Rapor &amp; Leger</h3></div>
+        <ul class="tutorial-daftar">
+          <li>Setelah data dan penilaian lengkap, buka menu <strong>Rapor</strong>.</li>
+          <li>Periksa datanya, lalu cetak atau simpan sebagai PDF.</li>
+          <li>Untuk rekap kelas, buka <strong>Leger</strong>, periksa rekap nilainya, lalu cetak.</li>
+        </ul>
+      </article>
+
+      <article class="tutorial reveal">
+        <div class="tutorial-head"><span class="tutorial-no">13</span><h3>Backup Data</h3></div>
+        <p class="tutorial-teks">Lakukan Backup secara rutin. Berkas backup menjaga data lokal sekolah
+          bila perangkat bermasalah, dan dipakai saat berpindah perangkat melalui Restore.</p>
+        <p class="tutorial-nota">Backup akademik tidak pernah memuat License Key, activation token,
+          maupun Installation ID.</p>
+      </article>
     </div>
   </div>
 </section>
 
 <!-- ----------------------------------------------------------------------------- Privasi -->
-<section class="bagian bagian-alt" aria-labelledby="judul-privasi">
-  <div class="shell shell-sempit">
-    <div class="kartu-privasi reveal">
-      <span class="privasi-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
-      <h2 id="judul-privasi">Data Akademik Tetap Milik Sekolah</h2>
-      <p>Data siswa, nilai, absensi, dan data akademik disimpan secara lokal pada perangkat
-        sekolah dan tidak dikirim ke server lisensi.</p>
-      <ul class="privasi-poin">
-        <li>Data akademik lokal</li>
-        <li>Aktivasi lisensi resmi</li>
-        <li>Backup &amp; Restore</li>
+<section class="bagian bagian-aman">
+  <div class="shell">
+    <div class="kartu-aman reveal">
+      <div class="aman-utama">
+        <span class="aman-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-2.9 7.9-7 9-4.1-1.1-7-4.6-7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+        <div>
+          <h2>Data Akademik Tetap Milik Sekolah</h2>
+          <p>Data siswa, nilai, absensi, dan data akademik disimpan secara lokal pada perangkat sekolah
+            dan tidak dikirim ke server lisensi.</p>
+        </div>
+      </div>
+      <ul class="aman-poin">
+        <li>
+          <span class="poin-ikon biru" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/></svg></span>
+          <div><strong>Data akademik lokal</strong><small>Tersimpan di perangkat sekolah</small></div>
+        </li>
+        <li>
+          <span class="poin-ikon hijau" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.4-2.9 7.9-7 9-4.1-1.1-7-4.6-7-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+          <div><strong>Lisensi resmi</strong><small>Aman dan terpercaya</small></div>
+        </li>
+        <li>
+          <span class="poin-ikon toska" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg></span>
+          <div><strong>Backup &amp; Restore</strong><small>Mudah dan aman</small></div>
+        </li>
       </ul>
     </div>
   </div>
@@ -230,21 +515,29 @@
 <!-- ------------------------------------------------------------------------------ Footer -->
 <footer class="kaki">
   <div class="shell kaki-grid">
-    <div>
-      <strong class="kaki-merek">e-Rapor</strong>
-      <p>Solusi Digital Pengelolaan Rapor Sekolah</p>
+    <div class="kaki-merek">
+      <img src="/assets/app-icon.svg" alt="Lambang e-Rapor" width="52" height="52"/>
+      <div><strong>e-Rapor</strong><span>Solusi Digital Pengelolaan Rapor Sekolah</span></div>
     </div>
-    <div>
-      <span class="kaki-label">WhatsApp</span>
-      <a class="kaki-wa" id="tautan-wa" href="#" target="_blank" rel="noopener noreferrer"></a>
+
+    <div class="kaki-wa">
+      <span class="kaki-wa-ikon" aria-hidden="true"><svg width="26" height="26"><use href="#ikon-wa"/></svg></span>
+      <div>
+        <span class="kaki-label">WHATSAPP</span>
+        <a id="tautan-wa" data-wa-developer href="#" target="_blank" rel="noopener noreferrer"></a>
+        <span class="kaki-nota">Siap membantu Anda setiap hari</span>
+      </div>
     </div>
+
+    <!-- Hak cipta sengaja berada di dalam blok identitas pengembang ini, rapat di bawah baris
+         perannya — bukan sebagai baris footer terpisah. -->
     <div class="kaki-kredit">
       <span>Dirancang &amp; Dikembangkan oleh</span>
       <strong>FAHMI DJAWAS, S.Pd.</strong>
       <span>Developer &amp; UI/UX Designer e-Rapor</span>
+      <small class="kaki-hak">© 2026 — Semua Hak Dilindungi</small>
     </div>
   </div>
-  <p class="kaki-hak">© 2026 — Semua Hak Dilindungi</p>
 </footer>
 
 <script type="module" src="/beli/beli.js"></script>

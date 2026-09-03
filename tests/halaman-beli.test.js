@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONTACT_WHATSAPP, whatsappUrl } from '../src/data/app-identity.js';
+import { activeSectionId } from '../public/beli/nav.js';
 import { buildOrderMessage, normalizeWhatsapp, REQUIRED_FIELDS, validateOrder } from '../public/beli/order-form.js';
 
 /* Halaman publik /beli.
@@ -89,9 +90,9 @@ test('4. Formulir memuat seluruh field wajib beserta persetujuan',()=>{
   assert.match(teks,/Saya memastikan data sekolah yang saya isi sudah benar\./);
   assert.match(teks,/id="konfirmasi" name="konfirmasi" type="checkbox"/);
   assert.match(teks,/id="tombol-pesan" type="submit" disabled/,'tombol mati sebelum data sah');
-  assert.match(teks,/PESAN LISENSI VIA WHATSAPP/);
-  for(const label of ['Nama Sekolah','NPSN','Nama Pemesan / Penanggung Jawab','Nomor WhatsApp',
-    'Kabupaten / Kota','Provinsi'])
+  assert.match(teks,/PESAN LISENSI e-RAPOR VIA WHATSAPP/);
+  for(const label of ['Nama Sekolah','NPSN','Nama Pemesan/Penanggung Jawab','Nomor WhatsApp',
+    'Kabupaten/Kota','Provinsi'])
     assert.ok(teks.includes(label),`label ${label} tampil`);
 });
 
@@ -250,79 +251,85 @@ test('18. Isi promosi, alur pembelian, dan identitas pengembang tampil',()=>{
   const teks=halaman();
   /* Hero. */
   assert.match(teks,/<span class="badge">e-Rapor Sekolah<\/span>/);
-  assert.match(teks,/Kelola Rapor Sekolah Lebih Mudah, Rapi, dan Terintegrasi/);
-  assert.match(teks,/e-Rapor membantu sekolah mengelola data siswa, penilaian, kegiatan\s+pembelajaran, rapor, dan leger dalam satu aplikasi yang praktis\./);
-  assert.match(teks,/href="#form-pemesanan">Daftarkan Sekolah Anda<\/a>/,'CTA utama menuju formulir');
-  assert.match(teks,/id="tautan-developer"[^>]*>Hubungi Developer<\/a>/);
-  /* Mockup disusun dari elemen sendiri, bukan gambar. */
-  assert.match(teks,/<div class="mock">/);
+  assert.match(teks,/<h1>Kelola Rapor Sekolah<br\/><span class="emas">Lebih Mudah, Rapi,<br\/>dan Terintegrasi<\/span><\/h1>/);
+  assert.match(teks,/e-Rapor membantu sekolah mengelola data siswa, penilaian,\s+kegiatan pembelajaran, rapor, dan leger dalam satu aplikasi yang praktis\./);
+  assert.match(teks,/href="#form-pemesanan"[\s\S]{0,400}?Daftarkan Sekolah Anda/,'CTA utama menuju formulir');
+  assert.match(teks,/data-wa-developer[\s\S]{0,400}?Hubungi Developer/,'CTA kedua menuju WhatsApp');
+  for(const [judul,nota] of [['Aman &amp; Terpercaya','Data tetap milik sekolah'],
+    ['Offline-first','Bisa digunakan tanpa internet'],['Mudah Digunakan','Antarmuka sederhana']]){
+    assert.ok(teks.includes(`<strong>${judul}</strong><small>${nota}</small>`),`trust item ${judul}`);
+  }
+  /* Visual hero disusun sendiri: laptop dan ponsel, tanpa gambar stok maupun foto orang. */
+  assert.match(teks,/<div class="laptop">/);
+  assert.match(teks,/<div class="ponsel">/);
   assert.equal(/<img[^>]+src="[^"]*\.(?:png|jpe?g|webp)"/i.test(teks),false,'tidak memakai gambar stok');
 
-  /* Keunggulan dikelompokkan menjadi kartu, bukan satu daftar panjang. */
+  /* Enam kartu keunggulan sesuai desain final. */
   for(const kelompok of ['Administrasi Sekolah','Penilaian','Kegiatan Pembelajaran',
-    'Rapor &amp; Data','Lisensi &amp; Pembaruan'])
-    assert.ok(teks.includes(`<h3>${kelompok}</h3>`),`kelompok "${kelompok}" tampil sebagai kartu`);
-  for(const fitur of ['Identitas sekolah','Admin &amp; Guru','Data siswa','Absensi',
-    'Penilaian &amp; nilai akhir','TP mata pelajaran','Deskripsi otomatis',
+    'Rapor &amp; Data','Lisensi &amp; Pembaruan','Data Aman di Sekolah'])
+    assert.ok(teks.includes(`</span>${kelompok}</h3>`),`kartu "${kelompok}" tampil`);
+  assert.equal((teks.match(/class="kartu warna-/g)||[]).length,6,'enam kartu berwarna lembut');
+  for(const fitur of ['Identitas sekolah','Akun Admin &amp; Guru','Data siswa','Absensi',
+    'Penilaian &amp; nilai akhir','TP semua mata pelajaran','Deskripsi rapor otomatis',
     'Intrakurikuler','Kokurikuler','Ekstrakurikuler','Cetak Rapor','Cetak Leger',
-    'Backup &amp; Restore','Offline-first','Sistem lisensi resmi','Pembaruan aplikasi resmi'])
+    'Backup &amp; Restore data','Offline-first','Sistem lisensi resmi','Pembaruan aplikasi resmi',
+    'Data akademik tersimpan lokal di perangkat sekolah','Data tetap menjadi milik sekolah'])
     assert.ok(teks.includes(`<li>${fitur}</li>`),`fitur "${fitur}" tercantum`);
-  assert.equal((teks.match(/class="kartu reveal"/g)||[]).length,5,'lima kartu keunggulan');
 
-  /* Alur enam langkah bernomor. */
-  assert.match(teks,/Cara Mendapatkan Lisensi/);
-  for(const [no,judul] of [['01','Isi Data Sekolah'],['02','Kirim Pemesanan'],
-    ['03','Developer Memverifikasi'],['04','License Key Diberikan'],
-    ['05','Aktivasi e-Rapor'],['06','Siap Digunakan']]){
-    assert.ok(teks.includes(`<span class="langkah-no">${no}</span><strong>${judul}</strong>`),
-      `langkah ${no} ${judul}`);
+  /* Alur enam langkah bernomor beserta keterangannya. */
+  assert.match(teks,/Cara Mendapatkan Lisensi e-Rapor/);
+  assert.match(teks,/Proses mudah dan jelas untuk menggunakan e-Rapor di sekolah Anda\./);
+  for(const [no,judul,teksLangkah] of [
+    ['01','Isi Data Sekolah','Isi formulir pemesanan dengan data sekolah Anda.'],
+    ['02','Kirim Pemesanan','Kirim permintaan melalui WhatsApp ke developer.'],
+    ['03','Developer Memverifikasi','Data sekolah akan diverifikasi oleh developer.'],
+    ['04','License Key Diberikan','Anda akan menerima License Key resmi.'],
+    ['05','Aktivasi e-Rapor','Masukkan License Key pada aplikasi e-Rapor.'],
+    ['06','Siap Digunakan','e-Rapor siap digunakan untuk mengelola data dan nilai sekolah Anda.']]){
+    assert.ok(teks.includes(`<span class="langkah-no">${no}</span>`),`langkah ${no}`);
+    assert.ok(teks.includes(`<strong>${judul}</strong>`),`judul langkah ${judul}`);
+    assert.ok(teks.includes(teksLangkah),`keterangan langkah ${no}`);
   }
 
   /* Kartu privasi. */
   assert.match(teks,/Data Akademik Tetap Milik Sekolah/);
-  assert.match(teks,/Data siswa, nilai, absensi, dan data akademik disimpan secara lokal pada perangkat\s+sekolah dan tidak dikirim ke server lisensi\./);
-  for(const poin of ['Data akademik lokal','Aktivasi lisensi resmi','Backup &amp; Restore'])
-    assert.ok(teks.includes(`<li>${poin}</li>`),`poin privasi "${poin}"`);
+  assert.match(teks,/Data siswa, nilai, absensi, dan data akademik disimpan secara lokal pada perangkat sekolah\s+dan tidak dikirim ke server lisensi\./);
+  for(const [poin,nota] of [['Data akademik lokal','Tersimpan di perangkat sekolah'],
+    ['Lisensi resmi','Aman dan terpercaya'],['Backup &amp; Restore','Mudah dan aman']])
+    assert.ok(teks.includes(`<strong>${poin}</strong><small>${nota}</small>`),`poin privasi "${poin}"`);
 
   /* Tidak menjanjikan pembayaran otomatis yang memang belum ada. */
   for(const klaim of ['pembayaran otomatis','bayar sekarang','checkout','kartu kredit','payment gateway'])
     assert.equal(new RegExp(klaim,'i').test(teks),false,`tidak menjanjikan ${klaim}`);
-
-  /* Footer: merek, kontak, dan identitas pengembang. */
-  assert.match(teks,/Solusi Digital Pengelolaan Rapor Sekolah/);
-  assert.match(teks,/id="tautan-wa"/,'nomor WhatsApp diisi dari konfigurasi, bukan ditulis di markup');
-  for(const baris of ['Dirancang &amp; Dikembangkan oleh','FAHMI DJAWAS, S.Pd.',
-    'Developer &amp; UI/UX Designer e-Rapor','© 2026 — Semua Hak Dilindungi'])
-    assert.ok(teks.includes(baris),`identitas pengembang: ${baris}`);
 });
 
 test('19. Tata letak mobile-first, modern, dan tidak meluber ke samping',()=>{
   const gaya=read('public/beli/beli.css');
   assert.match(gaya,/overflow-x:hidden/);
   assert.match(gaya,/\*\{box-sizing:border-box\}/);
-  assert.match(gaya,/max-width:1180px/);
+  assert.match(gaya,/max-width:1200px/);
   /* Susunan dasar satu kolom; kolom tambahan baru muncul pada layar yang cukup lebar. */
   assert.match(gaya,/\.kartu-grid\{display:grid;grid-template-columns:1fr;/);
-  assert.match(gaya,/\.langkah-grid\{display:grid;grid-template-columns:1fr;/);
+  assert.match(gaya,/\.langkah-baris\{display:grid;grid-template-columns:1fr;/);
   assert.match(gaya,/\.grid\{display:grid;grid-template-columns:1fr;/);
-  for(const titik of ['560px','760px','1040px'])
+  for(const titik of ['560px','900px','1060px'])
     assert.ok(gaya.includes(`@media(min-width:${titik})`),`titik henti ${titik}`);
   /* Sasaran sentuh nyaman. */
-  assert.match(gaya,/min-height:54px/,'tombol utama');
-  assert.match(gaya,/min-height:52px/,'kolom isian');
+  assert.match(gaya,/\.btn\{[^}]*min-height:52px/,'tombol utama');
+  assert.match(gaya,/min-height:50px/,'kolom isian');
   assert.match(gaya,/\.persetujuan input\{[^}]*width:22px;height:22px/,'kotak centang');
   /* Identitas visual: navy, aksen emas, kartu membulat, bayangan lembut. */
   assert.match(gaya,/--navy:#0b1a2f/);
-  assert.match(gaya,/--emas:#f2b705/);
-  assert.match(gaya,/--radius:20px/);
-  assert.match(gaya,/--bayang:0 10px 30px/);
+  assert.match(gaya,/--emas:#f5b301/);
+  assert.match(gaya,/--radius:18px/);
+  assert.match(gaya,/--bayang:0 8px 26px/);
   /* Times New Roman hanya untuk rapor; halaman ini memakai huruf antarmuka modern. Komentar
      dibuang lebih dulu supaya penjelasan yang menyebut larangan tidak dianggap pelanggaran. */
   assert.equal(/Times New Roman/i.test(gaya.replace(/\/\*[\s\S]*?\*\//g,'')),false,
     'landing page tidak memakai Times New Roman');
   assert.match(gaya,/font-family:"Segoe UI",system-ui/);
   /* Animasi ringan dan menghormati preferensi pengguna. */
-  assert.match(gaya,/\.reveal\{opacity:0;transform:translateY\(18px\)/);
+  assert.match(gaya,/\.reveal\{opacity:0;transform:translateY\(16px\)/);
   assert.match(gaya,/@media\(prefers-reduced-motion:reduce\)/);
 });
 
@@ -413,4 +420,135 @@ test('24. Berkas hasil build dilayani dengan tipe konten yang benar',()=>{
     assert.match(isi,/<link rel="stylesheet" href="\/beli\/beli\.css"\/>/);
     assert.match(isi,/<script type="module" src="\/beli\/beli\.js"><\/script>/);
   }finally{rmSync(temp,{recursive:true,force:true});}
+});
+
+/* ------------------------------------------------------------------- Navigasi halaman */
+
+test('25. Navbar memuat lambang aplikasi, empat menu, dan tombol Hubungi Developer',()=>{
+  const teks=halaman();
+  assert.match(teks,/<img class="nav-logo" src="\/assets\/app-icon\.svg"/,'lambang bawaan e-Rapor, bukan logo sekolah tertentu');
+  assert.match(teks,/<span><strong>e-Rapor<\/strong><small>Solusi Digital Pengelolaan Rapor Sekolah<\/small><\/span>/);
+  for(const [label,tujuan] of [['Beranda','beranda'],['Keunggulan','keunggulan'],
+    ['Cara Pemesanan','cara-pemesanan'],['Tutorial','tutorial']]){
+    assert.ok(teks.includes(`<a class="nav-tautan" href="#${tujuan}" data-nav="${tujuan}">${label}</a>`),
+      `menu ${label} menuju #${tujuan}`);
+    assert.ok(new RegExp(`id="${tujuan}"`).test(teks),`bagian #${tujuan} ada di halaman`);
+  }
+  assert.match(teks,/id="tautan-developer"[\s\S]{0,400}?Hubungi Developer/);
+  assert.match(teks,/id="nav-toggle"[^>]*aria-expanded="false"[^>]*aria-controls="nav-menu"/,'tombol menu ponsel');
+});
+
+test('26. Aturan menu aktif menentukan bagian yang sedang dibaca',()=>{
+  const garis=74+Math.round(813*0.25);
+  const bagian=(tops)=>['beranda','keunggulan','cara-pemesanan','tutorial']
+    .map((id,i)=>({id,top:tops[i]}));
+  assert.equal(activeSectionId(bagian([76,739,2056,2542]),{line:garis}),'beranda','di hero');
+  assert.equal(activeSectionId(bagian([-563,100,1417,1903]),{line:garis}),'keunggulan');
+  assert.equal(activeSectionId(bagian([-1880,-1217,100,586]),{line:garis}),'cara-pemesanan');
+  assert.equal(activeSectionId(bagian([-2366,-1703,-386,100]),{line:garis}),'tutorial');
+  /* Di dasar halaman bagian terakhir selalu aktif, meski batas atasnya belum terlewati. */
+  assert.equal(activeSectionId(bagian([76,739,2056,2542]),{line:garis,atBottom:true}),'tutorial');
+  /* Bagian yang jauh lebih tinggi daripada layar tetap terhitung benar. */
+  assert.equal(activeSectionId([{id:'tutorial',top:-1800}],{line:garis}),'tutorial');
+  assert.equal(activeSectionId([],{line:garis}),'','tanpa bagian tidak memaksakan apa pun');
+});
+
+test('27. Menu bekerja tanpa memuat ulang halaman dan menutup sendiri di ponsel',()=>{
+  const skrip=read('public/beli/beli.js');
+  /* Seluruh tautan menu hanyalah jangkar dalam halaman yang sama. */
+  const tujuan=[...halaman().matchAll(/class="nav-tautan" href="([^"]+)"/g)].map(item=>item[1]);
+  assert.deepEqual(tujuan,['#beranda','#keunggulan','#cara-pemesanan','#tutorial']);
+  for(const jejak of ['location.href','location.assign','location.reload','window.location='])
+    assert.equal(skrip.includes(jejak),false,`navigasi tidak memuat ulang halaman (${jejak})`);
+  assert.match(skrip,/menu\?\.classList\.remove\('buka'\)/,'menu dapat ditutup');
+  assert.match(skrip,/menu\?\.classList\.add\('buka'\)/,'menu dapat dibuka');
+  assert.match(skrip,/for\(const tautan of menu\?\.querySelectorAll\('a'\)\|\|\[\]\)tautan\.addEventListener\('click',\(\)=>tutupMenu\(\)\)/,
+    'menu menutup sendiri setelah satu menu dipilih');
+  assert.match(skrip,/addEventListener\?\.\('scroll',hitungAktif,\{passive:true\}\)/,'menu aktif mengikuti gulir');
+  assert.match(skrip,/new IntersectionObserver\(\(\)=>hitungAktif\(\)/,'pengamat ringan ikut memicu perhitungan');
+  const gaya=read('public/beli/beli.css');
+  assert.match(gaya,/scroll-behavior:smooth/,'gulir halus');
+  assert.match(gaya,/scroll-padding-top:calc\(var\(--tinggi-nav\) \+ 12px\)/,'judul bagian tidak tertutup navbar');
+  assert.match(gaya,/\.nav-tautan\.aktif\{color:var\(--emas-terang\);border-bottom-color:var\(--emas-terang\)\}/,
+    'menu aktif emas dengan garis bawah');
+  /* Hamburger hanya pada layar sempit; menu mendatar pada layar lebar. */
+  assert.match(gaya,/@media\(min-width:1060px\)\{\s*\.nav-toggle\{display:none\}/);
+});
+
+/* ---------------------------------------------------------------------------- Tutorial */
+
+test('28. Tutorial memuat tiga belas panduan dengan isi yang benar',()=>{
+  const teks=halaman();
+  assert.match(teks,/Panduan Tutorial Penggunaan e-Rapor/);
+  assert.match(teks,/Panduan lengkap dari pembelian lisensi hingga mengelola nilai di aplikasi\./);
+  const judul=[...teks.matchAll(/<span class="tutorial-no">(\d+)<\/span><h3>([^<]+)<\/h3>/g)]
+    .map(item=>[item[1],item[2]]);
+  assert.deepEqual(judul,[['1','Pemesanan Lisensi'],['2','Terima License Key'],['3','Aktivasi di Aplikasi'],
+    ['4','Setup Awal Sekolah'],['5','Siapkan Admin &amp; Guru'],['6','Kelola Data Siswa'],
+    ['7','Kelola Absensi'],['8','Mengelola Nilai'],['9','Pilih Tujuan Pembelajaran'],
+    ['10','Intrakurikuler'],['11','Kegiatan Sekolah'],['12','Cetak Rapor &amp; Leger'],
+    ['13','Backup Data']]);
+
+  /* Contoh License Key hanya tersamar. */
+  assert.ok(teks.includes('ERAPOR-XXXX-XXXX-XXXX'));
+  assert.equal(/ERAPOR-(?!XXXX)[A-Z0-9]{4}-/.test(teks),false,'tidak ada License Key nyata');
+
+  /* Aktivasi pertama butuh internet, seterusnya offline-first. */
+  assert.match(teks,/Pastikan perangkat terhubung internet saat aktivasi pertama\./);
+  assert.match(teks,/penggunaan sehari-hari tetap offline-first/);
+
+  /* Setup awal: identitas dinamis, logo opsional dengan cadangan lambang netral. */
+  assert.match(teks,/Logo sekolah bersifat opsional/);
+  assert.match(teks,/lambang\s+bawaan e-Rapor yang netral/);
+  assert.match(teks,/Nama sekolah juga dinamis/);
+  assert.equal(/SDN Satria Jaya 01/.test(teks),false,'tidak menanamkan identitas sekolah tertentu');
+
+  /* Komponen penilaian yang disebut memang komponen yang ada. */
+  for(const komponen of ['Formatif','Harian','Praktik','Sumatif Lingkup Materi','Sumatif Akhir'])
+    assert.ok(teks.includes(komponen),`komponen ${komponen}`);
+  /* TP adalah acuan, bukan nilai per TP. */
+  assert.match(teks,/TP tidak memiliki nilai sendiri-sendiri/);
+  assert.match(teks,/SATU penilaian yang sudah ada/);
+  /* Intrakurikuler: alur dan tiga predikat. */
+  assert.match(teks,/pilih Mata Pelajaran, tandai TP, tentukan Predikat, lalu\s+deskripsi tersusun otomatis/);
+  assert.match(teks,/Cukup, Baik, dan Sangat Baik/);
+  assert.match(teks,/tidak membuat skor per TP/);
+  /* Backup tidak membawa rahasia perangkat. */
+  assert.match(teks,/tidak pernah memuat License Key, activation token,\s+maupun Installation ID/);
+});
+
+/* ------------------------------------------------------------------------------ Footer */
+
+test('29. Footer memuat lambang, kontak WhatsApp, dan identitas pengembang',()=>{
+  const teks=halaman();
+  const kaki=teks.slice(teks.indexOf('<footer class="kaki">'));
+  assert.match(kaki,/<img src="\/assets\/app-icon\.svg" alt="Lambang e-Rapor"/,'lambang e-Rapor di footer');
+  assert.match(kaki,/<strong>e-Rapor<\/strong><span>Solusi Digital Pengelolaan Rapor Sekolah<\/span>/);
+  assert.match(kaki,/class="kaki-wa-ikon"[\s\S]{0,200}?<use href="#ikon-wa"\/>/,'lambang WhatsApp di footer');
+  assert.match(kaki,/<span class="kaki-label">WHATSAPP<\/span>/);
+  assert.match(kaki,/id="tautan-wa" data-wa-developer/,'nomor diisi dari konfigurasi dan dapat diklik');
+  assert.match(kaki,/Siap membantu Anda setiap hari/);
+  for(const baris of ['Dirancang &amp; Dikembangkan oleh','FAHMI DJAWAS, S.Pd.',
+    'Developer &amp; UI/UX Designer e-Rapor','© 2026 — Semua Hak Dilindungi'])
+    assert.ok(kaki.includes(baris),`identitas pengembang: ${baris}`);
+  assert.equal(/href="[^"]*owner/i.test(kaki),false,'tidak ada tautan Owner Panel');
+});
+
+test('30. Hak cipta menempel pada blok identitas pengembang, bukan baris footer terpisah',()=>{
+  const teks=halaman();
+  const blok=teks.slice(teks.indexOf('<div class="kaki-kredit">'),teks.indexOf('</footer>'));
+  const penutup=blok.indexOf('</div>');
+  const isiBlok=blok.slice(0,penutup);
+  assert.ok(isiBlok.includes('Developer &amp; UI/UX Designer e-Rapor'),'peran ada di dalam blok');
+  assert.ok(isiBlok.includes('© 2026 — Semua Hak Dilindungi'),'hak cipta ada di dalam blok yang sama');
+  assert.ok(isiBlok.indexOf('Developer &amp; UI/UX Designer')<isiBlok.indexOf('© 2026'),
+    'hak cipta berada di bawah baris peran');
+  /* Tidak ada baris hak cipta lain di luar blok itu. */
+  assert.equal((teks.match(/© 2026 — Semua Hak Dilindungi/g)||[]).length,1);
+  /* Jaraknya rapat: 6–10px, bukan puluhan piksel. */
+  const gaya=read('public/beli/beli.css');
+  const aturan=gaya.match(/\.kaki-hak\{([^}]*)\}/)[1];
+  const margin=Number(aturan.match(/margin-top:(\d+)px/)[1]);
+  assert.ok(margin>=6&&margin<=10,`jarak hak cipta ${margin}px berada pada 6–10px`);
+  assert.equal(/\.kaki>\.kaki-hak/.test(gaya),false,'bukan baris footer tersendiri');
 });
