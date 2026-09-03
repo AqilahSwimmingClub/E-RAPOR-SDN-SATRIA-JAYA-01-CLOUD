@@ -45,6 +45,9 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.icon{display:bl
    ringkas inilah yang menampilkan berapa TP dipakai tiap komponen beserta tombol ubahnya.
    Grid-nya mengalir sendiri: satu kolom di HP, dua di tablet, dan melebar di layar besar. */
 .objective-reference-foot{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between}
+.objective-active-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+.objective-active-count{font-size:12px}
+.objective-active-count strong{color:var(--maroon)}
 .objective-component-grid{display:grid;gap:9px;grid-template-columns:repeat(auto-fit,minmax(196px,1fr))}
 .objective-component{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:11px 12px;display:flex;flex-direction:column;gap:7px}
 .objective-component.is-active{border-color:var(--maroon);background:var(--paper)}

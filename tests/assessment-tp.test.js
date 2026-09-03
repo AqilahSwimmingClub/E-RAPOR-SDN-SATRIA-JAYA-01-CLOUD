@@ -4,7 +4,15 @@ import { readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { saveAssessmentScores, saveAssessmentSettings } from '../src/services/assessment.js';
 import { generateReportDescription, saveReportDescription } from '../src/services/descriptions.js';
-import { setSelectedAssessmentObjectives, listObjectivesForAssessment } from '../src/services/learning-objectives.js';
+import { adoptCatalogueObjectives, listActiveObjectives, listObjectivesForAssessment,
+  setActiveObjective } from '../src/services/learning-objectives.js';
+
+/* TP yang dipakai ditentukan lewat status aktif pada menu Tujuan Pembelajaran. */
+function aktifkanHanya(session,subjectId,ids){
+  const semua=adoptCatalogueObjectives(session,subjectId);
+  for(const item of semua)setActiveObjective(session,subjectId,item.id,ids.includes(item.id));
+  return listActiveObjectives(session,subjectId);
+}
 import { createLearningObjective } from '../src/services/objectives.js';
 import { calculateReportScore, calculateReportSheet } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
@@ -58,7 +66,7 @@ test('Nilai Akhir identik sebelum dan sesudah TP dipilih',()=>{
   const siswa=siapkanKelas();
   const sebelum=calculateReportScore(guru,'mtk',siswa.id);
   const daftar=tpLokal(3);
-  setSelectedAssessmentObjectives(guru,'mtk',daftar.map(item=>item.id));
+  aktifkanHanya(guru,'mtk',daftar.map(item=>item.id));
   const sesudah=calculateReportScore(guru,'mtk',siswa.id);
   assert.equal(sesudah.rawScore,sebelum.rawScore);
   assert.equal(sesudah.roundedScore,sebelum.roundedScore);
@@ -70,7 +78,7 @@ test('Nilai Akhir identik sebelum dan sesudah TP dipilih',()=>{
 test('Nilai Akhir tetap 30/20/20/15/15 dari lima komponen lama',()=>{
   const siswa=siapkanKelas();
   tpLokal(2).forEach(()=>{});
-  setSelectedAssessmentObjectives(guru,'mtk',listObjectivesForAssessment(guru,'mtk').map(item=>item.id));
+  aktifkanHanya(guru,'mtk',listObjectivesForAssessment(guru,'mtk').map(item=>item.id));
   const harapan=(80*30+70*20+90*20+85*15+75*15)/100;
   const hasil=calculateReportScore(guru,'mtk',siswa.id);
   assert.equal(hasil.rawScore,harapan);
@@ -80,18 +88,13 @@ test('Nilai Akhir tetap 30/20/20/15/15 dari lima komponen lama',()=>{
   assert.equal(sheet[0].finalScore,Math.round(harapan));
 });
 
-test('Pemilihan TP tidak menyimpan satu pun angka per TP',()=>{
+test('TP aktif tidak menyimpan satu pun angka per TP',()=>{
   const siswa=siapkanKelas();
   const daftar=tpLokal(3);
-  setSelectedAssessmentObjectives(guru,'mtk',daftar.map(item=>item.id));
-  const tersimpan=Object.values(loadDb().assessmentObjectiveSelection||{});
-  assert.equal(tersimpan.length,1);
-  for(const record of tersimpan){
-    assert.deepEqual(record.objectiveIds,daftar.map(item=>item.id));
-    for(const value of Object.values(record)){
-      assert.equal(typeof value==='number',false,'tidak ada angka pada penyimpanan pilihan TP');
-    }
-  }
+  const aktif=aktifkanHanya(guru,'mtk',daftar.map(item=>item.id));
+  assert.deepEqual(aktif.map(item=>item.id),daftar.map(item=>item.id));
+  /* Tidak ada koleksi pemilihan TP terpisah; statusnya melekat pada TP-nya sendiri. */
+  assert.equal(loadDb().assessmentObjectiveSelection,undefined);
   assert.equal(Object.keys(loadDb().assessmentScores).length,5,'nilai tetap lima komponen lama');
   assert.ok(siswa.id);
 });
@@ -101,7 +104,7 @@ test('Pemilihan TP tidak menyimpan satu pun angka per TP',()=>{
 test('Satu TP terpilih menghasilkan deskripsi yang memuat TP itu saja',()=>{
   const siswa=siapkanKelas();
   const daftar=tpLokal(3);
-  setSelectedAssessmentObjectives(guru,'mtk',[daftar[0].id]);
+  aktifkanHanya(guru,'mtk',[daftar[0].id]);
   const hasil=generateReportDescription(guru,'mtk',siswa.id,{objectiveIds:[daftar[0].id]});
   assert.match(hasil.text,/Siswa 1/);
   assert.ok(hasil.text.includes(daftar[0].description));
@@ -124,7 +127,8 @@ test('Dua dan tiga TP terpilih memuat seluruh TP tepat satu kali tanpa repetisi'
       assert.equal(hasil.text.includes(tp.description),false,'TP di luar pilihan tidak muncul');
     }
     assert.equal(hasil.text.split('Ananda').length-1,1,'kata Ananda tidak diulang');
-    assert.equal(hasil.text.split('menunjukkan').length-1,1,'kalimat pembuka tidak diulang');
+    assert.equal(hasil.text.split('mampu').length-1,1,'kalimat pembuka tidak diulang');
+    assert.equal(/TP-\d/.test(hasil.text),false,'kode TP tidak ikut tercetak');
     assert.match(hasil.text,/\.$/);
   }
 });
@@ -178,8 +182,9 @@ test('Cara lama TP terbaik dan TP perlu ditingkatkan tetap berjalan',()=>{
 test('Halaman Penilaian menampilkan acuan TP tanpa input angka per TP',()=>{
   const sumber=read('src/pages/assessment.js');
   const tanpaKomentar=sumber.replace(/\/\*[\s\S]*?\*\//g,'');
-  assert.match(tanpaKomentar,/listObjectivesForAssessment|getSelectedAssessmentObjectives/,'halaman memakai daftar TP');
-  assert.match(tanpaKomentar,/setSelectedAssessmentObjectives/,'guru dapat memilih TP acuan');
+  assert.match(tanpaKomentar,/listActiveObjectives/,'halaman membaca TP aktif dari menu Tujuan Pembelajaran');
+  assert.equal(/setSelectedAssessmentObjectives|setActiveObjective/.test(tanpaKomentar),false,
+    'Penilaian tidak lagi menjadi tempat memilih TP');
   assert.equal(/data-objective[^>]*type="number"/.test(tanpaKomentar),false,'tidak ada input angka per TP');
   assert.equal(/data-tp-score/.test(tanpaKomentar),false,'tidak ada nilai per TP');
   const jenis=tanpaKomentar.match(/ASSESSMENT_TYPES/g)||[];

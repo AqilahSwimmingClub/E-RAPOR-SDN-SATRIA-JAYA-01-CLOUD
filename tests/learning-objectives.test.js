@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { defaultLearningObjectives, hasDefaultsFor, OBJECTIVE_STATUS, phaseForClassId,
   subjectsWithDefaults, TP_SOURCES } from '../src/data/learning-objective-defaults.js';
-import { getSelectedAssessmentObjectives, getSelectedObjectiveRecords, listObjectivesForAssessment,
-  setSelectedAssessmentObjectives } from '../src/services/learning-objectives.js';
+import { adoptCatalogueObjectives, getSelectedObjectiveRecords, listActiveObjectives,
+  listObjectivesForAssessment, setActiveObjective } from '../src/services/learning-objectives.js';
 import { createLearningObjective } from '../src/services/objectives.js';
 import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
 
@@ -98,67 +98,71 @@ test('TP buatan guru menggantikan katalog bawaan tanpa mengubah sumbernya',()=>{
 
 /* ------------------------------------------------- Pemilihan TP tanpa nilai per TP */
 
+/* TP yang dipakai ditentukan HANYA lewat status aktif pada menu Tujuan Pembelajaran.
+   Helper ini meniru guru yang mencentang sebagian TP di halaman itu. */
+function aktifkanHanya(session,subjectId,ids){
+  const semua=adoptCatalogueObjectives(session,subjectId);
+  for(const item of semua)setActiveObjective(session,subjectId,item.id,ids.includes(item.id));
+  return listActiveObjectives(session,subjectId).map(item=>item.id);
+}
+
 test('Satu penilaian dapat mengacu pada beberapa TP sekaligus',()=>{
   useMemoryStorage();
   const session=guru();
   aktifkanMapel(session);
   const tersedia=listObjectivesForAssessment(session,'mtk');
   assert.ok(tersedia.length>=3);
-  assert.deepEqual(getSelectedAssessmentObjectives(session,'mtk'),[],'awalnya belum ada yang dipilih');
+  /* Katalog bawaan seluruhnya aktif sampai guru menentukan sendiri. */
+  assert.equal(listActiveObjectives(session,'mtk').length,tersedia.length);
 
-  const pilih=tersedia.slice(0,3).map(item=>item.id);
-  const hasil=setSelectedAssessmentObjectives(session,'mtk',pilih);
-  assert.deepEqual(hasil.objectiveIds,pilih);
-  assert.deepEqual(getSelectedAssessmentObjectives(session,'mtk'),pilih);
+  const semua=adoptCatalogueObjectives(session,'mtk');
+  const pilih=semua.slice(0,3).map(item=>item.id);
+  assert.deepEqual(aktifkanHanya(session,'mtk',pilih),pilih);
   assert.equal(getSelectedObjectiveRecords(session,'mtk').length,3);
 
   /* Satu TP saja juga sah. */
-  setSelectedAssessmentObjectives(session,'mtk',[tersedia[1].id]);
-  assert.deepEqual(getSelectedAssessmentObjectives(session,'mtk'),[tersedia[1].id]);
-  /* Pilihan pada mapel lain berdiri sendiri. */
-  assert.deepEqual(getSelectedAssessmentObjectives(session,'bindo'),[]);
+  assert.deepEqual(aktifkanHanya(session,'mtk',[semua[1].id]),[semua[1].id]);
+  /* Mapel lain berdiri sendiri dan tidak ikut terpengaruh. */
+  assert.equal(listActiveObjectives(session,'bindo').length,
+    listObjectivesForAssessment(session,'bindo').length,'mapel lain tidak tersentuh');
 });
 
 test('Tidak ada satu pun nilai yang tersimpan per TP',()=>{
   useMemoryStorage();
   const session=guru();
   aktifkanMapel(session);
-  const tersedia=listObjectivesForAssessment(session,'mtk');
-  setSelectedAssessmentObjectives(session,'mtk',tersedia.map(item=>item.id));
-  const record=loadDb().assessmentObjectiveSelection[`${ACADEMIC_YEAR}|Ganjil ${ACADEMIC_YEAR}|5B|mtk`];
-  /* assessmentType hanyalah label komponen penilaian (Formatif/Harian/...), bukan angka.
-     Yang dijaga di sini: record pemilihan TP tidak pernah memuat nilai. */
-  assert.deepEqual(Object.keys(record).sort(),
-    ['academicYear','assessmentType','classId','objectiveIds','semester','subjectId','updatedAt'].sort(),
-    'yang tersimpan hanya daftar ID TP beserta lingkupnya, tanpa satu pun kolom angka');
-  for(const nilai of Object.values(record))
-    assert.equal(typeof nilai==='number',false,'tidak ada angka pada record pemilihan TP');
-  assert.equal(record.assessmentType,null,'acuan tingkat mata pelajaran tidak terikat satu komponen');
+  aktifkanHanya(session,'mtk',adoptCatalogueObjectives(session,'mtk').map(item=>item.id));
+  /* Tidak ada koleksi pemilihan TP tersendiri: status aktif melekat pada TP-nya sendiri. */
+  assert.equal(loadDb().assessmentObjectiveSelection,undefined,
+    'tidak ada penyimpanan pilihan TP terpisah');
+  for(const record of Object.values(loadDb().learningObjectives))
+    for(const [nama,nilai] of Object.entries(record))
+      assert.equal(typeof nilai==='number'&&nama!=='order',false,
+        `TP tidak menyimpan angka nilai (${nama})`);
   /* Layanan TP tidak menyentuh koleksi nilai mana pun. */
   const layanan=read('src/services/learning-objectives.js');
   for(const larangan of ['assessmentScores','reportScores','finalScore','score'])
     assert.equal(layanan.includes(larangan),false,`layanan TP tidak menyentuh ${larangan}`);
 });
 
-test('Pilihan TP hanya boleh diubah Guru dan gugur bila TP-nya dihapus',()=>{
+test('Status TP hanya boleh diubah Guru',()=>{
   useMemoryStorage();
   const session=guru();
   aktifkanMapel(session);
-  assert.throws(()=>setSelectedAssessmentObjectives({...session,role:'admin'},'mtk',[]),/Hanya Guru/i);
-  const bawaan=listObjectivesForAssessment(session,'mtk');
-  setSelectedAssessmentObjectives(session,'mtk',[bawaan[0].id,bawaan[1].id]);
-  /* Begitu guru membuat TP sendiri, katalog bawaan tidak lagi menjadi acuan, dan pilihan
-     lama otomatis gugur alih-alih menyisakan rujukan yang menggantung. */
-  createLearningObjective(session,'mtk',{description:'menyelesaikan soal cerita pecahan bertingkat'});
-  assert.deepEqual(getSelectedAssessmentObjectives(session,'mtk'),[]);
-  assert.equal(getSelectedObjectiveRecords(session,'mtk').length,0);
+  const semua=adoptCatalogueObjectives(session,'mtk');
+  assert.throws(()=>setActiveObjective({...session,role:'admin'},'mtk',semua[0].id,false),/Hanya Guru/i);
+  /* TP yang dinonaktifkan langsung hilang dari daftar TP aktif tanpa dihapus datanya. */
+  setActiveObjective(session,'mtk',semua[0].id,false);
+  assert.equal(listActiveObjectives(session,'mtk').some(item=>item.id===semua[0].id),false);
+  assert.ok(loadDb().learningObjectives,'record TP-nya tetap ada');
+  assert.equal(listObjectivesForAssessment(session,'mtk',{activeOnly:false}).length,semua.length);
 });
 
-test('Pemilihan TP ikut backup akademik dan tidak menyentuh lisensi',()=>{
+test('TP ikut backup akademik dan tidak menyentuh lisensi',()=>{
   const values=useMemoryStorage();
   const session=guru();
   aktifkanMapel(session);
-  setSelectedAssessmentObjectives(session,'mtk',listObjectivesForAssessment(session,'mtk').map(item=>item.id));
-  assert.ok(loadDb().assessmentObjectiveSelection,'tersimpan di database sekolah');
+  aktifkanHanya(session,'mtk',adoptCatalogueObjectives(session,'mtk').map(item=>item.id));
+  assert.ok(loadDb().learningObjectives,'tersimpan di database sekolah');
   assert.equal(values.get('erapor_license_v1'),undefined,'lisensi tidak tersentuh');
 });

@@ -7,7 +7,8 @@ import { saveAssessmentScores, saveAssessmentSettings } from '../src/services/as
 import { composeIntracurricularDescription, getStudentIntracurricularSelection,
   INTRACURRICULAR_PREDICATES, listIntracurricularObjectives, listIntracurricularSubjects,
   saveStudentIntracurricularSelection } from '../src/services/intracurricular.js';
-import { setSelectedAssessmentObjectives } from '../src/services/learning-objectives.js';
+import { adoptCatalogueObjectives, listActiveObjectives,
+  setActiveObjective } from '../src/services/learning-objectives.js';
 import { createLearningObjective } from '../src/services/objectives.js';
 import { calculateReportScore } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
@@ -201,17 +202,21 @@ test('Intrakurikuler tidak menimpa Kokurikuler maupun Penilaian Umum',()=>{
   saveAssessmentSettings(kelas,'mtk',{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
   for(const jenis of ['formative','daily','practice','scopeSummative','semesterSummative'])
     saveAssessmentScores(kelas,'mtk',jenis,{[siswa.id]:80});
+  /* TP aktif ditentukan di menu Tujuan Pembelajaran, dan Intrakurikuler membaca daftar
+     yang sama persis. */
+  const semuaTp=adoptCatalogueObjectives(kelas,'mtk');
+  for(const item of semuaTp)setActiveObjective(kelas,'mtk',item.id,item.id===semuaTp[0].id);
   const tpUmum=listIntracurricularObjectives(kelas,'mtk');
-  setSelectedAssessmentObjectives(kelas,'mtk',[tpUmum[0].id]);
+  assert.deepEqual(tpUmum.map(item=>item.id),[semuaTp[0].id],'Intrakurikuler memakai TP aktif yang sama');
   saveStudentCocurricular(kelas,siswa.id,{activity:'Projek Penguatan Profil Pelajar Pancasila',
     predicate:'Baik',description:'Aktif dalam projek kelompok.'});
   const nilaiSebelum=calculateReportScore(kelas,'mtk',siswa.id);
 
   saveStudentIntracurricularSelection(kelas,siswa.id,
-    {subjectId:'mtk',objectiveIds:[tpUmum[1].id],predicate:'Cukup'});
+    {subjectId:'mtk',objectiveIds:[tpUmum[0].id],predicate:'Cukup'});
 
-  assert.deepEqual(loadDb().assessmentObjectiveSelection[`${kelas.academicYear}|${kelas.semester}|${kelas.classId}|mtk`].objectiveIds,
-    [tpUmum[0].id],'pilihan TP Penilaian Umum tidak tersentuh');
+  assert.deepEqual(listActiveObjectives(kelas,'mtk').map(item=>item.id),[semuaTp[0].id],
+    'TP aktif tidak tersentuh oleh penilaian Intrakurikuler');
   assert.equal(JSON.stringify(calculateReportScore(kelas,'mtk',siswa.id)),JSON.stringify(nilaiSebelum));
   const koku=getStudentCocurricular(kelas,siswa.id);
   assert.equal(koku.activity,'Projek Penguatan Profil Pelajar Pancasila');

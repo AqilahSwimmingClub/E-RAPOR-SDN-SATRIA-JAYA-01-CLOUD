@@ -1,4 +1,5 @@
 import { createLearningObjective, deleteLearningObjective, listLearningObjectives, phaseForClass, reorderLearningObjective, setLearningObjectiveActive, updateLearningObjective } from '../services/objectives.js';
+import { adoptCatalogueObjectives, isCatalogueOnly, listObjectivesForAssessment } from '../services/learning-objectives.js';
 import { listActiveSubjects } from '../services/subjects.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
@@ -9,12 +10,36 @@ export function renderObjectives(session){
   const listHost=root.querySelector('[data-list]');const addButton=root.querySelector('[data-add]');
   if(!subjects.length){root.querySelector('[data-subject]').disabled=true;addButton.disabled=true;listHost.innerHTML='<section class="card empty-state"><h3>Tidak ada mata pelajaran aktif</h3><p>Aktifkan mata pelajaran melalui Mapping Mata Pelajaran.</p></section>';return root;}
 
+  /* Halaman ini adalah SATU-SATUNYA tempat guru menentukan TP yang dipakai. Penilaian,
+     Intrakurikuler, dan deskripsi rapor tinggal membaca TP yang berstatus aktif di sini.
+
+     Selama mapel masih memakai katalog bawaan, TP-nya belum berupa record milik sekolah
+     sehingga statusnya belum bisa dicentang satu per satu. Katalog ditampilkan apa adanya
+     beserta tombol untuk mengadopsinya; setelah diadopsi, isinya tetap sama dan setiap TP
+     dapat diaktifkan atau dinonaktifkan. */
   function draw(){
-    const objectives=listLearningObjectives(session,subjectId);const activeCount=objectives.filter(item=>item.active).length;
-    if(!objectives.length){listHost.innerHTML='<section class="card empty-state"><h3>Belum ada Tujuan Pembelajaran</h3><p>Tambahkan TP pertama untuk mata pelajaran ini.</p></section>';return;}
-    listHost.innerHTML=`<section class="card objective-card"><div class="section-head"><div><h3>${escapeHtml(subjects.find(subject=>subject.id===subjectId)?.name||'')}</h3><p>${activeCount} aktif dari ${objectives.length} TP · Fase ${phaseForClass(session.classId)} · urutan tersimpan otomatis</p></div></div><div class="objective-list">${objectives.map((objective,index)=>`<article class="objective-row" data-id="${escapeHtml(objective.id)}"><div class="order-actions"><button class="btn btn-light btn-icon" data-up title="Naik" ${index===0?'disabled':''}>${icon('arrowUp',15)}</button><button class="btn btn-light btn-icon" data-down title="Turun" ${index===objectives.length-1?'disabled':''}>${icon('arrowDown',15)}</button></div><div class="objective-order">${index+1}</div><div class="objective-main"><div><strong>${escapeHtml(objective.code)}</strong><span class="badge badge-a">Fase ${escapeHtml(objective.phase)}</span><span class="badge ${objective.active?'badge-active':'badge-inactive'}">${objective.active?'Aktif':'Nonaktif'}</span></div><p>${escapeHtml(objective.description)}</p></div><label class="switch"><input type="checkbox" data-active ${objective.active?'checked':''}/> Aktif</label><div class="row-actions"><button class="btn btn-light btn-small" data-edit>Edit</button><button class="btn btn-danger btn-small" data-delete>Hapus</button></div></article>`).join('')}</div></section>`;
+    const katalog=isCatalogueOnly(session,subjectId);
+    const objectives=katalog
+      ? listObjectivesForAssessment(session,subjectId,{activeOnly:false})
+      : listLearningObjectives(session,subjectId);
+    const activeCount=objectives.filter(item=>item.active).length;
+    const namaMapel=subjects.find(subject=>subject.id===subjectId)?.name||'';
+    if(!objectives.length){listHost.innerHTML='<section class="card empty-state"><h3>Belum ada Tujuan Pembelajaran</h3><p>Tambahkan TP pertama untuk mata pelajaran ini. Penilaian dan deskripsi rapor otomatis memakai TP yang Anda aktifkan di sini.</p></section>';return;}
+    listHost.innerHTML=`<section class="card objective-card"><div class="section-head"><div><h3>${escapeHtml(namaMapel)}</h3><p>${activeCount} aktif dari ${objectives.length} TP · Fase ${phaseForClass(session.classId)} · dipakai Penilaian, Intrakurikuler, dan deskripsi rapor</p></div></div>
+      ${katalog?`<div class="source-banner">TP berikut masih berasal dari katalog bawaan Fase ${phaseForClass(session.classId)} dan seluruhnya dianggap aktif. Simpan katalog ini sebagai TP sekolah bila Anda ingin mencentang TP satu per satu, mengubah isinya, atau menghapusnya.<div class="row-actions"><button class="btn btn-primary btn-small" data-adopt>Simpan Katalog sebagai TP Sekolah</button></div></div>`:''}<div class="objective-list">${objectives.map((objective,index)=>`<article class="objective-row" data-id="${escapeHtml(objective.id)}"><div class="order-actions"><button class="btn btn-light btn-icon" data-up title="Naik" ${index===0?'disabled':''}>${icon('arrowUp',15)}</button><button class="btn btn-light btn-icon" data-down title="Turun" ${index===objectives.length-1?'disabled':''}>${icon('arrowDown',15)}</button></div><div class="objective-order">${index+1}</div><div class="objective-main"><div><strong>${escapeHtml(objective.code)}</strong><span class="badge badge-a">Fase ${escapeHtml(objective.phase)}</span><span class="badge ${objective.active?'badge-active':'badge-inactive'}">${objective.active?'Aktif':'Nonaktif'}</span></div><p>${escapeHtml(objective.description)}</p></div><label class="switch"><input type="checkbox" data-active ${objective.active?'checked':''}/> Aktif</label><div class="row-actions"><button class="btn btn-light btn-small" data-edit>Edit</button><button class="btn btn-danger btn-small" data-delete>Hapus</button></div></article>`).join('')}</div></section>`;
+    const adopt=listHost.querySelector('[data-adopt]');
+    if(adopt)adopt.onclick=()=>{
+      try{adoptCatalogueObjectives(session,subjectId);draw();
+        toast('Katalog TP tersimpan sebagai TP sekolah dan kini dapat diatur satu per satu.');}
+      catch(error){toast(error.message,'error');}
+    };
     listHost.querySelectorAll('[data-id]').forEach(row=>{
       const id=row.dataset.id;const objective=objectives.find(item=>item.id===id);
+      /* Katalog bawaan belum berupa record, jadi kontrol per barisnya belum berlaku. */
+      if(katalog){
+        row.querySelectorAll('button,input').forEach(kontrol=>{kontrol.disabled=true;});
+        return;
+      }
       row.querySelector('[data-up]').onclick=()=>{reorderLearningObjective(session,subjectId,id,-1);draw();};
       row.querySelector('[data-down]').onclick=()=>{reorderLearningObjective(session,subjectId,id,1);draw();};
       row.querySelector('[data-active]').onchange=event=>{setLearningObjectiveActive(session,subjectId,id,event.target.checked);draw();toast(`TP ${event.target.checked?'diaktifkan':'dinonaktifkan'}.`);};

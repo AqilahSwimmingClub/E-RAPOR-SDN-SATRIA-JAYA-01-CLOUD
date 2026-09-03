@@ -1,5 +1,5 @@
 import { generateReportDescription, getReportDescription, saveReportDescription } from './descriptions.js';
-import { getSelectedAssessmentObjectives, listObjectivesForAssessment } from './learning-objectives.js';
+import { listActiveObjectives } from './learning-objectives.js';
 import { saveAutomaticReportScores } from './report.js';
 import { listStudents } from './students.js';
 import { listActiveSubjects } from './subjects.js';
@@ -10,14 +10,10 @@ export function saveAllAutomaticReports(session,{onProgress}={}){
   subjects.forEach((subject,index)=>{
     try{
       const scores=saveAutomaticReportScores(session,subject.id);scoreCount+=scores.length;
-      /* TP acuan yang dipilih guru pada menu Penilaian menjadi sumber deskripsi. Bila belum ada
-         pilihan, cara lama (TP terbaik dan TP perlu ditingkatkan) tetap dipakai. */
-      const objectives=listObjectivesForAssessment(session,subject.id,{activeOnly:true});
+      /* TP aktif dari menu Tujuan Pembelajaran menjadi satu-satunya sumber deskripsi. */
+      const objectives=listActiveObjectives(session,subject.id);
       if(!objectives.length)throw new Error('Belum ada TP aktif untuk deskripsi.');
-      const acuan=getSelectedAssessmentObjectives(session,subject.id);
-      const sumberDeskripsi=acuan.length
-        ? {objectiveIds:acuan}
-        : {bestObjectiveId:objectives[0].id,improvementObjectiveId:(objectives[1]||objectives[0]).id};
+      const sumberDeskripsi={objectiveIds:objectives.map(item=>item.id)};
       students.forEach(student=>{
         try{
           if(getReportDescription(session,subject.id,student.id)?.locked)return;
