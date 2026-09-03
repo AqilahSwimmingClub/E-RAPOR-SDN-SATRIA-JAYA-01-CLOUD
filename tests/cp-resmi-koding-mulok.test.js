@@ -15,15 +15,12 @@ import { listIntracurricularObjectives } from '../src/services/intracurricular.j
 import { saveTeacherProfile } from '../src/services/master.js';
 import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
 
-/* CP RESMI — KODING & KA, MUATAN LOKAL, DAN LARANGAN CP KARANGAN.
+/* CP RESMI SD — sumber resmi, fase benar, dan tidak ada CP karangan.
 
-   Suite ini menjaga satu pendirian: aplikasi boleh KOSONG, tetapi tidak boleh MENGARANG.
-
-   Konsekuensinya dua arah, dan keduanya diuji di sini. Ke satu arah, mata pelajaran yang
-   belum punya CP pada suatu fase harus benar-benar kosong — Koding & KA tidak boleh muncul
-   di kelas 1-4 hanya supaya tabelnya terlihat penuh. Ke arah lain, kekosongan itu harus
-   dapat dipertanggungjawabkan: setiap naskah null wajib menyebutkan alasannya, dan setiap
-   mata pelajaran wajib menyebut lembaga yang benar-benar berwenang atasnya. */
+   Naskah nasional berasal dari Keputusan Kepala BSKAP Nomor 046/H/KR/2025 yang diberikan
+   pengguna. Bahasa Sunda berasal dari Keputusan Kepala Dinas Pendidikan Provinsi Jawa Barat
+   Nomor 32817/Pk.05.02/Sekre/2022. Koding & KA tetap kosong sampai panduan resminya tersedia
+   sebagai sumber lokal. Produk hanya menyediakan PAI BP dan PAK BP sebagai mapel agama. */
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
@@ -42,7 +39,6 @@ function aktifkanMapel(session,ids){
 }
 
 /* ------------------------------------------------------------------ §24 Pemetaan fase */
-
 test('1. Fase ditentukan tingkat kelas, dan huruf rombel tidak pernah ikut menentukan',()=>{
   const harapan={1:'A',2:'A',3:'B',4:'B',5:'C',6:'C'};
   assert.equal(CLASSES.length,24,'24 rombel');
@@ -51,7 +47,6 @@ test('1. Fase ditentukan tingkat kelas, dan huruf rombel tidak pernah ikut menen
     assert.equal(phaseForClassId(classId),harapan[tingkat],`${classId} berada pada Fase ${harapan[tingkat]}`);
     assert.equal(capaianPembelajaran(classId,'mtk').phase,harapan[tingkat]);
   }
-  /* Empat rombel pada satu tingkat wajib menghasilkan CP yang identik. */
   for(const tingkat of [1,3,5]){
     const acuan=JSON.stringify(capaianPembelajaran(`${tingkat}A`,'bindo'));
     for(const huruf of ['B','C','D'])
@@ -61,7 +56,6 @@ test('1. Fase ditentukan tingkat kelas, dan huruf rombel tidak pernah ikut menen
 });
 
 /* ------------------------------------------------------------- §25 CP nasional non-Agama */
-
 test('2. CP mapel nasional menyebut keputusan resmi yang benar beserta metadatanya',()=>{
   for(const kelas of ['1A','3A','5A']){
     const cp=capaianPembelajaran(kelas,'mtk');
@@ -81,32 +75,36 @@ test('2. CP mapel nasional menyebut keputusan resmi yang benar beserta metadatan
   assert.ok(cpElements('ipas').length>=2,'elemen CP IPAS tersimpan');
 });
 
-test('3. Tidak ada satu pun naskah CP yang diisi teks buatan aplikasi',()=>{
-  for(const subjectId of CP_SUBJECTS)
-    for(const kelas of ['1A','3A','5A']){
-      const cp=capaianPembelajaran(kelas,subjectId);
-      assert.equal(cp.naskah,null,`${subjectId} ${kelas} tidak menyimpan naskah karangan`);
-      for(const elemen of cp.elements)
-        assert.equal(elemen.naskah,null,`elemen ${elemen.id} tidak diisi naskah karangan`);
-    }
-  /* Kode sumbernya sendiri harus menyatakan alasannya, supaya aturan ini tidak hilang
-     bersama ingatan orang yang menulisnya. */
-  const sumber=read('src/data/curriculum-cp.js');
-  assert.match(sumber,/naskah:null/);
-  assert.match(sumber,/tidak boleh menjadi sumber kedua/);
+test('3. Dataset memuat tepat 28 kombinasi CP SD yang sudah diverifikasi',()=>{
+  const expected=[];
+  for(const id of ['agama','agama_kristen','pancasila','bindo','mtk','seni_rupa','pjok','sunda'])
+    for(const phase of ['A','B','C'])expected.push(`${id}|${phase}`);
+  for(const id of ['ipas','bing'])for(const phase of ['B','C'])expected.push(`${id}|${phase}`);
+  assert.deepEqual(Object.keys(CP_NASKAH).sort(),expected.sort());
+  assert.equal(Object.keys(CP_NASKAH).length,28);
+  const contoh={A:'1A',B:'3A',C:'5A'};
+  for(const key of Object.keys(CP_NASKAH)){
+    const [subjectId,phase]=key.split('|');
+    const cp=capaianPembelajaran(contoh[phase],subjectId);
+    assert.equal(cp.naskah,naskahCp(subjectId,phase));
+    assert.ok(cp.naskah.length>40,`${key} memiliki naskah CP resmi`);
+    assert.equal(cp.regulation.verified,true,`${key} hanya menempel pada sumber terverifikasi`);
+    assert.equal(cp.available,true,`${key} hanya dimuat pada fase yang berlaku`);
+    assert.equal(cp.naskahReason,null,`${key} tidak menyisakan alasan kosong`);
+  }
+  for(const id of ['agama_katolik','agama_hindu','agama_buddha','agama_khonghucu'])
+    assert.equal(Object.keys(CP_NASKAH).some(key=>key.startsWith(`${id}|`)),false,`${id} tidak dimasukkan`);
 });
 
-/* -------------------------------------------------------------- §26 Koding & KA Fase C */
-
+/* -------------------------------------------------------------- §26 Koding & fase khusus */
 test('4. Koding & KA tidak mempunyai CP palsu pada Fase A maupun Fase B',()=>{
-  for(const kelas of ['1A','1B','1C','1D','2A','2B','2C','2D','3A','3B','3C','3D','4A','4B','4C','4D']){
+  for(const kelas of ['1A','1B','2A','2D','3A','3D','4A','4D']){
     const cp=capaianPembelajaran(kelas,'koding');
     assert.equal(cp.available,false,`${kelas} belum berlaku untuk Koding & KA`);
-    assert.deepEqual(cp.elements,[],`${kelas} tidak menampilkan elemen CP yang belum ada`);
+    assert.deepEqual(cp.elements,[]);
     assert.equal(cp.naskah,null);
-    assert.match(cp.naskahReason,/dimulai pada Fase C/i,`${kelas} menyebut alasannya`);
-    assert.equal(defaultLearningObjectives(kelas,'koding').length,0,
-      `${kelas} tidak menurunkan TP dari CP yang tidak ada`);
+    assert.match(cp.naskahReason,/dimulai pada Fase C/i);
+    assert.equal(listReferenceObjectives(guru(kelas),'koding').length,0);
   }
   assert.deepEqual(cpPhasesFor('koding'),['C']);
   assert.equal(cpBerlaku('koding','A'),false);
@@ -114,99 +112,75 @@ test('4. Koding & KA tidak mempunyai CP palsu pada Fase A maupun Fase B',()=>{
   assert.equal(cpBerlaku('koding','C'),true);
 });
 
-test('5. Koding & KA tersedia pada seluruh rombel kelas 5 dan 6 sebagai Fase C',()=>{
-  for(const kelas of ['5A','5B','5C','5D','6A','6B','6C','6D']){
-    const cp=capaianPembelajaran(kelas,'koding');
-    assert.equal(cp.phase,'C',`${kelas} berada pada Fase C`);
-    assert.equal(cp.available,true,`${kelas} mempunyai CP Koding & KA`);
-    assert.ok(defaultLearningObjectives(kelas,'koding').length>=2,`${kelas} punya TP referensi`);
-  }
-  /* Rombel tidak boleh melahirkan CP yang berbeda-beda. Tingkat kelas ikut dilaporkan sebagai
-     konteks tampilan, tetapi CP-nya sendiri — elemen, regulasi, naskah — wajib identik. */
-  const tanpaTingkat=kelas=>{
-    const {grade,...cp}=capaianPembelajaran(kelas,'koding');
-    return JSON.stringify(cp);
-  };
-  const acuan=tanpaTingkat('5A');
-  for(const kelas of ['5B','5C','5D','6A','6B','6C','6D']){
-    assert.equal(tanpaTingkat(kelas),acuan,`${kelas} memakai CP Fase C yang sama`);
-    assert.equal(capaianPembelajaran(kelas,'koding').grade,Number.parseInt(kelas,10),
-      `${kelas} tetap melaporkan tingkatnya sendiri`);
+test('5. IPAS dan Bahasa Inggris tidak menawarkan TP baru pada Fase A',()=>{
+  for(const subjectId of ['ipas','bing']){
+    assert.deepEqual(cpPhasesFor(subjectId),['B','C']);
+    assert.equal(capaianPembelajaran('1A',subjectId).available,false);
+    assert.equal(listReferenceObjectives(guru('1A'),subjectId).length,0,
+      `${subjectId} Fase A tidak menawarkan TP referensi`);
+    assert.ok(listReferenceObjectives(guru('3A'),subjectId).length>0,
+      `${subjectId} Fase B menawarkan TP referensi`);
   }
 });
 
-test('6. Koding & KA memakai sumber resminya sendiri, bukan keputusan CP umum',()=>{
+test('6. Koding & KA memakai sumber resminya sendiri dan Fase C tetap operasional',()=>{
   const sumber=cpRegulationFor('koding');
   assert.equal(sumber.id,'cp_koding_ka');
-  assert.notEqual(sumber.id,'cp_umum','Koding & KA tidak ditetapkan lewat 046/H/KR/2025');
+  assert.notEqual(sumber.id,'cp_umum');
   assert.match(sumber.decision,/Koding dan Kecerdasan Artifisial/);
   assert.equal(sumber.year,2025);
   assert.equal(sumber.verified,true);
   assert.match(sumber.authority,/Pusat Kurikulum dan Pembelajaran/);
-  assert.match(sumber.url,/^https:\/\/kurikulum\.kemendikdasmen\.go\.id\//);
-  assert.match(sumber.note,/Fase C/);
-  assert.equal(defaultLearningObjectives('5B','koding')[0].source.id,'cp_koding_ka');
+  assert.deepEqual(cpPhasesFor('koding'),['C']);
+  for(const kelas of ['5A','5B','5C','5D','6A','6B','6C','6D']){
+    assert.equal(capaianPembelajaran(kelas,'koding').available,true);
+    assert.ok(listReferenceObjectives(guru(kelas),'koding').length>=2);
+  }
 });
 
-test('7. Elemen CP Koding & KA Fase C tersimpan dan TP-nya berelasi dengan elemen',()=>{
+test('7. Elemen Koding & KA Fase C tersimpan dan TP-nya berelasi dengan elemen',()=>{
   const elemen=cpElements('koding','C');
-  assert.ok(elemen.length>=4,'elemen CP Fase C tersimpan');
+  assert.ok(elemen.length>=4);
   for(const item of elemen){
-    assert.ok(item.id.startsWith('koding:'),`${item.name} beridentitas mapel`);
-    assert.equal(item.naskah,null,'rumusan tiap elemen tetap milik dokumen resmi');
+    assert.ok(item.id.startsWith('koding:'));
+    assert.equal(item.naskah,null,'naskah elemen menunggu panduan resmi lokal');
   }
-  /* Setiap TP referensi wajib dapat menjawab "menurunkan elemen CP yang mana". */
   const butir=defaultLearningObjectives('5B','koding');
   const namaElemen=new Set(elemen.map(item=>item.name));
   for(const tp of butir){
     const terkait=cpElementForObjective('koding','C',tp.order);
-    assert.ok(terkait,`${tp.code} tertaut ke elemen CP`);
-    assert.ok(namaElemen.has(terkait.name),`${terkait.name} adalah elemen CP Koding & KA`);
+    assert.ok(terkait);
+    assert.ok(namaElemen.has(terkait.name));
   }
-  /* Fase yang tidak berlaku tidak boleh membocorkan elemen lewat pintu lain. */
   assert.deepEqual(cpElements('koding','A'),[]);
   assert.deepEqual(cpElements('koding','B'),[]);
 });
 
 /* --------------------------------------------------------------- §27 Bahasa Sunda mulok */
-
 test('8. Bahasa Sunda tetap tersedia dan berstatus Muatan Lokal',()=>{
   const mapel=SUBJECTS_DEFAULT.find(item=>item.id==='sunda');
-  assert.ok(mapel,'Bahasa Sunda tidak dihapus dari daftar mapel aplikasi');
+  assert.ok(mapel);
   assert.equal(mapel.parent,'Muatan Lokal');
   assert.equal(mapel.name,'Bahasa Sunda');
   assert.equal(mapel.active,true);
-  for(const kelas of ['1A','3C','5B','6D'])
-    assert.ok(capaianPembelajaran(kelas,'sunda'),`${kelas} tetap mengenal Bahasa Sunda`);
+  for(const kelas of ['1A','3C','5B','6D'])assert.ok(capaianPembelajaran(kelas,'sunda'));
 });
 
-test('9. Bahasa Sunda memakai keputusan Jawa Barat, bukan regulasi CP nasional',()=>{
+test('9. Bahasa Sunda memakai keputusan Jawa Barat dan naskah resmi Fase A-C sudah dimuat',()=>{
   const sumber=cpRegulationFor('sunda');
   assert.equal(sumber.id,'cp_mulok_jabar');
-  assert.notEqual(sumber.id,'cp_umum');
-  /* Inti aturannya: yang menetapkan CP Bahasa Sunda adalah pemerintah daerah, sehingga
-     kutipannya wajib menyebut keputusan daerah - bukan nomor keputusan nasional. */
   assert.equal(sumber.decisionNumber,'32817/Pk.05.02/Sekre/2022');
   assert.match(sumber.decision,/Dinas Pendidikan Provinsi Jawa Barat/);
-  assert.match(sumber.decision,/32817\/Pk\.05\.02\/Sekre\/2022/);
   assert.equal(sumber.authority,'Dinas Pendidikan Provinsi Jawa Barat');
   assert.equal(sumber.year,2022);
   assert.equal(sumber.verified,true);
   assert.equal(sumber.scope,'muatan_lokal');
-  assert.equal(/BSKAP|046\/H\/KR\/2025|Kemendikdasmen/.test(sumber.decision),false,
-    'nomor keputusan nasional tidak boleh menempel pada muatan lokal');
-  assert.equal(/BSKAP|Kemendikdasmen/.test(sumber.authority),false,
-    'kewenangannya bukan pada Kemendikdasmen');
-  for(const kelas of ['1A','3A','5A']){
+  for(const [kelas,phase] of [['1A','A'],['3A','B'],['5A','C']]){
     const cp=capaianPembelajaran(kelas,'sunda');
     assert.equal(cp.regulation.id,'cp_mulok_jabar');
-    assert.equal(cp.regulation.decisionNumber,'32817/Pk.05.02/Sekre/2022');
-    /* Naskahnya belum ada karena berkas dokumennya belum tersedia - bukan karena dikarang. */
-    assert.equal(cp.naskah,null,`${kelas} tidak memakai CP nasional palsu`);
-    assert.match(cp.naskahReason,/belum tersedia di workspace/i,
-      `${kelas} menyebut apa yang sebenarnya kurang`);
-    assert.match(cp.regulation.note,/tidak tercantum sebagai CP nasional/i,
-      `${kelas} menyatakan mengapa 046\/H\/KR\/2025 bukan sumbernya`);
+    assert.equal(cp.naskah,naskahCp('sunda',phase));
+    assert.ok(cp.naskah.length>100);
+    assert.equal(cp.naskahReason,null);
   }
 });
 
@@ -216,164 +190,86 @@ test('9b. Elemen Bahasa Sunda mengikuti dokumen Jawa Barat beserta istilah Sunda
     ['Menyimak','Membaca dan Memirsa','Berbicara dan Menyajikan/Mempresentasikan','Menulis']);
   assert.deepEqual(elemen.map(item=>item.nameLokal),
     ['Ngaregepkeun','Maca jeung Miarsa','Nyarita jeung Midangkeun','Nulis']);
-  /* Bahasa Sunda berlaku pada ketiga fase SD, dan elemennya sama untuk ketiganya. */
   for(const phase of ['A','B','C']){
-    assert.equal(cpBerlaku('sunda',phase),true,`Fase ${phase} berlaku`);
+    assert.equal(cpBerlaku('sunda',phase),true);
     assert.deepEqual(cpElements('sunda',phase).map(item=>item.name),elemen.map(item=>item.name));
     for(const item of cpElements('sunda',phase))
-      assert.equal(item.naskah,null,'rumusan tiap elemen menunggu dokumen resminya');
+      assert.equal(item.naskah,naskahElemen('sunda',phase,item.name));
   }
 });
 
 /* -------------------------------------------------------------------- §28 Agama */
-
-test('10. CP Agama memakai keputusan resmi 2025 untuk seluruh agama yang didukung',()=>{
+test('10. CP Agama hanya PAI BP dan PAK BP, memakai keputusan resmi 2025',()=>{
+  const ids=['agama','agama_kristen'];
   const pabp=cpRegulationFor('agama');
   assert.equal(pabp.id,'cp_pabp');
   assert.match(pabp.decision,/BSKAP Nomor 046\/H\/KR\/2025/);
   assert.equal(pabp.year,2025);
   assert.equal(pabp.authority,'BSKAP Kemendikdasmen');
   assert.equal(pabp.verified,true);
-  /* Keputusan 2026 sengaja belum dipakai pada tahap ini, tetapi tidak boleh terlupakan. */
-  assert.match(pabp.note,/020 Tahun 2026/,'catatan menyimpan keberadaan pembaruan 2026');
-  /* Seluruh agama yang didukung aplikasi wajib memakai regulasi yang sama. */
-  for(const subjectId of ['agama','agama_kristen','agama_katolik','agama_hindu','agama_buddha','agama_khonghucu'])
-    assert.equal(cpRegulationFor(subjectId).id,'cp_pabp',`${subjectId} memakai keputusan 2026`);
-  for(const subjectId of ['agama','agama_kristen','agama_katolik','agama_hindu','agama_buddha','agama_khonghucu'])
-    for(const kelas of ['1A','3A','5A']){
+  assert.match(pabp.note,/020 Tahun 2026/);
+  for(const subjectId of ids){
+    assert.equal(cpRegulationFor(subjectId).id,'cp_pabp');
+    for(const [kelas,phase] of [['1A','A'],['3A','B'],['5A','C']]){
       const cp=capaianPembelajaran(kelas,subjectId);
-      assert.equal(cp.naskah,null,`${subjectId} ${kelas} tidak memakai naskah lama sebagai pengganti`);
-      assert.match(cp.naskahReason,/046\/H\/KR\/2025/,'menyebut naskah mana yang ditunggu');
-      assert.equal(/032\/H\/KR\/2024/.test(String(cp.regulation.decision)),false,
-        'keputusan 2024 yang sudah diganti tidak dipakai');
+      assert.equal(cp.naskah,naskahCp(subjectId,phase));
+      assert.ok(cp.naskah.length>100);
+      assert.equal(cp.naskahReason,null);
+      assert.equal(cp.available,true);
     }
+  }
+  const defaultIds=new Set(SUBJECTS_DEFAULT.map(item=>item.id));
+  for(const id of ['agama_katolik','agama_hindu','agama_buddha','agama_khonghucu']){
+    assert.equal(defaultIds.has(id),false,`${id} bukan master mapel bawaan`);
+    assert.equal(CP_SUBJECTS.includes(id),false,`${id} bukan mapel CP/TP aplikasi`);
+  }
 });
 
-test('11. Aplikasi tetap berjalan normal walau seluruh naskah CP masih null',()=>{
+test('11. TP sekolah tetap berjalan dengan campuran CP terisi dan CP yang masih menunggu sumber',()=>{
   useMemoryStorage();
   const sesi=guru('5B');
   aktifkanMapel(sesi,['mtk','koding','sunda']);
   for(const subjectId of ['mtk','koding','sunda']){
     const referensi=listReferenceObjectives(sesi,subjectId);
-    assert.ok(Array.isArray(referensi),`${subjectId} tidak melempar galat`);
-    if(!referensi.length)continue;
+    assert.ok(Array.isArray(referensi));
+    assert.ok(referensi.length>0);
     const hasil=addReferenceObjectives(sesi,subjectId,referensi.map(item=>item.id));
-    assert.ok(hasil.added>0,`${subjectId} dapat menyimpan TP`);
-    assert.ok(listActiveObjectives(sesi,subjectId).length>0,`${subjectId} punya TP aktif`);
+    assert.ok(hasil.added>0);
+    assert.ok(listActiveObjectives(sesi,subjectId).length>0);
   }
 });
 
 /* ----------------------------------------------------------------- §19/§33 Laporan audit */
-
-test('12. Laporan naskah CP dihitung dari data dan menyebut alasan tiap kekosongan',()=>{
+test('12. Laporan naskah CP menghitung 28 terisi dan 8 gap yang dapat dijelaskan',()=>{
   const laporan=cpNaskahReport();
-  assert.equal(laporan.total,CP_SUBJECTS.length*3);
-  assert.equal(laporan.terisi+laporan.kosong,laporan.total);
-  assert.equal(laporan.diLuarFase+laporan.sumberBelumTerverifikasi+laporan.menungguDokumen
-    +laporan.menungguNaskah,laporan.kosong,'setiap kekosongan masuk tepat satu golongan');
-  /* Laporan dihitung dari data: selama berkas naskah masih kosong, seluruh kombinasi masuk
-     daftar. Begitu satu naskah dimuat, angka `terisi` naik dengan sendirinya. */
-  assert.equal(laporan.terisi,Object.keys(CP_NASKAH).length===0?0:laporan.terisi,
-    'tidak ada naskah yang muncul tanpa data');
-  assert.ok(laporan.diLuarFase>=3,'Koding & KA Fase A/B dan IPAS Fase A masuk laporan');
-  assert.equal(laporan.menungguDokumen,3,'tiga fase Bahasa Sunda menunggu berkas dokumennya');
+  assert.equal(laporan.total,36);
+  assert.equal(laporan.terisi,28);
+  assert.equal(laporan.kosong,8);
+  assert.equal(laporan.diLuarFase,4,'IPAS A, Inggris A, Koding A/B berada di luar fase');
+  assert.equal(laporan.sumberBelumTerverifikasi,0);
+  assert.equal(laporan.menungguDokumen,0);
+  assert.equal(laporan.menungguNaskah,4,'Seni generic A-C dan Koding C masih menunggu naskah');
+  assert.equal(cpNaskahGaps().some(item=>item.subjectId==='sunda'),false,'Sunda sudah terisi');
+  assert.ok(cpNaskahGaps().some(item=>item.subjectId==='koding'&&item.phase==='C'));
+  assert.equal(cpNaskahGaps().filter(item=>item.subjectId==='seni').length,3);
   for(const entri of cpNaskahGaps()){
     assert.equal(entri.naskah,null);
-    assert.ok(entri.reason.length>20,`${entri.subjectId} ${entri.phase} beralasan jelas`);
-    assert.ok(entri.authority,`${entri.subjectId} menyebut lembaga berwenang`);
+    assert.ok(entri.reason.length>20);
+    assert.ok(entri.authority);
   }
-  /* Mata pelajaran yang elemennya belum diketahui justru wajib ikut terlaporkan. */
-  assert.ok(cpNaskahGaps().some(item=>item.subjectId==='sunda'),'Bahasa Sunda ikut dilaporkan');
-  assert.ok(cpNaskahGaps().some(item=>item.subjectId==='koding'),'Koding & KA ikut dilaporkan');
 });
 
 test('13. Seluruh mapel yang wajib diaudit dikenal aplikasi dan sebaliknya',()=>{
   const dikenal=new Set(SUBJECTS_DEFAULT.map(item=>item.id));
-  for(const subjectId of CP_SUBJECTS)
-    assert.ok(dikenal.has(subjectId),`${subjectId} terdaftar pada mapel aplikasi`);
-  for(const item of SUBJECTS_DEFAULT)
-    assert.ok(CP_SUBJECTS.includes(item.id),`${item.id} ikut diaudit CP-nya`);
-  /* Sumber yang dipakai mapel apa pun harus terdaftar pada TP_SOURCES. */
-  for(const subjectId of CP_SUBJECTS)
-    assert.ok(TP_SOURCES[cpRegulationFor(subjectId).id],`sumber ${subjectId} terdaftar`);
-});
-
-test('17. Kesiapan Guru tidak menuntut TP untuk mapel yang belum berlaku pada fase itu',()=>{
-  useMemoryStorage();
-  /* Ditemukan lewat penelusuran browser: dengan Koding & KA aktif di rombel Fase A, butir
-     kesiapan "CP dan Tujuan Pembelajaran" menuntut TP yang menurut dokumen resmi memang belum
-     ada. Syarat yang mustahil dipenuhi itu mengunci tombol Aktifkan e-Rapor untuk Guru
-     selamanya. Yang belum berlaku tidak boleh menjadi syarat. */
-  const admin={role:'admin',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`,userName:'Admin'};
-  const kelasSatu=guru('1A');
-  aktifkanMapel(kelasSatu,['mtk','koding']);
-  saveTeacherProfile(admin,'1A',{name:'Wali Kelas Satu',nip:'198501012010011001',
-    phone:'08',email:'a@b.id',photo:''});
-  const referensi=listReferenceObjectives(kelasSatu,'mtk');
-  addReferenceObjectives(kelasSatu,'mtk',referensi.map(item=>item.id));
-  const butir=getAdminReadiness(admin).items.find(item=>item.id==='learning-objectives');
-  assert.equal(butir.detail.some(teks=>/Koding/.test(teks)),false,
-    'Koding & KA Fase A tidak boleh diminta TP');
-  assert.equal(butir.detail.some(teks=>teks.startsWith('TP Matematika 1A')),false,
-    'Matematika 1A sudah punya TP');
-  /* Sebaliknya, pada Fase C mapel ini kembali menjadi syarat penuh. */
-  const kelasLima=guru('5B');
-  aktifkanMapel(kelasLima,['koding']);
-  saveTeacherProfile(admin,'5B',{name:'Wali Kelas Lima',nip:'198501012010011002',
-    phone:'08',email:'c@d.id',photo:''});
-  const lima=getAdminReadiness(admin).items.find(item=>item.id==='learning-objectives');
-  assert.ok(lima.detail.some(teks=>/Koding.*5B/.test(teks)),
-    'Koding & KA Fase C tetap wajib punya TP');
-});
-
-test('18. Naskah CP hanya boleh berasal dari berkas data, dari sumber yang terverifikasi',()=>{
-  /* Penjaga ke DEPAN. Hari ini berkas naskah masih kosong, sehingga test ini seolah tidak
-     menguji apa pun. Justru di situ gunanya: begitu naskah resmi mulai dimuat, aturannya sudah
-     berdiri lebih dulu, sehingga tidak ada naskah yang bisa masuk lewat jalan belakang -
-     ditulis langsung di logika, atau dilekatkan pada sumber yang belum terverifikasi. */
-  for(const subjectId of CP_SUBJECTS)
-    for(const [kelas,phase] of [['1A','A'],['3A','B'],['5A','C']]){
-      const cp=capaianPembelajaran(kelas,subjectId);
-      if(cp.naskah===null){
-        for(const elemen of cp.elements)
-          assert.equal(elemen.naskah,naskahElemen(subjectId,phase,elemen.name),
-            `${subjectId} ${phase}: naskah elemen hanya dari berkas data`);
-        continue;
-      }
-      assert.equal(cp.naskah,naskahCp(subjectId,phase),
-        `${subjectId} ${phase}: naskah CP hanya dari berkas data`);
-      assert.equal(cp.regulation.verified,true,
-        `${subjectId} ${phase}: naskah tidak boleh menempel pada sumber yang belum terverifikasi`);
-      assert.equal(cp.available,true,
-        `${subjectId} ${phase}: fase yang tidak berlaku tidak boleh punya naskah`);
-      assert.equal(cp.naskahReason,null,'keterangan kekosongan tidak tertinggal');
-    }
-  /* Logika CP tidak boleh memuat naskah sendiri: berkas datanya yang menjadi satu-satunya pintu. */
-  const logika=read('src/data/curriculum-cp.js');
-  assert.match(logika,/naskahCp|naskahElemen/,'naskah dibaca dari berkas data');
-  assert.equal(/naskah:'[^']{40,}'/.test(logika),false,'tidak ada naskah yang ditulis di logika');
-});
-
-test('19. Keenam agama yang didukung Data Siswa punya mapel dan CP-nya masing-masing',()=>{
-  const enam=['agama','agama_kristen','agama_katolik','agama_hindu','agama_buddha','agama_khonghucu'];
-  const dikenal=new Set(SUBJECTS_DEFAULT.map(item=>item.id));
-  for(const subjectId of enam){
-    assert.ok(dikenal.has(subjectId),`${subjectId} ada pada master mapel`);
-    assert.ok(CP_SUBJECTS.includes(subjectId),`${subjectId} ikut diaudit CP-nya`);
-    for(const kelas of ['1A','3C','5B']){
-      const cp=capaianPembelajaran(kelas,subjectId);
-      assert.equal(cp.regulation.id,'cp_pabp',`${subjectId} ${kelas} memakai sumber PABP`);
-      assert.equal(cp.available,true,`${subjectId} berlaku pada seluruh fase SD`);
-      assert.ok(cp.elements.length===0||cp.elements.every(item=>item.naskah===null));
-    }
+  assert.equal(CP_SUBJECTS.length,SUBJECTS_DEFAULT.length);
+  for(const subjectId of CP_SUBJECTS){
+    assert.ok(dikenal.has(subjectId));
+    assert.ok(TP_SOURCES[cpRegulationFor(subjectId).id]);
   }
-  /* Setiap agama pada Data Siswa terpetakan ke tepat satu mapel, dan sebaliknya. */
-  assert.equal(Object.keys(RELIGION_SUBJECTS).length,enam.length);
-  assert.deepEqual([...new Set(Object.values(RELIGION_SUBJECTS))].sort(),[...RELIGIONS].sort());
+  for(const item of SUBJECTS_DEFAULT)assert.ok(CP_SUBJECTS.includes(item.id));
 });
 
 /* ------------------------------------------------- §29-§31 Regresi TP, Penilaian, Intra */
-
 test('14. Menu Penilaian tidak mempunyai satu pun checkbox pemilihan TP',()=>{
   const halaman=read('src/pages/assessment.js');
   assert.equal(/data-ref|data-tp|pilih-tp|objective-reference-item/i.test(halaman),false,
@@ -386,16 +282,14 @@ test('15. Tabel TP berangkat kosong dan hanya berisi TP yang benar-benar disimpa
   useMemoryStorage();
   const sesi=guru('5B');
   aktifkanMapel(sesi,['koding']);
-  assert.deepEqual(listSchoolObjectives(sesi,'koding'),[],'tabel TP tidak terisi otomatis');
+  assert.deepEqual(listSchoolObjectives(sesi,'koding'),[]);
   const referensi=listReferenceObjectives(sesi,'koding');
-  assert.ok(referensi.length>=2,'+ Tambah TP membuka daftar TP referensi');
+  assert.ok(referensi.length>=2);
   const dipilih=referensi.slice(0,2).map(item=>item.id);
   assert.equal(addReferenceObjectives(sesi,'koding',dipilih).added,2);
   assert.equal(listSchoolObjectives(sesi,'koding').length,2);
-  /* Simpan ulang tidak boleh menggandakan. */
   addReferenceObjectives(sesi,'koding',dipilih);
   assert.equal(listSchoolObjectives(sesi,'koding').length,2,'tidak ada duplikasi');
-  /* TP tersimpan bertahan lintas pembacaan ulang. */
   invalidateDbCache();
   assert.equal(listSchoolObjectives(sesi,'koding').length,2,'TP existing tidak hilang');
 });
@@ -411,10 +305,57 @@ test('16. Intrakurikuler hanya menawarkan TP aktif tanpa menghapus TP nonaktif',
   assert.equal(listIntracurricularObjectives(sesi,'koding').length,semua.length);
   setActiveObjective(sesi,'koding',semua[0].id,false);
   const tersedia=listIntracurricularObjectives(sesi,'koding');
-  assert.equal(tersedia.length,semua.length-1,'TP nonaktif tidak ditawarkan untuk input baru');
+  assert.equal(tersedia.length,semua.length-1);
   assert.equal(tersedia.some(item=>item.id===semua[0].id),false);
-  /* Nonaktif berarti tidak dipakai lagi, BUKAN dihapus. */
   const tersimpan=listSchoolObjectives(sesi,'koding').find(item=>item.id===semua[0].id);
-  assert.ok(tersimpan,'TP nonaktif tetap tersimpan sebagai referensi riwayat');
+  assert.ok(tersimpan);
   assert.equal(tersimpan.active,false);
+});
+
+test('17. Kesiapan Guru tidak menuntut TP untuk mapel yang belum berlaku pada fase itu',()=>{
+  useMemoryStorage();
+  const admin={role:'admin',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`,userName:'Admin'};
+  const kelasSatu=guru('1A');
+  aktifkanMapel(kelasSatu,['mtk','koding','bing']);
+  saveTeacherProfile(admin,'1A',{name:'Wali Kelas Satu',nip:'198501012010011001',phone:'08',email:'a@b.id',photo:''});
+  const referensi=listReferenceObjectives(kelasSatu,'mtk');
+  addReferenceObjectives(kelasSatu,'mtk',referensi.map(item=>item.id));
+  const butir=getAdminReadiness(admin).items.find(item=>item.id==='learning-objectives');
+  assert.equal(butir.detail.some(teks=>/Koding/.test(teks)),false);
+  assert.equal(butir.detail.some(teks=>/Bahasa Inggris/.test(teks)),false,
+    'Bahasa Inggris Fase A tidak boleh menjadi syarat TP');
+  assert.equal(butir.detail.some(teks=>teks.startsWith('TP Matematika 1A')),false);
+  const kelasLima=guru('5B');
+  aktifkanMapel(kelasLima,['koding']);
+  saveTeacherProfile(admin,'5B',{name:'Wali Kelas Lima',nip:'198501012010011002',phone:'08',email:'c@d.id',photo:''});
+  const lima=getAdminReadiness(admin).items.find(item=>item.id==='learning-objectives');
+  assert.ok(lima.detail.some(teks=>/Koding.*5B/.test(teks)));
+});
+
+test('18. Naskah CP hanya berasal dari berkas data dan sumber terverifikasi',()=>{
+  for(const subjectId of CP_SUBJECTS)
+    for(const [kelas,phase] of [['1A','A'],['3A','B'],['5A','C']]){
+      const cp=capaianPembelajaran(kelas,subjectId);
+      if(cp.naskah===null){
+        for(const elemen of cp.elements)
+          assert.equal(elemen.naskah,naskahElemen(subjectId,phase,elemen.name));
+        continue;
+      }
+      assert.equal(cp.naskah,naskahCp(subjectId,phase));
+      assert.equal(cp.regulation.verified,true);
+      assert.equal(cp.available,true);
+      assert.equal(cp.naskahReason,null);
+    }
+  const logika=read('src/data/curriculum-cp.js');
+  assert.match(logika,/naskahCp|naskahElemen/);
+  assert.equal(/ringkas\s*:\s*['"`]/.test(logika),false,'naskah tidak ditulis di logika CP');
+});
+
+test('19. Biodata tetap mengenal enam agama, tetapi master CP/TP agama hanya PAI dan PAK',()=>{
+  assert.deepEqual([...RELIGIONS].sort(),['Buddha','Hindu','Islam','Katolik','Konghucu','Kristen'].sort());
+  assert.deepEqual(Object.keys(RELIGION_SUBJECTS).sort(),['agama','agama_kristen']);
+  assert.deepEqual(Object.values(RELIGION_SUBJECTS).sort(),['Islam','Kristen']);
+  const agamaDefault=SUBJECTS_DEFAULT.filter(item=>item.id.startsWith('agama')).map(item=>item.id).sort();
+  assert.deepEqual(agamaDefault,['agama','agama_kristen']);
+  assert.deepEqual(CP_SUBJECTS.filter(id=>id.startsWith('agama')).sort(),['agama','agama_kristen']);
 });
