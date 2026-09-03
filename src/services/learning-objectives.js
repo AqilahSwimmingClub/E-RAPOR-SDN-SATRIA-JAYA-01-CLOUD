@@ -46,23 +46,21 @@ export function resolveObjective(session,subjectId,objectiveId){
   return katalog?{...katalog,isDefault:true,active:false}:null;
 }
 
+/* Katalog TP hanya dianggap tersedia bila CP mapel itu memang berlaku pada fase rombel.
+   Ini mencegah katalog legacy (misalnya Bahasa Inggris Fase A) muncul sebagai TP baru ketika
+   dokumen CP resmi menetapkan mapelnya mulai Fase B. Data historis tetap dapat dibaca. */
 export function hasObjectiveCatalogue(session,subjectId){
+  const cp=capaianPembelajaran(session?.classId,subjectId);
+  if(cp?.available===false)return listObjectivesForAssessment(session,subjectId).length>0;
   return listObjectivesForAssessment(session,subjectId).length>0||hasDefaultsFor(session.classId,subjectId);
 }
 
-/* ---------------------------------------------------------------- TP AKTIF (sumber tunggal)
-
-   Inilah yang dibaca seluruh modul lain. Tidak ada penyimpanan pilihan TP tersendiri: status
-   aktif sudah melekat pada TP-nya sendiri dan diatur guru lewat menu Tujuan Pembelajaran. */
-
+/* ---------------------------------------------------------------- TP AKTIF (sumber tunggal) */
 export function listActiveObjectives(session,subjectId){
   return listObjectivesForAssessment(session,subjectId,{activeOnly:true});
 }
 
-/* -------------------------------------------------------------------- CP sebagai acuan
-
-   CP adalah acuan kompetensi resmi; TP adalah turunan operasionalnya. Fase tidak pernah
-   dipilih manual — ia dihitung dari tingkat rombel yang sedang aktif. */
+/* -------------------------------------------------------------------- CP sebagai acuan */
 export function capaianPembelajaranFor(session,subjectId){
   return capaianPembelajaran(session?.classId,subjectId);
 }
@@ -71,10 +69,13 @@ export function capaianPembelajaranFor(session,subjectId){
 
    Katalog bukan "TP sekolah" dan tidak pernah masuk sendiri ke daftar guru. Ia hanya menjadi
    pilihan pada modal + Tambah TP. Butir yang sudah pernah dimasukkan ditandai `sudahDipakai`
-   supaya tidak terkirim dua kali. */
+   supaya tidak terkirim dua kali. Fase yang CP-nya tidak berlaku selalu menghasilkan daftar
+   kosong meskipun katalog legacy pernah memiliki butir untuk fase tersebut. */
 export function listReferenceObjectives(session,subjectId){
   const phase=phaseForClassId(session?.classId);
   if(!phase)return [];
+  const cp=capaianPembelajaran(session?.classId,subjectId);
+  if(cp?.available===false)return [];
   let dipakai=[];
   try{dipakai=listLearningObjectives(session,subjectId);}catch{dipakai=[];}
   const sudah=new Set(dipakai.map(item=>String(item.description).trim().toLowerCase()));
