@@ -57,7 +57,8 @@ test('Handler Vercel meneruskan seluruh endpoint publik dan pemilik',async t=>{
   assert.equal(masuk.status,200);
   const token=masuk.data.token;
   const dibuat=await s.panggil({method:'POST',url:'/api/v1/owner/licenses',
-    body:{count:1,schoolName:'SDN Contoh Nusantara 02'},headers:{authorization:`Bearer ${token}`}});
+    body:{count:1,buyerName:'Siti Rahayu',schoolName:'SDN Contoh Nusantara 02',npsn:'87654321'},
+    headers:{authorization:`Bearer ${token}`}});
   assert.equal(dibuat.status,200);
   const key=dibuat.data.licenses[0].key;
 

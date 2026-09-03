@@ -101,6 +101,22 @@ CREATE TABLE IF NOT EXISTS app_versions(
 /* SQLite tidak mengenal ADD COLUMN IF NOT EXISTS, jadi kolom Tahap 9 ditambahkan hanya bila
    memang belum ada. Tabel TIDAK pernah dibuat ulang, sehingga basis data pengembangan yang
    sudah berisi baris tetap utuh. */
+/* Kolom lisensi tambahan: tipe (CUSTOMER/DEVELOPER), nama pembeli, dan jejak pencabutan.
+   Sama seperti app_versions, kolomnya ditambahkan hanya bila belum ada sehingga basis data
+   pengembangan yang sudah berisi lisensi tetap utuh. */
+const KOLOM_LISENSI=[
+  ['license_type',"TEXT NOT NULL DEFAULT 'CUSTOMER'"],
+  ['buyer_name','TEXT'],
+  ['revoked_at','TEXT'],
+  ['revoke_reason','TEXT'],
+];
+function lengkapiLicenses(db){
+  const ada=new Set(db.prepare('PRAGMA table_info(licenses)').all().map(baris=>baris.name));
+  for(const [nama,tipe] of KOLOM_LISENSI)
+    if(!ada.has(nama))db.exec(`ALTER TABLE licenses ADD COLUMN ${nama} ${tipe}`);
+  db.exec('CREATE INDEX IF NOT EXISTS ix_licenses_type ON licenses(license_type, status)');
+}
+
 const KOLOM_TAHAP_9=[
   ['download_url','TEXT'],
   ['published','INTEGER NOT NULL DEFAULT 0'],
@@ -119,6 +135,7 @@ export function openDatabase(file=':memory:'){
   if(file!==':memory:')mkdirSync(dirname(file),{recursive:true});
   const db=new DatabaseSync(file);
   db.exec(SCHEMA);
+  lengkapiLicenses(db);
   lengkapiAppVersions(db);
   return db;
 }

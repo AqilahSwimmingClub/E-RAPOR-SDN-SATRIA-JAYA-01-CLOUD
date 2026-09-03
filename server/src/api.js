@@ -155,7 +155,8 @@ export function createApi({store,secrets,logger=()=>{},publicDir=null}){
     'GET /api/v1/owner/summary':async req=>{await wajibOwner(req);return lisensi.summary(store);},
     'GET /api/v1/owner/licenses':async(req,res,body,url)=>{
       await wajibOwner(req);
-      return {licenses:await lisensi.listLicenses(store,{q:url.searchParams.get('q')||'',status:url.searchParams.get('status')||''})};
+      return {licenses:await lisensi.listLicenses(store,{q:url.searchParams.get('q')||'',
+        status:url.searchParams.get('status')||'',type:url.searchParams.get('type')||''})};
     },
     'GET /api/v1/owner/events':async req=>{await wajibOwner(req);return {events:await lisensi.listEvents(store,{})};},
     'GET /api/v1/owner/customers':async req=>{await wajibOwner(req);return {customers:await lisensi.listCustomers(store)};},
@@ -172,12 +173,18 @@ export function createApi({store,secrets,logger=()=>{},publicDir=null}){
   };
 
   /* Aksi per lisensi memakai pola /owner/licenses/:id/<aksi>. */
+  const PULIH_DARI=new Set(['SUSPENDED','REVOKED']);
+
   const aksiLisensi={
     'reset-device':async(owner,id,body)=>({result:await lisensi.resetDevice(store,id,{actor:owner.username,reason:body?.reason})}),
     'suspend':async(owner,id,body)=>({license:await lisensi.setStatus(store,id,'SUSPENDED',{actor:owner.username,reason:body?.reason})}),
+    /* Pemulihan berlaku untuk lisensi yang ditangguhkan maupun yang sudah dicabut. Record-nya
+       tidak pernah dihapus, jadi pemulihan hanya mengembalikan status: bila perangkat lamanya
+       masih terikat lisensi langsung ACTIVE, bila tidak lisensi kembali menunggu aktivasi. */
     'reactivate':async(owner,id,body)=>{
       const detail=await lisensi.licenseDetail(store,id);
-      if(detail.license.status!=='SUSPENDED')throw new LicenseError('NOT_SUSPENDED','Hanya lisensi yang ditangguhkan yang dapat diaktifkan kembali.',409);
+      if(!PULIH_DARI.has(detail.license.status))
+        throw new LicenseError('TIDAK_PERLU_PULIH','Hanya lisensi yang ditangguhkan atau dicabut yang dapat dipulihkan.',409);
       const adaPerangkat=detail.devices.some(item=>item.is_active===true);
       return {license:await lisensi.setStatus(store,id,adaPerangkat?'ACTIVE':'UNUSED',{actor:owner.username,reason:body?.reason})};
     },
@@ -241,7 +248,11 @@ export function createApi({store,secrets,logger=()=>{},publicDir=null}){
         return kirim(res,200,hasil,pathname);
       }
       const detail=pathname.match(/^\/api\/v1\/owner\/licenses\/([A-Za-z0-9_]+)$/);
-      if(detail&&req.method==='GET'){await wajibOwner(req);return kirim(res,200,await lisensi.licenseDetail(store,detail[1]),pathname);}
+      if(detail&&req.method==='GET'){
+        await wajibOwner(req);
+        const isi=await lisensi.licenseDetail(store,detail[1]);
+        return kirim(res,200,{...isi,license:lisensi.tanpaRahasiaLisensi(isi.license)},pathname);
+      }
 
       kirim(res,404,{error:{code:'NOT_FOUND',message:'Endpoint tidak dikenal.'}},pathname);
     }catch(error){

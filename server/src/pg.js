@@ -31,6 +31,15 @@ CREATE TABLE IF NOT EXISTS licenses(
 );
 CREATE INDEX IF NOT EXISTS ix_licenses_status   ON licenses(status);
 CREATE INDEX IF NOT EXISTS ix_licenses_customer ON licenses(customer_id);
+-- Kolom tambahan ditambahkan terpisah, bukan dengan membuat ulang tabel, supaya lisensi yang
+-- sudah terbit beserta ikatan perangkatnya tidak hilang satu pun.
+-- license_type memisahkan lisensi pembeli dari lisensi Developer milik pemilik aplikasi.
+-- Seluruh lisensi lama otomatis dianggap CUSTOMER.
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS license_type  TEXT NOT NULL DEFAULT 'CUSTOMER';
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS buyer_name    TEXT;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS revoked_at    TIMESTAMPTZ;
+ALTER TABLE licenses ADD COLUMN IF NOT EXISTS revoke_reason TEXT;
+CREATE INDEX IF NOT EXISTS ix_licenses_type ON licenses(license_type, status);
 
 CREATE TABLE IF NOT EXISTS device_activations(
   id              TEXT PRIMARY KEY,

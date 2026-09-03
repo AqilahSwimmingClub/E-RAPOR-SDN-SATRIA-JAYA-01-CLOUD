@@ -23,7 +23,11 @@ async function siapkan(){
   const secrets={signingPrivateKeyPem:privateKeyPem,pepper:`pepper-${Math.random()}`,recoveryKey:`recovery-${Math.random()}`};
   return {pg,store,secrets,
     async close(){await pg.close();},
-    async buat(jumlah=1,extra={}){return lisensi.createLicenses(store,{count:jumlah,actor:'uji',recoverySecret:secrets,...extra});}};
+    /* Identitas pembeli wajib untuk lisensi CUSTOMER, jadi helper mengisinya secara baku.
+       Test yang memang menguji aturan itu sendiri menimpanya lewat `extra`. */
+    async buat(jumlah=1,extra={}){return lisensi.createLicenses(store,{count:jumlah,actor:'uji',
+      buyerName:'Budi Santoso',schoolName:'SDN Maju Jaya 01',npsn:'12345678',
+      recoverySecret:secrets,...extra});}};
 }
 
 test('Skema PostgreSQL menegakkan satu perangkat aktif lewat partial unique index',async t=>{

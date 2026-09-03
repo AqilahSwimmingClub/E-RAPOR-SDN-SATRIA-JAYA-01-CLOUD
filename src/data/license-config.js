@@ -10,7 +10,17 @@
    Isi LICENSE_PUBLIC_JWK dengan keluaran:
      node server/scripts/generate-signing-key.mjs */
 
-export const LICENSE_API_BASE='';
+/* Alamat server lisensi produksi. Bukan rahasia: ini hanya alamat HTTP yang sama dengan yang
+   dibuka di peramban. Nilai ini SENGAJA ditanam agar APK hasil build membawa alamat yang benar;
+   sebelumnya nilainya kosong sehingga aplikasi Android menjawab "Server lisensi belum
+   dikonfigurasi pada aplikasi ini" dan aktivasi tidak pernah bisa dijalankan. */
+export const LICENSE_API_BASE='https://e-rapor-sdn-satria-jaya-01-cloud.vercel.app';
+
+/* Kunci PUBLIK untuk memverifikasi tanda tangan Activation Token. Diisi saat build produksi
+   oleh scripts/set-license-config.mjs dari environment LICENSE_PUBLIC_JWK, yang nilainya
+   dicetak oleh server/scripts/generate-signing-key.mjs bersama kunci privatnya.
+
+   Kunci PRIVAT tidak pernah berada di sini, di bundle, di aset Android, maupun di APK. */
 export const LICENSE_PUBLIC_JWK=null;
 
 /* Aplikasi memeriksa ulang lisensi ke server paling sering setiap 14 hari, dan memberi masa

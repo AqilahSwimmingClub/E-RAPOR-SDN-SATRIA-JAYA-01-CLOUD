@@ -32,9 +32,30 @@ function bersih(value,max=180){return String(value??'').trim().slice(0,max);}
 
 /* ------------------------------------------------------------------ Pembuatan lisensi */
 
-export async function createLicenses(store,{count=1,customerId=null,schoolName='',npsn='',notes='',actor,recoverySecret}){
+export const LICENSE_TYPES=Object.freeze(['CUSTOMER','DEVELOPER']);
+
+/* Lisensi pembeli WAJIB membawa identitas pemiliknya: tanpa nama pembeli, nama sekolah, dan
+   NPSN, kunci yang sudah terbit tidak dapat ditelusuri lagi milik siapa. Lisensi DEVELOPER
+   adalah lisensi resmi milik pemilik aplikasi untuk QA dan demo, jadi ia tidak memerlukan
+   identitas sekolah pembeli — tetapi tetap record nyata dengan kunci, aktivasi server, ikatan
+   perangkat, dan audit yang sama persis. */
+export async function createLicenses(store,{count=1,customerId=null,buyerName='',schoolName='',npsn='',notes='',licenseType='CUSTOMER',actor,recoverySecret}){
   const jumlah=Number.parseInt(count,10);
   if(!Number.isInteger(jumlah)||jumlah<1||jumlah>500)throw new LicenseError('INVALID_COUNT','Jumlah lisensi harus 1 sampai 500.');
+  const tipe=bersih(licenseType,20).toUpperCase()||'CUSTOMER';
+  if(!LICENSE_TYPES.includes(tipe))throw new LicenseError('INVALID_TYPE','Tipe lisensi tidak dikenal.');
+  const pembeli=bersih(buyerName,150);
+  const sekolah=bersih(schoolName,150);
+  const npsnBersih=bersih(npsn,40);
+  if(tipe==='CUSTOMER'){
+    const kurang=[];
+    if(!pembeli)kurang.push('Nama Pembeli');
+    if(!sekolah)kurang.push('Nama Sekolah');
+    if(!npsnBersih)kurang.push('NPSN');
+    if(kurang.length)
+      throw new LicenseError('IDENTITAS_WAJIB',`Lengkapi identitas lisensi: ${kurang.join(', ')}.`,400);
+    if(!/^\d{8}$/.test(npsnBersih))throw new LicenseError('INVALID_NPSN','NPSN wajib 8 digit angka.',400);
+  }
   const hasil=[];
   for(let i=0;i<jumlah;i++){
     /* Tabrakan kunci praktis mustahil, tetapi UNIQUE pada license_hash tetap menjadi
@@ -44,16 +65,16 @@ export async function createLicenses(store,{count=1,customerId=null,schoolName='
       const key=generateLicenseKey();
       const id=newId('lic');
       try{
-        await store.run(`INSERT INTO licenses(id,license_hash,license_hint,encrypted_recovery,status,customer_id,school_name,npsn,created_at,notes)
-          VALUES($1,$2,$3,$4,'UNUSED',$5,$6,$7,$8,$9)`,
+        await store.run(`INSERT INTO licenses(id,license_hash,license_hint,encrypted_recovery,status,customer_id,buyer_name,school_name,npsn,license_type,created_at,notes)
+          VALUES($1,$2,$3,$4,'UNUSED',$5,$6,$7,$8,$9,$10,$11)`,
           [id,licenseHash(key,recoverySecret.pepper),licenseHint(key),encryptRecovery(key,recoverySecret.recoveryKey),
-           customerId||null,bersih(schoolName),bersih(npsn,40),nowIso(),bersih(notes,500)]);
+           customerId||null,pembeli||null,sekolah||null,npsnBersih||null,tipe,nowIso(),bersih(notes,500)]);
         simpan={id,key,hint:licenseHint(key)};
       }catch(error){if(!isUniqueViolation(error))throw error;}
     }
     if(!simpan)throw new LicenseError('GENERATE_FAILED','Gagal membuat License Key unik.',500);
     await catat(store,{licenseId:simpan.id,type:'LICENSE_CREATED',actor,
-      detail:{hint:simpan.hint,customerId,schoolName:bersih(schoolName)}});
+      detail:{hint:simpan.hint,customerId,licenseType:tipe,buyerName:pembeli,schoolName:sekolah,npsn:npsnBersih}});
     hasil.push(simpan);
   }
   return hasil;
@@ -179,7 +200,13 @@ export async function setStatus(store,licenseId,status,{actor,reason=''}){
   if(!LICENSE_STATUS.includes(status))throw new LicenseError('INVALID_STATUS','Status lisensi tidak dikenal.');
   const license=await store.one('SELECT * FROM licenses WHERE id=$1',[licenseId]);
   if(!license)throw new LicenseError('NOT_FOUND','Lisensi tidak ditemukan.',404);
-  await store.run('UPDATE licenses SET status=$1 WHERE id=$2',[status,licenseId]);
+  /* Pencabutan menyimpan waktu dan alasannya supaya lisensi yang dicabut tetap dapat
+     ditelusuri. Record TIDAK pernah dihapus. Saat dipulihkan, jejak itu dibersihkan lagi. */
+  if(status==='REVOKED')
+    await store.run('UPDATE licenses SET status=$1,revoked_at=$2,revoke_reason=$3 WHERE id=$4',
+      [status,nowIso(),bersih(reason,300)||null,licenseId]);
+  else
+    await store.run('UPDATE licenses SET status=$1,revoked_at=NULL,revoke_reason=NULL WHERE id=$2',[status,licenseId]);
   await catat(store,{licenseId,type:`STATUS_${status}`,actor,detail:{from:license.status,to:status,reason:bersih(reason,300)}});
   return store.one('SELECT * FROM licenses WHERE id=$1',[licenseId]);
 }
@@ -197,16 +224,37 @@ export async function recoverLicenseKey(store,licenseId,{actor,reason=''},secret
 
 /* ------------------------------------------------------------------------ Pembacaan */
 
+/* Angka penjualan hanya menghitung lisensi PEMBELI. Lisensi Developer dilaporkan terpisah
+   supaya tidak pernah tercampur ke statistik penjualan. */
 export async function summary(store){
-  const baris=(await store.query('SELECT status,COUNT(*) AS jumlah FROM licenses GROUP BY status')).rows;
-  const total=(await store.one('SELECT COUNT(*) AS jumlah FROM licenses')).jumlah;
+  const baris=(await store.query('SELECT COALESCE(license_type,$1) AS tipe,status,COUNT(*) AS jumlah FROM licenses GROUP BY 1,2',['CUSTOMER'])).rows;
   const hitung=Object.fromEntries(LICENSE_STATUS.map(status=>[status,0]));
-  baris.forEach(row=>{hitung[row.status]=Number(row.jumlah);});
+  const developer=Object.fromEntries(LICENSE_STATUS.map(status=>[status,0]));
+  let total=0;let totalDeveloper=0;
+  for(const row of baris){
+    const jumlah=Number(row.jumlah);
+    if(String(row.tipe).toUpperCase()==='DEVELOPER'){developer[row.status]=jumlah;totalDeveloper+=jumlah;}
+    else{hitung[row.status]=jumlah;total+=jumlah;}
+  }
   const devices=(await store.one('SELECT COUNT(*) AS jumlah FROM device_activations WHERE is_active=TRUE')).jumlah;
-  return {total:Number(total),...hitung,devices:Number(devices)};
+  return {total,...hitung,devices:Number(devices),
+    developer:{total:totalDeveloper,...developer}};
 }
 
-export async function listLicenses(store,{q='',status='',limit=100}={}){
+/* Hash lisensi dan paket pemulihan terenkripsi tidak pernah ikut dalam jawaban API, bahkan
+   untuk Pemilik. Satu-satunya jalan melihat kembali License Key adalah aksi "recover" yang
+   tercatat di audit; mengirim encrypted_recovery pada setiap daftar akan membuat pencatatan
+   itu tidak ada artinya. */
+const RAHASIA_LISENSI=['license_hash','encrypted_recovery'];
+export function tanpaRahasiaLisensi(row){
+  if(!row)return row;
+  const salinan={...row};
+  for(const kunci of RAHASIA_LISENSI)delete salinan[kunci];
+  return salinan;
+}
+
+export async function listLicenses(store,{q='',status='',type='',limit=100}={}){
+  const tipe=bersih(type,20).toUpperCase();
   const cari=`%${bersih(q,80).toLowerCase()}%`;
   const hasil=await store.query(`SELECT l.*, c.name AS customer_name,
       (SELECT d.installation_id FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE LIMIT 1) AS active_installation,
@@ -214,10 +262,15 @@ export async function listLicenses(store,{q='',status='',limit=100}={}){
       (SELECT d.last_seen_at FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE LIMIT 1) AS active_last_seen
     FROM licenses l LEFT JOIN customers c ON c.id=l.customer_id
     WHERE ($1='' OR l.status=$1)
+      AND ($4='' OR COALESCE(l.license_type,'CUSTOMER')=$4)
       AND ($2='%%' OR lower(COALESCE(l.school_name,'')) LIKE $2 OR lower(COALESCE(l.npsn,'')) LIKE $2
+           OR lower(COALESCE(l.buyer_name,'')) LIKE $2
            OR lower(l.license_hint) LIKE $2 OR lower(COALESCE(c.name,'')) LIKE $2 OR lower(l.id) LIKE $2)
-    ORDER BY l.created_at DESC LIMIT $3`,[status,cari,Math.min(Number(limit)||100,500)]);
-  return hasil.rows.map(row=>({...row,created_at:iso(row.created_at),active_last_seen:iso(row.active_last_seen)}));
+    ORDER BY l.created_at DESC LIMIT $3`,[status,cari,Math.min(Number(limit)||100,500),tipe]);
+  return hasil.rows.map(row=>({...tanpaRahasiaLisensi(row),
+    license_type:String(row.license_type||'CUSTOMER').toUpperCase(),
+    created_at:iso(row.created_at),activated_at:iso(row.activated_at),
+    revoked_at:iso(row.revoked_at),active_last_seen:iso(row.active_last_seen)}));
 }
 
 export async function licenseDetail(store,licenseId){

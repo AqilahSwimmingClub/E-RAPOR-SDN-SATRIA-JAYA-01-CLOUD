@@ -100,10 +100,22 @@ jobs:
           fi
 
       - run: npm ci
+      # APK produksi WAJIB membawa alamat server lisensi dan kunci verifikasi PUBLIK. Keduanya
+      # bukan rahasia, tetapi tanpa keduanya aplikasi tidak dapat diaktivasi sama sekali, jadi
+      # penjaga di bawah menghentikan build alih-alih mengirim APK yang tidak berguna.
+      # Kunci PRIVAT penandatangan tidak pernah dipakai di sini.
+      - name: Siapkan dan periksa konfigurasi lisensi produksi
+        env:
+          LICENSE_API_BASE: ${{ vars.LICENSE_API_BASE || 'https://e-rapor-sdn-satria-jaya-01-cloud.vercel.app' }}
+          LICENSE_PUBLIC_JWK: ${{ vars.LICENSE_PUBLIC_JWK }}
+        run: npm run verify:production
       - name: Bangun aset web dan salin ke proyek Android
         run: |
           npm run build
           npx cap sync android
+      # Yang diperiksa adalah aset yang BENAR-BENAR masuk ke APK, bukan berkas sumbernya.
+      - name: Pastikan aset Android membawa konfigurasi produksi
+        run: node scripts/verify-android-assets.mjs
 
       # Keystore ditulis ke folder sementara runner, di luar folder repository, sehingga tidak
       # mungkin ikut ter-commit. signing.properties sudah masuk .gitignore.

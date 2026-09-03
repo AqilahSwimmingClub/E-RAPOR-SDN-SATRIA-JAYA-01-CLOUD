@@ -172,12 +172,17 @@ export function isCheckDue(record=baca(),now=Date.now()){
 export function getLicenseState({now=Date.now()}={}){
   const record=baca();
   if(!record?.activation_token)return {state:'UNLICENSED',canUseApp:false,canEditData:false,record:null};
+  /* Lisensi yang dicabut atau perangkat yang tidak lagi terikat mengembalikan aplikasi ke
+     halaman Aktivasi: perangkat ini memang tidak berlisensi lagi, jadi ia harus memasukkan
+     License Key yang sah. Data akademik lokal TIDAK dihapus sama sekali oleh keadaan ini. */
   if(record.status==='REVOKED')
-    return {state:'REVOKED',canUseApp:true,canEditData:false,record,message:LICENSE_MESSAGES.REVOKED};
+    return {state:'REVOKED',canUseApp:false,canEditData:false,record,message:LICENSE_MESSAGES.REVOKED};
+  if(record.status==='NOT_BOUND')
+    return {state:'NOT_BOUND',canUseApp:false,canEditData:false,record,message:LICENSE_MESSAGES.NOT_BOUND};
+  /* Ditangguhkan bersifat sementara, jadi aplikasi tetap terbuka dalam mode terbatas beserta
+     keterangannya; sekolah tetap dapat melihat data dan membuat backup. */
   if(record.status==='SUSPENDED')
     return {state:'SUSPENDED',canUseApp:true,canEditData:false,record,message:LICENSE_MESSAGES.SUSPENDED};
-  if(record.status==='NOT_BOUND')
-    return {state:'NOT_BOUND',canUseApp:true,canEditData:false,record,message:LICENSE_MESSAGES.NOT_BOUND};
 
   const jatuhTempo=record.next_check_at?new Date(record.next_check_at).getTime():now;
   const batasTenggang=jatuhTempo+LICENSE_GRACE_PERIOD_DAYS*HARI;

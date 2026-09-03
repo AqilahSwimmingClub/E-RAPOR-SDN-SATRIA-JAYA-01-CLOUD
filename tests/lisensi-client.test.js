@@ -39,12 +39,16 @@ async function muatLisensi(server){
 
 /* ------------------------------------------------------- 01-03. Gerbang alur aplikasi */
 
-test('01-03. Alur fresh install: setup sekolah lalu wajib aktivasi sebelum Dashboard',()=>{
+test('01-03. Alur fresh install: aktivasi lisensi lebih dulu, baru setup sekolah',()=>{
   const app=read('src/app.js');
-  assert.match(app,/if\(!startupError&&!isSchoolIdentityReady\(\)\)/,'setup sekolah menjadi gerbang pertama');
-  assert.match(app,/renderSchoolSetup\(\{onComplete:\(\)=>navigate\('license'\)\}\)/,'setup selesai lanjut ke aktivasi lisensi');
+  /* Urutannya pernah terbalik: Setup Awal diperiksa duluan, sehingga instalasi baru yang belum
+     punya identitas sekolah langsung membuka Setup Awal dan aktivasi terlewat sama sekali. */
   assert.match(app,/if\(!startupError&&!licenseState\.canUseApp\)\{/,'tanpa lisensi aplikasi berhenti di gerbang aktivasi');
   assert.match(app,/app\.append\(renderLicenseActivation\(/,'halaman aktivasi yang ditampilkan');
+  assert.match(app,/if\(!startupError&&!isSchoolIdentityReady\(\)\)/,'setup sekolah tetap ada sebagai gerbang berikutnya');
+  assert.match(app,/renderSchoolSetup\(\{onComplete:\(\)=>navigate\('login'\)\}\)/,'setup selesai lanjut ke login');
+  assert.ok(app.indexOf('!licenseState.canUseApp')<app.indexOf('!isSchoolIdentityReady()'),
+    'gerbang lisensi wajib dievaluasi sebelum gerbang Setup Awal');
   /* Gerbang lisensi berada sebelum resolusi route mana pun, termasuk dashboard. */
   assert.ok(app.indexOf('licenseState.canUseApp')<app.indexOf('const route=resolveRoute'),
     'lisensi diperiksa sebelum route diselesaikan');
@@ -138,13 +142,16 @@ test('10-12. Suspended dan revoked membatasi penyuntingan tanpa menghapus data',
     birthPlace:'Kota',birthDate:'2015-01-02',parentName:'Ortu',phone:'08',address:'Jl',photo:''});
   const sebelum=JSON.stringify(loadDb());
 
-  for(const [status,keadaan] of [['SUSPENDED','SUSPENDED'],['REVOKED','REVOKED'],['NOT_BOUND','NOT_BOUND']]){
+  /* Ditangguhkan bersifat sementara, jadi aplikasi tetap terbuka terbatas. Dicabut dan tidak
+     terikat mengembalikan perangkat ke halaman Aktivasi — tetapi data akademik lokal tetap utuh,
+     karena status lisensi tidak pernah menjadi alasan menghapus data sekolah. */
+  for(const [status,bolehDibuka] of [['SUSPENDED',true],['REVOKED',false],['NOT_BOUND',false]]){
     globalThis.localStorage.setItem(LICENSE_STORAGE_KEY,JSON.stringify({schema:1,activation_token:'token',
       license_id:'lic',license_hint:'ERAPOR-••••-••••-AAAA',installation_id:getInstallationId(),status,
       issued_at:new Date().toISOString(),next_check_at:new Date(Date.now()+864e5).toISOString()}));
     const state=modul.getLicenseState();
-    assert.equal(state.state,keadaan);
-    assert.equal(state.canUseApp,true,`${status}: aplikasi tetap dapat dibuka`);
+    assert.equal(state.state,status);
+    assert.equal(state.canUseApp,bolehDibuka,`${status}: gerbang aplikasi sesuai aturan`);
     assert.equal(state.canEditData,false,`${status}: penyuntingan data ditutup`);
     assert.ok(state.message,'pengguna diberi keterangan yang jelas');
     assert.equal(JSON.stringify(loadDb()),sebelum,`${status}: tidak ada satu pun data yang berubah`);

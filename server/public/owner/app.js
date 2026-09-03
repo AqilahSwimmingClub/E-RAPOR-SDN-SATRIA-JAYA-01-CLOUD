@@ -57,7 +57,9 @@ async function render(){
       <div><h1>Owner Panel e-Rapor</h1><p class="sub">Kelola lisensi, perangkat, dan riwayat. Satu lisensi = satu perangkat aktif.</p></div>
       <button class="btn ghost" data-keluar>Keluar</button>
     </div>
-    <div class="tabs">${[['dashboard','Dashboard'],['licenses','Lisensi'],['customers','Sekolah/Pembeli'],['versions','Versi Aplikasi'],['events','Riwayat']]
+    <div class="tabs">${[['dashboard','Dashboard'],['aktif','Lisensi Aktif'],['unused','Belum Digunakan'],
+      ['suspended','Ditangguhkan'],['revoked','Lisensi Dicabut'],['developer','Lisensi Developer'],
+      ['customers','Sekolah/Pembeli'],['versions','Versi Aplikasi'],['events','Riwayat']]
       .map(([id,label])=>`<button class="tab ${tab===id?'active':''}" data-tab="${id}">${label}</button>`).join('')}</div>
     ${pesan?`<div class="msg ${pesan.jenis}">${esc(pesan.teks)}</div>`:''}
     <div data-isi><p class="loading">Memuat…</p></div>`;
@@ -69,108 +71,211 @@ async function render(){
   const isi=app.querySelector('[data-isi]');
   try{
     if(tab==='dashboard')await gambarDashboard(isi);
-    else if(tab==='licenses')await gambarLisensi(isi);
+    else if(tab==='aktif')await gambarLisensi(isi,{status:'ACTIVE',type:'CUSTOMER',judul:'Lisensi Aktif',
+      sub:'Lisensi pembeli yang sedang terikat pada satu perangkat aktif.'});
+    else if(tab==='unused')await gambarLisensi(isi,{status:'UNUSED',type:'CUSTOMER',judul:'Belum Digunakan',
+      sub:'Sudah diterbitkan, menunggu diaktivasi pada perangkat sekolah.',buat:true});
+    else if(tab==='suspended')await gambarLisensi(isi,{status:'SUSPENDED',type:'CUSTOMER',judul:'Ditangguhkan',
+      sub:'Ditahan sementara. Data akademik sekolah tidak pernah dihapus.'});
+    else if(tab==='revoked')await gambarLisensi(isi,{status:'REVOKED',type:'CUSTOMER',judul:'Lisensi Dicabut',
+      sub:'Dicabut permanen tetapi tidak dihapus; masih dapat dipulihkan bila diperlukan.'});
+    else if(tab==='developer')await gambarLisensi(isi,{type:'DEVELOPER',judul:'Lisensi Developer',
+      sub:'Lisensi resmi milik pemilik aplikasi untuk QA dan demo. Bukan penjualan, dan bukan jalan pintas: aktivasi, ikatan perangkat, dan auditnya sama seperti lisensi pembeli.',buatDeveloper:true});
     else if(tab==='customers')await gambarPelanggan(isi);
     else if(tab==='versions')await gambarVersi(isi);
     else await gambarRiwayat(isi);
   }catch(error){isi.innerHTML=`<div class="msg err">${esc(error.message)}</div>`;}
 }
 
-/* ---------------------------------------------------------------------- Dashboard */
+/* ---------------------------------------------------------------------- Dashboard
+
+   Angka penjualan hanya menghitung lisensi PEMBELI. Lisensi Developer dilaporkan pada panel
+   tersendiri supaya tidak pernah tercampur ke statistik penjualan. */
 
 async function gambarDashboard(host){
   const s=await api('/owner/summary');
+  const dev=s.developer||{total:0};
+  const ringkas=l=>`<tr>${barisIdentitas(l)}
+    <td><code>${esc(l.license_hint)}</code></td>
+    <td><span class="pill ${esc(l.status)}">${esc(l.status)}</span></td></tr>`;
+  const [aktif,dicabut,developer]=await Promise.all([
+    api('/owner/licenses?status=ACTIVE&type=CUSTOMER'),
+    api('/owner/licenses?status=REVOKED&type=CUSTOMER'),
+    api('/owner/licenses?type=DEVELOPER'),
+  ]);
+  const tabel=(judul,daftar,kosong)=>`<section class="card"><h2>${judul}</h2>
+    <div class="scroll">${daftar.length
+      ?`<table><thead><tr><th>Pemilik Lisensi</th><th>Kunci</th><th>Status</th></tr></thead>
+        <tbody>${daftar.slice(0,5).map(ringkas).join('')}</tbody></table>`
+      :`<p class="sub">${kosong}</p>`}</div></section>`;
+
   host.innerHTML=`<div class="stats">
-    ${[['Total Lisensi',s.total],['Aktif',s.ACTIVE],['Belum Digunakan',s.UNUSED],
-       ['Ditangguhkan',s.SUSPENDED],['Dicabut',s.REVOKED],['Perangkat Aktif',s.devices]]
-      .map(([label,nilai])=>`<div class="stat"><span>${label}</span><b>${nilai}</b></div>`).join('')}
-  </div>`;
+      ${[['Total Lisensi Pembeli',s.total],['Aktif',s.ACTIVE],['Belum Digunakan',s.UNUSED],
+         ['Ditangguhkan',s.SUSPENDED],['Dicabut',s.REVOKED],['Perangkat Aktif',s.devices]]
+        .map(([label,nilai])=>`<div class="stat"><span>${label}</span><b>${nilai}</b></div>`).join('')}
+    </div>
+    <section class="card"><h2>Lisensi Developer</h2>
+      <p class="sub">Lisensi milik pemilik aplikasi untuk QA dan demo. TIDAK dihitung sebagai penjualan.</p>
+      <div class="stats" style="margin-top:12px">
+        ${[['Total Developer',dev.total],['Aktif',dev.ACTIVE||0],['Belum Digunakan',dev.UNUSED||0]]
+          .map(([label,nilai])=>`<div class="stat"><span>${label}</span><b>${nilai}</b></div>`).join('')}
+      </div>
+      <div class="scroll" style="margin-top:12px">${developer.licenses.length
+        ?`<table><thead><tr><th>Pemilik</th><th>Kunci</th><th>Status</th></tr></thead>
+          <tbody>${developer.licenses.map(ringkas).join('')}</tbody></table>`
+        :'<p class="sub">Belum ada Lisensi Developer. Buat pada halaman Lisensi Developer.</p>'}</div>
+    </section>
+    ${tabel('Lisensi Aktif Terbaru',aktif.licenses,'Belum ada lisensi pembeli yang aktif.')}
+    ${tabel('Lisensi Dicabut Terbaru',dicabut.licenses,'Belum ada lisensi yang dicabut.')}`;
 }
 
-/* ------------------------------------------------------------------------ Lisensi */
+/* ------------------------------------------------------------------------ Lisensi
 
-async function gambarLisensi(host){
-  const {customers}=await api('/owner/customers');
-  host.innerHTML=`<section class="card">
-      <h2>Buat License Key</h2>
-      <p class="sub">Kunci ditampilkan utuh satu kali saja di sini. Simpan sebelum menutup halaman.</p>
+   Setiap status punya halamannya sendiri sehingga satu lisensi tidak pernah muncul di dua
+   kategori. Identitas pemiliknya — nama pembeli, nama sekolah, dan NPSN — selalu ikut
+   ditampilkan supaya kunci yang sudah terbit dapat ditelusuri milik siapa. */
+
+async function gambarLisensi(host,{status='',type='',judul='Lisensi',sub='',buat=false,buatDeveloper=false}={}){
+  const {customers}=buat?await api('/owner/customers'):{customers:[]};
+  const formBuat=buat?`<section class="card">
+      <h2>Buat License Key Pembeli</h2>
+      <p class="sub">Kunci ditampilkan utuh satu kali saja di sini. Simpan sebelum menutup halaman.
+        Nama pembeli, nama sekolah, dan NPSN wajib diisi.</p>
       <form class="row" data-buat style="margin-top:12px">
+        <div><label>Nama Pembeli *</label><input name="buyerName" placeholder="Budi Santoso" required/></div>
+        <div><label>Nama Sekolah *</label><input name="schoolName" placeholder="SDN Maju Jaya 01" required/></div>
+        <div><label>NPSN *</label><input name="npsn" placeholder="12345678" required/></div>
         <div><label>Jumlah</label><input name="count" type="number" min="1" max="500" value="1" required/></div>
-        <div><label>Nama Sekolah (opsional)</label><input name="schoolName" placeholder="SDN Contoh Nusantara 02"/></div>
-        <div><label>NPSN (opsional)</label><input name="npsn"/></div>
-        <div><label>Pembeli (opsional)</label><select name="customerId"><option value="">—</option>
+        <div><label>Pembeli terdaftar (opsional)</label><select name="customerId"><option value="">—</option>
           ${customers.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></div>
         <div><button class="btn" type="submit">Generate</button></div>
       </form>
       <div data-hasil></div>
-    </section>
+    </section>`:'';
+  const formDeveloper=buatDeveloper?`<section class="card">
+      <h2>Buat Lisensi Developer</h2>
+      <p class="sub">Lisensi resmi milik pemilik aplikasi. Tidak melalui /beli dan tidak dihitung
+        sebagai penjualan, tetapi tetap wajib diaktivasi di perangkat seperti lisensi pembeli.</p>
+      <form class="row" data-buat-dev style="margin-top:12px">
+        <div><label>Nama Pemilik</label><input name="buyerName" value="FAHMI DJAWAS, S.Pd." required/></div>
+        <div><label>Keterangan</label><input name="notes" value="Development / QA / Demo"/></div>
+        <div><button class="btn" type="submit">Buat Lisensi Developer</button></div>
+      </form>
+      <div data-hasil-dev></div>
+    </section>`:'';
+
+  host.innerHTML=`${formBuat}${formDeveloper}
     <section class="card">
-      <h2>Daftar Lisensi</h2>
-      <form class="row" data-cari>
-        <div><label>Cari</label><input name="q" placeholder="nama sekolah, NPSN, hint kunci, pembeli"/></div>
-        <div><label>Status</label><select name="status"><option value="">Semua</option>
-          ${['UNUSED','ACTIVE','SUSPENDED','REVOKED'].map(s=>`<option>${s}</option>`).join('')}</select></div>
+      <h2>${esc(judul)}</h2>
+      ${sub?`<p class="sub">${esc(sub)}</p>`:''}
+      <form class="row" data-cari style="margin-top:12px">
+        <div><label>Cari</label><input name="q" placeholder="nama pembeli, sekolah, NPSN, hint kunci"/></div>
         <div><button class="btn ghost" type="submit">Cari</button></div>
       </form>
       <div class="scroll" data-tabel style="margin-top:12px"></div>
     </section>`;
 
-  host.querySelector('[data-buat]').onsubmit=async event=>{
+  if(buat)host.querySelector('[data-buat]').onsubmit=async event=>{
     event.preventDefault();
     const form=event.currentTarget,tombol=form.querySelector('button');
     tombol.disabled=true;
     try{
       const hasil=await api('/owner/licenses',{method:'POST',body:{
-        count:Number(form.count.value),schoolName:form.schoolName.value,npsn:form.npsn.value,
-        customerId:form.customerId.value||null}});
-      host.querySelector('[data-hasil]').innerHTML=`<div class="msg ok">${hasil.created} License Key dibuat.</div>
+        count:Number(form.count.value),buyerName:form.buyerName.value,schoolName:form.schoolName.value,
+        npsn:form.npsn.value,customerId:form.customerId.value||null}});
+      host.querySelector('[data-hasil]').innerHTML=`<div class="msg ok">${hasil.created} License Key dibuat untuk ${esc(form.schoolName.value)}.</div>
         <div class="keylist">${hasil.licenses.map(l=>esc(l.key)).join('\n')}</div>
-        <p class="warn">Salin sekarang. Setelah halaman ditutup, kunci utuh hanya dapat diambil lewat tombol Recovery.</p>`;
-      await muatTabel(host);
+        <p class="warn">Salin sekarang. Setelah halaman ditutup, kunci utuh hanya dapat diambil lewat tombol Lihat Key.</p>`;
+      form.reset();
+      await muatTabel(host,{status,type});
     }catch(error){host.querySelector('[data-hasil]').innerHTML=`<div class="msg err">${esc(error.message)}</div>`;}
     tombol.disabled=false;
   };
-  host.querySelector('[data-cari]').onsubmit=event=>{event.preventDefault();muatTabel(host);};
-  await muatTabel(host);
+
+  if(buatDeveloper)host.querySelector('[data-buat-dev]').onsubmit=async event=>{
+    event.preventDefault();
+    const form=event.currentTarget,tombol=form.querySelector('button');
+    tombol.disabled=true;
+    try{
+      const hasil=await api('/owner/licenses',{method:'POST',body:{
+        count:1,licenseType:'DEVELOPER',buyerName:form.buyerName.value,notes:form.notes.value}});
+      host.querySelector('[data-hasil-dev]').innerHTML=`<div class="msg ok">Lisensi Developer dibuat.</div>
+        <div class="keylist">${hasil.licenses.map(l=>esc(l.key)).join('\n')}</div>
+        <p class="warn">Salin sekarang, lalu masukkan pada halaman Aktivasi aplikasi seperti lisensi biasa.</p>`;
+      await muatTabel(host,{status,type});
+    }catch(error){host.querySelector('[data-hasil-dev]').innerHTML=`<div class="msg err">${esc(error.message)}</div>`;}
+    tombol.disabled=false;
+  };
+
+  host.querySelector('[data-cari]').onsubmit=event=>{event.preventDefault();muatTabel(host,{status,type});};
+  await muatTabel(host,{status,type});
 }
 
-async function muatTabel(host){
+function barisIdentitas(l){
+  /* Lisensi Developer tidak dijual, jadi tidak punya pembeli maupun NPSN. Menampilkan tiga
+     tanda strip untuk lisensi itu terbaca seperti data yang hilang, padahal memang tidak ada. */
+  if(String(l.license_type||'CUSTOMER').toUpperCase()==='DEVELOPER')
+    return `<td>
+      <strong>${esc(l.buyer_name||'Lisensi Developer')}</strong>
+      <br/><small style="color:var(--muted)">${esc(l.notes||'Milik pemilik aplikasi — bukan penjualan.')}</small>
+    </td>`;
+  return `<td>
+      <strong>${esc(l.buyer_name||'—')}</strong>
+      <br/><small>${esc(l.school_name||'—')}</small>
+      <br/><small style="color:var(--muted)">NPSN ${esc(l.npsn||'—')}</small>
+      ${l.customer_name?`<br/><small style="color:var(--muted)">${esc(l.customer_name)}</small>`:''}
+    </td>`;
+}
+
+async function muatTabel(host,{status='',type=''}={}){
   const form=host.querySelector('[data-cari]');
-  const {licenses}=await api(`/owner/licenses?q=${encodeURIComponent(form.q.value)}&status=${encodeURIComponent(form.status.value)}`);
+  const {licenses}=await api(`/owner/licenses?q=${encodeURIComponent(form.q.value)}`
+    +`&status=${encodeURIComponent(status)}&type=${encodeURIComponent(type)}`);
+  const dicabut=status==='REVOKED';
   host.querySelector('[data-tabel]').innerHTML=licenses.length?`<table><thead><tr>
-      <th>Kunci (tersamar)</th><th>Status</th><th>Sekolah / Pembeli</th><th>Perangkat aktif</th><th>Terakhir terlihat</th><th>Aksi</th>
+      <th>Pemilik Lisensi</th><th>Kunci (tersamar)</th><th>Status</th>
+      <th>Perangkat Aktif</th><th>${dicabut?'Dibuat / Dicabut':'Dibuat / Aktivasi'}</th><th>Aksi</th>
     </tr></thead><tbody>${licenses.map(l=>`<tr>
-      <td><code>${esc(l.license_hint)}</code><br/><small style="color:var(--muted)">${esc(l.id)}</small></td>
+      ${barisIdentitas(l)}
+      <td><code>${esc(l.license_hint)}</code>
+        ${l.license_type==='DEVELOPER'?'<br/><span class="pill ACTIVE">DEVELOPER</span>':''}
+        <br/><small style="color:var(--muted)">${esc(l.id)}</small></td>
       <td><span class="pill ${esc(l.status)}">${esc(l.status)}</span></td>
-      <td>${esc(l.school_name||'—')}${l.npsn?`<br/><small style="color:var(--muted)">NPSN ${esc(l.npsn)}</small>`:''}
-          ${l.customer_name?`<br/><small style="color:var(--muted)">${esc(l.customer_name)}</small>`:''}</td>
-      <td>${l.active_installation?`<code>${esc(l.active_installation)}</code><br/><small style="color:var(--muted)">${esc(l.active_platform||'—')}</small>`:'—'}</td>
-      <td>${waktu(l.active_last_seen)}</td>
+      <td>${l.active_installation?`<code>${esc(l.active_installation)}</code>
+          <br/><small style="color:var(--muted)">${esc(l.active_platform||'—')}</small>
+          <br/><small style="color:var(--muted)">terlihat ${waktu(l.active_last_seen)}</small>`:'—'}</td>
+      <td><small>${waktu(l.created_at)}</small>
+        <br/><small style="color:var(--muted)">${dicabut?waktu(l.revoked_at):waktu(l.activated_at)}</small>
+        ${dicabut&&l.revoke_reason?`<br/><small style="color:var(--muted)">${esc(l.revoke_reason)}</small>`:''}</td>
       <td><div class="actions">
         ${l.active_installation?`<button class="btn ghost" data-aksi="reset-device" data-id="${esc(l.id)}">Reset Device</button>`:''}
         ${l.status==='SUSPENDED'
           ?`<button class="btn ghost" data-aksi="reactivate" data-id="${esc(l.id)}">Aktifkan</button>`
           :l.status!=='REVOKED'?`<button class="btn ghost" data-aksi="suspend" data-id="${esc(l.id)}">Tangguhkan</button>`:''}
+        ${l.status==='REVOKED'?`<button class="btn ghost" data-aksi="reactivate" data-id="${esc(l.id)}">Pulihkan</button>`:''}
         ${l.status!=='REVOKED'?`<button class="btn danger" data-aksi="revoke" data-id="${esc(l.id)}">Cabut</button>`:''}
-        <button class="btn ghost" data-aksi="recover" data-id="${esc(l.id)}">Recovery Key</button>
+        <button class="btn ghost" data-aksi="recover" data-id="${esc(l.id)}">Lihat Key</button>
       </div></td></tr>`).join('')}</tbody></table>`
-    :'<p class="sub">Belum ada lisensi yang cocok.</p>';
+    :'<p class="sub">Belum ada lisensi pada kategori ini.</p>';
 
   host.querySelectorAll('[data-aksi]').forEach(btn=>btn.onclick=async()=>{
     const aksi=btn.dataset.aksi;
-    const konfirmasi={'reset-device':'Lepaskan perangkat aktif dari lisensi ini? Kunci akan dapat dipakai di perangkat lain.',
-      suspend:'Tangguhkan lisensi ini?',revoke:'Cabut lisensi ini secara permanen?',reactivate:'Aktifkan kembali lisensi ini?',
+    const konfirmasi={'reset-device':'Lepaskan perangkat aktif dari lisensi ini? Identitas pembeli, sekolah, dan riwayatnya tetap tersimpan.',
+      suspend:'Tangguhkan lisensi ini? Data akademik sekolah tidak dihapus.',
+      revoke:'Cabut lisensi ini? Catatannya tetap tersimpan dan masih dapat dipulihkan.',
+      reactivate:'Pulihkan lisensi ini sehingga dapat dipakai lagi?',
       recover:'Tampilkan License Key utuh? Tindakan ini tercatat di Riwayat.'}[aksi];
     if(!window.confirm(konfirmasi))return;
-    const alasan=window.prompt('Alasan (masuk audit log):','')||'';
+    const alasan=aksi==='recover'?'':(window.prompt('Alasan (masuk audit log):','')||'');
     btn.disabled=true;
     try{
       const hasil=await api(`/owner/licenses/${btn.dataset.id}/${aksi}`,{method:'POST',body:{reason:alasan}});
       if(aksi==='recover'){
-        window.alert(`License Key:\n\n${hasil.recovery.license_key}\n\nTindakan ini sudah tercatat di Riwayat.`);
-        lapor('License Key dipulihkan dan tercatat di audit log.','ok');
+        const kunci=hasil.recovery.license_key;
+        try{await navigator.clipboard.writeText(kunci);lapor('License Key disalin ke papan klip dan tercatat di audit log.','ok');}
+        catch{window.alert(`License Key:\n\n${kunci}\n\nTindakan ini sudah tercatat di Riwayat.`);lapor('License Key ditampilkan dan tercatat di audit log.','ok');}
       }else lapor('Tindakan berhasil dijalankan.','ok');
-    }catch(error){lapor(error.message,'err');}
+    }catch(error){btn.disabled=false;lapor(error.message,'err');}
   });
 }
 

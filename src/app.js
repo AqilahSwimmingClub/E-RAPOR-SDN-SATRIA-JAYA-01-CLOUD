@@ -66,20 +66,24 @@ function mount(requestedRoute){
   session=getSession();
   refreshLicenseState();
   scheduleSessionExpiry(session);
-  /* Instalasi baru mengisi identitas sekolah lebih dulu. Setelah nama sekolah tersimpan,
-     gerbang ini tidak pernah muncul lagi dan alur kembali ke aktivasi/login yang sudah ada. */
-  if(!startupError&&!isSchoolIdentityReady()){
-    document.documentElement.dataset.route='school-setup';
-    app.innerHTML='';
-    app.append(renderSchoolSetup({onComplete:()=>navigate('license')}));
-    return;
-  }
-  /* Setelah identitas sekolah ada, perangkat wajib punya lisensi sebelum masuk aplikasi.
-     Tidak ada pengecualian berdasarkan sekolah, NPSN, atau siapa pun penggunanya. */
+  /* AKTIVASI LISENSI SELALU LEBIH DULU.
+
+     Urutan ini pernah terbalik: Setup Awal diperiksa duluan, sehingga instalasi baru yang belum
+     punya identitas sekolah langsung membuka Setup Awal dan aktivasi terlewat sama sekali.
+     Perangkat wajib punya lisensi yang sah sebelum apa pun yang lain — termasuk sebelum Setup
+     Awal. Tidak ada pengecualian berdasarkan sekolah, NPSN, atau siapa pun penggunanya. */
   if(!startupError&&!licenseState.canUseApp){
     document.documentElement.dataset.route='license';
     app.innerHTML='';
     app.append(renderLicenseActivation({onActivated:()=>{refreshLicenseState();navigate('login');}}));
+    return;
+  }
+  /* Baru setelah perangkat berlisensi, identitas sekolah diisi. Setelah nama sekolah tersimpan,
+     gerbang ini tidak pernah muncul lagi dan alur kembali ke aktivasi/login yang sudah ada. */
+  if(!startupError&&!isSchoolIdentityReady()){
+    document.documentElement.dataset.route='school-setup';
+    app.innerHTML='';
+    app.append(renderSchoolSetup({onComplete:()=>navigate('login')}));
     return;
   }
   const route=resolveRoute(requestedRoute,session);

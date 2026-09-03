@@ -33,9 +33,14 @@ export async function startTestServer(){
       const {data}=await konteks.call('/owner/login',{method:'POST',body:OWNER});
       return data.token;
     },
+    /* Identitas pembeli wajib sejak lisensi memuat nama pembeli, sekolah, dan NPSN. Nilai
+       bawaan di bawah dipakai test yang sedang menguji hal lain; test identitas mengirim
+       nilainya sendiri. */
     async buatLisensi(jumlah=1,extra={}){
       const token=await konteks.ownerToken();
-      const {data}=await konteks.call('/owner/licenses',{method:'POST',token,body:{count:jumlah,...extra}});
+      const {data}=await konteks.call('/owner/licenses',{method:'POST',token,body:{
+        count:jumlah,buyerName:'Budi Santoso',schoolName:'SDN Maju Jaya 01',npsn:'12345678',...extra}});
+      if(!data.licenses)throw new Error(`Gagal membuat lisensi uji: ${JSON.stringify(data)}`);
       return data.licenses;
     },
   };
