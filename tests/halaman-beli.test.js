@@ -80,7 +80,8 @@ test('3. Metadata halaman layak dibagikan dan metadata aplikasi tidak diubah',()
 
 test('4. Formulir memuat seluruh field wajib beserta persetujuan',()=>{
   const teks=halaman();
-  assert.match(teks,/Form Pemesanan Lisensi e-Rapor/i);
+  assert.match(teks,/<h2 id="judul-form">Daftarkan Sekolah Anda<\/h2>/);
+  assert.match(teks,/Isi data berikut untuk mendapatkan informasi pembelian lisensi e-Rapor\./);
   for(const nama of REQUIRED_FIELDS)
     assert.match(teks,new RegExp(`id="${nama}"[^>]*required`),`field ${nama} wajib`);
   assert.match(teks,/id="email"/);
@@ -88,6 +89,7 @@ test('4. Formulir memuat seluruh field wajib beserta persetujuan',()=>{
   assert.match(teks,/Saya memastikan data sekolah yang saya isi sudah benar\./);
   assert.match(teks,/id="konfirmasi" name="konfirmasi" type="checkbox"/);
   assert.match(teks,/id="tombol-pesan" type="submit" disabled/,'tombol mati sebelum data sah');
+  assert.match(teks,/PESAN LISENSI VIA WHATSAPP/);
   for(const label of ['Nama Sekolah','NPSN','Nama Pemesan / Penanggung Jawab','Nomor WhatsApp',
     'Kabupaten / Kota','Provinsi'])
     assert.ok(teks.includes(label),`label ${label} tampil`);
@@ -144,7 +146,8 @@ test('9. Validasi JavaScript dijalankan ulang saat tombol ditekan',()=>{
 test('10. Tujuan WhatsApp adalah nomor resmi dari satu sumber konfigurasi',()=>{
   assert.equal(CONTACT_WHATSAPP,'6287776015915');
   const skrip=read('public/beli/beli.js');
-  assert.match(skrip,/import \{ CONTACT_WHATSAPP, whatsappUrl \} from '\.\.\/src\/data\/app-identity\.js';/);
+  assert.match(skrip,/^import \{[^}]*CONTACT_WHATSAPP[^}]*whatsappUrl[^}]*\} from '\.\.\/src\/data\/app-identity\.js';/m,
+    'seluruh kontak diambil dari satu sumber');
   assert.match(skrip,/whatsappUrl\(teks,CONTACT_WHATSAPP\)/);
   /* Nomor tidak ditulis ulang di berkas halaman publik mana pun. */
   for(const berkas of ['public/beli/index.html','public/beli/beli.js','public/beli/beli.css','public/beli/order-form.js'])
@@ -183,7 +186,8 @@ test('12. Pesan tidak pernah memuat data siswa maupun rahasia perangkat',()=>{
 
 test('13. Pengguna dapat memeriksa dan mengubah pesan sebelum dikirim',()=>{
   const teks=halaman();
-  assert.match(teks,/Pesan WhatsApp \(dapat Anda periksa dan ubah sebelum dikirim\)/);
+  assert.match(teks,/Pratinjau Pesan WhatsApp/);
+  assert.match(teks,/Dapat Anda periksa dan ubah sebelum dikirim/);
   assert.match(teks,/<textarea id="pesan" name="pesan"/);
   const skrip=read('public/beli/beli.js');
   assert.match(skrip,/kotakPesan\.addEventListener\('input',\(\)=>\{disuntingPengguna=true;\}\)/);
@@ -244,40 +248,82 @@ test('17. Pemesanan tidak membuat lisensi, kunci, maupun ikatan perangkat',()=>{
 
 test('18. Isi promosi, alur pembelian, dan identitas pengembang tampil',()=>{
   const teks=halaman();
-  assert.match(teks,/Solusi Digital Pengelolaan Rapor Sekolah/);
-  assert.match(teks,/DAFTARKAN SEKOLAH ANDA/);
-  assert.match(teks,/Kelola administrasi dan penilaian sekolah dengan lebih praktis melalui e-Rapor\./);
-  for(const fitur of ['Identitas sekolah dapat disesuaikan','Pengelolaan akun Admin &amp; Guru',
-    'Data siswa dan administrasi kelas','Absensi','Penilaian dan Nilai Akhir','TP semua mata pelajaran',
-    'Deskripsi rapor otomatis','Intrakurikuler','Kokurikuler','Ekstrakurikuler','Cetak Rapor',
-    'Cetak Leger','Backup &amp; Restore data','Offline-first','Sistem lisensi resmi',
-    'Sistem pembaruan aplikasi resmi','Data akademik tersimpan lokal di perangkat sekolah'])
-    assert.ok(teks.includes(`<li>${fitur}</li>`),`keunggulan "${fitur}" tercantum`);
+  /* Hero. */
+  assert.match(teks,/<span class="badge">e-Rapor Sekolah<\/span>/);
+  assert.match(teks,/Kelola Rapor Sekolah Lebih Mudah, Rapi, dan Terintegrasi/);
+  assert.match(teks,/e-Rapor membantu sekolah mengelola data siswa, penilaian, kegiatan\s+pembelajaran, rapor, dan leger dalam satu aplikasi yang praktis\./);
+  assert.match(teks,/href="#form-pemesanan">Daftarkan Sekolah Anda<\/a>/,'CTA utama menuju formulir');
+  assert.match(teks,/id="tautan-developer"[^>]*>Hubungi Developer<\/a>/);
+  /* Mockup disusun dari elemen sendiri, bukan gambar. */
+  assert.match(teks,/<div class="mock">/);
+  assert.equal(/<img[^>]+src="[^"]*\.(?:png|jpe?g|webp)"/i.test(teks),false,'tidak memakai gambar stok');
+
+  /* Keunggulan dikelompokkan menjadi kartu, bukan satu daftar panjang. */
+  for(const kelompok of ['Administrasi Sekolah','Penilaian','Kegiatan Pembelajaran',
+    'Rapor &amp; Data','Lisensi &amp; Pembaruan'])
+    assert.ok(teks.includes(`<h3>${kelompok}</h3>`),`kelompok "${kelompok}" tampil sebagai kartu`);
+  for(const fitur of ['Identitas sekolah','Admin &amp; Guru','Data siswa','Absensi',
+    'Penilaian &amp; nilai akhir','TP mata pelajaran','Deskripsi otomatis',
+    'Intrakurikuler','Kokurikuler','Ekstrakurikuler','Cetak Rapor','Cetak Leger',
+    'Backup &amp; Restore','Offline-first','Sistem lisensi resmi','Pembaruan aplikasi resmi'])
+    assert.ok(teks.includes(`<li>${fitur}</li>`),`fitur "${fitur}" tercantum`);
+  assert.equal((teks.match(/class="kartu reveal"/g)||[]).length,5,'lima kartu keunggulan');
+
+  /* Alur enam langkah bernomor. */
   assert.match(teks,/Cara Mendapatkan Lisensi/);
-  for(const langkah of ['Isi Data Sekolah','Kirim Pemesanan melalui WhatsApp',
-    'Developer Memverifikasi Pesanan','License Key Resmi Diberikan',
-    'Aktivasi e-Rapor pada Perangkat Sekolah','e-Rapor Siap Digunakan'])
-    assert.ok(teks.includes(langkah),`langkah "${langkah}" tercantum`);
+  for(const [no,judul] of [['01','Isi Data Sekolah'],['02','Kirim Pemesanan'],
+    ['03','Developer Memverifikasi'],['04','License Key Diberikan'],
+    ['05','Aktivasi e-Rapor'],['06','Siap Digunakan']]){
+    assert.ok(teks.includes(`<span class="langkah-no">${no}</span><strong>${judul}</strong>`),
+      `langkah ${no} ${judul}`);
+  }
+
+  /* Kartu privasi. */
+  assert.match(teks,/Data Akademik Tetap Milik Sekolah/);
+  assert.match(teks,/Data siswa, nilai, absensi, dan data akademik disimpan secara lokal pada perangkat\s+sekolah dan tidak dikirim ke server lisensi\./);
+  for(const poin of ['Data akademik lokal','Aktivasi lisensi resmi','Backup &amp; Restore'])
+    assert.ok(teks.includes(`<li>${poin}</li>`),`poin privasi "${poin}"`);
+
   /* Tidak menjanjikan pembayaran otomatis yang memang belum ada. */
   for(const klaim of ['pembayaran otomatis','bayar sekarang','checkout','kartu kredit','payment gateway'])
     assert.equal(new RegExp(klaim,'i').test(teks),false,`tidak menjanjikan ${klaim}`);
+
+  /* Footer: merek, kontak, dan identitas pengembang. */
+  assert.match(teks,/Solusi Digital Pengelolaan Rapor Sekolah/);
+  assert.match(teks,/id="tautan-wa"/,'nomor WhatsApp diisi dari konfigurasi, bukan ditulis di markup');
   for(const baris of ['Dirancang &amp; Dikembangkan oleh','FAHMI DJAWAS, S.Pd.',
     'Developer &amp; UI/UX Designer e-Rapor','© 2026 — Semua Hak Dilindungi'])
     assert.ok(teks.includes(baris),`identitas pengembang: ${baris}`);
 });
 
-test('19. Tata letak mobile-first dan tidak meluber ke samping',()=>{
+test('19. Tata letak mobile-first, modern, dan tidak meluber ke samping',()=>{
   const gaya=read('public/beli/beli.css');
   assert.match(gaya,/overflow-x:hidden/);
   assert.match(gaya,/\*\{box-sizing:border-box\}/);
-  assert.match(gaya,/max-width:960px/);
-  assert.match(gaya,/@media\(min-width:600px\)/,'kolom baru muncul pada layar lebih lebar');
-  assert.match(gaya,/@media\(min-width:900px\)/);
-  assert.match(gaya,/min-height:52px/,'tombol utama nyaman disentuh');
-  assert.match(gaya,/min-height:50px/,'kolom isian nyaman disentuh');
-  /* Susunan dasar satu kolom: layar sempit tidak pernah butuh geser mendatar. */
-  assert.match(gaya,/\.grid\{display:grid;grid-template-columns:1fr/);
-  assert.match(gaya,/\.fitur\{display:grid;grid-template-columns:1fr/);
+  assert.match(gaya,/max-width:1180px/);
+  /* Susunan dasar satu kolom; kolom tambahan baru muncul pada layar yang cukup lebar. */
+  assert.match(gaya,/\.kartu-grid\{display:grid;grid-template-columns:1fr;/);
+  assert.match(gaya,/\.langkah-grid\{display:grid;grid-template-columns:1fr;/);
+  assert.match(gaya,/\.grid\{display:grid;grid-template-columns:1fr;/);
+  for(const titik of ['560px','760px','1040px'])
+    assert.ok(gaya.includes(`@media(min-width:${titik})`),`titik henti ${titik}`);
+  /* Sasaran sentuh nyaman. */
+  assert.match(gaya,/min-height:54px/,'tombol utama');
+  assert.match(gaya,/min-height:52px/,'kolom isian');
+  assert.match(gaya,/\.persetujuan input\{[^}]*width:22px;height:22px/,'kotak centang');
+  /* Identitas visual: navy, aksen emas, kartu membulat, bayangan lembut. */
+  assert.match(gaya,/--navy:#0b1a2f/);
+  assert.match(gaya,/--emas:#f2b705/);
+  assert.match(gaya,/--radius:20px/);
+  assert.match(gaya,/--bayang:0 10px 30px/);
+  /* Times New Roman hanya untuk rapor; halaman ini memakai huruf antarmuka modern. Komentar
+     dibuang lebih dulu supaya penjelasan yang menyebut larangan tidak dianggap pelanggaran. */
+  assert.equal(/Times New Roman/i.test(gaya.replace(/\/\*[\s\S]*?\*\//g,'')),false,
+    'landing page tidak memakai Times New Roman');
+  assert.match(gaya,/font-family:"Segoe UI",system-ui/);
+  /* Animasi ringan dan menghormati preferensi pengguna. */
+  assert.match(gaya,/\.reveal\{opacity:0;transform:translateY\(18px\)/);
+  assert.match(gaya,/@media\(prefers-reduced-motion:reduce\)/);
 });
 
 test('20. Build production menghasilkan /beli lengkap tanpa mengganggu bagian lain',()=>{
@@ -289,13 +335,14 @@ test('20. Build production menghasilkan /beli lengkap tanpa mengganggu bagian la
     for(const berkas of sumber)
       assert.equal(readFileSync(join(temp,'dist/beli',berkas),'utf8'),read(`public/beli/${berkas}`),
         `${berkas} tersalin apa adanya`);
-    /* Aset yang dirujuk halaman tersedia pada hasil build. */
+    /* Seluruh aset dirujuk dengan alamat absolut dari akar situs, sehingga tersedia baik
+       ketika halaman dibuka di /beli maupun /beli/. */
     for(const rujukan of [...halaman().matchAll(/(?:href|src)="([^"]+)"/g)].map(item=>item[1])){
       if(/^(https?:)?\/\/|^data:|^#/.test(rujukan))continue;
-      const jalur=rujukan.startsWith('../')?join(temp,'dist',rujukan.slice(3)):join(temp,'dist/beli',rujukan.replace(/^\.\//,''));
-      assert.ok(existsSync(jalur),`aset ${rujukan} tersedia di hasil build`);
+      assert.ok(rujukan.startsWith('/'),`aset ${rujukan} wajib memakai alamat absolut`);
+      assert.ok(existsSync(join(temp,'dist',rujukan.slice(1))),`aset ${rujukan} tersedia di hasil build`);
     }
-    assert.ok(existsSync(join(temp,'dist/beli/../src/data/app-identity.js')),'sumber kontak ikut dibangun');
+    assert.ok(existsSync(join(temp,'dist/src/data/app-identity.js')),'sumber kontak ikut dibangun');
     /* Owner Panel dan aplikasi sekolah tetap utuh. */
     assert.ok(existsSync(join(temp,'dist/owner/index.html')));
     for(const berkas of ['index.html','manifest.webmanifest','sw.js'])
@@ -309,4 +356,61 @@ test('21. Halaman publik tidak menggeser kerangka offline aplikasi sekolah',()=>
   assert.match(sw,/\\\/\(\?:beli\|owner\)/,'navigasi /beli dan /owner dibiarkan lewat');
   assert.match(sw,/if\(!isAppNavigation\(event\.request\.url\)\)return;/);
   assert.match(sw,/caches\.match\(OFFLINE_SHELL\)/,'kerangka offline aplikasi tetap ada');
+});
+
+/* ------------------------------------------------- Regresi: aset harus tetap termuat di /beli
+
+   Vercel me-REWRITE /beli ke /beli/index.html tanpa mengubah alamat di bilah peramban. Karena
+   itu alamat relatif seperti ./beli.css pada halaman /beli dicari di /beli.css — bukan
+   /beli/beli.css — lalu gagal, dan halaman tampil tanpa gaya sekaligus tanpa JavaScript.
+   Inilah yang pernah terjadi di produksi. Alamat absolut menutup celah itu. */
+
+/* Meniru cara peramban menyelesaikan alamat aset terhadap alamat halaman. */
+function resolusi(alamatHalaman,rujukan){return new URL(rujukan,`https://contoh.id${alamatHalaman}`).pathname;}
+
+test('22. Aset halaman tetap benar dibuka di /beli, /beli/, maupun /beli/index.html',()=>{
+  const rujukan=[...halaman().matchAll(/(?:href|src)="([^"]+)"/g)].map(item=>item[1])
+    .filter(item=>!/^(https?:)?\/\/|^data:|^#/.test(item));
+  assert.ok(rujukan.length>=3,'halaman memuat ikon, CSS, dan JS');
+  for(const item of rujukan)
+    assert.ok(item.startsWith('/'),`aset ${item} wajib absolut, bukan relatif`);
+  /* Alamat yang sama harus dihasilkan dari ketiga cara halaman ini dibuka. */
+  for(const item of rujukan){
+    const hasil=['/beli','/beli/','/beli/index.html'].map(alamat=>resolusi(alamat,item));
+    assert.equal(new Set(hasil).size,1,`aset ${item} menghasilkan alamat berbeda: ${hasil.join(' vs ')}`);
+  }
+  assert.ok(rujukan.includes('/beli/beli.css'),'stylesheet dirujuk absolut');
+  assert.ok(rujukan.includes('/beli/beli.js'),'skrip dirujuk absolut');
+});
+
+test('23. Alamat relatif pada halaman /beli memang akan salah, sehingga dilarang',()=>{
+  /* Bukti mengapa aturan di atas ada: bentuk relatif menghasilkan alamat berbeda. */
+  assert.equal(resolusi('/beli','./beli.css'),'/beli.css');
+  assert.equal(resolusi('/beli/','./beli.css'),'/beli/beli.css');
+  assert.notEqual(resolusi('/beli','./beli.css'),resolusi('/beli/','./beli.css'));
+  /* Sedangkan bentuk absolut selalu sama. */
+  assert.equal(resolusi('/beli','/beli/beli.css'),'/beli/beli.css');
+  assert.equal(resolusi('/beli/','/beli/beli.css'),'/beli/beli.css');
+  /* Modul JavaScript menyelesaikan impornya terhadap alamat MODUL, bukan alamat halaman,
+     sehingga impor relatif di beli.js tetap benar pada kedua alamat. */
+  const skrip=read('public/beli/beli.js');
+  assert.match(skrip,/from '\.\.\/src\/data\/app-identity\.js'/);
+  assert.match(skrip,/from '\.\/order-form\.js'/);
+  assert.equal(resolusi('/beli/beli.js','../src/data/app-identity.js'),'/src/data/app-identity.js');
+  assert.equal(resolusi('/beli/beli.js','./order-form.js'),'/beli/order-form.js');
+});
+
+test('24. Berkas hasil build dilayani dengan tipe konten yang benar',()=>{
+  /* Tipe konten ditentukan oleh ekstensi berkas; yang perlu dijaga adalah ekstensinya tetap
+     .css dan .js sehingga peramban tidak menolak stylesheet maupun modul. */
+  const temp=bangunDiDirektoriSementara();
+  try{
+    for(const [berkas,tipe] of [['beli.css','text/css'],['beli.js','javascript'],['order-form.js','javascript']]){
+      assert.ok(existsSync(join(temp,'dist/beli',berkas)),`${berkas} ada di hasil build`);
+      assert.ok(/\.(css|js)$/.test(berkas),`${berkas} berekstensi yang dikenali sebagai ${tipe}`);
+    }
+    const isi=readFileSync(join(temp,'dist/beli/index.html'),'utf8');
+    assert.match(isi,/<link rel="stylesheet" href="\/beli\/beli\.css"\/>/);
+    assert.match(isi,/<script type="module" src="\/beli\/beli\.js"><\/script>/);
+  }finally{rmSync(temp,{recursive:true,force:true});}
 });

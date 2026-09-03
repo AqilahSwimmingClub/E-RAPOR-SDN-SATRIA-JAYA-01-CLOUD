@@ -1,4 +1,4 @@
-import { CONTACT_WHATSAPP, whatsappUrl } from '../src/data/app-identity.js';
+import { CONTACT_WHATSAPP, CONTACT_WHATSAPP_DISPLAY, SUPPORT_URL, whatsappUrl } from '../src/data/app-identity.js';
 import { buildOrderMessage, REQUIRED_FIELDS, validateOrder } from './order-form.js';
 
 /* Perekat halaman publik pemesanan.
@@ -8,13 +8,36 @@ import { buildOrderMessage, REQUIRED_FIELDS, validateOrder } from './order-form.
    hanyalah menyusun pesan WhatsApp dari isian pengguna lalu membuka WhatsApp.
 
    Nomor WhatsApp tidak ditulis di berkas ini. Ia diambil dari src/data/app-identity.js, sumber
-   kontak resmi yang sama dengan yang dipakai halaman Tentang & Pembaruan. */
+   kontak resmi yang sama dengan yang dipakai halaman Tentang & Pembaruan.
+
+   Alamat impor di atas relatif terhadap URL modul ini (/beli/beli.js), bukan terhadap alamat
+   halaman, sehingga tetap benar baik ketika dibuka di /beli maupun /beli/. */
 
 const form=document.querySelector('#form-pesan');
 const kotakPesan=document.querySelector('#pesan');
 const tombol=document.querySelector('#tombol-pesan');
 const catatan=document.querySelector('#catatan-tombol');
 const persetujuan=document.querySelector('#konfirmasi');
+
+/* Tautan kontak disusun dari konfigurasi, bukan ditulis di markup. */
+const tautanDeveloper=document.querySelector('#tautan-developer');
+if(tautanDeveloper)tautanDeveloper.href=SUPPORT_URL;
+const tautanWa=document.querySelector('#tautan-wa');
+if(tautanWa){tautanWa.href=SUPPORT_URL;tautanWa.textContent=CONTACT_WHATSAPP_DISPLAY;}
+
+/* Munculnya bagian halaman dibuat halus dan sekali jalan. Bila peramban tidak mendukung
+   IntersectionObserver, seluruh bagian langsung ditampilkan apa adanya. */
+const bagianMuncul=[...document.querySelectorAll('.reveal')];
+if(typeof IntersectionObserver==='function'){
+  const pengamat=new IntersectionObserver(entri=>{
+    for(const item of entri){
+      if(!item.isIntersecting)continue;
+      item.target.classList.add('tampil');
+      pengamat.unobserve(item.target);
+    }
+  },{rootMargin:'0px 0px -8% 0px',threshold:.08});
+  for(const bagian of bagianMuncul)pengamat.observe(bagian);
+}else for(const bagian of bagianMuncul)bagian.classList.add('tampil');
 
 const KOLOM=[...REQUIRED_FIELDS,'email'];
 const kolom=nama=>form.elements[nama];
