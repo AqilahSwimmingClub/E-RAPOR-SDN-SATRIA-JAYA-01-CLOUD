@@ -10,6 +10,11 @@ import { composeIntracurricularDescription, getStudentIntracurricularSelection,
 import { adoptCatalogueObjectives, listActiveObjectives,
   setActiveObjective } from '../src/services/learning-objectives.js';
 import { createLearningObjective } from '../src/services/objectives.js';
+import { ringkasObjectives } from '../src/services/objective-summary.js';
+
+/* Deskripsi Intrakurikuler diringkas, jadi yang dicari adalah INTI kompetensi tiap TP,
+   bukan kalimat TP mentah. */
+const inti=item=>ringkasObjectives([item]);
 import { calculateReportScore } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
 import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
@@ -100,9 +105,13 @@ test('Satu TP dan banyak TP menghasilkan deskripsi yang memuat setiap TP satu ka
       objectives:dipakai,predicate:'Baik'});
     assert.ok(teks.includes('Matematika'));
     for(const item of dipakai)
-      assert.equal(teks.split(item.description).length-1,1,`${jumlah} TP: ${item.code} muncul sekali`);
+      assert.equal(teks.split(inti(item)).length-1,1,`${jumlah} TP: ${item.code} muncul sekali`);
     for(const item of tp.slice(jumlah))
-      assert.equal(teks.includes(item.description),false,'TP di luar pilihan tidak ikut');
+      assert.equal(teks.includes(inti(item)),false,'TP di luar pilihan tidak ikut');
+    /* Kalimat TP tidak pernah ditempel mentah. */
+    for(const item of dipakai)
+      if(inti(item)!==item.description.trim().replace(/[.!?]+$/,''))
+        assert.equal(teks.includes(item.description),false,`${item.code} tidak disalin utuh`);
     assert.match(teks,/\.$/);
   }
 });
@@ -115,7 +124,7 @@ test('Tiga predikat menghasilkan tiga kalimat capaian yang berbeda',()=>{
   const teks=INTRACURRICULAR_PREDICATES.map(predicate=>composeIntracurricularDescription(
     {studentName:'Siswa 1',subjectName:'Matematika',objectives:tp,predicate}));
   assert.equal(new Set(teks).size,3,'tiap predikat punya kalimat sendiri');
-  for(const item of teks)for(const objective of tp)assert.ok(item.includes(objective.description));
+  for(const item of teks)for(const objective of tp)assert.ok(item.includes(inti(objective)));
 });
 
 /* --------------------------------------------------------------------- Penyimpanan per siswa */
@@ -132,7 +141,7 @@ test('Pilihan mapel, TP, dan predikat tersimpan beserta deskripsi otomatis',()=>
   assert.deepEqual(saved.objectiveIds,tp.map(item=>item.id));
   assert.equal(saved.predicate,'Sangat Baik');
   assert.equal(saved.activity,'Matematika','kolom Kegiatan pada rapor memuat nama mapel');
-  for(const item of tp)assert.ok(saved.description.includes(item.description));
+  for(const item of tp)assert.ok(saved.description.includes(inti(item)));
   const dibaca=getStudentIntracurricularSelection(kelas,siswa.id);
   assert.equal(dibaca.subjectId,'mtk');
   assert.deepEqual(dibaca.objectiveIds,tp.map(item=>item.id));
@@ -149,8 +158,8 @@ test('Deskripsi diperbarui saat pilihan TP atau predikat berubah',()=>{
   const kedua=saveStudentIntracurricularSelection(kelas,siswa.id,
     {subjectId:'mtk',objectiveIds:[tp[1].id],predicate:'Sangat Baik'});
   assert.notEqual(kedua.description,pertama.description);
-  assert.ok(kedua.description.includes(tp[1].description));
-  assert.equal(kedua.description.includes(tp[0].description),false);
+  assert.ok(kedua.description.includes(inti(tp[1])));
+  assert.equal(kedua.description.includes(inti(tp[0])),false);
   const manual=saveStudentIntracurricularSelection(kelas,siswa.id,
     {subjectId:'mtk',objectiveIds:[tp[1].id],predicate:'Sangat Baik',description:'Deskripsi tulisan wali kelas.'});
   assert.equal(manual.description,'Deskripsi tulisan wali kelas.');
@@ -241,5 +250,6 @@ test('Tabel rapor Intrakurikuler tetap No, Kegiatan dengan predikat, dan Keteran
   assert.match(html,/class="activity-no">1</);
   assert.match(html,/class="activity-name">Matematika</);
   assert.match(html,/class="activity-predicate">BAIK</);
-  for(const item of tp)assert.ok(html.includes(item.description.replace(/&/g,'&amp;')));
+  for(const item of tp)assert.ok(html.includes(inti(item).replace(/&/g,'&amp;')),
+    `inti ${item.code} ikut pada kolom Keterangan`);
 });

@@ -2,6 +2,7 @@ import { composeActivityDescription } from '../data/activity-description.js';
 import { CLASSES } from '../data/constants.js';
 import { ACTIVITY_PREDICATES, getStudentIntracurricular, saveStudentIntracurricular } from './completeness.js';
 import { listObjectivesForAssessment } from './learning-objectives.js';
+import { ringkasObjectives } from './objective-summary.js';
 import { listReferenceAcademicYears, listReferenceSemesters } from './references.js';
 import { loadDb, updateDb } from './storage.js';
 import { listStudents } from './students.js';
@@ -78,17 +79,35 @@ export function listIntracurricularSubjects(session){
   return listActiveSubjects(session).filter(subject=>listIntracurricularObjectives(session,subject.id).length>0);
 }
 
+/* Pilihan TP Intrakurikuler HANYA berasal dari TP yang berstatus aktif pada menu Tujuan
+   Pembelajaran. TP yang dinonaktifkan tidak pernah muncul sebagai pilihan baru. */
 export function listIntracurricularObjectives(session,subjectId){
   try{return listObjectivesForAssessment(session,subjectId,{activeOnly:true});}catch{return [];}
 }
 
+/* TP yang pernah dipilih guru lalu dinonaktifkan di menu Tujuan Pembelajaran.
+
+   Catatan lamanya TIDAK diubah maupun dihapus; TP seperti ini dikembalikan terpisah supaya
+   halaman Intrakurikuler dapat menampilkannya apa adanya beserta keterangan bahwa statusnya
+   sudah tidak aktif. Untuk input baru, TP ini tetap tidak boleh dipakai. */
+export function listInactiveReferencedObjectives(session,subjectId,objectiveIds=[]){
+  const dirujuk=[...new Set((Array.isArray(objectiveIds)?objectiveIds:[]).map(id=>String(id)))];
+  if(!dirujuk.length)return [];
+  let semua=[];
+  try{semua=listObjectivesForAssessment(session,subjectId,{activeOnly:false});}catch{return [];}
+  const aktif=new Set(listIntracurricularObjectives(session,subjectId).map(item=>item.id));
+  return dirujuk
+    .filter(id=>!aktif.has(id))
+    .map(id=>semua.find(item=>item.id===id)||null)
+    .filter(Boolean)
+    .map(item=>({...item,active:false,inactive:true}));
+}
+
+/* Deskripsi disusun dari TP yang DIPILIH guru pada menu Intrakurikuler — bukan dari seluruh
+   TP aktif — lalu diringkas memakai aturan yang sama dengan deskripsi rapor sehingga tidak ada
+   kalimat TP yang ditempel mentah. */
 export function composeIntracurricularDescription({studentName='',subjectName='',objectives=[],predicate='Baik'}={}){
-  const butir=(objectives||[]).map(item=>String(item?.description||'').trim().replace(/[.!?]+$/,'')).filter(Boolean);
-  const fokus=butir.length<=1
-    ? butir[0]||''
-    : butir.length===2
-      ? `${butir[0]} serta ${butir[1]}`
-      : `${butir.slice(0,-1).join(', ')}, serta ${butir[butir.length-1]}`;
+  const fokus=ringkasObjectives(objectives||[]);
   const teks=composeActivityDescription({
     studentName,
     activityName:String(subjectName||'').trim(),
