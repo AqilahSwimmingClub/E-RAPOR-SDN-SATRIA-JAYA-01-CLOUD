@@ -173,7 +173,10 @@ test('Cover memakai logo Tut Wuri Handayani dan lambang daerah, bukan logo aplik
   const page=read('src/pages/print.js');const css=read('src/styles/app.css');
   assert.match(page,/coverLogo\(school\.ministryLogo,COVER_LOGO_DEFAULTS\.ministry,'cover-logo-ministry'/);
   assert.match(page,/coverLogo\(school\.regionLogo,COVER_LOGO_DEFAULTS\.region,'cover-logo-region'/);
-  assert.equal(/report-cover-a4[^`]*app-icon\.svg/.test(page),false);
+  /* Cover rapor memakai logo sekolah yang dinamis. Ikon produk e-Rapor — dalam bentuk apa pun,
+     termasuk turunan logo final — tidak boleh menggantikannya. */
+  assert.equal(/report-cover-a4[^`]*app-icon/.test(page),false);
+  assert.equal(/app-icon|brand\//.test(page),false,'halaman cetak tidak menyentuh ikon produk');
   assert.match(css,/\.report-cover-a4>\.cover-logo>img\{display:block;max-width:none\}/,'gambar logo mengalir sebagai block, tidak bergantung positioning');
   assert.match(css,/\.report-cover-a4>\.cover-logo-custom\{overflow:visible/,'logo unggahan Admin ditampilkan utuh tanpa dipangkas');
   assert.match(css,/\.report-cover-a4>\.cover-logo-custom>img\{width:100%;height:100%;object-fit:contain/,'logo unggahan Admin tidak digepengkan');

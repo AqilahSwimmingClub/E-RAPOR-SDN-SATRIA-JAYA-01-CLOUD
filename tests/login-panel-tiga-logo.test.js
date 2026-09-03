@@ -134,6 +134,6 @@ test('Sisa halaman Masuk tidak ikut berubah',()=>{
 
 test('Ketiga lambang sudah ikut disimpan service worker tanpa perubahan tambahan',()=>{
   const sw=read('sw.js');
-  for(const berkas of ['logo-tut-wuri-handayani.png','logo-kabupaten-bekasi.png','app-icon.svg'])
+  for(const berkas of ['logo-tut-wuri-handayani.png','logo-kabupaten-bekasi.png','app-icon-192.png'])
     assert.match(sw,new RegExp(berkas.replace('.','\\.')),`${berkas} tersedia saat offline`);
 });

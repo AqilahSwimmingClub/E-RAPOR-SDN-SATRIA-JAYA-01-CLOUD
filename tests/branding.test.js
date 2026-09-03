@@ -137,6 +137,25 @@ test('6. Ikon Android dibuat dari master umum, bukan gambar bernama sekolah',()=
     'master aplikasi bukan gambar lama bernama sekolah');
 });
 
+test('6b. Lambang produk lama tidak tersisa di permukaan mana pun',()=>{
+  /* Lambang toga maroon adalah ikon produk sebelum logo final dipakai. Ia sudah tidak ada
+     lagi di repo, dan tidak boleh dirujuk kembali dari halaman mana pun. */
+  for(const berkas of ['assets/app-icon.svg','assets/app-icon-192.svg','assets/app-icon-512.svg'])
+    assert.equal(ada(berkas),false,`${berkas} sudah tidak dipakai dan tidak ikut dirilis`);
+  for(const berkas of ['index.html','sw.js','manifest.webmanifest','src/pages/login.js',
+    'public/beli/index.html','public/beli/beli.js','public/beli/beli.css'])
+    assert.equal(/app-icon(-\d+)?\.svg/.test(read(berkas)),false,
+      `${berkas} tidak lagi merujuk lambang produk lama`);
+  /* Permukaan yang terlihat pengguna memakai turunan logo final. */
+  assert.match(read('src/pages/login.js'),/const crest=schoolLogo\|\|'\.\/assets\/app-icon-192\.png'/,
+    'lambang bawaan login memakai logo e-Rapor final');
+  assert.match(read('public/beli/index.html'),/<img class="nav-logo" src="\/assets\/app-icon-192\.png"/,
+    'navbar /beli memakai logo e-Rapor final');
+  /* Warna tema PWA mengikuti warna brand, sama dengan meta theme-color halaman aplikasi. */
+  assert.equal(JSON.parse(read('manifest.webmanifest')).theme_color,'#0b1a2f');
+  assert.match(read('index.html'),/<meta name="theme-color" content="#0b1a2f" \/>/);
+});
+
 test('7. Owner memakai ikon yang berbeda dari aplikasi sekolah',()=>{
   const app='assets/app-icon-512.png',owner='server/public/owner/icons/owner-icon-512.png';
   for(const berkas of [app,owner])assert.ok(ada(berkas),`${berkas} tersedia`);

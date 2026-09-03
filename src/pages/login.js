@@ -22,7 +22,7 @@ export function renderLogin({onSuccess,onActivate}){
   const schoolName=String(school.name||'').trim();
   const schoolLabel=schoolName||SCHOOL_PLACEHOLDER;
   const schoolLogo=String(school.schoolLogo||'').trim();
-  const crest=schoolLogo||'./assets/app-icon.svg';
+  const crest=schoolLogo||'./assets/app-icon-192.png';
   const crestAlt=schoolName?`Logo ${schoolName}`:'Lambang sekolah belum diunggah';
   const root=el(`<main class="login-stage">
     <section class="login-photo">

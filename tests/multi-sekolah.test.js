@@ -102,7 +102,7 @@ test('6. Halaman Masuk membaca nama dan logo sekolah dari master',()=>{
   const halaman=read('src/pages/login.js');
   assert.match(halaman,/const school=getSchoolMaster\(\)/,'login membaca identitas sekolah');
   assert.match(halaman,/const schoolLabel=schoolName\|\|SCHOOL_PLACEHOLDER/,'label netral saat belum setup');
-  assert.match(halaman,/const crest=schoolLogo\|\|'\.\/assets\/app-icon\.svg'/,'lambang netral saat logo belum diunggah');
+  assert.match(halaman,/const crest=schoolLogo\|\|'\.\/assets\/app-icon-192\.png'/,'lambang netral saat logo belum diunggah');
   for(const jejak of ['SDN SATRIA JAYA 01','SDN Satria Jaya 01','./assets/logo-sekolah.png'])
     assert.equal(halaman.includes(jejak),false,`login bersih dari ${jejak}`);
   assert.equal(SCHOOL_PLACEHOLDER,'Nama Sekolah','fallback netral, bukan nama sekolah lama');

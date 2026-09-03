@@ -262,7 +262,9 @@ test('18. Isi promosi, alur pembelian, dan identitas pengembang tampil',()=>{
   /* Visual hero disusun sendiri, tanpa gambar stok maupun foto orang. Rinciannya diperiksa
      terpisah pada test panggung tiga perangkat di bawah. */
   assert.match(teks,/<div class="panggung">/);
-  assert.equal(/<img[^>]+src="[^"]*\.(?:png|jpe?g|webp)"/i.test(teks),false,'tidak memakai gambar stok');
+  const rasterAsing=[...teks.matchAll(/<img[^>]+src="([^"]*\.(?:png|jpe?g|webp))"/gi)]
+    .map(item=>item[1]).filter(src=>src!=='/assets/app-icon-192.png');
+  assert.deepEqual(rasterAsing,[],'tidak memakai gambar stok; satu-satunya raster adalah lambang e-Rapor resmi');
 
   /* Enam kartu keunggulan sesuai desain final. */
   for(const kelompok of ['Administrasi Sekolah','Penilaian','Kegiatan Pembelajaran',
@@ -426,7 +428,7 @@ test('24. Berkas hasil build dilayani dengan tipe konten yang benar',()=>{
 
 test('25. Navbar memuat lambang aplikasi, empat menu, dan tombol Hubungi Developer',()=>{
   const teks=halaman();
-  assert.match(teks,/<img class="nav-logo" src="\/assets\/app-icon\.svg"/,'lambang bawaan e-Rapor, bukan logo sekolah tertentu');
+  assert.match(teks,/<img class="nav-logo" src="\/assets\/app-icon-192\.png"/,'lambang e-Rapor final, bukan logo sekolah tertentu');
   assert.match(teks,/<span><strong>e-Rapor<\/strong><small>Solusi Digital Pengelolaan Rapor Sekolah<\/small><\/span>/);
   for(const [label,tujuan] of [['Beranda','beranda'],['Keunggulan','keunggulan'],
     ['Cara Pemesanan','cara-pemesanan'],['Tutorial','tutorial']]){
@@ -522,7 +524,7 @@ test('28. Tutorial memuat tiga belas panduan dengan isi yang benar',()=>{
 test('29. Footer memuat lambang, kontak WhatsApp, dan identitas pengembang',()=>{
   const teks=halaman();
   const kaki=teks.slice(teks.indexOf('<footer class="kaki">'));
-  assert.match(kaki,/<img src="\/assets\/app-icon\.svg" alt="Lambang e-Rapor"/,'lambang e-Rapor di footer');
+  assert.match(kaki,/<img src="\/assets\/app-icon-192\.png" alt="Lambang e-Rapor"/,'lambang e-Rapor di footer');
   assert.match(kaki,/<strong>e-Rapor<\/strong><span>Solusi Digital Pengelolaan Rapor Sekolah<\/span>/);
   assert.match(kaki,/class="kaki-wa-ikon"[\s\S]{0,200}?<use href="#ikon-wa"\/>/,'lambang WhatsApp di footer');
   assert.match(kaki,/<span class="kaki-label">WHATSAPP<\/span>/);
@@ -567,7 +569,7 @@ test('31. Hero memuat laptop, tablet, dan ponsel Android sekaligus',()=>{
   /* Tidak ada tangkapan layar: satu-satunya gambar adalah lambang aplikasi. */
   const gambar=[...panggung.matchAll(/<img[^>]+src="([^"]+)"/g)].map(item=>item[1]);
   assert.ok(gambar.length>0);
-  assert.ok(gambar.every(item=>item==='/assets/app-icon.svg'),'hanya lambang e-Rapor');
+  assert.ok(gambar.every(item=>item==='/assets/app-icon-192.png'),'hanya lambang e-Rapor');
   /* Tidak ada bagian yang dapat diklik atau diisi di dalam panggung. */
   assert.equal(/<(?:a|button|input|select|textarea)\b/.test(panggung),false,'panggung tidak interaktif');
   assert.match(teks,/<div class="hero-visual reveal" aria-hidden="true">/,'panggung disembunyikan dari pembaca layar');

@@ -49,7 +49,7 @@ test('Branding adalah lapisan HTML tersendiri di atas foto',()=>{
     assert.ok(foto.indexOf(teks)>iIsi,`${teks} berada di dalam lapisan branding, bukan di gambar`);
   /* Logo sekolah adalah gambar tersendiri milik sekolah pengguna, terpisah dari foto latar. */
   assert.match(foto,/<img class="login-logo" src="\$\{escapeHtml\(crest\)\}"/,'logo memakai sumber gambarnya sendiri');
-  assert.match(login(),/const crest=schoolLogo\|\|'\.\/assets\/app-icon\.svg'/,'tanpa logo sekolah dipakai lambang netral aplikasi');
+  assert.match(login(),/const crest=schoolLogo\|\|'\.\/assets\/app-icon-192\.png'/,'tanpa logo sekolah dipakai lambang netral aplikasi');
 });
 
 test('Overlay hanya gradasi tembus pandang, tanpa gambar dan tanpa teks tertanam',()=>{
