@@ -7,8 +7,8 @@ import { saveAssessmentScores, saveAssessmentSettings } from '../src/services/as
 import { composeIntracurricularDescription, getStudentIntracurricularSelection,
   INTRACURRICULAR_PREDICATES, listIntracurricularObjectives, listIntracurricularSubjects,
   saveStudentIntracurricularSelection } from '../src/services/intracurricular.js';
-import { adoptCatalogueObjectives, listActiveObjectives,
-  setActiveObjective } from '../src/services/learning-objectives.js';
+import { addReferenceObjectives, listActiveObjectives, listReferenceObjectives,
+  listSchoolObjectives, setActiveObjective } from '../src/services/learning-objectives.js';
 import { createLearningObjective } from '../src/services/objectives.js';
 import { ringkasObjectives } from '../src/services/objective-summary.js';
 
@@ -19,6 +19,14 @@ import { calculateReportScore } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
 import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
 import { activityTable } from '../src/pages/print.js';
+
+/* Sepadan dengan alur nyata: buka + Tambah TP, centang semua, lalu Simpan. */
+function masukkanSemuaTp(session,subjectId){
+  const referensi=listReferenceObjectives(session,subjectId);
+  if(referensi.some(item=>!item.sudahDipakai))
+    addReferenceObjectives(session,subjectId,referensi.filter(item=>!item.sudahDipakai).map(item=>item.id));
+  return listSchoolObjectives(session,subjectId);
+}
 
 /* Tahap 8E — Intrakurikuler: Mapel → TP → Predikat → Deskripsi otomatis.
 
@@ -34,8 +42,11 @@ function useMemoryStorage(){
   invalidateDbCache();
 }
 const guru=(classId='5B')=>({role:'teacher',classId,academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`});
+/* TP tidak lagi muncul sendiri: guru memasukkannya lewat + Tambah TP. Helper ini menirukan
+   langkah itu supaya test berbicara tentang Intrakurikuler, bukan tentang penyiapan TP. */
 function aktifkanMapel(session,ids){
   saveSubjectMapping(session,SUBJECTS_DEFAULT.map((item,index)=>({...item,active:ids.includes(item.id),order:index+1})));
+  for(const id of ids)masukkanSemuaTp(session,id);
 }
 function tambahSiswa(session,index=1){
   return createStudent(session,{classId:session.classId,nis:`${session.classId}-${index}`,
@@ -81,7 +92,11 @@ test('TP intrakurikuler memakai katalog yang sama dan mengikuti fase kelas',()=>
   aktifkanMapel(kelas,['mtk']);
   const tp=listIntracurricularObjectives(kelas,'mtk');
   assert.ok(tp.length>=2);
-  for(const item of tp){assert.equal(item.phase,'A');assert.equal(item.status,'inspiratif');}
+  /* Setelah dimasukkan lewat + Tambah TP, butirnya menjadi TP SEKOLAH yang dapat diedit.
+     Status 'inspiratif' tetap melekat pada katalog referensinya, bukan pada TP sekolah. */
+  for(const item of tp){assert.equal(item.phase,'A');assert.equal(item.editable,true);}
+  for(const item of listReferenceObjectives(kelas,'mtk'))
+    assert.equal(item.status,'inspiratif','katalog referensi tetap berstatus inspiratif');
   const kelas5=guru('5B');
   aktifkanMapel(kelas5,['mtk']);
   assert.equal(listIntracurricularObjectives(kelas5,'mtk')[0].phase,'C');
@@ -213,7 +228,7 @@ test('Intrakurikuler tidak menimpa Kokurikuler maupun Penilaian Umum',()=>{
     saveAssessmentScores(kelas,'mtk',jenis,{[siswa.id]:80});
   /* TP aktif ditentukan di menu Tujuan Pembelajaran, dan Intrakurikuler membaca daftar
      yang sama persis. */
-  const semuaTp=adoptCatalogueObjectives(kelas,'mtk');
+  const semuaTp=masukkanSemuaTp(kelas,'mtk');
   for(const item of semuaTp)setActiveObjective(kelas,'mtk',item.id,item.id===semuaTp[0].id);
   const tpUmum=listIntracurricularObjectives(kelas,'mtk');
   assert.deepEqual(tpUmum.map(item=>item.id),[semuaTp[0].id],'Intrakurikuler memakai TP aktif yang sama');

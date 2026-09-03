@@ -20,7 +20,10 @@ function validateInput(input,records,excludeId=null,expectedPhase,{code=null}={}
   if(input?.phase && input.phase!==expectedPhase) errors.push(`Fase TP untuk Kelas ${String(input?.classId||'').trim()||''} wajib Fase ${expectedPhase}.`);
   if(records.some(record=>record.id!==excludeId && String(record.code||'').toLowerCase()===resolvedCode.toLowerCase())) errors.push(`Kode TP ${resolvedCode} sudah digunakan pada mapel ini.`);
   if(errors.length) throw new Error(errors.join(' '));
-  return {code:resolvedCode,description,phase:expectedPhase,active:input?.active!==false};
+  /* Elemen CP yang diturunkan TP ini. Boleh kosong: TP buatan guru tidak wajib ditautkan. */
+  const cpElementId=input?.cpElementId===undefined?undefined:(clean(input.cpElementId,120)||null);
+  return {code:resolvedCode,description,phase:expectedPhase,active:input?.active!==false,
+    ...(cpElementId===undefined?{}:{cpElementId})};
 }
 function normalizeOrders(db,session,subjectId){
   entries(db,session,subjectId)

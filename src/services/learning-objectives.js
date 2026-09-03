@@ -1,3 +1,4 @@
+import { capaianPembelajaran, cpElementById, cpElementForObjective } from '../data/curriculum-cp.js';
 import { defaultLearningObjectives, hasDefaultsFor, OBJECTIVE_STATUS, phaseForClassId, TP_SOURCES } from '../data/learning-objective-defaults.js';
 import { createLearningObjective, listLearningObjectives, setLearningObjectiveActive } from './objectives.js';
 import { scopeKey } from './storage.js';
@@ -24,21 +25,25 @@ export function objectiveScopeKey(session,subjectId){
   return `${scopeKey(session)}|${subjectId}`;
 }
 
-/* Daftar TP yang dipakai guru: TP lokal bila sudah ada, selain itu katalog inspiratif bawaan.
-   TP lokal tidak pernah ditimpa katalog, dan katalog tidak pernah ditulis ke database kecuali
-   guru memang mengadopsinya lewat menu Tujuan Pembelajaran. */
+/* TP yang dipakai guru adalah TP SEKOLAH — yaitu yang sudah dimasukkan lewat menu Tujuan
+   Pembelajaran. Katalog bawaan TIDAK pernah ikut terhitung: ia hanya menjadi pilihan pada
+   modal + Tambah TP. Dengan begitu tabel pada menu Tujuan Pembelajaran benar-benar menjadi
+   satu-satunya sumber, dan Penilaian tidak pernah memakai TP yang tidak pernah dipilih guru. */
 export function listObjectivesForAssessment(session,subjectId,{activeOnly=true}={}){
   let lokal=[];
   try{lokal=listLearningObjectives(session,subjectId,{activeOnly});}catch{lokal=[];}
-  if(lokal.length)
-    return lokal.map(record=>({...record,isDefault:false,status:record.status||'lokal',editable:true}));
-  /* Bila guru sudah punya TP tetapi seluruhnya dinonaktifkan, hasilnya memang kosong.
-     Katalog bawaan tidak boleh muncul kembali dan menutupi keputusan guru itu. */
-  let semua=[];
-  try{semua=listLearningObjectives(session,subjectId);}catch{semua=[];}
-  if(semua.length)return [];
-  const bawaan=defaultLearningObjectives(session.classId,subjectId);
-  return activeOnly?bawaan.filter(item=>item.active):bawaan;
+  return lokal.map(record=>({...record,isDefault:false,status:record.status||'lokal',editable:true}));
+}
+
+/* Mencari satu TP berdasarkan id, termasuk butir katalog yang pernah dirujuk data lama.
+   Dipakai untuk MENAMPILKAN riwayat: butir katalog tidak pernah dianggap TP aktif. */
+export function resolveObjective(session,subjectId,objectiveId){
+  const id=String(objectiveId||'');
+  const sekolah=listObjectivesForAssessment(session,subjectId,{activeOnly:false})
+    .find(item=>item.id===id);
+  if(sekolah)return sekolah;
+  const katalog=defaultLearningObjectives(session?.classId,subjectId).find(item=>item.id===id);
+  return katalog?{...katalog,isDefault:true,active:false}:null;
 }
 
 export function hasObjectiveCatalogue(session,subjectId){
@@ -54,36 +59,73 @@ export function listActiveObjectives(session,subjectId){
   return listObjectivesForAssessment(session,subjectId,{activeOnly:true});
 }
 
-/* Katalog bawaan belum berupa record milik sekolah sehingga statusnya belum dapat diubah satu
-   per satu. Begitu guru menyentuh salah satunya, seluruh katalog disalin apa adanya menjadi TP
-   milik sekolah — isinya tidak diubah, hanya dijadikan record supaya dapat diaktifkan atau
-   dinonaktifkan. TP yang sudah dibuat guru tidak pernah ditimpa. */
-export function adoptCatalogueObjectives(session,subjectId){
-  let lokal=[];
-  try{lokal=listLearningObjectives(session,subjectId);}catch{lokal=[];}
-  if(lokal.length)return lokal;
-  for(const item of defaultLearningObjectives(session.classId,subjectId))
-    createLearningObjective(session,subjectId,{description:item.description,active:item.active!==false});
-  return listLearningObjectives(session,subjectId);
+/* -------------------------------------------------------------------- CP sebagai acuan
+
+   CP adalah acuan kompetensi resmi; TP adalah turunan operasionalnya. Fase tidak pernah
+   dipilih manual — ia dihitung dari tingkat rombel yang sedang aktif. */
+export function capaianPembelajaranFor(session,subjectId){
+  return capaianPembelajaran(session?.classId,subjectId);
 }
 
-export function isCatalogueOnly(session,subjectId){
-  try{
-    return listLearningObjectives(session,subjectId).length===0&&hasDefaultsFor(session.classId,subjectId);
-  }catch{return false;}
+/* ------------------------------------------------------- Katalog TP referensi (+ Tambah TP)
+
+   Katalog bukan "TP sekolah" dan tidak pernah masuk sendiri ke daftar guru. Ia hanya menjadi
+   pilihan pada modal + Tambah TP. Butir yang sudah pernah dimasukkan ditandai `sudahDipakai`
+   supaya tidak terkirim dua kali. */
+export function listReferenceObjectives(session,subjectId){
+  const phase=phaseForClassId(session?.classId);
+  if(!phase)return [];
+  let dipakai=[];
+  try{dipakai=listLearningObjectives(session,subjectId);}catch{dipakai=[];}
+  const sudah=new Set(dipakai.map(item=>String(item.description).trim().toLowerCase()));
+  return defaultLearningObjectives(session?.classId,subjectId).map(item=>({
+    ...item,
+    cpElement:cpElementForObjective(subjectId,phase,item.order),
+    sudahDipakai:sudah.has(String(item.description).trim().toLowerCase()),
+  }));
 }
 
-/* Mengaktifkan atau menonaktifkan satu TP dari menu Tujuan Pembelajaran. Bila mapelnya masih
-   memakai katalog bawaan, katalog itu diadopsi lebih dulu supaya perubahan status benar-benar
-   tersimpan dan tidak hilang saat halaman dibuka ulang. */
+/* Menambahkan TP referensi yang dicentang guru menjadi TP sekolah. Hanya butir terpilih yang
+   masuk — tidak pernah seluruh katalog sekaligus — dan butir yang sudah ada dilewati sehingga
+   menekan Simpan dua kali tidak menghasilkan TP kembar. */
+export function addReferenceObjectives(session,subjectId,referenceIds){
+  if(session?.role!=='teacher')throw new Error('Hanya Guru yang dapat mengatur Tujuan Pembelajaran.');
+  const diminta=[...new Set((Array.isArray(referenceIds)?referenceIds:[]).map(id=>String(id)))];
+  if(!diminta.length)throw new Error('Pilih minimal satu Tujuan Pembelajaran.');
+  const katalog=listReferenceObjectives(session,subjectId);
+  const dipilih=diminta.map(id=>katalog.find(item=>item.id===id)||null);
+  if(dipilih.some(item=>!item))throw new Error('Tujuan Pembelajaran referensi tidak ditemukan pada mata pelajaran ini.');
+  const ditambah=[];
+  for(const item of dipilih){
+    if(item.sudahDipakai)continue;
+    ditambah.push(createLearningObjective(session,subjectId,{
+      description:item.description,active:true,
+      cpElementId:item.cpElement?.id||null,
+    }));
+  }
+  return {added:ditambah.length,skipped:dipilih.length-ditambah.length,
+    objectives:listLearningObjectives(session,subjectId)};
+}
+
+/* Daftar TP sekolah beserta konteksnya, siap ditampilkan sebagai tabel pada menu Tujuan
+   Pembelajaran: tingkat kelas, fase, semester, isi TP, status, dan elemen CP yang diturunkan. */
+export function listSchoolObjectives(session,subjectId){
+  const phase=phaseForClassId(session?.classId);
+  let daftar=[];
+  try{daftar=listLearningObjectives(session,subjectId);}catch{daftar=[];}
+  return daftar.map(item=>({
+    ...item,
+    phase:item.phase||phase,
+    grade:Number.parseInt(String(session?.classId||'').trim(),10)||null,
+    semester:session?.semester||'',
+    academicYear:session?.academicYear||'',
+    cpElement:item.cpElementId?cpElementById(subjectId,item.cpElementId):null,
+  }));
+}
+
 export function setActiveObjective(session,subjectId,objectiveId,active){
   if(session?.role!=='teacher')throw new Error('Hanya Guru yang dapat mengatur Tujuan Pembelajaran.');
-  const lokal=adoptCatalogueObjectives(session,subjectId);
-  const target=lokal.find(item=>item.id===objectiveId)
-    ||lokal.find(item=>item.code===objectiveId)
-    ||lokal.find(item=>item.description===objectiveId);
-  if(!target)throw new Error('Tujuan Pembelajaran tidak ditemukan pada mata pelajaran ini.');
-  setLearningObjectiveActive(session,subjectId,target.id,Boolean(active));
+  setLearningObjectiveActive(session,subjectId,objectiveId,Boolean(active));
   return listActiveObjectives(session,subjectId);
 }
 

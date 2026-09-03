@@ -7,12 +7,20 @@ import { ASSESSMENT_TYPES, getAssessmentSheet, saveAssessmentScores,
 import { generateReportDescription, ringkasObjectives } from '../src/services/descriptions.js';
 import { INTRACURRICULAR_PREDICATES, composeIntracurricularDescription,
   listIntracurricularObjectives } from '../src/services/intracurricular.js';
-import { adoptCatalogueObjectives, isCatalogueOnly, listActiveObjectives,
-  listObjectivesForAssessment, phaseForClassId,
+import { addReferenceObjectives, listActiveObjectives, listObjectivesForAssessment,
+  listReferenceObjectives, listSchoolObjectives, phaseForClassId,
   setActiveObjective } from '../src/services/learning-objectives.js';
 import { createLearningObjective } from '../src/services/objectives.js';
 import { createStudent } from '../src/services/students.js';
 import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+
+/* Sepadan dengan alur nyata: buka + Tambah TP, centang semua, lalu Simpan. */
+function masukkanSemuaTp(session,subjectId){
+  const referensi=listReferenceObjectives(session,subjectId);
+  if(referensi.some(item=>!item.sudahDipakai))
+    addReferenceObjectives(session,subjectId,referensi.filter(item=>!item.sudahDipakai).map(item=>item.id));
+  return listSchoolObjectives(session,subjectId);
+}
 
 /* SATU SUMBER: menu Tujuan Pembelajaran.
 
@@ -44,7 +52,7 @@ function siapkanSiswa(session,jumlah=3){
 }
 /* Meniru guru yang mencentang sebagian TP pada menu Tujuan Pembelajaran. */
 function aktifkanHanya(session,subjectId,ids){
-  const semua=adoptCatalogueObjectives(session,subjectId);
+  const semua=masukkanSemuaTp(session,subjectId);
   for(const item of semua)setActiveObjective(session,subjectId,item.id,ids.includes(item.id));
   return listActiveObjectives(session,subjectId);
 }
@@ -55,7 +63,7 @@ test('1. TP aktif ditentukan hanya dari menu Tujuan Pembelajaran',()=>{
   useMemoryStorage();
   const session=guru();
   aktifkanMapel(session);
-  const semua=adoptCatalogueObjectives(session,'mtk');
+  const semua=masukkanSemuaTp(session,'mtk');
   assert.ok(semua.length>=3);
 
   const pilih=semua.slice(0,2).map(item=>item.id);
@@ -74,7 +82,7 @@ test('2. TP aktif terikat tahun pelajaran, semester, rombel, dan mata pelajaran'
   useMemoryStorage();
   const lima=guru('5B');
   aktifkanMapel(lima);
-  const semua=adoptCatalogueObjectives(lima,'ipas');
+  const semua=masukkanSemuaTp(lima,'ipas');
   aktifkanHanya(lima,'ipas',[semua[0].id]);
   assert.equal(listActiveObjectives(lima,'ipas').length,1);
 
@@ -98,7 +106,7 @@ test('3. Kelima komponen penilaian memakai TP aktif yang sama tanpa memilih ulan
   const session=guru();
   aktifkanMapel(session);
   siapkanSiswa(session,3);
-  const semua=adoptCatalogueObjectives(session,'mtk');
+  const semua=masukkanSemuaTp(session,'mtk');
   const dipakai=semua.slice(0,3).map(item=>item.id);
   aktifkanHanya(session,'mtk',dipakai);
 
@@ -123,7 +131,7 @@ test('4. Satu komponen tetap menghasilkan SATU nilai per siswa',()=>{
   const session=guru();
   aktifkanMapel(session);
   siapkanSiswa(session,3);
-  const semua=adoptCatalogueObjectives(session,'mtk');
+  const semua=masukkanSemuaTp(session,'mtk');
   aktifkanHanya(session,'mtk',semua.slice(0,3).map(item=>item.id));
 
   const lembar=getAssessmentSheet(session,'mtk','scopeSummative');
@@ -232,7 +240,7 @@ test('9. Intrakurikuler memakai TP aktif yang sama',()=>{
   useMemoryStorage();
   const session=guru();
   aktifkanMapel(session);
-  const semua=adoptCatalogueObjectives(session,'mtk');
+  const semua=masukkanSemuaTp(session,'mtk');
   aktifkanHanya(session,'mtk',semua.slice(0,2).map(item=>item.id));
 
   assert.deepEqual(listIntracurricularObjectives(session,'mtk').map(item=>item.id),
@@ -275,6 +283,7 @@ test('11. Data existing tetap aman dan kunci penyimpanan tidak berubah',()=>{
   useMemoryStorage();
   const session=guru();
   aktifkanMapel(session);
+  masukkanSemuaTp(session,'mtk');
   const kunci=`${ACADEMIC_YEAR}|Ganjil ${ACADEMIC_YEAR}|5B|mtk`;
   const db=loadDb();
   db.assessmentObjectiveSelection={[kunci]:{subjectId:'mtk',objectiveIds:['lama-1']}};
@@ -298,18 +307,39 @@ test('12. Desain rapor tidak berubah dan tidak ada bagian baru berisi daftar TP'
 
 test('13. Menu Tujuan Pembelajaran menjadi pusat pengaturan TP',()=>{
   const halaman=read('src/pages/objectives.js');
-  assert.match(halaman,/adoptCatalogueObjectives/,'katalog bawaan dapat diadopsi menjadi TP sekolah');
-  assert.match(halaman,/isCatalogueOnly/,'halaman tahu kapan mapel masih memakai katalog');
-  assert.match(halaman,/data-active/,'setiap TP punya kontrol aktif');
-  assert.match(halaman,/Tambah TP/,'guru dapat menambah TP');
+  /* Alurnya: pilih mapel, + Tambah TP, centang, Simpan. Tanpa langkah adopsi katalog. */
+  assert.match(halaman,/Tambah TP/,'tombol Tambah TP tersedia');
+  assert.match(halaman,/Pilih Tujuan Pembelajaran/,'modal pemilihan TP');
+  assert.match(halaman,/Simpan TP Terpilih/,'hanya TP terpilih yang disimpan');
+  assert.match(halaman,/data-pilih-semua/,'tersedia Pilih Semua');
+  assert.match(halaman,/Buat TP Manual/,'guru tetap dapat merumuskan TP sendiri');
+  assert.match(halaman,/addReferenceObjectives/,'penambahan lewat layanan TP referensi');
+  assert.equal(/Simpan Katalog sebagai TP Sekolah|adoptCatalogueObjectives|isCatalogueOnly/.test(halaman),false,
+    'alur adopsi katalog sudah dihapus dari UI');
+  /* Fase read-only dan tabel memuat kolom yang diminta. */
+  assert.match(halaman,/id="objectivePhase"[^>]*readonly|readonly/,'fase tidak dipilih manual');
+  for(const kolom of ['<th>No</th>','<th>Tingkat</th>','<th>Fase</th>','<th>Semester</th>',
+    '<th>Tujuan Pembelajaran</th>','<th>Status</th>','<th>Aksi</th>'])
+    assert.ok(halaman.includes(kolom),`kolom ${kolom} tersedia`);
 
   useMemoryStorage();
   const session=guru();
   aktifkanMapel(session);
-  assert.equal(isCatalogueOnly(session,'mtk'),true,'awalnya masih katalog bawaan');
-  adoptCatalogueObjectives(session,'mtk');
-  assert.equal(isCatalogueOnly(session,'mtk'),false,'setelah diadopsi menjadi TP sekolah');
-  /* Isi katalog tidak diubah saat diadopsi. */
-  const sesudah=listObjectivesForAssessment(session,'mtk',{activeOnly:false}).map(item=>item.description);
-  assert.ok(sesudah.length>0&&sesudah.every(teks=>teks.trim().length>0));
+  /* Membuka mapel tidak memasukkan TP apa pun. */
+  assert.deepEqual(listActiveObjectives(session,'mtk'),[]);
+  const referensi=listReferenceObjectives(session,'mtk');
+  assert.ok(referensi.length>=3,'katalog referensi tersedia sebagai pilihan');
+  const hasil=addReferenceObjectives(session,'mtk',referensi.slice(0,2).map(item=>item.id));
+  assert.equal(hasil.added,2,'hanya TP yang dicentang yang masuk');
+  const tabel=listSchoolObjectives(session,'mtk');
+  assert.equal(tabel.length,2);
+  for(const baris of tabel){
+    assert.equal(baris.grade,5);
+    assert.equal(baris.phase,'C');
+    assert.equal(baris.semester,`Ganjil ${ACADEMIC_YEAR}`);
+    assert.equal(baris.active,true);
+  }
+  /* Menekan Simpan lagi tidak menghasilkan TP kembar. */
+  assert.equal(addReferenceObjectives(session,'mtk',
+    listReferenceObjectives(session,'mtk').slice(0,2).map(item=>item.id)).added,0);
 });

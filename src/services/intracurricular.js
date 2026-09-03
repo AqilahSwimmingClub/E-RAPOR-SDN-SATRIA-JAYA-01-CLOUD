@@ -1,7 +1,7 @@
 import { composeActivityDescription } from '../data/activity-description.js';
 import { CLASSES } from '../data/constants.js';
 import { ACTIVITY_PREDICATES, getStudentIntracurricular, saveStudentIntracurricular } from './completeness.js';
-import { listObjectivesForAssessment } from './learning-objectives.js';
+import { listObjectivesForAssessment, resolveObjective } from './learning-objectives.js';
 import { ringkasObjectives } from './objective-summary.js';
 import { listReferenceAcademicYears, listReferenceSemesters } from './references.js';
 import { loadDb, updateDb } from './storage.js';
@@ -93,12 +93,10 @@ export function listIntracurricularObjectives(session,subjectId){
 export function listInactiveReferencedObjectives(session,subjectId,objectiveIds=[]){
   const dirujuk=[...new Set((Array.isArray(objectiveIds)?objectiveIds:[]).map(id=>String(id)))];
   if(!dirujuk.length)return [];
-  let semua=[];
-  try{semua=listObjectivesForAssessment(session,subjectId,{activeOnly:false});}catch{return [];}
   const aktif=new Set(listIntracurricularObjectives(session,subjectId).map(item=>item.id));
   return dirujuk
     .filter(id=>!aktif.has(id))
-    .map(id=>semua.find(item=>item.id===id)||null)
+    .map(id=>{try{return resolveObjective(session,subjectId,id);}catch{return null;}})
     .filter(Boolean)
     .map(item=>({...item,active:false,inactive:true}));
 }

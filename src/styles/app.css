@@ -45,6 +45,20 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.icon{display:bl
    ringkas inilah yang menampilkan berapa TP dipakai tiap komponen beserta tombol ubahnya.
    Grid-nya mengalir sendiri: satu kolom di HP, dua di tablet, dan melebar di layar besar. */
 .objective-reference-foot{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between}
+/* Kartu acuan CP dan tabel TP pada menu Tujuan Pembelajaran. CP dan TP tampil sebagai dua
+   blok terpisah supaya tidak terbaca sebagai satu daftar yang sama. */
+.cp-card .section-head p{max-width:74ch}
+.cp-elements{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
+.cp-element{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:11.5px;font-weight:750}
+.cp-source{margin:11px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
+.cp-tag{display:block;margin-top:4px;color:var(--muted);font-size:10.5px;font-weight:750}
+.objective-table td{vertical-align:top}
+.objective-table .objective-text{min-width:260px;line-height:1.5}
+.objective-table .row-actions{flex-wrap:nowrap;gap:5px;justify-content:flex-end}
+.objective-table td:last-child{white-space:nowrap}
+.picker-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:9px;margin-bottom:9px}
+.picker-all{background:var(--paper);border-style:dashed}
+@media (max-width:640px){.objective-table .objective-text{min-width:180px}}
 /* TP yang pernah dipilih Intrakurikuler lalu dinonaktifkan di menu Tujuan Pembelajaran.
    Ditampilkan agar guru paham mengapa pilihannya berkurang, bukan dihilangkan diam-diam. */
 .objective-inactive-note{margin-top:10px;background:rgba(255,201,61,.12);border:1px solid rgba(255,201,61,.4);border-radius:11px;padding:10px 12px;font-size:11.5px;line-height:1.55;color:var(--ink)}

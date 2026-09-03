@@ -5,11 +5,19 @@ import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { composeIntracurricularDescription, getStudentIntracurricularSelection,
   listInactiveReferencedObjectives, listIntracurricularObjectives,
   saveStudentIntracurricularSelection } from '../src/services/intracurricular.js';
-import { adoptCatalogueObjectives, listActiveObjectives,
-  setActiveObjective } from '../src/services/learning-objectives.js';
+import { addReferenceObjectives, listActiveObjectives, listReferenceObjectives,
+  listSchoolObjectives, setActiveObjective } from '../src/services/learning-objectives.js';
 import { ringkasObjectives } from '../src/services/objective-summary.js';
 import { createStudent } from '../src/services/students.js';
 import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+
+/* Sepadan dengan alur nyata: buka + Tambah TP, centang semua, lalu Simpan. */
+function masukkanSemuaTp(session,subjectId){
+  const referensi=listReferenceObjectives(session,subjectId);
+  if(referensi.some(item=>!item.sudahDipakai))
+    addReferenceObjectives(session,subjectId,referensi.filter(item=>!item.sudahDipakai).map(item=>item.id));
+  return listSchoolObjectives(session,subjectId);
+}
 
 /* Penilaian dan Intrakurikuler SENGAJA berbeda.
 
@@ -40,7 +48,7 @@ function tambahSiswa(session){
 }
 /* Skenario §8: empat TP dibuat, tiga diaktifkan. */
 function siapkanEmpatTp(session,subjectId='ipas'){
-  const semua=adoptCatalogueObjectives(session,subjectId);
+  const semua=masukkanSemuaTp(session,subjectId);
   assert.ok(semua.length>=4,'katalog menyediakan minimal empat TP');
   const empat=semua.slice(0,4);
   for(const item of semua)setActiveObjective(session,subjectId,item.id,empat.slice(0,3).includes(item));

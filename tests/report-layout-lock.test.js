@@ -6,7 +6,8 @@ import { saveAssessmentScores, saveAssessmentSettings } from '../src/services/as
 import { generateReportDescription } from '../src/services/descriptions.js';
 import { composeIntracurricularDescription, listIntracurricularObjectives,
   listIntracurricularSubjects, saveStudentIntracurricularSelection } from '../src/services/intracurricular.js';
-import { listObjectivesForAssessment } from '../src/services/learning-objectives.js';
+import { addReferenceObjectives, listObjectivesForAssessment,
+  listReferenceObjectives } from '../src/services/learning-objectives.js';
 import { createStudent } from '../src/services/students.js';
 import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
 import { activityTable, cocurricularTable, extracurricularTable, intracurricularTable } from '../src/pages/print.js';
@@ -38,6 +39,9 @@ const guru={role:'teacher',classId:'5B',academicYear:ACADEMIC_YEAR,semester:`Gan
 function siapkan(){
   useMemoryStorage();
   saveSubjectMapping(guru,SUBJECTS_DEFAULT.map((item,index)=>({...item,active:item.id==='mtk',order:index+1})));
+  /* TP dimasukkan lewat + Tambah TP seperti yang dilakukan guru di menu Tujuan Pembelajaran. */
+  const referensi=listReferenceObjectives(guru,'mtk').filter(item=>!item.sudahDipakai);
+  if(referensi.length)addReferenceObjectives(guru,'mtk',referensi.map(item=>item.id));
   const siswa=createStudent(guru,{classId:guru.classId,nis:'5B-1',nisn:'9988000001',name:'Siswa 1',gender:'P',photo:''});
   saveAssessmentSettings(guru,'mtk',{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
   for(const jenis of ['formative','daily','practice','scopeSummative','semesterSummative'])

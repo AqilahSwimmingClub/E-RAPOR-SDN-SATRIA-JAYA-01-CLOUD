@@ -9,6 +9,7 @@ import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/s
 import { saveAssessmentScores, saveAssessmentSettings } from '../src/services/assessment.js';
 import { createStudent } from '../src/services/students.js';
 import { setTeacherAssignment } from '../src/services/teacher-assignments.js';
+import { addReferenceObjectives, listReferenceObjectives } from '../src/services/learning-objectives.js';
 import { ensureSecurityBootstrap } from '../src/services/auth.js';
 
 /* Admin lokal mengendalikan kapan Guru boleh mulai memakai e-Rapor pada satu tahun pelajaran
@@ -33,6 +34,12 @@ async function lengkapiChecklist(){
   saveSubjectMapping(sesiGuru,SUBJECTS_DEFAULT.map((item,index)=>({...item,active:aktif.includes(item.id),order:index+1})));
   for(const subjectId of aktif)
     saveAssessmentSettings(sesiGuru,subjectId,{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
+  /* TP tidak lagi muncul sendiri; guru memasukkannya lewat + Tambah TP pada menu
+     Tujuan Pembelajaran. Checklist kesiapan menuntut langkah itu sudah dilakukan. */
+  for(const subjectId of aktif){
+    const referensi=listReferenceObjectives(sesiGuru,subjectId).filter(item=>!item.sudahDipakai);
+    if(referensi.length)addReferenceObjectives(sesiGuru,subjectId,referensi.map(item=>item.id));
+  }
   /* Checklist juga menuntut data siswa, akun Guru yang aktif, dan penugasan mata pelajaran. */
   createStudent(sesiGuru,{classId:'5B',nis:'5B01',nisn:'0051000001',name:'Siswa Contoh',gender:'L',
     religion:'Islam',birthPlace:'Kota',birthDate:'2015-01-02',parentName:'Orang Tua',phone:'08',

@@ -4,12 +4,12 @@ import { readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { saveAssessmentScores, saveAssessmentSettings } from '../src/services/assessment.js';
 import { generateReportDescription, saveReportDescription } from '../src/services/descriptions.js';
-import { adoptCatalogueObjectives, listActiveObjectives, listObjectivesForAssessment,
-  setActiveObjective } from '../src/services/learning-objectives.js';
+import { addReferenceObjectives, listActiveObjectives, listObjectivesForAssessment,
+  listReferenceObjectives, listSchoolObjectives, setActiveObjective } from '../src/services/learning-objectives.js';
 
 /* TP yang dipakai ditentukan lewat status aktif pada menu Tujuan Pembelajaran. */
 function aktifkanHanya(session,subjectId,ids){
-  const semua=adoptCatalogueObjectives(session,subjectId);
+  const semua=masukkanSemuaTp(session,subjectId);
   for(const item of semua)setActiveObjective(session,subjectId,item.id,ids.includes(item.id));
   return listActiveObjectives(session,subjectId);
 }
@@ -17,6 +17,14 @@ import { createLearningObjective } from '../src/services/objectives.js';
 import { calculateReportScore, calculateReportSheet } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
 import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+
+/* Sepadan dengan alur nyata: buka + Tambah TP, centang semua, lalu Simpan. */
+function masukkanSemuaTp(session,subjectId){
+  const referensi=listReferenceObjectives(session,subjectId);
+  if(referensi.some(item=>!item.sudahDipakai))
+    addReferenceObjectives(session,subjectId,referensi.filter(item=>!item.sudahDipakai).map(item=>item.id));
+  return listSchoolObjectives(session,subjectId);
+}
 
 /* Tahap 8D — TP dipakai sebagai ACUAN penilaian.
 
