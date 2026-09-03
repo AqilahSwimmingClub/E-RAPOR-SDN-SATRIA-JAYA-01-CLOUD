@@ -61,7 +61,7 @@
   <div class="hero-glow" aria-hidden="true"></div>
   <div class="shell hero-grid">
     <div class="hero-copy reveal">
-      <span class="badge">e-Rapor Sekolah</span>
+      <span class="badge">Solusi untuk Sekolah Modern</span>
       <h1>Kelola Rapor Sekolah<br/><span class="emas">Lebih Mudah, Rapi,<br/>dan Terintegrasi</span></h1>
       <p class="hero-lead">e-Rapor membantu sekolah mengelola data siswa, penilaian,
         kegiatan pembelajaran, rapor, dan leger dalam satu aplikasi yang praktis.</p>
@@ -91,60 +91,105 @@
       </ul>
     </div>
 
-    <!-- Visual disusun dari elemen HTML/CSS yang meniru tampilan e-Rapor: bukan tangkapan
-         layar, bukan gambar stok, bukan foto orang. Seluruhnya bersifat gambaran saja dan
-         tidak ada satu pun bagian yang dapat diklik. -->
+    <!-- Visual perangkat disusun seluruhnya dari HTML/CSS: laptop sebagai objek utama, tablet
+         di depan kirinya, dan ponsel Android di depan kanannya. Bukan tangkapan layar, bukan
+         gambar stok, bukan foto orang, dan tidak ada satu pun bagian yang dapat diklik.
+         Isi ketiganya sengaja berbeda supaya terlihat bahwa e-Rapor dipakai di laptop, tablet,
+         maupun ponsel. -->
     <div class="hero-visual reveal" aria-hidden="true">
-      <div class="perangkat">
-        <div class="laptop">
-          <div class="laptop-layar">
-            <div class="app">
-              <div class="app-bar"><img src="/assets/app-icon.svg" alt="" width="16" height="16"/><b>e-Rapor</b></div>
-              <div class="app-body">
-                <aside class="app-nav">
-                  <i class="aktif">Dashboard</i><i>Data Siswa</i><i>Absensi</i><i>Penilaian</i>
-                  <i>Ekstrakurikuler</i><i>Rapor</i><i>Leger</i><i>Pengaturan</i>
+      <div class="panggung">
+
+        <!-- ------------------------------------------------------------------- Laptop -->
+        <div class="alat laptop">
+          <div class="laptop-tutup">
+            <div class="laptop-layar">
+              <div class="dasbor">
+                <aside class="ds-nav">
+                  <span class="ds-merek"><img src="/assets/app-icon.svg" alt="" width="13" height="13"/>e-Rapor</span>
+                  <i class="aktif">Dashboard</i><i>Data Siswa</i><i>Guru</i><i>Kelas/Rombel</i>
+                  <i>Mata Pelajaran</i><i>Penilaian</i><i>Absensi</i><i>Rapor</i>
+                  <i>Leger</i><i>Kegiatan</i><i>Pengaturan</i>
                 </aside>
-                <div class="app-isi">
-                  <div class="app-salam">
-                    <span class="avatar"></span>
-                    <div><strong>Selamat Datang,</strong><small>SDN CONTOH NUSANTARA 01</small></div>
-                    <div class="app-tahun"><small>Tahun Pelajaran</small><b>2025/2026</b></div>
+                <div class="ds-isi">
+                  <div class="ds-atas">
+                    <div><small>Selamat Datang,</small><strong>SDN Maju Jaya 01</strong></div>
+                    <span class="ds-tahun">2025/2026</span>
                   </div>
-                  <div class="app-stat">
-                    <div class="s1"><small>Jumlah Siswa</small><b>128</b></div>
-                    <div class="s2"><small>Jumlah Kelas</small><b>12</b></div>
-                    <div class="s3"><small>Kehadiran</small><b>96%</b></div>
-                    <div class="s4"><small>Rata-rata</small><b>88.5</b></div>
+                  <div class="ds-kartu">
+                    <div class="k1"><small>Siswa</small><b>248</b></div>
+                    <div class="k2"><small>Guru</small><b>18</b></div>
+                    <div class="k3"><small>Kelas</small><b>12</b></div>
+                    <div class="k4"><small>Mata Pelajaran</small><b>11</b></div>
                   </div>
-                  <div class="app-panel">
-                    <div class="panel">
+                  <div class="ds-grafik">
+                    <div class="ds-panel">
                       <small>Rekap Nilai Kelas</small>
-                      <div class="batang"><i style="height:38%"></i><i style="height:62%"></i><i style="height:48%"></i><i style="height:78%"></i><i style="height:56%"></i><i style="height:88%"></i></div>
+                      <div class="ds-batang"><i style="height:44%"></i><i style="height:66%"></i><i style="height:52%"></i><i style="height:80%"></i><i style="height:60%"></i><i style="height:90%"></i><i style="height:72%"></i></div>
+                      <div class="ds-sumbu"><span>I</span><span>II</span><span>III</span><span>IV</span><span>V</span><span>VI</span><span>VII</span></div>
                     </div>
-                    <div class="panel">
+                    <div class="ds-panel">
                       <small>Kehadiran Siswa</small>
-                      <div class="donat"><span></span></div>
+                      <div class="ds-donat"><span></span><b>96%</b></div>
+                      <div class="ds-legenda"><span class="l1">Hadir</span><span class="l2">Izin</span><span class="l3">Sakit</span></div>
                     </div>
+                  </div>
+                  <div class="ds-panel ds-kegiatan">
+                    <small>Kegiatan &amp; Pengumuman</small>
+                    <p><em></em>Penilaian Sumatif Akhir Semester dimulai 2 Desember</p>
+                    <p><em class="b"></em>Cetak rapor Kelas VI dibuka pekan depan</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <div class="laptop-kaki"></div>
+          <div class="laptop-alas"><span class="laptop-takik"></span></div>
         </div>
-        <div class="ponsel">
-          <div class="ponsel-layar">
-            <img class="ponsel-logo" src="/assets/app-icon.svg" alt="" width="38" height="38"/>
-            <strong>e-Rapor</strong>
-            <small>SDN CONTOH NUSANTARA 01</small>
-            <span class="kolom-palsu">Username</span>
-            <span class="kolom-palsu">Password</span>
-            <span class="tombol-palsu">Masuk</span>
-            <div class="ponsel-gambar"></div>
+
+        <!-- ------------------------------------------------------------------- Tablet -->
+        <div class="alat tablet">
+          <div class="tablet-layar">
+            <div class="masuk">
+              <img class="masuk-logo" src="/assets/app-icon.svg" alt="" width="30" height="30"/>
+              <strong>Masuk ke e-Rapor</strong>
+              <small>SDN Maju Jaya 01</small>
+              <span class="isian"><em>Username</em></span>
+              <span class="isian"><em>Password</em></span>
+              <span class="ingat"><i></i>Ingat saya</span>
+              <span class="tombol-utama">Masuk</span>
+            </div>
+          </div>
+          <span class="tablet-kamera"></span>
+        </div>
+
+        <!-- -------------------------------------------------------------- Ponsel Android -->
+        <div class="alat hp">
+          <span class="hp-speaker"></span>
+          <div class="hp-layar">
+            <div class="hp-atas">
+              <img src="/assets/app-icon.svg" alt="" width="18" height="18"/>
+              <div><strong>e-Rapor</strong><small>SDN Maju Jaya 01</small></div>
+            </div>
+            <div class="hp-menu">
+              <span class="m1"><i></i>Data Siswa</span>
+              <span class="m2"><i></i>Absensi</span>
+              <span class="m3"><i></i>Penilaian</span>
+              <span class="m4"><i></i>Rapor</span>
+              <span class="m5"><i></i>Kegiatan</span>
+              <span class="m6"><i></i>Pengaturan</span>
+            </div>
+            <div class="hp-ringkas">
+              <span class="hp-judul">Ringkasan Kelas</span>
+              <p><em>Kelas VI A</em><b>32 siswa</b></p>
+              <p><em>Kehadiran</em><b>96%</b></p>
+              <p><em>Rapor siap</em><b>28/32</b></p>
+            </div>
+            <div class="hp-bawah"><i class="aktif"></i><i></i><i></i><i></i></div>
           </div>
         </div>
+
       </div>
+      <p class="panggung-slogan"><strong>Satu Aplikasi</strong> untuk Semua Kebutuhan Sekolah
+        <span>Modern &bull; Praktis &bull; Terpercaya</span></p>
     </div>
   </div>
 </section>

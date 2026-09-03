@@ -101,6 +101,14 @@ if(typeof IntersectionObserver==='function'){
     }
   },{rootMargin:'0px 0px -8% 0px',threshold:.06});
   for(const bagian of bagianMuncul)pengamat.observe(bagian);
+  /* Jaring pengaman: begitu halaman selesai dimuat, apa pun yang belum sempat dilaporkan
+     pengamat tetap ditampilkan. Isi halaman tidak boleh tertinggal tak terlihat hanya karena
+     laporan pengamat terlambat atau tidak pernah datang. */
+  const tampilkanSemua=()=>{for(const bagian of bagianMuncul)bagian.classList.add('tampil');};
+  /* Pengatur waktu biasa, tanpa syarat apa pun: bahkan bila peristiwa load tidak pernah tiba
+     karena satu aset menggantung, isi halaman tetap muncul. */
+  setTimeout(tampilkanSemua,1200);
+  globalThis.addEventListener?.('load',tampilkanSemua);
 }else for(const bagian of bagianMuncul)bagian.classList.add('tampil');
 
 /* Tinggi navbar dipakai sebagai jarak henti gulir, supaya judul bagian tidak tertutup navbar. */

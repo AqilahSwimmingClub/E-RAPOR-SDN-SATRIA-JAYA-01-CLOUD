@@ -95,62 +95,144 @@ code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace}
 .hero-trust strong{display:block;font-size:13.5px;color:#fff}
 .hero-trust small{display:block;font-size:11.5px;color:#93aac6}
 
-/* Mockup perangkat: seluruhnya HTML/CSS, tidak ada gambar stok maupun foto orang. */
-.hero-visual{display:flex;justify-content:center}
-.perangkat{position:relative;width:100%;max-width:520px;padding-bottom:26px}
-.laptop{width:100%}
-.laptop-layar{border:9px solid #1c2b41;border-radius:14px;background:#0d1b2e;overflow:hidden;
-  box-shadow:var(--bayang-kuat)}
-/* Alas laptop hanya melebar dari layarnya bila memang ada ruang; pada layar sempit ia dibuat
-   selebar layarnya saja supaya tidak menjorok keluar. */
-.laptop-kaki{width:100%;height:11px;border-radius:0 0 12px 12px;
-  background:linear-gradient(180deg,#26374f,#16233a)}
-.app{background:#f4f1ec;font-size:9px;color:#2d2521}
-.app-bar{display:flex;align-items:center;gap:6px;padding:7px 9px;background:var(--maroon);color:#ffe9b8}
-.app-bar b{font-size:9.5px}
-.app-body{display:flex;min-height:190px}
-.app-nav{flex:none;width:74px;padding:8px 6px;display:grid;gap:4px;align-content:start;background:#fff}
-.app-nav i{display:block;padding:4px 6px;border-radius:5px;font-style:normal;font-size:7px;color:#82766e;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.app-nav i.aktif{background:var(--maroon);color:#fff;font-weight:700}
-.app-isi{flex:1;padding:9px;min-width:0;display:grid;gap:7px;align-content:start}
-.app-salam{display:flex;align-items:center;gap:7px;padding:7px 8px;border-radius:7px;background:#fff}
-.avatar{flex:none;width:20px;height:20px;border-radius:6px;background:linear-gradient(140deg,#f5b301,#e08a00)}
-.app-salam strong{display:block;font-size:8.5px}
-.app-salam small{display:block;font-size:6.5px;color:#82766e}
-.app-tahun{margin-left:auto;text-align:right}
-.app-tahun small{display:block;font-size:6px;color:#82766e}
-.app-tahun b{font-size:8px}
-.app-stat{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
-.app-stat>div{padding:6px 5px;border-radius:6px;background:#fff;border-left:2.5px solid #ccc}
-.app-stat .s1{border-left-color:#2f6fe0}.app-stat .s2{border-left-color:#a98bff}
-.app-stat .s3{border-left-color:#f5b301}.app-stat .s4{border-left-color:#1f9d55}
-.app-stat small{display:block;font-size:5.5px;color:#82766e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.app-stat b{font-size:11px}
-.app-panel{display:grid;grid-template-columns:1.35fr 1fr;gap:6px}
-.panel{padding:7px;border-radius:7px;background:#fff}
-.panel small{display:block;font-size:6.5px;color:#82766e;margin-bottom:5px}
-.batang{display:flex;align-items:flex-end;gap:4px;height:52px}
-.batang i{flex:1;border-radius:2px 2px 0 0;background:linear-gradient(180deg,#4f8ef0,#2f6fe0)}
-.batang i:nth-child(even){background:linear-gradient(180deg,#7fb0f7,#4f8ef0)}
-.donat{display:grid;place-items:center;height:52px}
-.donat span{width:44px;height:44px;border-radius:50%;
-  background:conic-gradient(#2f6fe0 0 62%,#f5b301 62% 78%,#a98bff 78% 90%,#e05a5a 90% 100%);
-  -webkit-mask:radial-gradient(circle,transparent 54%,#000 55%);mask:radial-gradient(circle,transparent 54%,#000 55%)}
+/* --------------------------------------------------------------- Panggung tiga perangkat
 
-.ponsel{position:absolute;right:-4px;bottom:0;width:104px;border:6px solid #1c2b41;border-radius:16px;
-  background:#0d1b2e;overflow:hidden;box-shadow:var(--bayang-kuat)}
-.ponsel-layar{display:grid;gap:5px;padding:11px 9px 0;background:linear-gradient(180deg,#12325c,#0b1a2f);
-  text-align:center;color:#e9f1fd}
-.ponsel-logo{margin:0 auto;border-radius:9px}
-.ponsel-layar strong{font-size:11px;color:#fff}
-.ponsel-layar small{font-size:5.5px;color:#9fb6d2;margin-top:-3px}
-.kolom-palsu{display:block;padding:4px 6px;border-radius:5px;font-size:6px;text-align:left;
-  color:#8ea7c6;background:rgba(255,255,255,.1)}
-.tombol-palsu{display:block;padding:5px;border-radius:5px;font-size:6.5px;font-weight:700;
+   Laptop menjadi objek utama di tengah, tablet berdiri di depan kirinya, dan ponsel Android
+   di depan kanannya. Ketiganya dibangun dari elemen biasa: bingkai, bezel, alas, dan bayangan
+   dibuat dengan border, gradient, dan shadow — tidak ada satu pun berkas gambar perangkat.
+
+   Ukurannya mengikuti lebar panggung lewat satuan em, sehingga seluruh komposisi mengecil
+   serempak pada layar sempit tanpa perlu menulis ulang tiap bagiannya. */
+.hero-visual{display:block}
+.panggung{position:relative;width:100%;max-width:620px;margin:0 auto;
+  font-size:clamp(7.6px,2.25vw,11px);padding-bottom:7.4em;perspective:1600px}
+.alat{position:absolute;bottom:0}
+
+/* Laptop ------------------------------------------------------------------------------ */
+.laptop{position:relative;width:100%;z-index:1;transform:rotateX(4deg);transform-origin:bottom center}
+/* Tutup laptop: bingkai tebal dengan tepi terang di atas seperti bodi metalik, lalu bezel
+   gelap tipis mengelilingi layarnya. */
+.laptop-tutup{padding:1.05em 1.05em 1.5em;border-radius:1.5em 1.5em .45em .45em;
+  background:linear-gradient(160deg,#5a6c86 0%,#39485f 26%,#232f44 62%,#161f2f 100%);
+  box-shadow:0 3em 5em rgba(3,10,22,.55),inset 0 .12em 0 rgba(255,255,255,.22),
+    inset 0 -.1em 0 rgba(0,0,0,.35)}
+.laptop-layar{border:.24em solid #0f1725;border-radius:.5em;overflow:hidden;background:#0d1b2e;
+  box-shadow:inset 0 0 .8em rgba(0,0,0,.55),0 .1em 0 rgba(255,255,255,.06)}
+/* Alas: engsel gelap, lalu badan chassis yang melebar seperti dilihat dari depan. */
+.laptop-alas{position:relative;width:122%;height:1.5em;margin:0 -11%;
+  border-radius:.16em .16em 1em 1em;
+  background:linear-gradient(180deg,#151d2c 0 .22em,#66788f .22em,#41516b 46%,#25334c 100%);
+  box-shadow:0 1.9em 3em rgba(3,10,22,.5),inset 0 -.14em .3em rgba(0,0,0,.4)}
+.laptop-takik{position:absolute;left:50%;top:.34em;width:16%;height:.3em;transform:translateX(-50%);
+  border-radius:999px;background:rgba(12,20,34,.5);box-shadow:0 .08em 0 rgba(255,255,255,.14)}
+
+/* Isi layar laptop: dasbor e-Rapor. */
+.dasbor{display:flex;min-height:19em;background:#eef1f6;color:#22303f;font-size:1em;line-height:1.35}
+.ds-nav{flex:none;width:6.1em;padding:.7em .45em;display:grid;gap:.16em;align-content:start;
+  background:linear-gradient(180deg,#12325c,#0b1a2f);color:#b9cbe4}
+.ds-merek{display:flex;align-items:center;gap:.3em;margin-bottom:.5em;padding:0 .3em;
+  font-size:.82em;font-weight:800;color:#fff}
+.ds-merek img{border-radius:.28em}
+.ds-nav i{padding:.28em .42em;border-radius:.35em;font-style:normal;font-size:.66em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ds-nav i.aktif{background:var(--emas);color:#2a1d00;font-weight:800}
+.ds-isi{flex:1;min-width:0;padding:.7em;display:grid;gap:.5em;align-content:start}
+.ds-atas{display:flex;align-items:center;justify-content:space-between;gap:.5em;
+  padding:.5em .6em;border-radius:.5em;background:#fff;box-shadow:0 .12em .4em rgba(11,26,47,.07)}
+.ds-atas small{display:block;font-size:.62em;color:#7b8899}
+.ds-atas strong{display:block;font-size:.86em;color:#0b1a2f}
+.ds-tahun{padding:.22em .5em;border-radius:999px;font-size:.6em;font-weight:800;
+  color:#1c56b8;background:#e2edff}
+.ds-kartu{display:grid;grid-template-columns:repeat(4,1fr);gap:.4em}
+.ds-kartu>div{padding:.45em .45em;border-radius:.45em;background:#fff;border-left:.22em solid;
+  box-shadow:0 .12em .4em rgba(11,26,47,.07)}
+.ds-kartu .k1{border-color:#2f6fe0}.ds-kartu .k2{border-color:#7c4dff}
+.ds-kartu .k3{border-color:#f5b301}.ds-kartu .k4{border-color:#1f9d55}
+.ds-kartu small{display:block;font-size:.56em;color:#7b8899;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ds-kartu b{font-size:1em;color:#0b1a2f}
+.ds-grafik{display:grid;grid-template-columns:1.45fr 1fr;gap:.4em}
+.ds-panel{padding:.5em;border-radius:.5em;background:#fff;box-shadow:0 .12em .4em rgba(11,26,47,.07)}
+.ds-panel>small{display:block;font-size:.62em;font-weight:700;color:#5c6b80;margin-bottom:.4em}
+.ds-batang{display:flex;align-items:flex-end;gap:.26em;height:3.5em}
+.ds-batang i{flex:1;border-radius:.14em .14em 0 0;background:linear-gradient(180deg,#5b95f2,#2f6fe0)}
+.ds-batang i:nth-child(even){background:linear-gradient(180deg,#8fbaf8,#5b95f2)}
+.ds-sumbu{display:flex;gap:.26em;margin-top:.22em}
+.ds-sumbu span{flex:1;text-align:center;font-size:.5em;color:#9aa8bb}
+.ds-donat{position:relative;display:grid;place-items:center;height:3.5em}
+.ds-donat span{width:3.1em;height:3.1em;border-radius:50%;
+  background:conic-gradient(#2f6fe0 0 78%,#f5b301 78% 90%,#e0645a 90% 100%);
+  -webkit-mask:radial-gradient(circle,transparent 56%,#000 57%);mask:radial-gradient(circle,transparent 56%,#000 57%)}
+.ds-donat b{position:absolute;font-size:.66em;color:#0b1a2f}
+.ds-legenda{display:flex;justify-content:center;gap:.4em;margin-top:.24em}
+.ds-legenda span{position:relative;padding-left:.62em;font-size:.5em;color:#7b8899}
+.ds-legenda span::before{content:"";position:absolute;left:0;top:.16em;width:.36em;height:.36em;border-radius:50%}
+.ds-legenda .l1::before{background:#2f6fe0}.ds-legenda .l2::before{background:#f5b301}
+.ds-legenda .l3::before{background:#e0645a}
+.ds-kegiatan p{display:flex;align-items:center;gap:.36em;margin-top:.28em;font-size:.6em;color:#43526a}
+.ds-kegiatan em{flex:none;width:.42em;height:.42em;border-radius:50%;background:#f5b301}
+.ds-kegiatan em.b{background:#1f9d55}
+
+/* Tablet ------------------------------------------------------------------------------ */
+.tablet{left:-11%;bottom:-.6em;z-index:3;width:14.6em;padding:.7em .48em .9em;
+  border-radius:1.15em;background:linear-gradient(150deg,#2f3c52,#161f2f);
+  transform:rotate(-6deg);box-shadow:0 2em 3.4em rgba(3,10,22,.52),inset 0 .08em 0 rgba(255,255,255,.14)}
+.tablet-layar{border-radius:.42em;overflow:hidden;aspect-ratio:3/4;
+  background:radial-gradient(120% 90% at 50% 0%,#1a4787 0%,#12325c 45%,#0b1a2f 100%)}
+.tablet-kamera{position:absolute;left:50%;top:.3em;width:.3em;height:.3em;transform:translateX(-50%);
+  border-radius:50%;background:rgba(200,215,235,.5)}
+.masuk{display:grid;gap:.42em;padding:1.1em .95em;text-align:center;color:#e9f1fd}
+.masuk-logo{margin:0 auto;border-radius:.55em}
+.masuk strong{font-size:.86em;color:#fff}
+.masuk small{font-size:.58em;color:#9fb6d2;margin-top:-.25em}
+.isian{display:block;padding:.42em .5em;border-radius:.4em;text-align:left;
+  background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.16)}
+.isian em{font-style:normal;font-size:.6em;color:#b7c9e2}
+.ingat{display:flex;align-items:center;gap:.32em;font-size:.58em;color:#b7c9e2}
+.ingat i{width:.62em;height:.62em;border-radius:.16em;background:var(--emas)}
+.tombol-utama{display:block;padding:.48em;border-radius:.4em;font-size:.66em;font-weight:800;
   color:#2a1d00;background:var(--emas)}
-.ponsel-gambar{height:44px;margin:5px -9px 0;
-  background:linear-gradient(180deg,#7fb0f7 0%,#bcd6f7 55%,#8bbf7a 55%,#6fae5e 100%)}
+
+/* Ponsel Android ---------------------------------------------------------------------- */
+.hp{right:-9%;bottom:-1.2em;z-index:4;width:11.6em;padding:.62em .38em .74em;
+  border-radius:1.35em;background:linear-gradient(150deg,#33415a,#131b29);
+  transform:rotate(5deg);box-shadow:0 1.8em 3em rgba(3,10,22,.55),inset 0 .08em 0 rgba(255,255,255,.14)}
+.hp-speaker{position:absolute;left:50%;top:.3em;width:1.7em;height:.2em;transform:translateX(-50%);
+  border-radius:999px;background:rgba(200,215,235,.4)}
+.hp-layar{border-radius:.95em;overflow:hidden;aspect-ratio:9/16;background:#f2f5fa;
+  display:grid;grid-template-rows:auto auto 1fr auto}
+.hp-atas{display:flex;align-items:center;gap:.34em;padding:.55em .5em;
+  background:linear-gradient(140deg,#12325c,#0b1a2f);color:#e9f1fd}
+.hp-atas img{border-radius:.32em}
+.hp-atas strong{display:block;font-size:.62em;color:#fff}
+.hp-atas small{display:block;font-size:.48em;color:#9fb6d2}
+.hp-menu{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.3em;padding:.45em .4em .3em}
+.hp-menu span{display:grid;gap:.18em;justify-items:center;padding:.4em .12em;border-radius:.45em;
+  background:#fff;font-size:.44em;color:#43526a;text-align:center;line-height:1.15;
+  box-shadow:0 .1em .3em rgba(11,26,47,.08)}
+.hp-menu i{width:1.5em;height:1.5em;border-radius:.4em}
+
+/* Ringkasan kecil di bawah menu supaya layar ponsel tidak menyisakan ruang kosong. */
+.hp-ringkas{margin:0 .4em .35em;padding:.42em .48em;border-radius:.5em;background:#fff;
+  box-shadow:0 .1em .3em rgba(11,26,47,.08)}
+.hp-judul{display:block;font-size:.46em;font-weight:800;color:#0b1a2f;margin-bottom:.26em}
+.hp-ringkas p{display:flex;align-items:center;justify-content:space-between;gap:.3em;
+  padding:.2em 0;font-size:.42em;border-top:1px solid #eef2f8}
+.hp-ringkas p:first-of-type{border-top:0}
+.hp-ringkas em{font-style:normal;color:#7b8899}
+.hp-ringkas b{color:#0b1a2f}
+.hp-menu .m1 i{background:#dceaff}.hp-menu .m2 i{background:#e7e0ff}
+.hp-menu .m3 i{background:#ffeccc}.hp-menu .m4 i{background:#ffe0e0}
+.hp-menu .m5 i{background:#d9f4e3}.hp-menu .m6 i{background:#d7f0f2}
+.hp-bawah{display:flex;justify-content:space-around;align-items:center;padding:.36em .3em;
+  background:#fff;border-top:1px solid #e3e9f2}
+.hp-bawah i{width:.85em;height:.28em;border-radius:999px;background:#c8d3e2}
+.hp-bawah i.aktif{background:var(--maroon)}
+
+/* Slogan kecil di bawah panggung, sengaja tidak mendominasi. */
+.panggung-slogan{margin-top:16px;text-align:center;font-size:12.5px;color:#a8c0dd;line-height:1.5}
+.panggung-slogan strong{color:var(--emas-terang);font-weight:800}
+.panggung-slogan span{display:block;margin-top:3px;font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:#7e97b8}
 
 /* ------------------------------------------------------------------------------ Bagian */
 .bagian{padding:48px 0}
@@ -342,7 +424,6 @@ input[aria-invalid="true"]{border-color:#c0392b;background:#fff7f6}
 
 /* --------------------------------------------------------------------------- Responsif */
 @media(min-width:560px){
-  .laptop-kaki{width:112%;margin:0 -6%}
   .grid{grid-template-columns:1fr 1fr}
   .span-2{grid-column:1/-1}
   .kartu-grid{grid-template-columns:1fr 1fr}

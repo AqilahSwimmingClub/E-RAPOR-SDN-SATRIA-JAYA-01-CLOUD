@@ -250,7 +250,7 @@ test('17. Pemesanan tidak membuat lisensi, kunci, maupun ikatan perangkat',()=>{
 test('18. Isi promosi, alur pembelian, dan identitas pengembang tampil',()=>{
   const teks=halaman();
   /* Hero. */
-  assert.match(teks,/<span class="badge">e-Rapor Sekolah<\/span>/);
+  assert.match(teks,/<span class="badge">Solusi untuk Sekolah Modern<\/span>/);
   assert.match(teks,/<h1>Kelola Rapor Sekolah<br\/><span class="emas">Lebih Mudah, Rapi,<br\/>dan Terintegrasi<\/span><\/h1>/);
   assert.match(teks,/e-Rapor membantu sekolah mengelola data siswa, penilaian,\s+kegiatan pembelajaran, rapor, dan leger dalam satu aplikasi yang praktis\./);
   assert.match(teks,/href="#form-pemesanan"[\s\S]{0,400}?Daftarkan Sekolah Anda/,'CTA utama menuju formulir');
@@ -259,9 +259,9 @@ test('18. Isi promosi, alur pembelian, dan identitas pengembang tampil',()=>{
     ['Offline-first','Bisa digunakan tanpa internet'],['Mudah Digunakan','Antarmuka sederhana']]){
     assert.ok(teks.includes(`<strong>${judul}</strong><small>${nota}</small>`),`trust item ${judul}`);
   }
-  /* Visual hero disusun sendiri: laptop dan ponsel, tanpa gambar stok maupun foto orang. */
-  assert.match(teks,/<div class="laptop">/);
-  assert.match(teks,/<div class="ponsel">/);
+  /* Visual hero disusun sendiri, tanpa gambar stok maupun foto orang. Rinciannya diperiksa
+     terpisah pada test panggung tiga perangkat di bawah. */
+  assert.match(teks,/<div class="panggung">/);
   assert.equal(/<img[^>]+src="[^"]*\.(?:png|jpe?g|webp)"/i.test(teks),false,'tidak memakai gambar stok');
 
   /* Enam kartu keunggulan sesuai desain final. */
@@ -551,4 +551,91 @@ test('30. Hak cipta menempel pada blok identitas pengembang, bukan baris footer 
   const margin=Number(aturan.match(/margin-top:(\d+)px/)[1]);
   assert.ok(margin>=6&&margin<=10,`jarak hak cipta ${margin}px berada pada 6–10px`);
   assert.equal(/\.kaki>\.kaki-hak/.test(gaya),false,'bukan baris footer tersendiri');
+});
+
+/* --------------------------------------------------------- Panggung tiga perangkat hero */
+
+test('31. Hero memuat laptop, tablet, dan ponsel Android sekaligus',()=>{
+  const teks=halaman();
+  const panggung=teks.slice(teks.indexOf('<div class="panggung">'),teks.indexOf('panggung-slogan'));
+  for(const [kelas,nama] of [['alat laptop','laptop'],['alat tablet','tablet'],['alat hp','ponsel']])
+    assert.ok(panggung.includes(`class="${kelas}"`),`${nama} ada di panggung`);
+  /* Bingkainya dibangun dari elemen sendiri, bukan satu gambar perangkat. */
+  for(const bagian of ['laptop-tutup','laptop-layar','laptop-alas','laptop-takik',
+    'tablet-layar','tablet-kamera','hp-speaker','hp-layar'])
+    assert.ok(panggung.includes(bagian),`bingkai ${bagian}`);
+  /* Tidak ada tangkapan layar: satu-satunya gambar adalah lambang aplikasi. */
+  const gambar=[...panggung.matchAll(/<img[^>]+src="([^"]+)"/g)].map(item=>item[1]);
+  assert.ok(gambar.length>0);
+  assert.ok(gambar.every(item=>item==='/assets/app-icon.svg'),'hanya lambang e-Rapor');
+  /* Tidak ada bagian yang dapat diklik atau diisi di dalam panggung. */
+  assert.equal(/<(?:a|button|input|select|textarea)\b/.test(panggung),false,'panggung tidak interaktif');
+  assert.match(teks,/<div class="hero-visual reveal" aria-hidden="true">/,'panggung disembunyikan dari pembaca layar');
+});
+
+test('32. Isi ketiga layar berbeda sesuai fungsinya',()=>{
+  const teks=halaman();
+  const potong=(awal,akhir)=>teks.slice(teks.indexOf(awal),teks.indexOf(akhir));
+  const laptop=potong('<div class="alat laptop">','<div class="alat tablet">');
+  const tablet=potong('<div class="alat tablet">','<div class="alat hp">');
+  const hp=potong('<div class="alat hp">','panggung-slogan');
+
+  /* Laptop: dasbor lengkap dengan sidebar, sambutan, kartu ringkas, dua grafik, dan kegiatan. */
+  for(const menu of ['Dashboard','Data Siswa','Guru','Kelas/Rombel','Mata Pelajaran','Penilaian',
+    'Absensi','Rapor','Leger','Kegiatan','Pengaturan'])
+    assert.ok(laptop.includes(`>${menu}</i>`),`menu dasbor ${menu}`);
+  assert.match(laptop,/Selamat Datang,/);
+  assert.match(laptop,/SDN Maju Jaya 01/);
+  for(const kartu of ['Siswa','Guru','Kelas','Mata Pelajaran'])
+    assert.ok(laptop.includes(`<small>${kartu}</small>`),`kartu ringkas ${kartu}`);
+  assert.match(laptop,/Rekap Nilai Kelas/);
+  assert.match(laptop,/Kehadiran Siswa/);
+  assert.match(laptop,/Kegiatan &amp; Pengumuman/);
+  assert.ok((laptop.match(/<i style="height:/g)||[]).length>=6,'grafik batang terisi');
+
+  /* Tablet: halaman masuk. */
+  assert.match(tablet,/Masuk ke e-Rapor/);
+  assert.match(tablet,/<em>Username<\/em>/);
+  assert.match(tablet,/<em>Password<\/em>/);
+  assert.match(tablet,/Ingat saya/);
+  assert.match(tablet,/class="tombol-utama">Masuk</);
+  assert.equal(/Dashboard|Rekap Nilai/.test(tablet),false,'tablet bukan salinan dasbor');
+
+  /* Ponsel: menu mobile, bukan salinan halaman masuk tablet. */
+  for(const menu of ['Data Siswa','Absensi','Penilaian','Rapor','Kegiatan','Pengaturan'])
+    assert.ok(hp.includes(`</i>${menu}</span>`),`menu ponsel ${menu}`);
+  assert.match(hp,/class="hp-bawah"/,'ada navigasi bawah');
+  assert.match(hp,/Ringkasan Kelas/);
+  assert.equal(/Masuk ke e-Rapor|Ingat saya/.test(hp),false,'ponsel tidak menampilkan halaman masuk');
+});
+
+test('33. Komposisi perangkat berlapis dan mengecil serempak pada layar sempit',()=>{
+  const gaya=read('public/beli/beli.css');
+  /* Urutan lapisan: laptop di belakang, tablet lalu ponsel di depannya. */
+  const z=nama=>Number(gaya.match(new RegExp(`\\.${nama}\\{[^}]*z-index:(\\d+)`))[1]);
+  assert.ok(z('laptop')<z('tablet'),'tablet berada di depan laptop');
+  assert.ok(z('tablet')<z('hp'),'ponsel paling depan');
+  /* Tablet di kiri, ponsel di kanan. */
+  assert.match(gaya,/\.tablet\{left:-?\d+%/,'tablet ditempatkan dari sisi kiri');
+  assert.match(gaya,/\.hp\{right:-?\d+%/,'ponsel ditempatkan dari sisi kanan');
+  /* Keduanya dimiringkan sedikit dan punya bayangan nyata. */
+  assert.match(gaya,/\.tablet\{[^}]*transform:rotate\(-6deg\)/);
+  assert.match(gaya,/\.hp\{[^}]*transform:rotate\(5deg\)/);
+  assert.match(gaya,/\.laptop\{[^}]*transform:rotateX\(\d+deg\)/,'laptop diberi perspektif');
+  assert.match(gaya,/\.panggung\{[^}]*perspective:\d+px/);
+  /* Ukuran seluruh panggung mengikuti satu nilai font, sehingga mengecil serempak. */
+  assert.match(gaya,/\.panggung\{[^}]*font-size:clamp\(/);
+  for(const alat of ['tablet','hp'])
+    assert.match(gaya,new RegExp(`\\.${alat}\\{[^}]*width:[\\d.]+em`),`${alat} berukuran em`);
+  /* Tablet jelas lebih besar daripada ponsel. */
+  const lebar=nama=>Number(gaya.match(new RegExp(`\\.${nama}\\{[^}]*width:([\\d.]+)em`))[1]);
+  assert.ok(lebar('tablet')>lebar('hp'),'proporsi tablet berbeda dari ponsel');
+});
+
+test('34. Isi halaman tetap tampil walau pengamat kemunculan tidak melapor',()=>{
+  const skrip=read('public/beli/beli.js');
+  assert.match(skrip,/setTimeout\(tampilkanSemua,1200\)/,'ada jaring pengaman tanpa syarat');
+  assert.match(skrip,/addEventListener\?\.\('load',tampilkanSemua\)/);
+  assert.match(skrip,/else for\(const bagian of bagianMuncul\)bagian\.classList\.add\('tampil'\)/,
+    'peramban tanpa IntersectionObserver langsung menampilkan isinya');
 });
