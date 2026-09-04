@@ -246,18 +246,32 @@ test('Q22. Lisensi OWNER dibuat Owner dan boleh dipakai banyak perangkat',async 
   assert.ok(baris.every(row=>row.slot===null),'baris OWNER tidak memakai slot sama sekali');
 });
 
-test('Q23. Lisensi DEVELOPER tetap tunduk pada aturan slot, bukan jalan pintas',async t=>{
+/* DEVELOPER ADALAH NAMA LAMA UNTUK KELAS YANG SAMA DENGAN OWNER.
+
+   Test ini dulu menuntut sebaliknya - bahwa DEVELOPER tunduk pada aturan 1 Android + 1 Windows.
+   Tuntutan itu SALAH terhadap aturan final, dan konsekuensinya nyata di lapangan: seluruh kunci
+   pemilik yang sudah terbit tersimpan bertipe DEVELOPER (nama OWNER baru ada belakangan, dan
+   panel Owner masih menerbitkan dengan nama lama), sehingga kunci pemilik yang sedang dipakai
+   ditolak "sudah terikat pada perangkat lain" pada perangkat kedua.
+
+   Aturan finalnya hanya mengenal dua kelas: Pembelian/Guru = 1 Android + 1 Windows, dan kelas
+   pemilik = tanpa batas. Karena itu yang dijaga sekarang adalah kebalikannya. */
+test('Q23. DEVELOPER adalah nama lama OWNER dan ikut tanpa batas perangkat',async t=>{
   const s=await startTestServer();t.after(()=>s.close());
   const token=await s.ownerToken();
   const {data}=await s.call('/owner/licenses',{method:'POST',token,
     body:{count:1,licenseType:'DEVELOPER',buyerName:'QA'}});
   const kunci=data.licenses[0];
-  assert.equal((await s.call('/activate',{method:'POST',
-    body:{license_key:kunci.key,installation_id:A,platform:'android'}})).status,200);
-  const kedua=await s.call('/activate',{method:'POST',
-    body:{license_key:kunci.key,installation_id:B,platform:'android'}});
-  assert.equal(kedua.status,409,'DEVELOPER tetap satu perangkat per slot');
-  assert.equal(kedua.data.error.code,'SLOT_TAKEN');
+  for(const [id,platform] of [[A,'android'],[B,'android'],[C,'windows']])
+    assert.equal((await s.call('/activate',{method:'POST',
+      body:{license_key:kunci.key,installation_id:id,platform}})).status,200,
+      `${id} ${platform} diterima`);
+  const baris=s.db.prepare('SELECT slot FROM device_activations WHERE license_id=? AND is_active=1').all(kunci.id);
+  assert.equal(baris.length,3,'tiga perangkat aktif sekaligus');
+  assert.ok(baris.every(row=>row.slot===null),'baris kelas pemilik tidak memakai slot');
+  /* Tipenya tetap DEVELOPER di basis data - tidak ada kunci yang perlu diterbitkan ulang. */
+  assert.equal(s.db.prepare('SELECT license_type FROM licenses WHERE id=?').get(kunci.id).license_type,
+    'DEVELOPER','kunci lama tetap bertipe DEVELOPER dan tetap berfungsi');
 });
 
 test('Q24. Token aktivasi membawa slot dan jenis lisensi hasil keputusan server',async t=>{

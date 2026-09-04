@@ -66,6 +66,15 @@ UPDATE device_activations SET slot = CASE WHEN LOWER(COALESCE(platform,'')) = 'a
   WHERE slot IS NULL AND is_active = TRUE
     AND license_id IN (SELECT id FROM licenses WHERE license_type = 'CUSTOMER');
 
+-- Kebalikannya untuk lisensi kelas pemilik (OWNER dan nama lamanya, DEVELOPER): keduanya tidak
+-- memakai slot, sehingga baris aktif yang terlanjur bernomor slot dikosongkan slotnya agar
+-- perangkat kedua tidak bertabrakan dengan ux_one_active_slot. Hanya kolom slot yang diubah:
+-- barisnya tetap ada, tetap aktif, dan seluruh riwayatnya utuh.
+UPDATE device_activations SET slot = NULL
+  WHERE slot IS NOT NULL AND is_active = TRUE
+    AND license_id IN (SELECT id FROM licenses
+      WHERE UPPER(COALESCE(license_type,'CUSTOMER')) IN ('OWNER','DEVELOPER'));
+
 DROP INDEX IF EXISTS ux_one_active_device;
 CREATE UNIQUE INDEX IF NOT EXISTS ux_one_active_slot
   ON device_activations(license_id, slot) WHERE is_active = TRUE AND slot IS NOT NULL;

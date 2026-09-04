@@ -495,7 +495,10 @@ test('42. Sistem lisensi tetap utuh dan tidak tersentuh revisi ini',()=>{
     'entitlement offline tetap terikat perangkat');
   const server=read('server/src/licenses.js');
   assert.match(server,/DEVICE_SLOTS=Object\.freeze\(\['android','windows'\]\)/,'slot Android/Windows utuh');
-  assert.match(server,/TIPE_TANPA_BATAS=new Set\(\['OWNER'\]\)/,'aturan OWNER utuh');
+  /* Kelas pemilik memuat DUA nama: OWNER dan DEVELOPER, nama lamanya. Seluruh kunci pemilik
+     yang sudah beredar bertipe DEVELOPER, jadi mempersempit daftar ini menjadi OWNER saja
+     membuat kunci yang sedang dipakai jatuh ke aturan 1 Android + 1 Windows. */
+  assert.match(server,/TIPE_TANPA_BATAS=new Set\(\['OWNER','DEVELOPER'\]\)/,'aturan kelas pemilik utuh');
   assert.match(read('server/src/db.js'),/ux_one_active_slot/,'indeks slot utuh');
   /* Berkas CP/Rapor tidak menyentuh lisensi sama sekali. */
   for(const berkas of ['src/services/cp-butir.js','src/services/intracurricular.js',

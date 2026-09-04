@@ -291,10 +291,19 @@ test('12. Lisensi Developer adalah lisensi resmi, bukan jalan pintas',async()=>{
     assert.equal(aktivasi.data.status,'ACTIVE');
     assert.ok(aktivasi.data.activation_token,'memakai token bertanda tangan yang sama');
 
-    /* Aturan satu perangkat berlaku sama: tidak ada bypass tanpa batas. */
+    /* DEVELOPER ADALAH NAMA LAMA KELAS PEMILIK, jadi perangkat kedua memang DITERIMA.
+
+       Test ini dulu menuntut sebaliknya, dan tuntutan itulah yang membuat kunci pemilik yang
+       sudah beredar - seluruhnya bertipe DEVELOPER karena nama OWNER baru ada belakangan -
+       jatuh ke aturan 1 Android + 1 Windows lalu ditolak di perangkat kedua.
+
+       Yang tetap dijaga di sini adalah maksud aslinya: DEVELOPER bukan JALAN PINTAS. Ia tetap
+       lisensi resmi yang melewati aktivasi server, token bertanda tangan, ikatan perangkat,
+       reset, pencabutan, dan audit yang sama persis - tanpa satu pun pengecualian. */
     const kedua=await s.call('/activate',{method:'POST',
       body:{license_key:kunci,installation_id:inst('b'),platform:'android'}});
-    assert.equal(kedua.status,409,'Developer License tetap satu perangkat aktif');
+    assert.equal(kedua.status,200,'kelas pemilik menerima perangkat kedua');
+    assert.ok(kedua.data.activation_token,'perangkat kedua pun memakai token bertanda tangan');
 
     /* Reset device dan revoke berlaku sama. */
     const id=daftar[0].id;

@@ -127,6 +127,18 @@ function lengkapiAktivasi(db){
       THEN 'android' ELSE 'windows' END
     WHERE slot IS NULL AND is_active=1
       AND license_id IN (SELECT id FROM licenses WHERE license_type='CUSTOMER')`);
+  /* KEBALIKANNYA UNTUK LISENSI KELAS PEMILIK. Lisensi OWNER/DEVELOPER tidak memakai slot, tetapi
+     basis data lama bisa saja menyimpan baris aktif yang terlanjur bernomor slot - misalnya
+     karena tipenya pernah berubah, atau karena barisnya dibuat oleh versi yang belum mengenal
+     kelas pemilik. Satu baris seperti itu cukup untuk membuat perangkat kedua bertabrakan
+     dengan ux_one_active_slot padahal seharusnya tanpa batas.
+
+     Slot pada baris itu DIKOSONGKAN - hanya kolom slot-nya. Barisnya tetap ada, tetap aktif,
+     tetap membawa installation_id, platform, dan seluruh riwayatnya. Tidak ada aktivasi yang
+     dihapus dan tidak ada lisensi yang direset. */
+  db.exec(`UPDATE device_activations SET slot=NULL
+    WHERE slot IS NOT NULL AND is_active=1
+      AND license_id IN (SELECT id FROM licenses WHERE UPPER(COALESCE(license_type,'CUSTOMER')) IN ('OWNER','DEVELOPER'))`);
   db.exec('DROP INDEX IF EXISTS ux_one_active_device');
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_one_active_slot
     ON device_activations(license_id,slot) WHERE is_active=1 AND slot IS NOT NULL`);

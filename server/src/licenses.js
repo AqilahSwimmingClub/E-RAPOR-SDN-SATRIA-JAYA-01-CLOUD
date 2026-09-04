@@ -40,18 +40,32 @@ export const LICENSE_TYPES=Object.freeze(['CUSTOMER','DEVELOPER','OWNER']);
    seorang guru dapat memakai satu kunci pada HP-nya DAN pada laptopnya sekaligus. Slot Android
    tidak pernah dapat diisi perangkat Windows, dan sebaliknya.
 
-   Hanya lisensi OWNER - lisensi milik pemilik aplikasi - yang TIDAK memakai slot sama sekali:
-   barisnya menyimpan slot NULL sehingga jumlah perangkatnya tidak dibatasi.
+   LISENSI KELAS PEMILIK TIDAK MEMAKAI SLOT SAMA SEKALI: barisnya menyimpan slot NULL sehingga
+   jumlah perangkatnya tidak dibatasi, baik Android maupun Windows.
 
-   DEVELOPER TIDAK termasuk di dalamnya. Lisensi DEVELOPER dirancang sebagai lisensi resmi untuk
-   QA dan demo, BUKAN jalan pintas, dan tunduk pada aturan slot yang sama persis seperti lisensi
-   pembelian. Melonggarkannya akan menghapus jaminan yang selama ini diuji.
+   ADA DUA NAMA UNTUK SATU KELAS YANG SAMA, dan keduanya WAJIB diperlakukan sama:
+
+     OWNER      nama baku sekarang.
+     DEVELOPER  nama LAMA untuk kelas yang sama. Seluruh lisensi milik pemilik aplikasi yang
+                terbit sebelum nama OWNER ada tersimpan dengan tipe ini - termasuk kunci OWNER
+                yang sedang dipakai di lapangan - dan panel Owner pun masih menerbitkannya
+                dengan nama itu.
+
+   INILAH AKAR BUG YANG DIPERBAIKI. Ketika nama OWNER diperkenalkan, daftar ini sempat dipersempit
+   menjadi OWNER saja. Akibatnya kunci pemilik yang sudah terbit - yang di basis data bertipe
+   DEVELOPER - jatuh ke aturan 1 Android + 1 Windows milik lisensi pembelian, lalu ditolak
+   "sudah terikat pada perangkat lain" pada perangkat kedua. Memperbaikinya dengan menerbitkan
+   kunci baru akan membuang kunci yang sudah beredar; yang benar adalah mengembalikan DEVELOPER
+   ke kelas yang memang menjadi asalnya.
+
+   Aturan lisensi PEMBELIAN/GURU tidak tersentuh sama sekali: CUSTOMER tetap 1 Android + 1
+   Windows.
 
    JENIS LISENSI SELALU DIPUTUSKAN SERVER dari kolom license_type. Tidak ada satu pun jalur di
    berkas ini yang membaca klaim tipe dari badan permintaan client - itulah yang membuat client
    tidak dapat mengaku OWNER. */
 export const DEVICE_SLOTS=Object.freeze(['android','windows']);
-const TIPE_TANPA_BATAS=new Set(['OWNER']);
+const TIPE_TANPA_BATAS=new Set(['OWNER','DEVELOPER']);
 
 export function isUnlimitedLicenseType(licenseType){
   return TIPE_TANPA_BATAS.has(String(licenseType||'').trim().toUpperCase());
