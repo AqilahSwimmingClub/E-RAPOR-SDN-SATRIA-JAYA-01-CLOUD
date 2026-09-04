@@ -73,16 +73,23 @@ test('Tidak ada siswa yang pernah menerima dua mapel agama sekaligus',()=>{
   const session=guru('5B');
   aktifkan(session,['agama','agama_kristen','mtk']);
   /* Yang dijaga adalah SATU mapel agama per siswa - tidak pernah dua, tidak pernah mapel milik
-     agama lain, dan tidak ada tebakan ketika agamanya kosong. Keenam agama kini punya mapelnya
-     masing-masing, sehingga siswa Katolik tidak lagi berakhir tanpa mata pelajaran agama. */
-  const seharusnya={Islam:'agama',Kristen:'agama_kristen',Katolik:'agama_katolik',
-    Hindu:'agama_hindu',Buddha:'agama_buddha',Konghucu:'agama_khonghucu'};
+     agama lain, dan tidak ada tebakan ketika agamanya kosong.
+
+     Biodata siswa tetap menerima keenam agama, tetapi master CP/TP hanya memuat PAI BP dan
+     PAK BP. Agama di luar keduanya karena itu TIDAK mendapat mata pelajaran agama - dan itu
+     memang aturannya, bukan kelalaian: lebih baik kosong daripada siswa Katolik diberi mapel
+     agama milik orang lain. */
+  const seharusnya={Islam:'agama',Kristen:'agama_kristen'};
   const daftar=['',...RELIGIONS].map((religion,index)=>siswa(session,`AG${index}`,religion?{religion}:{}));
   daftar.forEach(anak=>{
     const agama=listSubjectsForStudent(session,anak).filter(item=>item.id.startsWith('agama'));
-    const harapan=anak.religion?[seharusnya[anak.religion]]:[];
+    const harapan=seharusnya[anak.religion]?[seharusnya[anak.religion]]:[];
     assert.deepEqual(agama.map(item=>item.id),harapan,`siswa dengan agama "${anak.religion||'(kosong)'}" hanya menerima mapel yang sesuai`);
   });
+  /* Keenam agama tetap tersedia sebagai pilihan biodata. */
+  assert.equal(RELIGIONS.length,6);
+  for(const religion of ['Katolik','Hindu','Buddha','Konghucu'])
+    assert.equal(religionSubjectIdFor({religion}),null,`${religion} tidak memakai mapel agama lain`);
   for(const [religion,subjectId] of Object.entries(seharusnya))
     assert.equal(religionSubjectIdFor({religion}),subjectId,`${religion} memakai ${subjectId}`);
   assert.equal(religionSubjectIdFor({}),null,'agama kosong tidak ditebak');
