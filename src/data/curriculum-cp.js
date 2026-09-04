@@ -6,7 +6,12 @@ import { TP_SOURCES, phaseForClassId } from './learning-objective-defaults.js';
    CP ditetapkan pemerintah per mata pelajaran dan fase. TP disusun satuan pendidikan/guru
    dengan menurunkannya dari CP. Naskah resmi yang sudah diverifikasi disimpan terpisah pada
    dataset `curriculum-cp-naskah.js`; kombinasi yang belum memiliki sumber lokal resmi tetap
-   dibiarkan kosong daripada diisi teks buatan aplikasi. */
+   dibiarkan kosong daripada diisi teks buatan aplikasi.
+
+   Alasan pemisahan itu: naskah yang dikutip harus dapat ditelusuri ke dokumen penetapnya.
+   Aplikasi tidak boleh menjadi sumber kedua yang bisa berbeda dari dokumen resmi, karena guru
+   memakainya sebagai acuan penilaian tanpa tahu bedanya. Karena itu berkas ini memuat aturan -
+   mata pelajaran, fase, elemen, regulasi - dan tidak pernah memuat naskah itu sendiri. */
 
 export const CP_STATUS='rujukan';
 
@@ -21,6 +26,7 @@ const ELEMENTS=Object.freeze({
   seni:['Mengalami','Menciptakan','Merefleksikan','Berpikir dan Bekerja Artistik','Berdampak'],
   seni_rupa:['Mengalami','Menciptakan','Merefleksikan','Berpikir dan Bekerja Artistik','Berdampak'],
   bing:['Menyimak – Berbicara','Membaca – Memirsa','Menulis – Mempresentasikan'],
+  /* Fase C SD pada Bab XXVIII memuat empat elemen berikut. */
   koding:['Berpikir Komputasional','Literasi Digital','Literasi dan Etika Kecerdasan Artifisial','Pemanfaatan dan Pengembangan Kecerdasan Artifisial'],
   sunda:[['Menyimak','Ngaregepkeun'],['Membaca dan Memirsa','Maca jeung Miarsa'],
     ['Berbicara dan Menyajikan/Mempresentasikan','Nyarita jeung Midangkeun'],['Menulis','Nulis']],
@@ -90,6 +96,7 @@ export function capaianPembelajaran(classId,subjectId){
     regulation:{
       id:regulation.id,title:regulation.title,decision:regulation.decision,
       decisionNumber:regulation.decisionNumber??null,document:regulation.document??null,
+      section:regulation.section??null,
       authority:regulation.authority,scope:regulation.scope,verified:regulation.verified,
       year:regulation.year,url:regulation.url,note:regulation.note,
     },

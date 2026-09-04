@@ -5,19 +5,20 @@
    berlaku. Bahasa Sunda menggunakan Keputusan Kepala Dinas Pendidikan Provinsi Jawa Barat
    Nomor 32817/Pk.05.02/Sekre/2022 melalui Buku Saku Kurikulum Merdeka Bahasa Sunda.
 
-   Koding dan Kecerdasan Artifisial belum diisi di sini karena dokumen panduan resminya belum
-   tersedia sebagai berkas lokal pada pekerjaan ini. Kombinasi fase yang memang tidak berlaku
-   juga tetap kosong. */
+   Koding dan Kecerdasan Artifisial Fase C juga dimuat dari Bab XXVIII Keputusan Kepala BSKAP
+   Nomor 046/H/KR/2025. Kombinasi fase yang memang tidak berlaku tetap kosong. */
 
 import { DATA as AGAMA_PANCASILA } from './cp-naskah-046-agama-pancasila.js';
 import { DATA as BAHASA_MATEMATIKA } from './cp-naskah-046-bahasa-matematika.js';
 import { DATA as LAINNYA } from './cp-naskah-046-lainnya.js';
+import { DATA as KODING } from './cp-naskah-046-koding.js';
 import { DATA as SUNDA } from './cp-naskah-sunda.js';
 
 export const CP_NASKAH=Object.freeze({
   ...AGAMA_PANCASILA,
   ...BAHASA_MATEMATIKA,
   ...LAINNYA,
+  ...KODING,
   ...SUNDA,
 });
 

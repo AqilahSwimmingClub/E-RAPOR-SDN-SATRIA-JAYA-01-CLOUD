@@ -19,8 +19,8 @@ import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.j
 
    Naskah nasional berasal dari Keputusan Kepala BSKAP Nomor 046/H/KR/2025 yang diberikan
    pengguna. Bahasa Sunda berasal dari Keputusan Kepala Dinas Pendidikan Provinsi Jawa Barat
-   Nomor 32817/Pk.05.02/Sekre/2022. Koding & KA tetap kosong sampai panduan resminya tersedia
-   sebagai sumber lokal. Produk hanya menyediakan PAI BP dan PAK BP sebagai mapel agama. */
+   Nomor 32817/Pk.05.02/Sekre/2022. Koding & KA Fase C berasal dari Bab XXVIII Keputusan
+   Kepala BSKAP Nomor 046/H/KR/2025. Produk hanya menyediakan PAI BP dan PAK BP sebagai mapel agama. */
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
@@ -75,13 +75,14 @@ test('2. CP mapel nasional menyebut keputusan resmi yang benar beserta metadatan
   assert.ok(cpElements('ipas').length>=2,'elemen CP IPAS tersimpan');
 });
 
-test('3. Dataset memuat tepat 28 kombinasi CP SD yang sudah diverifikasi',()=>{
+test('3. Dataset memuat tepat 29 kombinasi CP SD yang sudah diverifikasi',()=>{
   const expected=[];
   for(const id of ['agama','agama_kristen','pancasila','bindo','mtk','seni_rupa','pjok','sunda'])
     for(const phase of ['A','B','C'])expected.push(`${id}|${phase}`);
   for(const id of ['ipas','bing'])for(const phase of ['B','C'])expected.push(`${id}|${phase}`);
+  expected.push('koding|C');
   assert.deepEqual(Object.keys(CP_NASKAH).sort(),expected.sort());
-  assert.equal(Object.keys(CP_NASKAH).length,28);
+  assert.equal(Object.keys(CP_NASKAH).length,29);
   const contoh={A:'1A',B:'3A',C:'5A'};
   for(const key of Object.keys(CP_NASKAH)){
     const [subjectId,phase]=key.split('|');
@@ -125,25 +126,40 @@ test('5. IPAS dan Bahasa Inggris tidak menawarkan TP baru pada Fase A',()=>{
 
 test('6. Koding & KA memakai sumber resminya sendiri dan Fase C tetap operasional',()=>{
   const sumber=cpRegulationFor('koding');
+  /* CP Koding & KA ditetapkan pada Bab XXVIII keputusan yang sama dengan mapel nasional lain.
+     Panduan Mata Pelajaran adalah dokumen penerapan, bukan penetap CP, sehingga tidak boleh
+     dikutip sebagai sumber CP-nya. */
   assert.equal(sumber.id,'cp_koding_ka');
-  assert.notEqual(sumber.id,'cp_umum');
-  assert.match(sumber.decision,/Koding dan Kecerdasan Artifisial/);
+  assert.match(sumber.decision,/BSKAP Nomor 046\/H\/KR\/2025/);
+  assert.match(sumber.section,/XXVIII/);
+  assert.match(sumber.title,/Koding dan Kecerdasan Artifisial/);
   assert.equal(sumber.year,2025);
   assert.equal(sumber.verified,true);
-  assert.match(sumber.authority,/Pusat Kurikulum dan Pembelajaran/);
+  assert.match(sumber.authority,/Badan Standar, Kurikulum, dan Asesmen Pendidikan/);
+  assert.equal(/Panduan Mata Pelajaran/.test(String(sumber.decision)),false,
+    'panduan penerapan tidak dikutip sebagai penetap CP');
+  /* Entrinya tetap terpisah dari cp_umum karena hanya mapel ini yang mulai pada Fase C. */
+  assert.notEqual(sumber.id,'cp_umum');
+  assert.match(sumber.note,/Fase C/);
   assert.deepEqual(cpPhasesFor('koding'),['C']);
   for(const kelas of ['5A','5B','5C','5D','6A','6B','6C','6D']){
-    assert.equal(capaianPembelajaran(kelas,'koding').available,true);
+    const cp=capaianPembelajaran(kelas,'koding');
+    assert.equal(cp.available,true);
+    assert.ok(cp.naskah?.length>100);
+    assert.equal(cp.naskahReason,null);
     assert.ok(listReferenceObjectives(guru(kelas),'koding').length>=2);
   }
 });
 
-test('7. Elemen Koding & KA Fase C tersimpan dan TP-nya berelasi dengan elemen',()=>{
+test('7. Empat elemen CP Koding & KA Fase C tersimpan dan TP-nya berelasi dengan elemen',()=>{
   const elemen=cpElements('koding','C');
-  assert.ok(elemen.length>=4);
+  assert.deepEqual(elemen.map(item=>item.name),['Berpikir Komputasional','Literasi Digital',
+    'Literasi dan Etika Kecerdasan Artifisial','Pemanfaatan dan Pengembangan Kecerdasan Artifisial']);
+  assert.equal(elemen.length,4);
   for(const item of elemen){
     assert.ok(item.id.startsWith('koding:'));
-    assert.equal(item.naskah,null,'naskah elemen menunggu panduan resmi lokal');
+    assert.equal(item.naskah,naskahElemen('koding','C',item.name));
+    assert.ok(item.naskah?.length>20);
   }
   const butir=defaultLearningObjectives('5B','koding');
   const namaElemen=new Set(elemen.map(item=>item.name));
@@ -225,7 +241,7 @@ test('10. CP Agama hanya PAI BP dan PAK BP, memakai keputusan resmi 2025',()=>{
   }
 });
 
-test('11. TP sekolah tetap berjalan dengan campuran CP terisi dan CP yang masih menunggu sumber',()=>{
+test('11. TP sekolah tetap berjalan untuk CP nasional, Koding, dan Bahasa Sunda',()=>{
   useMemoryStorage();
   const sesi=guru('5B');
   aktifkanMapel(sesi,['mtk','koding','sunda']);
@@ -240,17 +256,18 @@ test('11. TP sekolah tetap berjalan dengan campuran CP terisi dan CP yang masih 
 });
 
 /* ----------------------------------------------------------------- §19/§33 Laporan audit */
-test('12. Laporan naskah CP menghitung 28 terisi dan 8 gap yang dapat dijelaskan',()=>{
+test('12. Laporan naskah CP menghitung 29 terisi dan 7 gap yang dapat dijelaskan',()=>{
   const laporan=cpNaskahReport();
   assert.equal(laporan.total,36);
-  assert.equal(laporan.terisi,28);
-  assert.equal(laporan.kosong,8);
+  assert.equal(laporan.terisi,29);
+  assert.equal(laporan.kosong,7);
   assert.equal(laporan.diLuarFase,4,'IPAS A, Inggris A, Koding A/B berada di luar fase');
   assert.equal(laporan.sumberBelumTerverifikasi,0);
   assert.equal(laporan.menungguDokumen,0);
-  assert.equal(laporan.menungguNaskah,4,'Seni generic A-C dan Koding C masih menunggu naskah');
+  assert.equal(laporan.menungguNaskah,3,'hanya Seni generic A-C masih menunggu naskah');
   assert.equal(cpNaskahGaps().some(item=>item.subjectId==='sunda'),false,'Sunda sudah terisi');
-  assert.ok(cpNaskahGaps().some(item=>item.subjectId==='koding'&&item.phase==='C'));
+  assert.equal(cpNaskahGaps().some(item=>item.subjectId==='koding'&&item.phase==='C'),false,
+    'Koding Fase C sudah terisi');
   assert.equal(cpNaskahGaps().filter(item=>item.subjectId==='seni').length,3);
   for(const entri of cpNaskahGaps()){
     assert.equal(entri.naskah,null);

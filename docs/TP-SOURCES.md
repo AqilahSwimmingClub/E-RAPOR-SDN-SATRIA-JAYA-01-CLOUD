@@ -38,15 +38,20 @@ Tujuan Pembelajaran. Tidak ada satu pun angka di dalamnya.
 | --- | --- | --- | --- | --- | --- |
 | Mata pelajaran umum | Capaian Pembelajaran pada PAUD, Jenjang Pendidikan Dasar, dan Jenjang Pendidikan Menengah | Badan Standar, Kurikulum, dan Asesmen Pendidikan, Kementerian Pendidikan Dasar dan Menengah | Keputusan Kepala BSKAP Nomor 046/H/KR/2025 | 2025 | https://kurikulum.kemdikbud.go.id/rujukan/regulasi-kurikulum-merdeka |
 | Pendidikan Agama dan Budi Pekerti | Capaian Pembelajaran mata pelajaran Pendidikan Agama dan Budi Pekerti | BSKAP Kemendikdasmen | Keputusan Kepala BSKAP Nomor 046/H/KR/2025 | 2025 | https://kurikulum.kemdikbud.go.id/rujukan/regulasi-kurikulum-merdeka |
-| Koding dan Kecerdasan Artifisial | Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial | Pusat Kurikulum dan Pembelajaran, Kementerian Pendidikan Dasar dan Menengah | Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial (Pusat Kurikulum dan Pembelajaran, 2025) | 2025 | https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/33.%20Final%20Panduan%20Mata%20Pelajaran%20Panduan%20Mata%20Pelajaran%20Koding%20dan%20Kecerdasan%20Artifisial_12_Sep_2025_revisi%203.pdf |
+| Koding dan Kecerdasan Artifisial | Capaian Pembelajaran Koding dan Kecerdasan Artifisial (Bab XXVIII) | Badan Standar, Kurikulum, dan Asesmen Pendidikan, Kementerian Pendidikan Dasar dan Menengah | Keputusan Kepala BSKAP Nomor 046/H/KR/2025 | 2025 | https://kurikulum.kemdikbud.go.id/rujukan/regulasi-kurikulum-merdeka |
 | Muatan Lokal Jawa Barat | Capaian Pembelajaran Muatan Lokal Bahasa Sunda | Dinas Pendidikan Provinsi Jawa Barat | Keputusan Kepala Dinas Pendidikan Provinsi Jawa Barat Nomor 32817/Pk.05.02/Sekre/2022 | 2022 | Buku Saku Kurikulum Merdeka Bahasa Sunda (dokumen cetak) |
 | Inspirasi penurunan CP menjadi TP/ATP | Inspirasi Alur Tujuan Pembelajaran (ATP) — Referensi Penerapan Kurikulum | Ruang GTK, Kementerian Pendidikan Dasar dan Menengah | Ruang GTK Kemendikdasmen | 2026 | https://guru.kemendikdasmen.go.id/kurikulum/referensi-penerapan/capaian-pembelajaran/ |
 
 Catatan atas tabel di atas:
 
-- **Koding dan Kecerdasan Artifisial** tidak ditetapkan lewat keputusan CP umum melainkan lewat
-  panduan mata pelajarannya sendiri. Pada jenjang SD mata pelajaran ini dimulai pada **Fase C**
-  (kelas 5-6); Fase A dan Fase B sengaja tidak berkatalog karena CP-nya memang belum ada.
+- **Koding dan Kecerdasan Artifisial** ditetapkan pada **Bab XXVIII** Keputusan Kepala BSKAP
+  Nomor 046/H/KR/2025 — keputusan yang sama dengan mata pelajaran nasional lainnya. Panduan Mata
+  Pelajaran Koding dan Kecerdasan Artifisial adalah dokumen *penerapan*, bukan penetap CP,
+  sehingga tidak dikutip sebagai sumber CP. Pada **Fase C SD** dokumen tersebut memuat empat
+  bagian capaian: **Berpikir Komputasional, Literasi Digital, Literasi dan Etika Kecerdasan
+  Artifisial, serta Pemanfaatan dan Pengembangan Kecerdasan Artifisial**. Pada jenjang SD mata
+  pelajaran ini dimulai pada **Fase C** (kelas 5-6); Fase A dan Fase B sengaja tidak berkatalog
+  karena CP-nya memang belum berlaku pada fase tersebut.
 - **Pendidikan Agama dan Budi Pekerti** memakai keputusan yang sama dengan mapel nasional
   lainnya, yaitu 046/H/KR/2025. Keputusan Kepala BKPDM Nomor 020 Tahun 2026 memang sudah terbit
   dan memperbarui CP Agama, tetapi pada tahap ini aplikasi sengaja memakai versi resmi 2025
@@ -58,15 +63,16 @@ Catatan atas tabel di atas:
   adalah Dinas Pendidikan Provinsi Jawa Barat lewat Keputusan Nomor 32817/Pk.05.02/Sekre/2022,
   yang dimuat pada Buku Saku Kurikulum Merdeka Bahasa Sunda. Naskah capaiannya diambil dari
   Lampiran II dokumen tersebut, khusus jenjang SD (Fase A, B, dan C).
-- **Mata pelajaran agama** tersedia untuk keenam agama pada Data Siswa. Empat di antaranya —
-  Katolik, Hindu, Buddha, dan Khonghucu — dibawa dalam keadaan **nonaktif** supaya Mapping
-  sekolah yang sudah berjalan tidak berubah sendiri; sekolah mengaktifkannya lewat Mapping Mata
-  Pelajaran ketika memang punya siswanya.
-- Kolom **naskah CP** pada seluruh baris masih `null`. Aplikasi menampilkan elemen CP dan
-  kutipan regulasinya, tidak pernah teks pengganti. Jalankan `cpNaskahReport()` pada
-  `src/data/curriculum-cp.js` untuk melihat daftar terkini beserta alasan tiap kekosongan.
-  Naskahnya diisi pada `src/data/curriculum-cp-naskah.js` — berkas data terpisah, sehingga
-  memuat naskah resmi tidak menyentuh satu baris logika pun.
+- **Agama pada biodata siswa** tetap menyediakan enam pilihan untuk kompatibilitas data. Namun
+  master mata pelajaran dan CP/TP aplikasi hanya menyediakan **PAI BP (`agama`) dan PAK BP
+  (`agama_kristen`)**. Katolik, Hindu, Buddha, dan Khonghucu tidak dibuat sebagai master mapel
+  CP/TP pada versi ini.
+- Dataset naskah CP resmi saat ini memuat **29 kombinasi mapel-fase**, termasuk Koding & KA Fase
+  C. Kombinasi yang memang belum berlaku (IPAS A, Bahasa Inggris A, Koding A/B) tetap kosong,
+  dan `seni` generik A-C tetap tidak diisi otomatis sebagai Seni Rupa. Jalankan
+  `cpNaskahReport()` pada `src/data/curriculum-cp.js` untuk melihat laporan terkini. Naskah
+  disimpan pada berkas data `src/data/curriculum-cp-naskah.js` dan modul-modul data yang
+  diimpornya, terpisah dari logika aplikasi.
 - Sumber yang belum terverifikasi ditandai `verified:false` dan wajib mempunyai `decision`,
   `year`, serta `url` bernilai `null`. Kontrak itu dijaga `tests/tp-source-integrity.test.js`.
 
