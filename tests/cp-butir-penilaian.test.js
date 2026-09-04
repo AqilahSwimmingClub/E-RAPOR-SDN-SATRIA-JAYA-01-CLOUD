@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { capaianPembelajaran, CP_SUBJECTS, cpElements } from '../src/data/curriculum-cp.js';
-import { cpButirCoverage, defaultCpButir, JENIS_IDS } from '../src/data/cp-butir-defaults.js';
-import { cpButirAverage, createCpButir, deleteCpButir, getCpButir, getCpButirScoreSheet,
-  gabungNilaiButir, listCpButir, listCpButirForSemester, saveCpButirScores, setCpButirActive,
-  setCpButirJenis, setCpButirSemester, studentCpButirAchievements,
-  updateCpButir } from '../src/services/cp-butir.js';
-import { deskripsiBocorFase, frasaButir } from '../src/services/cp-descriptions.js';
+import { cpButirCoverage, defaultCpButir } from '../src/data/cp-butir-defaults.js';
+import { createCpButir, deleteCpButir, getCpButir, listCpButir, listCpButirForSemester,
+  semesterNumberOf, setCpButirActive, updateCpButir } from '../src/services/cp-butir.js';
+import { composeIntracurricularButirDescription, composeReportButirDescription,
+  deskripsiBocorFase, deskripsiMengulangMapel, JENIS_INTRAKURIKULER,
+  substansiButir } from '../src/services/cp-descriptions.js';
 import { generateReportDescription } from '../src/services/descriptions.js';
-import { composeIntracurricularDescriptionFromCp,
+import { composeIntracurricularDescriptionFromCp, fillAllIntracurricular,
+  getStudentIntracurricularSelection,
   saveStudentIntracurricularSelection } from '../src/services/intracurricular.js';
 import { createLearningObjective, listLearningObjectives } from '../src/services/objectives.js';
 import { saveAssessmentScores, saveAssessmentSettings, ASSESSMENT_TYPES } from '../src/services/assessment.js';
@@ -19,18 +20,23 @@ import { saveClassAttitudeBulk } from '../src/services/attitudes.js';
 import { createStudent, listStudents } from '../src/services/students.js';
 import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
 
-/* CP RESMI -> ELEMEN -> BUTIR CP -> SEMESTER -> JENIS PENILAIAN -> NILAI -> DESKRIPSI.
+/* MODEL CP YANG SUDAH DISEDERHANAKAN.
 
-   Suite ini menjaga rantai di atas utuh. Yang paling mudah tergelincir dan karena itu diuji
-   berulang kali:
+       CP RESMI -> ELEMEN -> BUTIR CP
 
-   1. Butir CP BUKAN TP yang berganti nama. Ia milik elemen CP resmi, dan TP lama tidak lagi
-      menjadi dasar penilaian meskipun catatannya tetap terbaca.
-   2. Jenis penilaian melekat PER BUTIR, bukan per mata pelajaran. Satu mapel boleh memuat
-      campuran Teori, Praktik, dan Teori + Praktik sekaligus.
-   3. Deskripsi Intrakurikuler dan deskripsi rapor sama-sama lahir dari butir + jenis + nilai,
-      tetapi kalimatnya tidak boleh sama.
-   4. "Fase A/B/C" tidak pernah bocor ke kalimat yang dibaca orang tua. */
+   Itu saja. Rantainya sengaja tidak lebih panjang dari itu, dan suite ini menjaganya tetap
+   pendek. Tiga hal yang DIHAPUS dari model - dan karena itu diuji sebagai ketiadaan, bukan
+   sebagai keberadaan:
+
+   1. SEMESTER pada Butir CP. CP ditetapkan pemerintah per FASE. Seluruh butir aktif tersedia
+      pada semester mana pun, dan semester sebuah PENILAIAN mengikuti semester aplikasi.
+   2. JENIS PENILAIAN pada Butir CP. Teori/Praktik adalah sifat KEGIATAN, bukan sifat
+      kompetensi, sehingga ia milik Intrakurikuler.
+   3. "Teori + Praktik". Satu kegiatan penilaian menilai satu sisi.
+
+   Yang tetap dijaga: Butir CP BUKAN TP yang berganti nama; deskripsi Intrakurikuler dan
+   deskripsi Rapor tidak boleh sama; dan Fase, kode CP, serta nama mata pelajaran tidak pernah
+   bocor ke kalimat yang dibaca orang tua. */
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
@@ -57,14 +63,10 @@ function siapkan(classId='5B',mapel=['mtk','pjok','bindo']){
   const siswa=tambahSiswa(session);
   return {session,siswa};
 }
-/* Butir semester berjalan (Ganjil = Semester 1) yang jenisnya tertentu. */
-function butirBerjenis(session,subjectId,jenis){
-  return listCpButirForSemester(session,subjectId).find(item=>item.jenis===jenis)||null;
-}
 
 /* ------------------------------------------------ 1. Label UI sudah berpindah ke CP */
 
-test('1. Menu, tabel, dan tombol pada area yang direvisi memakai istilah CP',()=>{
+test('1. Menu CP hanya menyajikan pengelolaan CP - tanpa jenis, semester, dan nilai',()=>{
   const halaman=read('src/pages/objectives.js');
   const navigasi=read('src/data/navigation.js');
   assert.match(navigasi,/item\('objectives','Capaian Pembelajaran'/,'menu bernama Capaian Pembelajaran');
@@ -72,231 +74,264 @@ test('1. Menu, tabel, dan tombol pada area yang direvisi memakai istilah CP',()=
   assert.match(halaman,/Tambah CP/,'tombol Tambah CP');
   assert.match(halaman,/Buat CP Manual/,'tombol Buat CP Manual');
   assert.match(halaman,/<th>Butir CP<\/th>/,'tabel memuat kolom Butir CP');
-  assert.match(halaman,/<th>Jenis Penilaian<\/th>/,'tabel memuat kolom Jenis Penilaian');
-  /* Tombol lama tidak boleh tertinggal sebagai jalur kedua. */
+  /* EMPAT FUNGSI YANG DIMINTA, dan hanya itu. */
+  for(const aksi of ['data-toggle','data-edit','data-tambah','data-manual'])
+    assert.ok(halaman.includes(aksi),`menu CP menyediakan aksi ${aksi}`);
+  /* Kolom dan kendali yang sudah dibuang tidak boleh tertinggal sebagai jalur kedua. */
+  for(const dibuang of ['<th>Jenis Penilaian</th>','<th>Semester</th>','data-jenis','data-semester',
+    'data-nilai','Teori + Praktik','getCpButirScoreSheet','saveCpButirScores'])
+    assert.equal(halaman.includes(dibuang),false,`menu CP tidak lagi memuat ${dibuang}`);
   for(const lama of ['Tambah TP','Buat TP Manual','Simpan TP Terpilih'])
     assert.equal(halaman.includes(lama),false,`tombol lama ${lama} sudah tidak ada`);
 });
 
-/* ------------------------------------------------ 2-5. CRUD dan status Butir CP */
+test('2. Form Tambah/Edit CP tidak meminta jenis penilaian maupun semester',()=>{
+  const halaman=read('src/pages/objectives.js');
+  const form=halaman.slice(halaman.indexOf('function openManualForm'),
+    halaman.indexOf('function drawLegacy'));
+  assert.match(form,/name="elementId"/,'form meminta Elemen CP');
+  assert.match(form,/name="name"/,'form meminta nama Butir CP');
+  assert.match(form,/name="teori"/,'form meminta rumusan pengetahuan');
+  assert.match(form,/name="praktik"/,'form meminta rumusan keterampilan');
+  assert.match(form,/name="active"/,'form meminta status aktif');
+  for(const dilarang of ['name="jenis"','name="semester"','Jenis Penilaian','Semester 1','Semester 2'])
+    assert.equal(form.includes(dilarang),false,`form Tambah/Edit CP tidak meminta ${dilarang}`);
+});
 
-test('2-3. Tambah dan edit Butir CP bekerja, termasuk butir buatan guru',()=>{
+/* ------------------------------------------------ 3-6. CRUD dan status Butir CP */
+
+test('3-4. Tambah dan edit Butir CP bekerja tanpa parameter jenis/semester',()=>{
   const {session}=siapkan();
   const elemen=cpElements('mtk','C');
   const sebelum=listCpButir(session,'mtk').length;
 
   const baru=createCpButir(session,'mtk',{elementId:elemen[0].id,name:'Estimasi hasil hitung',
-    teori:'strategi estimasi hasil operasi hitung',praktik:'melakukan estimasi hasil operasi hitung',
-    semester:1,jenis:'teori_praktik'});
+    teori:'strategi estimasi hasil operasi hitung',praktik:'melakukan estimasi hasil operasi hitung'});
   assert.equal(baru.isDefault,false,'butir buatan guru ditandai bukan bawaan');
   assert.equal(baru.elementName,elemen[0].name,'butir menempel pada elemen CP resmi');
-  assert.equal(listCpButir(session,'mtk').length,sebelum+1,'2. butir baru masuk daftar');
+  assert.equal('jenis' in baru,false,'butir baru tidak membawa jenis penilaian');
+  assert.equal('semester' in baru,false,'butir baru tidak membawa semester');
+  assert.equal(listCpButir(session,'mtk').length,sebelum+1,'3. butir baru masuk daftar');
 
   const diubah=updateCpButir(session,'mtk',baru.id,{...baru,name:'Estimasi dan pembulatan'});
-  assert.equal(diubah.name,'Estimasi dan pembulatan','3. edit butir buatan guru tersimpan');
+  assert.equal(diubah.name,'Estimasi dan pembulatan','4. edit butir buatan guru tersimpan');
 
   /* Butir BAWAAN juga dapat diedit; dataset aslinya tidak diubah, yang tersimpan penyesuaiannya. */
   const bawaan=listCpButir(session,'mtk').find(item=>item.isDefault);
   const ubahBawaan=updateCpButir(session,'mtk',bawaan.id,{...bawaan,name:`${bawaan.name} (disesuaikan)`});
-  assert.match(ubahBawaan.name,/disesuaikan/,'3. edit butir bawaan tersimpan sebagai penyesuaian');
+  assert.match(ubahBawaan.name,/disesuaikan/,'4. edit butir bawaan tersimpan sebagai penyesuaian');
   assert.equal(defaultCpButir('mtk','C').find(item=>item.id===bawaan.id).name,bawaan.name,
     'dataset bawaan tidak ikut berubah');
 });
 
-test('4. Butir CP manual dapat dihapus; butir bawaan hanya dinonaktifkan',()=>{
+test('5. Butir CP manual dapat dihapus; butir bawaan hanya dinonaktifkan',()=>{
   const {session}=siapkan();
   const elemen=cpElements('mtk','C');
   const manual=createCpButir(session,'mtk',{elementId:elemen[1].id,name:'Butir uji hapus',
-    teori:'materi uji',semester:1,jenis:'teori'});
-  assert.equal(deleteCpButir(session,'mtk',manual.id),true,'4. butir manual terhapus');
+    teori:'materi uji'});
+  assert.equal(deleteCpButir(session,'mtk',manual.id),true,'5. butir manual terhapus');
   assert.equal(getCpButir(session,'mtk',manual.id),null,'butir manual tidak lagi terdaftar');
 
   const bawaan=listCpButir(session,'mtk').find(item=>item.isDefault);
   assert.throws(()=>deleteCpButir(session,'mtk',bawaan.id),/tidak dapat dihapus/i,
-    'butir bawaan dilindungi agar nilai lamanya tidak kehilangan induk');
+    'butir bawaan dilindungi agar catatan lamanya tidak kehilangan induk');
 });
 
-test('5. Aktif dan nonaktif Butir CP bekerja dan menentukan yang dipakai',()=>{
+test('6. Aktif dan nonaktif Butir CP bekerja dan menentukan yang dipakai',()=>{
   const {session}=siapkan();
   const butir=listCpButirForSemester(session,'mtk')[0];
-  assert.ok(butir,'ada butir aktif pada semester berjalan');
+  assert.ok(butir,'ada butir aktif');
   setCpButirActive(session,'mtk',butir.id,false);
-  assert.equal(getCpButir(session,'mtk',butir.id).active,false,'5. butir dinonaktifkan');
+  assert.equal(getCpButir(session,'mtk',butir.id).active,false,'6. butir dinonaktifkan');
   assert.equal(listCpButirForSemester(session,'mtk').some(item=>item.id===butir.id),false,
-    'butir nonaktif tidak lagi dipakai penilaian');
+    'butir nonaktif tidak lagi ditawarkan untuk penilaian');
   setCpButirActive(session,'mtk',butir.id,true);
   assert.equal(listCpButirForSemester(session,'mtk').some(item=>item.id===butir.id),true,
     'butir dapat diaktifkan kembali');
 });
 
-/* ------------------------------------- 6-9. Elemen, banyak butir, dan pemetaan semester */
+/* ------------------------------------------------- 7-9. Elemen dan ketiadaan semester */
 
-test('6-7. CP resmi punya elemen, dan satu elemen memuat beberapa Butir CP',()=>{
+test('7-8. CP resmi punya elemen, dan satu elemen memuat beberapa Butir CP',()=>{
   const elemen=cpElements('mtk','C');
-  assert.ok(elemen.length>=5,'6. CP Matematika Fase C memiliki elemen resmi');
+  assert.ok(elemen.length>=5,'7. CP Matematika Fase C memiliki elemen resmi');
   const bilangan=defaultCpButir('mtk','C').filter(item=>item.elementName==='Bilangan');
-  assert.ok(bilangan.length>=6,`7. elemen Bilangan dipecah menjadi ${bilangan.length} Butir CP`);
-  /* Pemecahan yang diminta: satu paragraf CP menjadi butir-butir yang benar-benar dapat dinilai.
-     Yang diuji bukan nama butirnya, melainkan bahwa setiap kemampuan yang disebut naskah CP
+  assert.ok(bilangan.length>=6,`8. elemen Bilangan dipecah menjadi ${bilangan.length} Butir CP`);
+  /* Yang diuji bukan nama butirnya, melainkan bahwa setiap kemampuan yang disebut naskah CP
      Bilangan Fase C benar-benar terwakili oleh sebuah butir. */
   const isiBilangan=bilangan.map(item=>`${item.name} ${item.teori||''} ${item.praktik||''}`.toLowerCase()).join(' | ');
   for(const kemampuan of ['1.000.000','nilai tempat','uang','kpk','fpb','pecahan','desimal'])
     assert.ok(isiBilangan.includes(kemampuan),`kemampuan "${kemampuan}" pada naskah CP terwakili butir`);
-  /* Setiap butir tetap menunjuk induk elemennya. */
   for(const item of defaultCpButir('mtk','C'))
     assert.ok(elemen.some(el=>el.id===item.elementId),'butir menunjuk elemen CP resmi');
 });
 
-test('8-9. Butir CP dapat dipetakan ke Semester 1 maupun Semester 2',()=>{
+test('9. Seluruh Butir CP aktif tersedia pada semester aktif mana pun',()=>{
   const {session}=siapkan();
-  const semester1=listCpButir(session,'mtk',{semester:1});
-  const semester2=listCpButir(session,'mtk',{semester:2});
-  assert.ok(semester1.length,'8. ada butir pada Semester 1');
-  assert.ok(semester2.length,'9. ada butir pada Semester 2');
-  assert.equal(semester1.some(item=>semester2.some(lain=>lain.id===item.id)),false,
-    'satu butir hanya berada pada satu semester');
+  const ganjil=listCpButirForSemester(session,'mtk');
+  assert.ok(ganjil.length>=6,`ada butir aktif pada semester ganjil: ${ganjil.length}`);
 
-  /* Guru dapat memindahkan butir antar semester: semester adalah pemetaan internal aplikasi. */
-  const dipindah=semester1[0];
-  setCpButirSemester(session,'mtk',dipindah.id,2);
-  assert.equal(getCpButir(session,'mtk',dipindah.id).semester,2,'butir berpindah ke Semester 2');
-  assert.equal(listCpButir(session,'mtk',{semester:1}).some(item=>item.id===dipindah.id),false,
-    'butir tidak lagi terbaca pada Semester 1');
-  /* Perpindahan bertahan meski guru membuka semester lain - kunci butir memang tidak memuat
-     semester, sehingga daftar butir tidak pernah hilang saat berganti semester. */
-  const semesterGenap=guru('5B',`Genap ${ACADEMIC_YEAR}`);
-  assert.equal(listCpButir(semesterGenap,'mtk',{semester:2}).some(item=>item.id===dipindah.id),true,
-    'butir tetap terbaca dari semester lain');
-});
-
-/* --------------------------------------------- 10-15. Butir CP sebagai objek penilaian */
-
-test('10-12. Butir CP menjadi objek penilaian untuk Teori dan Praktik',()=>{
-  const {session,siswa}=siapkan();
-  const teori=butirBerjenis(session,'mtk','teori')||listCpButirForSemester(session,'mtk')[0];
-  setCpButirJenis(session,'mtk',teori.id,'teori');
-  const lembarTeori=getCpButirScoreSheet(session,'mtk',teori.id);
-  assert.equal(lembarTeori.kolomTeori,true,'11. kolom nilai teori tersedia');
-  assert.equal(lembarTeori.kolomPraktik,false,'jenis Teori tidak memunculkan kolom praktik');
-  saveCpButirScores(session,'mtk',teori.id,{[siswa.id]:{teori:88,praktik:95}});
-  const nilaiTeori=getCpButirScoreSheet(session,'mtk',teori.id).rows[0];
-  assert.equal(nilaiTeori.teori,88,'10. nilai tersimpan pada Butir CP');
-  assert.equal(nilaiTeori.praktik,null,'nilai praktik tidak tersimpan diam-diam pada butir Teori');
-  assert.equal(nilaiTeori.nilai,88,'nilai butir sama dengan nilai teori');
-
-  const praktik=butirBerjenis(session,'pjok','praktik');
-  assert.ok(praktik,'PJOK memiliki butir berjenis Praktik');
-  const lembarPraktik=getCpButirScoreSheet(session,'pjok',praktik.id);
-  assert.equal(lembarPraktik.kolomTeori,false,'jenis Praktik tidak memunculkan kolom teori');
-  assert.equal(lembarPraktik.kolomPraktik,true,'12. kolom nilai praktik tersedia');
-  saveCpButirScores(session,'pjok',praktik.id,{[siswa.id]:{praktik:90}});
-  assert.equal(getCpButirScoreSheet(session,'pjok',praktik.id).rows[0].nilai,90,'nilai praktik tersimpan');
-});
-
-test('13. Teori + Praktik menyediakan dua nilai dan menggabungkannya',()=>{
-  const {session,siswa}=siapkan();
-  const butir=butirBerjenis(session,'mtk','teori_praktik')||listCpButirForSemester(session,'mtk')[0];
-  setCpButirJenis(session,'mtk',butir.id,'teori_praktik');
-  const lembar=getCpButirScoreSheet(session,'mtk',butir.id);
-  assert.equal(lembar.kolomTeori,true,'kolom teori tersedia');
-  assert.equal(lembar.kolomPraktik,true,'kolom praktik tersedia');
-  saveCpButirScores(session,'mtk',butir.id,{[siswa.id]:{teori:80,praktik:90}});
-  const baris=getCpButirScoreSheet(session,'mtk',butir.id).rows[0];
-  assert.equal(baris.teori,80);
-  assert.equal(baris.praktik,90);
-  assert.equal(baris.nilai,85,'13. nilai butir adalah rata-rata teori dan praktik');
-  /* Baru satu sisi terisi: nilai butir memakai sisi yang ada, bukan separuhnya. */
-  assert.equal(gabungNilaiButir({jenis:'teori_praktik',teori:80,praktik:null}),80);
-});
-
-test('14. Jenis penilaian tersimpan PER Butir CP, bukan per mata pelajaran',()=>{
-  const {session}=siapkan();
-  const butir=listCpButirForSemester(session,'mtk');
-  assert.ok(butir.length>=3,'tersedia beberapa butir untuk diuji');
-  setCpButirJenis(session,'mtk',butir[0].id,'teori');
-  setCpButirJenis(session,'mtk',butir[1].id,'praktik');
-  setCpButirJenis(session,'mtk',butir[2].id,'teori_praktik');
-  const sesudah=listCpButirForSemester(session,'mtk');
-  assert.equal(sesudah.find(item=>item.id===butir[0].id).jenis,'teori');
-  assert.equal(sesudah.find(item=>item.id===butir[1].id).jenis,'praktik');
-  assert.equal(sesudah.find(item=>item.id===butir[2].id).jenis,'teori_praktik');
-  assert.equal(new Set(sesudah.slice(0,3).map(item=>item.jenis)).size,3,
-    '14. satu mata pelajaran memuat campuran ketiga jenis sekaligus');
-  /* Tidak ada aturan yang mengunci mapel tertentu ke satu jenis. */
-  const sumber=read('src/services/cp-butir.js')+read('src/data/cp-butir-defaults.js');
-  assert.equal(/subjectId==='pjok'|subjectId==='mtk'|subjectId==='seni'/.test(sumber),false,
-    'tidak ada jenis penilaian yang dipatok berdasarkan mata pelajaran');
-});
-
-test('15. Nilai tersimpan per siswa, per Butir CP, dan per semester',()=>{
-  const {session}=siapkan();
-  const kedua=tambahSiswa(session,2);
-  const pertama=listStudents(session,{classId:'5B'})[0];
-  const butir=listCpButirForSemester(session,'mtk')[0];
-  setCpButirJenis(session,'mtk',butir.id,'teori');
-  saveCpButirScores(session,'mtk',butir.id,{[pertama.id]:{teori:70},[kedua.id]:{teori:95}});
-  const baris=getCpButirScoreSheet(session,'mtk',butir.id).rows;
-  assert.equal(baris.find(item=>item.studentId===pertama.id).nilai,70);
-  assert.equal(baris.find(item=>item.studentId===kedua.id).nilai,95,'15. nilai terpisah per siswa');
-
-  /* Semester lain tidak ikut membaca nilai semester ini. */
+  /* Semester GENAP melihat daftar butir yang SAMA PERSIS. Dulu daftarnya terbelah dua dan guru
+     harus memindahkan butir antar semester secara manual. */
   const genap=guru('5B',`Genap ${ACADEMIC_YEAR}`);
-  setCpButirSemester(genap,'mtk',butir.id,2);
-  assert.equal(studentCpButirAchievements(genap,'mtk',pertama.id).length,0,
-    'nilai semester ganjil tidak terbawa ke semester genap');
+  const daftarGenap=listCpButirForSemester(genap,'mtk');
+  assert.deepEqual(daftarGenap.map(item=>item.id),ganjil.map(item=>item.id),
+    '9. butir yang sama tersedia pada Ganjil maupun Genap');
+  assert.equal(semesterNumberOf(session),1,'Ganjil dipetakan ke Semester 1');
+  assert.equal(semesterNumberOf(genap),2,'Genap dipetakan ke Semester 2');
+  /* Menonaktifkan pada satu semester berlaku untuk butirnya, bukan untuk semesternya. */
+  setCpButirActive(session,'mtk',ganjil[0].id,false);
+  assert.equal(listCpButirForSemester(genap,'mtk').some(item=>item.id===ganjil[0].id),false,
+    'status aktif adalah milik butir, bukan milik semester');
 });
 
-/* ------------------------------------ 16-19. Deskripsi otomatis dari butir + jenis + nilai */
+/* ------------------------------------- 10-14. Intrakurikuler: multi butir, dua jenis saja */
 
-function siapkanDeskripsi(){
+function siapkanIntra(){
   const {session,siswa}=siapkan();
-  const butir=listCpButirForSemester(session,'mtk');
-  const teori=butir[0],praktik=butir[1],campuran=butir[2];
-  setCpButirJenis(session,'mtk',teori.id,'teori');
-  setCpButirJenis(session,'mtk',praktik.id,'praktik');
-  setCpButirJenis(session,'mtk',campuran.id,'teori_praktik');
-  saveCpButirScores(session,'mtk',teori.id,{[siswa.id]:{teori:92}});
-  saveCpButirScores(session,'mtk',praktik.id,{[siswa.id]:{praktik:60}});
-  saveCpButirScores(session,'mtk',campuran.id,{[siswa.id]:{teori:80,praktik:84}});
   saveAssessmentSettings(session,'mtk',{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
   for(const jenis of ASSESSMENT_TYPES)saveAssessmentScores(session,'mtk',jenis.id,{[siswa.id]:82});
-  return {session,siswa,teori,praktik,campuran};
+  return {session,siswa,butir:listCpButirForSemester(session,'mtk')};
 }
 
-test('16-17. Deskripsi Intrakurikuler dan rapor lahir dari Butir CP, jenis, dan nilai',()=>{
-  const {session,siswa,teori,praktik}=siapkanDeskripsi();
-  const intra=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',predicate:'Baik'});
-  const rapor=generateReportDescription(session,'mtk',siswa.id,{});
-
-  const butirTeori=getCpButir(session,'mtk',teori.id);
-  const butirPraktik=getCpButir(session,'mtk',praktik.id);
-  /* 16. Substansi butir yang nilainya tinggi muncul, dengan kata kerja PENGETAHUAN. */
-  assert.ok(intra.description.includes(butirTeori.teori),'16. isi butir teori masuk deskripsi Intrakurikuler');
-  assert.match(intra.description,/menguasai/,'nilai 92 dinyatakan sebagai menguasai');
-  /* Butir praktik yang nilainya di bawah KKTP muncul sebagai yang perlu dibimbing. */
-  assert.ok(intra.description.includes(butirPraktik.praktik),'isi butir praktik ikut dinyatakan');
-  assert.match(intra.description,/memerlukan bimbingan/,'nilai 60 dinyatakan perlu bimbingan');
-
-  /* 17. Deskripsi rapor memakai butir yang sama tetapi bingkai kalimat capaian akademik. */
-  assert.equal(rapor.source,'CP_BUTIR','17. deskripsi rapor bersumber Butir CP');
-  assert.ok(rapor.text.includes(butirTeori.teori),'isi butir masuk deskripsi rapor');
-  assert.match(rapor.text,/menunjukkan capaian/,'bingkai kalimat rapor adalah capaian akademik');
-  assert.match(rapor.text,/Perlu penguatan/,'butir di bawah KKTP dinyatakan sebagai penguatan');
+test('10. Intrakurikuler hanya mengenal Teori dan Praktik - tidak ada Teori + Praktik',()=>{
+  assert.deepEqual(JENIS_INTRAKURIKULER.map(item=>item.id),['teori','praktik'],
+    '10. persis dua jenis penilaian');
+  /* Komentar dibuang lebih dulu supaya yang diperiksa benar-benar KODENYA, bukan catatan
+     sejarah yang memang menyebut nama jenis lama untuk menerangkan mengapa ia dihapus. */
+  const kode=['src/services/cp-descriptions.js','src/services/intracurricular.js',
+    'src/pages/intracurricular-input.js','src/pages/objectives.js','src/services/cp-butir.js']
+    .map(read).join('\n').replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+  for(const dibuang of ['teori_praktik','Teori + Praktik','JENIS_PENILAIAN'])
+    assert.equal(kode.includes(dibuang),false,`${dibuang} sudah tidak ada di jalur aktif`);
 });
 
-test('18. Deskripsi Intrakurikuler dan deskripsi rapor tidak pernah identik',()=>{
-  const {session,siswa}=siapkanDeskripsi();
-  const intra=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',predicate:'Baik'});
+test('11. Satu, dua, dan banyak Butir CP dapat dipilih dan semuanya masuk deskripsi',()=>{
+  const {session,siswa,butir}=siapkanIntra();
+  for(const jumlah of [1,2,3,4]){
+    const dipilih=butir.slice(0,jumlah);
+    const hasil=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+      butirIds:dipilih.map(item=>item.id),jenis:'teori',predicate:'Baik'});
+    assert.equal(hasil.butirIds.length,jumlah,`11. ${jumlah} Butir CP tersimpan`);
+    for(const item of dipilih)
+      assert.ok(hasil.description.includes(substansiButir(item,'teori')),
+        `substansi butir "${item.name}" masuk ke deskripsi`);
+  }
+});
+
+test('12. Banyak Butir CP tetap menghasilkan SATU predikat dan SATU deskripsi',()=>{
+  const {session,siswa,butir}=siapkanIntra();
+  const hasil=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:butir.slice(0,3).map(item=>item.id),jenis:'teori',predicate:'Sangat Baik'});
+  assert.equal(hasil.predicate,'Sangat Baik','12. satu predikat untuk seluruh butir');
+  assert.equal(typeof hasil.description,'string');
+  /* Bukan tiga paragraf: satu kalimat yang meringkas ketiganya. */
+  const kalimat=hasil.description.split(/(?<=\.)\s+/).filter(Boolean);
+  assert.ok(kalimat.length<=2,`deskripsi ringkas, bukan tiga paragraf: ${kalimat.length} kalimat`);
+});
+
+test('13. Butir yang tidak dipilih tidak masuk; butir nonaktif tidak dapat dipilih',()=>{
+  const {session,siswa,butir}=siapkanIntra();
+  const dipilih=butir[0];
+  const tidakDipilih=butir[1];
+  const hasil=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:[dipilih.id],jenis:'teori',predicate:'Baik'});
+  assert.ok(hasil.description.includes(substansiButir(dipilih,'teori')));
+  assert.equal(hasil.description.includes(substansiButir(tidakDipilih,'teori')),false,
+    '13. butir yang tidak dipilih tidak pernah masuk deskripsi');
+
+  /* Butir yang dinonaktifkan disaring walaupun id-nya tetap dikirim. */
+  setCpButirActive(session,'mtk',dipilih.id,false);
+  const sesudah=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:[dipilih.id,tidakDipilih.id],jenis:'teori',predicate:'Baik'});
+  assert.deepEqual(sesudah.butirIds,[tidakDipilih.id],'butir nonaktif tidak dapat dipakai');
+  assert.equal(sesudah.description.includes(substansiButir(dipilih,'teori')),false,
+    'substansi butir nonaktif tidak bocor ke deskripsi');
+});
+
+test('14. Teori dan Praktik menghasilkan bahasa yang berbeda dan sesuai substansi CP',()=>{
+  const {session,siswa,butir}=siapkanIntra();
+  const ids=butir.slice(0,2).map(item=>item.id);
+  const teori=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:ids,jenis:'teori',predicate:'Baik'});
+  const praktik=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:ids,jenis:'praktik',predicate:'Baik'});
+  assert.notEqual(teori.description,praktik.description,'14. dua jenis, dua kalimat');
+  assert.match(teori.description,/^Memahami /,'Teori memakai bahasa pemahaman');
+  assert.match(praktik.description,/^Terampil /,'Praktik memakai bahasa keterampilan');
+  /* Substansinya memang diambil dari sisi yang benar - bukan hasil menukar kata. */
+  for(const item of butir.slice(0,2)){
+    assert.ok(teori.description.includes(substansiButir(item,'teori')));
+    assert.ok(praktik.description.includes(substansiButir(item,'praktik')));
+  }
+  /* Generator tidak mengarang: butir yang hanya punya satu sisi memakai sisi yang ada. */
+  const hanyaTeori={teori:'konsep nilai tempat bilangan cacah',praktik:null};
+  assert.equal(substansiButir(hanyaTeori,'praktik'),'konsep nilai tempat bilangan cacah',
+    'tidak ada kompetensi praktik yang dikarang');
+});
+
+test('15. Intrakurikuler memakai PREDIKAT, bukan input nilai angka',()=>{
+  const {session,siswa,butir}=siapkanIntra();
+  const hasil=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:[butir[0].id],jenis:'teori',predicate:'Baik'});
+  assert.equal(hasil.predicate,'Baik');
+  assert.equal('score' in hasil,false,'catatan Intrakurikuler tidak menyimpan angka');
+  assert.equal('nilai' in hasil,false,'catatan Intrakurikuler tidak menyimpan nilai');
+  assert.throws(()=>saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:[butir[0].id],jenis:'teori',predicate:85}),/Predikat intrakurikuler tidak valid/,
+    'angka ditolak sebagai predikat');
+  /* Halaman Intrakurikuler tidak memuat satu pun input angka. */
+  const halaman=read('src/pages/intracurricular-input.js');
+  assert.equal(/type="number"/.test(halaman),false,'15. tidak ada input angka pada halaman Intrakurikuler');
+});
+
+/* ------------------------------------------------ 16-18. Rapor: satu Nilai Akhir, tanpa TP */
+
+test('16. Rapor tidak punya nilai maupun pilihan Teori/Praktik',()=>{
+  const halaman=read('src/pages/reports.js');
+  for(const dilarang of ['Nilai Teori','Nilai Praktik','<th>Teori</th>','<th>Praktik</th>',
+    'data-jenis','teori_praktik'])
+    assert.equal(halaman.includes(dilarang),false,`16. Rapor tidak memuat ${dilarang}`);
+  /* Yang tetap ada adalah satu Nilai Akhir dari lima komponen penilaian. */
+  assert.match(halaman,/5 Komponen/,'lima komponen penilaian tetap menjadi dasar Nilai Akhir');
+});
+
+test('17. Generator Rapor tidak lagi memakai TP sebagai basis',()=>{
+  const {session,siswa}=siapkanIntra();
+  const tp=createLearningObjective(session,'mtk',{description:'TP lama sekolah',active:true});
+  const rapor=generateReportDescription(session,'mtk',siswa.id,{});
+  assert.equal(rapor.source,'CP_BUTIR','17. deskripsi rapor bersumber Butir CP');
+  assert.equal(rapor.text.includes('TP lama sekolah'),false,'isi TP tidak masuk deskripsi');
+  assert.equal(rapor.objectiveIds,null,'tidak ada TP yang dijadikan acuan');
+  /* Catatan TP-nya sendiri TIDAK dihapus. */
+  assert.equal(listLearningObjectives(session,'mtk').some(item=>item.id===tp.id),true,
+    'catatan TP lama tetap tersimpan dan dapat dibaca');
+  /* Jalur batch pun tidak lagi menyentuh TP. */
+  const bulk=read('src/services/report-bulk.js');
+  const kode=bulk.replace(/\/\*[\s\S]*?\*\//g,'');
+  for(const sisa of ['listActiveObjectives','objectiveIds','Belum ada TP aktif'])
+    assert.equal(kode.includes(sisa),false,`jalur Simpan Otomatis tidak lagi memakai ${sisa}`);
+});
+
+test('18. Deskripsi Rapor berbeda dari deskripsi Intrakurikuler',()=>{
+  const {session,siswa,butir}=siapkanIntra();
+  const intra=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:butir.slice(0,2).map(item=>item.id),jenis:'teori',predicate:'Baik'});
   const rapor=generateReportDescription(session,'mtk',siswa.id,{});
   assert.notEqual(intra.description,rapor.text,'18. dua konteks, dua kalimat');
-  /* Bedanya struktural, bukan sekadar beda satu kata. */
-  assert.match(intra.description,/mengikuti kegiatan pembelajaran intrakurikuler/,
-    'Intrakurikuler menceritakan keikutsertaan');
-  assert.equal(/mengikuti kegiatan pembelajaran intrakurikuler/.test(rapor.text),false,
-    'rapor tidak menceritakan keikutsertaan kegiatan');
+  /* Bedanya struktural: rapor menyatakan tingkat capaian dari Nilai Akhir. */
+  assert.match(rapor.text,/^Menunjukkan /,'rapor memakai bingkai capaian');
+  assert.equal(/^Menunjukkan /.test(intra.description),false,
+    'Intrakurikuler tidak memakai bingkai capaian rapor');
+  /* Keduanya memakai penyusun yang berbeda, bukan satu template yang dipakai bergantian. */
+  const generatorIntra=composeIntracurricularButirDescription({butir,jenis:'teori',predicate:'Baik'});
+  const generatorRapor=composeReportButirDescription({butir,finalScore:82,kktp:75});
+  assert.notEqual(generatorIntra,generatorRapor,'penyusunnya memang berbeda');
 });
 
-test('19. Fase A/B/C tidak pernah bocor ke deskripsi siswa',()=>{
+/* ------------------------------------------- 19-20. Fase, kode CP, dan nama mapel tidak bocor */
+
+test('19. Fase, kode CP, dan TP tidak pernah bocor ke deskripsi siswa',()=>{
   for(const classId of ['1A','3C','5B']){
     useMemoryStorage();
     const session=guru(classId);
@@ -305,46 +340,43 @@ test('19. Fase A/B/C tidak pernah bocor ke deskripsi siswa',()=>{
     for(const subjectId of ['mtk','bindo','pjok']){
       const butir=listCpButirForSemester(session,subjectId);
       if(!butir.length)continue;
-      saveCpButirScores(session,subjectId,butir[0].id,{[siswa.id]:{teori:85,praktik:85}});
-      const intra=saveStudentIntracurricularSelection(session,siswa.id,{subjectId,predicate:'Baik'});
+      const intra=saveStudentIntracurricularSelection(session,siswa.id,{subjectId,
+        butirIds:butir.slice(0,2).map(item=>item.id),jenis:'teori',predicate:'Baik'});
       const rapor=generateReportDescription(session,subjectId,siswa.id,{});
       for(const [nama,teks] of [['Intrakurikuler',intra.description],['Rapor',rapor.text]]){
-        assert.equal(deskripsiBocorFase(teks),false,`19. ${nama} ${classId} ${subjectId} bebas kata Fase`);
+        assert.equal(deskripsiBocorFase(teks),false,`19. ${nama} ${classId} ${subjectId} bebas kata Fase/TP`);
         assert.equal(/\bFase\b/.test(teks),false,`${nama} ${classId} ${subjectId} tidak menyebut Fase`);
         assert.equal(/CP [A-Z][a-z]+ \d/.test(teks),false,'kode butir tidak ikut ke deskripsi');
         assert.equal(/pada akhir fase/i.test(teks),false,'bahasa administratif kurikulum tidak dipakai');
       }
     }
   }
-  /* Penyusun kalimatnya sendiri memang tidak lagi menyebut fase. */
   const sumber=read('src/services/cp-descriptions.js');
-  assert.equal(/Fase \$\{cp\.phase\}/.test(sumber),false,'template kalimat tidak lagi menyisipkan fase');
+  assert.equal(/Fase \$\{cp\.phase\}/.test(sumber),false,'template kalimat tidak menyisipkan fase');
 });
 
-/* ------------------------------------------- 20-21. TP tidak lagi menjadi dasar penilaian */
-
-test('20. TP tidak lagi menjadi dasar penilaian, tetapi catatannya tetap terbaca',()=>{
-  const {session,siswa}=siapkanDeskripsi();
-  const tp=createLearningObjective(session,'mtk',{description:'TP lama sekolah',active:true});
+test('20. Nama mata pelajaran tidak pernah diulang di dalam kalimat deskripsi',()=>{
+  const {session,siswa,butir}=siapkanIntra();
+  const intra=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:butir.slice(0,2).map(item=>item.id),jenis:'teori',predicate:'Baik'});
   const rapor=generateReportDescription(session,'mtk',siswa.id,{});
-  assert.equal(rapor.source,'CP_BUTIR','20. deskripsi rapor tidak memakai TP');
-  assert.equal(rapor.text.includes('TP lama sekolah'),false,'isi TP tidak masuk deskripsi');
-  assert.equal(rapor.objectiveIds,null,'tidak ada TP yang dijadikan acuan penilaian');
-  /* Catatan TP-nya sendiri TIDAK dihapus. */
-  assert.equal(listLearningObjectives(session,'mtk').some(item=>item.id===tp.id),true,
-    'catatan TP lama tetap tersimpan dan dapat dibaca');
-  /* Nilai kompetensi memang disimpan pada koleksi Butir CP, bukan pada TP. */
-  assert.ok(Object.keys(loadDb().cpButirScores).length>0,'nilai tersimpan pada koleksi Butir CP');
+  for(const [nama,teks] of [['Intrakurikuler',intra.description],['Rapor',rapor.text]]){
+    assert.equal(deskripsiMengulangMapel(teks,'Matematika'),false,
+      `20. ${nama} tidak berbunyi "mata pelajaran Matematika"`);
+    assert.equal(/mata pelajaran/i.test(teks),false,`${nama} tidak menyebut "mata pelajaran"`);
+  }
+  /* Penjaganya sendiri memang bekerja - bukan sekadar kebetulan lolos. */
+  assert.equal(deskripsiMengulangMapel('Menunjukkan kemampuan yang baik dalam mata pelajaran IPAS.','IPAS'),true);
 });
+
+/* --------------------------------------------------- 21-22. Cakupan katalog tidak berubah */
 
 test('21. Seluruh mata pelajaran memakai mekanisme CP/Butir CP yang sama',()=>{
   const cakupan=cpButirCoverage(CP_SUBJECTS);
   const berlaku=cakupan.filter(item=>item.elemen>0);
   assert.ok(berlaku.length>=29,`kombinasi mapel-fase yang berlaku: ${berlaku.length}`);
-  /* SATU PENGECUALIAN YANG DISENGAJA. `seni` (Seni dan Budaya) adalah label payung demi
-     kompatibilitas mapping lama, bukan nama mata pelajaran pada dokumen CP resmi, sehingga
-     naskah CP-nya tidak ada dan Butir CP bawaannya tidak boleh dikarang. Kekosongan itu diuji
-     secara eksplisit di sini supaya tidak pernah menjadi kelalaian yang tidak disadari. */
+  /* SATU PENGECUALIAN YANG DISENGAJA. `seni` adalah label payung demi kompatibilitas mapping
+     lama, bukan nama mata pelajaran pada dokumen CP resmi. */
   const tanpaNaskah=new Set(['seni']);
   for(const item of berlaku.filter(entry=>tanpaNaskah.has(entry.subjectId))){
     assert.equal(item.butir,0,
@@ -358,30 +390,27 @@ test('21. Seluruh mata pelajaran memakai mekanisme CP/Butir CP yang sama',()=>{
     assert.ok(item.butir>0,`21. ${item.subjectId} Fase ${item.phase} memiliki Butir CP`);
     assert.deepEqual(item.elemenTanpaButir,[],
       `${item.subjectId} Fase ${item.phase}: setiap elemen CP memiliki Butir CP`);
-    assert.ok(item.semester1>0&&item.semester2>0,
-      `${item.subjectId} Fase ${item.phase} terpetakan ke kedua semester`);
-    /* Butir hanya boleh ada bila naskah CP induknya memang dimuat. */
     assert.ok(capaianPembelajaran(`${item.phase==='A'?1:item.phase==='B'?3:5}A`,item.subjectId).naskah,
       `${item.subjectId} Fase ${item.phase}: Butir CP bersandar pada naskah CP resmi yang dimuat`);
   }
-  /* Struktur setiap butir seragam di seluruh mapel. */
+  /* 291 butir substansinya TIDAK berubah oleh penyederhanaan model. */
+  const total=berbutir.reduce((jumlah,item)=>jumlah+item.butir,0);
+  assert.equal(total,291,`jumlah Butir CP tetap 291, terbaca ${total}`);
   for(const item of berbutir.flatMap(entry=>defaultCpButir(entry.subjectId,entry.phase))){
-    assert.ok(JENIS_IDS.includes(item.jenis),`${item.code}: jenis penilaian valid`);
     assert.ok(item.teori||item.praktik,`${item.code}: memiliki rumusan substansi`);
-    assert.ok([1,2].includes(item.semester),`${item.code}: terpetakan ke semester`);
+    assert.equal('jenis' in item,false,`${item.code}: tidak lagi membawa jenis penilaian`);
+    assert.equal('semester' in item,false,`${item.code}: tidak lagi membawa semester`);
   }
-  /* Butir CP bukan TP yang berganti nama: tidak satu pun butir menyalin katalog TP lama. */
+  /* Butir CP bukan TP yang berganti nama. */
   const katalogTp=read('src/data/learning-objective-defaults.js');
-  const contohButir=defaultCpButir('mtk','C').map(item=>item.name);
-  for(const nama of contohButir)assert.equal(katalogTp.includes(nama),false,
-    `butir "${nama}" bukan salinan katalog TP`);
+  for(const nama of defaultCpButir('mtk','C').map(item=>item.name))
+    assert.equal(katalogTp.includes(nama),false,`butir "${nama}" bukan salinan katalog TP`);
 });
 
-/* ------------------------------------------------- 22-23. Data lama tetap utuh dan terbaca */
+/* ------------------------------------------------- 22-24. Data lama tetap utuh dan terbaca */
 
 test('22-23. Data pengguna lama tetap terbaca dan tidak ada yang hilang',()=>{
   const {session,siswa}=siapkan();
-  /* Data akademik yang mewakili pemakaian nyata sebelum revisi ini. */
   const tp=createLearningObjective(session,'mtk',{description:'TP warisan',active:true});
   saveAttendance(session,`${ACADEMIC_YEAR.slice(0,4)}-08-01`,{[siswa.id]:'Hadir'});
   saveAssessmentSettings(session,'mtk',{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
@@ -396,12 +425,11 @@ test('22-23. Data pengguna lama tetap terbaca dan tidak ada yang hilang',()=>{
     learningObjectives:Object.keys(sebelum.learningObjectives).length,
   };
 
-  /* Seluruh alur Butir CP dijalankan di atas data yang sama. */
-  const butir=listCpButirForSemester(session,'mtk')[0];
-  saveCpButirScores(session,'mtk',butir.id,{[siswa.id]:{teori:85,praktik:85}});
+  const butir=listCpButirForSemester(session,'mtk');
   createCpButir(session,'mtk',{elementId:cpElements('mtk','C')[0].id,name:'Butir tambahan',
-    teori:'materi tambahan',semester:1,jenis:'teori'});
-  saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',predicate:'Baik'});
+    teori:'materi tambahan'});
+  saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:[butir[0].id],jenis:'teori',predicate:'Baik'});
 
   const sesudah=loadDb();
   for(const [koleksi,jumlah] of Object.entries(cuplikan))
@@ -410,11 +438,10 @@ test('22-23. Data pengguna lama tetap terbaca dan tidak ada yang hilang',()=>{
     '22. catatan TP lama tetap terbaca setelah revisi');
   assert.equal(listStudents(session,{classId:'5B'}).length,1,'data siswa utuh');
 
-  /* Layanan Butir CP memang tidak punya jalan untuk menghapus data akademik. */
-  const sumber=read('src/services/cp-butir.js');
+  const sumber=read('src/services/cp-butir.js')+read('src/services/intracurricular.js');
   for(const larangan of ['localStorage.clear()','replaceDb(','delete db.students','delete db.attendance',
     'delete db.assessmentScores','delete db.learningObjectives'])
-    assert.equal(sumber.includes(larangan),false,`layanan Butir CP tidak pernah ${larangan}`);
+    assert.equal(sumber.includes(larangan),false,`layanan CP/Intrakurikuler tidak pernah ${larangan}`);
 });
 
 test('24. Koleksi Butir CP ikut dijaga backup dan migration',()=>{
@@ -426,68 +453,82 @@ test('24. Koleksi Butir CP ikut dijaga backup dan migration',()=>{
     assert.ok(backup.includes(koleksi),`${koleksi} ikut backup`);
     assert.ok(migrasi.includes(koleksi),`${koleksi} dijaga migration`);
   }
-  /* Skema database TIDAK dinaikkan: koleksi baru dibuat saat dipakai, sehingga database lama
-     tetap terbaca tanpa migrasi yang menyentuh datanya. */
+  /* Skema database TIDAK dinaikkan: penyederhanaan model tidak menyentuh baris mana pun. */
   assert.equal(/APP_SCHEMA_VERSION\s*=\s*6/.test(read('src/data/version.js')),false,
     'tidak ada kenaikan skema yang memaksa migrasi database lama');
 });
 
-/* ---------------------------------------------------- Rata-rata butir sebagai bahan bacaan */
+/* ------------------------------------------------------ 25. Semester otomatis dan terpisah */
 
-test('Rata-rata capaian butir tersedia untuk mata pelajaran yang sudah dinilai',()=>{
-  const {session,siswa}=siapkanDeskripsi();
-  const rerata=cpButirAverage(session,'mtk',siswa.id);
-  assert.ok(rerata>0&&rerata<=100,`rata-rata capaian butir terbaca: ${rerata}`);
-  assert.equal(cpButirAverage(session,'bindo',siswa.id),null,
-    'mata pelajaran yang belum dinilai tidak mengarang angka');
+test('25. Butir yang sama dipakai Ganjil dan Genap tanpa saling menimpa',()=>{
+  const {session,siswa}=siapkan();
+  const butir=listCpButirForSemester(session,'mtk')[0];
+  const ganjil=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:[butir.id],jenis:'teori',predicate:'Baik'});
+  assert.equal(ganjil.semesterNumber,1,'hasil Ganjil tersimpan sebagai Semester 1');
+
+  /* Data siswa memang bercakupan semester, jadi rombel semester berikutnya punya catatannya
+     sendiri. Yang diuji di sini adalah bahwa BUTIR CP-nya tidak ikut terbelah. */
+  const genap=guru('5B',`Genap ${ACADEMIC_YEAR}`);
+  aktifkanMapel(genap,['mtk','pjok','bindo']);
+  const siswaGenap=tambahSiswa(genap);
+  assert.deepEqual(listCpButirForSemester(genap,'mtk').map(item=>item.id),
+    listCpButirForSemester(session,'mtk').map(item=>item.id),
+    '25. daftar Butir CP identik pada Ganjil dan Genap - tidak perlu digandakan');
+
+  const hasilGenap=saveStudentIntracurricularSelection(genap,siswaGenap.id,{subjectId:'mtk',
+    butirIds:[butir.id],jenis:'praktik',predicate:'Sangat Baik'});
+  assert.equal(hasilGenap.semesterNumber,2,'hasil Genap tersimpan sebagai Semester 2');
+  assert.deepEqual(hasilGenap.butirIds,[butir.id],'butir yang SAMA dipakai lagi di Genap');
+
+  /* Riwayat semester sebelumnya TIDAK tertimpa: kuncinya memuat semester lewat scopeKey. */
+  const bacaGanjil=getStudentIntracurricularSelection(session,siswa.id,'mtk');
+  assert.equal(bacaGanjil.predicate,'Baik','data Ganjil tetap utuh');
+  assert.equal(bacaGanjil.jenis,'teori');
+  const bacaGenap=getStudentIntracurricularSelection(genap,siswaGenap.id,'mtk');
+  assert.equal(bacaGenap.predicate,'Sangat Baik','data Genap berdiri sendiri');
+  assert.notEqual(bacaGanjil.description,bacaGenap.description);
+  /* Kunci penyimpanannya memang berbeda semester. */
+  const kunci=Object.keys(loadDb().intracurricularScores);
+  assert.ok(kunci.some(key=>key.startsWith(`${ACADEMIC_YEAR}|Ganjil ${ACADEMIC_YEAR}|`)),
+    'catatan Ganjil tersimpan pada kunci semester Ganjil');
+  assert.ok(kunci.some(key=>key.startsWith(`${ACADEMIC_YEAR}|Genap ${ACADEMIC_YEAR}|`)),
+    'catatan Genap tersimpan pada kunci semester Genap');
 });
 
-/* ------------------------------------------------------ Mutu kalimat yang dihasilkan */
+/* ------------------------------------------------------ 26. Isi Otomatis Semua Siswa */
 
-test('Kalimat deskripsi tidak menderetkan dua kata kerja dan tidak mengulang objek',()=>{
-  const praktik={jenis:'praktik',praktik:'menyelesaikan operasi hitung campuran bilangan cacah'};
-  /* Rumusan keterampilan sudah berupa frasa kerja, dan bingkai kalimat sudah menyediakan
-     "memerlukan bimbingan untuk". Kata kerja tambahan akan menghasilkan dua kata kerja
-     berderet - "mempraktikkan menyelesaikan ..." - yang salah. */
-  assert.equal(frasaButir(praktik,'bimbingan'),'menyelesaikan operasi hitung campuran bilangan cacah');
-  assert.equal(frasaButir(praktik,'cukup'),'mampu menyelesaikan operasi hitung campuran bilangan cacah');
-
-  /* Butir Teori + Praktik yang kedua sisinya memakai objek yang sama tidak diulang dua kali. */
-  const berulang={jenis:'teori_praktik',teori:'masalah sehari-hari yang berkaitan dengan uang',
-    praktik:'menyelesaikan masalah sehari-hari yang berkaitan dengan uang'};
-  const teks=frasaButir(berulang,'cukup');
-  assert.equal(teks,'mampu menyelesaikan masalah sehari-hari yang berkaitan dengan uang');
-  assert.equal((teks.match(/masalah sehari-hari/g)||[]).length,1,'objeknya hanya disebut sekali');
-
-  /* Dua sisi yang memang berbeda tetap dirangkai keduanya. */
-  const berbeda={jenis:'teori_praktik',teori:'sistem koordinat kartesius',
-    praktik:'menggambar titik pada bidang koordinat'};
-  assert.equal(frasaButir(berbeda,'tinggi'),
-    'menguasai sistem koordinat kartesius serta terampil menggambar titik pada bidang koordinat');
-
-  /* Tidak ada kalimat hasil generator yang memuat dua kata kerja berderet. */
-  const {session,siswa}=siapkanDeskripsi();
-  const intra=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',predicate:'Baik'});
-  const rapor=generateReportDescription(session,'mtk',siswa.id,{});
-  for(const kalimat of [intra.description,rapor.text])
-    assert.equal(/mempraktikkan meng|mempraktikkan mem|mempraktikkan meny/.test(kalimat),false,
-      'tidak ada dua kata kerja berderet pada kalimat yang dihasilkan');
+test('26. Isi Otomatis Semua Siswa memproses seluruh murid pada mapel yang dipilih',()=>{
+  const {session}=siapkan();
+  for(let i=2;i<=5;i++)tambahSiswa(session,i);
+  const butir=listCpButirForSemester(session,'mtk').slice(0,2).map(item=>item.id);
+  const hasil=fillAllIntracurricular(session,{subjectId:'mtk',butirIds:butir,
+    jenis:'praktik',predicate:'Baik'});
+  assert.equal(hasil.total,5,'seluruh murid rombel diproses');
+  assert.equal(hasil.terisi,5,'26. lima murid terisi sekaligus');
+  assert.equal(hasil.subjectId,'mtk','mapel yang diproses adalah yang diminta');
+  for(const murid of listStudents(session,{classId:'5B'})){
+    const catatan=getStudentIntracurricularSelection(session,murid.id,'mtk');
+    assert.equal(catatan.subjectId,'mtk');
+    assert.deepEqual(catatan.butirIds,butir,'butir terpilih tersimpan untuk tiap murid');
+    assert.equal(catatan.jenis,'praktik');
+  }
 });
 
-test('Halaman Intrakurikuler menyusun deskripsi dari Butir CP murid yang dibuka',()=>{
-  /* Tombol Generate pada halaman harus memakai penyusun yang SAMA dengan yang dipakai saat
-     Simpan. Tanpa studentId, penyusun tidak dapat membaca nilai Butir CP dan menghasilkan
-     kalimat lingkup elemen - berbeda dari yang akhirnya tersimpan. */
+/* ------------------------------------------------------- 27. Halaman dan layanan sejalan */
+
+test('27. Tombol Generate pada halaman memakai penyusun yang sama dengan Simpan',()=>{
   const halaman=read('src/pages/intracurricular-input.js');
-  const potongan=halaman.slice(halaman.indexOf('const susun=()=>composeIntracurricularDescriptionFromCp'),
-    halaman.indexOf('const susun=()=>composeIntracurricularDescriptionFromCp')+320);
-  assert.match(potongan,/studentId:student\.id/,'penyusun deskripsi menerima studentId');
+  assert.match(halaman,/const susun=\(\)=>composeIntracurricularDescriptionFromCp/,
+    'halaman memakai penyusun layanan, bukan template sendiri');
+  assert.match(halaman,/butirIds:idTerpilih\(\)/,'penyusun menerima butir yang dicentang guru');
 
-  const {session,siswa}=siapkanDeskripsi();
-  const dariHalaman=composeIntracurricularDescriptionFromCp(session,{studentName:siswa.name,
-    subjectName:'Matematika',subjectId:'mtk',studentId:siswa.id,predicate:'Baik'});
-  const tersimpan=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',predicate:'Baik'});
+  const {session,siswa,butir}=siapkanIntra();
+  const ids=butir.slice(0,2).map(item=>item.id);
+  const dariHalaman=composeIntracurricularDescriptionFromCp(session,{subjectId:'mtk',
+    butirIds:ids,jenis:'teori',predicate:'Baik'});
+  const tersimpan=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
+    butirIds:ids,jenis:'teori',predicate:'Baik'});
   assert.equal(dariHalaman,tersimpan.description,
     'kalimat yang ditampilkan Generate sama dengan yang tersimpan');
-  assert.match(dariHalaman,/menunjukkan kemampuan/,'kalimatnya bersumber Butir CP yang dinilai');
 });

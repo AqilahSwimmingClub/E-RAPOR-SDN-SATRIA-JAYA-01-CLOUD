@@ -1,6 +1,7 @@
 import { activateLicense, checkLicense, formatLicenseKeyInput, getLicenseDisplay, getLicenseState,
   LICENSE_MESSAGES } from '../services/license.js';
-import { getInstallationId } from '../services/installation.js';
+import { getInstallationId, getInstallationSource } from '../services/installation.js';
+import { DEVICE_SOURCE_NOTES } from '../services/device-identity.js';
 import { getSchoolMaster } from '../services/master.js';
 import { APP_NAME, COPYRIGHT, DEVELOPER_CREDIT_LEAD, DEVELOPER_NAME, DEVELOPER_ROLE } from '../data/app-identity.js';
 import { APP_VERSION } from '../data/version.js';
@@ -34,6 +35,8 @@ export function renderLicenseActivation({onActivated}={}){
         ${school.npsn?`<div><span>NPSN</span><strong>${escapeHtml(school.npsn)}</strong></div>`:''}
         <div><span>Installation ID</span><code>${escapeHtml(getInstallationId())}</code></div>
       </div>
+      <p class="setup-hint">Satu License Key melayani <strong>satu perangkat Android</strong> dan <strong>satu komputer Windows</strong>. Keduanya berdiri sendiri: mengaktifkan di HP tidak memakai jatah komputer, dan sebaliknya.</p>
+      <p class="setup-hint">${escapeHtml(DEVICE_SOURCE_NOTES[getInstallationSource()]||'')}</p>
 
       ${perluVerifikasi?`<div class="license-verify" data-verify>
         <p><strong>Lisensi perlu diverifikasi.</strong> Hubungkan perangkat ke internet untuk melanjutkan. Seluruh data sekolah tetap tersimpan utuh dan tidak ada yang dihapus.</p>

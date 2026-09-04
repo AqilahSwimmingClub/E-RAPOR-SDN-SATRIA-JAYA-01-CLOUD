@@ -1,36 +1,44 @@
-import { jenisPenilaian } from '../data/cp-butir-defaults.js';
 import { capaianPembelajaranFor } from './learning-objectives.js';
 
-/* SATU CP, DUA KONTEKS DESKRIPSI.
+/* SATU CP, DUA KONTEKS DESKRIPSI YANG WAJIB BERBEDA.
 
    Capaian Pembelajaran adalah acuan kompetensi resmi per mata pelajaran dan fase. Dua fitur
-   membacanya, dan keduanya WAJIB menghasilkan kalimat yang berbeda:
+   membacanya, dan keduanya menghasilkan kalimat yang berbeda karena menjawab pertanyaan yang
+   berbeda:
 
-     INTRAKURIKULER  menceritakan keikutsertaan murid pada pembelajaran mata pelajaran itu
-                     beserta kemampuan yang ditunjukkannya.
-     NILAI RAPOR     menceritakan CAPAIAN AKADEMIK murid terhadap kompetensi yang dinilai.
+     INTRAKURIKULER  "pada kegiatan penilaian ini, kompetensi apa yang ditunjukkan anak, dan
+                     seberapa baik?" -> BUTIR CP YANG DIPILIH GURU + jenis TEORI/PRAKTIK +
+                     PREDIKAT kegiatan.
+     NILAI RAPOR     "sepanjang semester, bagaimana capaian kompetensi anak?" -> kompetensi
+                     mata pelajaran + NILAI AKHIR terhadap KKTP.
 
    Karena itu berkas ini memuat penyusun kalimat yang TERPISAH untuk masing-masing, bukan satu
    yang dipakai bergantian. Menyatukannya akan membuat kolom Intrakurikuler dan kolom Capaian
    Kompetensi di rapor berbunyi sama persis.
 
-   SUMBER KALIMAT ADALAH BUTIR CP YANG DINILAI - bukan naskah CP resmi, dan bukan nama elemen
-   saja. Setiap butir membawa dua rumusan substansi: satu untuk pengetahuan, satu untuk
-   keterampilan. Penyusun memilih rumusan yang sesuai JENIS PENILAIAN butir itu, lalu memberi
-   kata kerja yang sesuai tingkat capaian murid. Itulah sebabnya kalimatnya tidak lahir dari
-   penggantian kata secara buta: substansinya memang ditulis berbeda untuk kedua jenis.
+   TIGA HAL YANG TIDAK PERNAH MASUK KE KALIMAT:
 
-   FASE TIDAK PERNAH MASUK KE KALIMAT. Fase A/B/C tetap dipakai sebagai metadata pemetaan kelas,
-   mata pelajaran, dan CP, tetapi rapor dibaca orang tua: yang dibicarakan adalah kemampuan
-   anaknya, bukan kode administratif kurikulum. Nomor butir dan kode CP juga tidak pernah
-   ditulis ke dalam deskripsi. */
+   - FASE A/B/C. Fase tetap dipakai sebagai metadata pemetaan kelas dan CP, tetapi rapor dibaca
+     orang tua: yang dibicarakan kemampuan anaknya, bukan kode administratif kurikulum.
+   - KODE CP dan nomor butir. Sama alasannya.
+   - NAMA MATA PELAJARAN. Nama mapel sudah tercetak pada kolom rapor dan pada layar aplikasi.
+     Mengulangnya di dalam kalimat menghasilkan "menunjukkan kemampuan yang baik dalam mata
+     pelajaran IPAS" - kalimat yang tidak menerangkan satu kompetensi pun. Deskripsi langsung
+     menyebut KOMPETENSINYA. */
 
-/* Merangkai daftar menjadi frasa Indonesia yang wajar: "A, B, dan C". */
+/* Merangkai daftar menjadi frasa Indonesia yang wajar: "A", "A dan B", "A, B, serta C".
+
+   Dua butir dirangkai TANPA koma - "A, dan B" bukan bahasa Indonesia yang benar - dan tiga
+   butir atau lebih ditutup dengan "serta" supaya kalimatnya tidak berbunyi seperti daftar. */
 function rangkai(daftar){
-  const isi=daftar.map(item=>String(item||'').trim()).filter(Boolean);
+  const isi=[...new Set(daftar.map(item=>String(item||'').trim()).filter(Boolean))];
   if(!isi.length)return '';
   if(isi.length===1)return isi[0];
-  return `${isi.slice(0,-1).join(', ')}, dan ${isi.at(-1)}`;
+  /* Bila salah satu bagian sudah memuat "dan" di dalamnya, penghubungnya memakai "serta"
+     supaya kalimatnya tidak berbunyi "... dan ... dan ...". */
+  if(isi.length===2)
+    return `${isi[0]} ${isi.some(item=>/\sdan\s/i.test(item))?'serta':'dan'} ${isi[1]}`;
+  return `${isi.slice(0,-1).join(', ')}, serta ${isi.at(-1)}`;
 }
 
 /* Nama elemen ditulis PERSIS seperti pada dokumen resmi, termasuk kapitalisasinya. Menurunkan
@@ -60,127 +68,107 @@ export function cpAlasanTidakTersedia(session,subjectId){
   return null;
 }
 
-/* ------------------------------------------------------- TINGKAT CAPAIAN DAN KATA KERJANYA */
+/* ------------------------------------------------------------------- JENIS PENILAIAN
 
-/* Tingkat capaian satu butir, dibaca dari nilai butir terhadap KKTP. */
-export function tingkatButir(nilai,kktp=KKTP_BAWAAN){
-  if(nilai===null||nilai===undefined)return null;
-  if(nilai>=90)return 'tinggi';
-  if(nilai>=Number(kktp||KKTP_BAWAAN))return 'cukup';
-  return 'bimbingan';
+   HANYA ADA DUA, dan keduanya milik INTRAKURIKULER - bukan milik Butir CP dan bukan milik
+   Rapor. "Teori + Praktik" dihapus: satu kegiatan penilaian menilai satu sisi, dan guru yang
+   ingin menilai keduanya cukup mencatat dua penilaian. */
+export const JENIS_INTRAKURIKULER=Object.freeze([
+  Object.freeze({id:'teori',label:'Teori',singkat:'Teori'}),
+  Object.freeze({id:'praktik',label:'Praktik',singkat:'Praktik'}),
+]);
+export const JENIS_INTRAKURIKULER_IDS=Object.freeze(JENIS_INTRAKURIKULER.map(item=>item.id));
+export function jenisIntrakurikuler(id){
+  return JENIS_INTRAKURIKULER.find(item=>item.id===String(id||''))||null;
+}
+export function jenisIntrakurikulerValid(id){return JENIS_INTRAKURIKULER_IDS.includes(String(id||''));}
+
+/* ------------------------------------------------ SUBSTANSI SATU BUTIR MENURUT JENISNYA
+
+   Setiap butir membawa DUA rumusan substansi yang ditulis terpisah sejak awal: satu wajar
+   dibaca setelah kata kerja pengetahuan, satu setelah kata kerja keterampilan. Itulah yang
+   membuat kalimat Teori dan Praktik tidak lahir dari pertukaran kata secara buta.
+
+   BILA RUMUSAN YANG DIMINTA TIDAK ADA, rumusan yang tersedia dipakai apa adanya. Generator
+   TIDAK PERNAH mengarang kompetensi praktik untuk butir yang substansinya memang hanya
+   pengetahuan - ia hanya menyusun ulang substansi yang sudah tertulis pada butir itu. */
+export function substansiButir(butir,jenis='teori'){
+  const teori=String(butir?.teoriTeks??butir?.teori??'').trim();
+  const praktik=String(butir?.praktikTeks??butir?.praktik??'').trim();
+  if(jenis==='praktik')return praktik||teori||'';
+  return teori||praktik||'';
 }
 
-/* Kata kerja PENGETAHUAN dan KETERAMPILAN sengaja dipisahkan, dan tiap tingkat punya kata
-   kerjanya sendiri. Ini yang membuat butir Praktik tidak pernah berbunyi "memahami" dan butir
-   Teori tidak pernah berbunyi "terampil". */
-const KERJA_TEORI=Object.freeze({tinggi:'menguasai',cukup:'memahami',bimbingan:'memahami'});
-/* Pada tingkat bimbingan, kata kerja keterampilan sengaja DIKOSONGKAN. Rumusan praktik memang
-   sudah ditulis sebagai frasa kerja ("menyelesaikan ...", "mempraktikkan ..."), sedangkan
-   bingkai kalimatnya sudah menyediakan "memerlukan bimbingan untuk" dan "penguatan pada
-   kemampuan". Menambahkan kata kerja lagi menghasilkan "mempraktikkan menyelesaikan ..." -
-   dua kata kerja berderet yang salah. */
-const KERJA_PRAKTIK=Object.freeze({tinggi:'terampil',cukup:'mampu',bimbingan:''});
+/* Kata kerja pembuka. Dipisah per jenis DAN per tingkat, sehingga penilaian Praktik tidak
+   pernah berbunyi "memahami" dan penilaian Teori tidak pernah berbunyi "terampil".
 
-/* Satu butir Teori + Praktik boleh memakai objek yang sama pada kedua sisinya. Bila begitu,
-   merangkai keduanya menghasilkan pengulangan yang janggal - "memahami X serta mampu
-   menyelesaikan X". Dalam keadaan itu sisi keterampilan saja yang dipakai, karena ia sudah
-   memuat objek yang sama sekaligus tindakannya. */
-function objekBerulang(teori,praktik){
-  if(!teori||!praktik)return false;
-  const a=teori.toLowerCase(),c=praktik.toLowerCase();
-  return c.includes(a)||a.includes(c);
-}
-function gabung(bagian){
-  const isi=bagian.map(item=>String(item||'').trim()).filter(Boolean);
-  return isi.join(' serta ');
-}
-
-/* Frasa satu butir menurut jenis penilaian dan tingkat capaiannya. Butir Teori + Praktik
-   menghasilkan dua sisi yang dirangkai menjadi satu frasa yang wajar dibaca. */
-export function frasaButir(butir,tingkat){
-  if(!butir)return '';
-  const info=jenisPenilaian(butir.jenis)||jenisPenilaian('teori');
-  const level=tingkat||'cukup';
-  const teks=t=>String(t||'').trim();
-  const isiTeori=teks(butir.teoriTeks||butir.teori);
-  const isiPraktik=teks(butir.praktikTeks||butir.praktik);
-  const pakaiTeori=info.teori&&Boolean(isiTeori);
-  const pakaiPraktik=info.praktik&&Boolean(isiPraktik);
-  const frasaTeori=pakaiTeori?`${KERJA_TEORI[level]} ${isiTeori}`:'';
-  const frasaPraktik=pakaiPraktik?`${KERJA_PRAKTIK[level]} ${isiPraktik}`.trim():'';
-  if(pakaiTeori&&pakaiPraktik)
-    return objekBerulang(isiTeori,isiPraktik)?frasaPraktik:gabung([frasaTeori,frasaPraktik]);
-  if(pakaiTeori||pakaiPraktik)return gabung([frasaTeori,frasaPraktik]);
-  /* Butir yang rumusannya hanya tersedia pada sisi lain tetap dapat dibaca: yang dipakai adalah
-     rumusan yang ada, bukan kalimat kosong. */
-  const sisa=isiTeori||isiPraktik;
-  if(!sisa)return '';
-  return `${(isiTeori?KERJA_TEORI:KERJA_PRAKTIK)[level]} ${sisa}`.trim();
-}
-
-/* Membagi capaian butir menjadi yang sudah tercapai dan yang masih memerlukan bimbingan.
-   Batas jumlah menjaga kalimat rapor tetap terbaca; butir dengan nilai tertinggi mewakili sisi
-   unggul dan yang terendah mewakili sisi yang perlu dikuatkan. */
-function bagiCapaian(capaian,kktp,{maksUnggul=3,maksBimbingan=2}={}){
-  const dinilai=(capaian||[]).filter(item=>item&&item.nilai!==null&&item.nilai!==undefined);
-  const unggul=dinilai.filter(item=>tingkatButir(item.nilai,kktp)!=='bimbingan')
-    .sort((a,b)=>b.nilai-a.nilai);
-  const bimbingan=dinilai.filter(item=>tingkatButir(item.nilai,kktp)==='bimbingan')
-    .sort((a,b)=>a.nilai-b.nilai);
-  return {
-    dinilai,
-    unggul:unggul.slice(0,maksUnggul),
-    bimbingan:bimbingan.slice(0,maksBimbingan),
-    tertinggi:unggul[0]||null,
-  };
-}
-
-/* ------------------------------------------------------- 1. GENERATOR INTRAKURIKULER */
-
-/* Nada kalimat Intrakurikuler mengikuti PREDIKAT kegiatan, bukan angka. Yang diceritakan lebih
-   dulu adalah keterlibatan murid pada pembelajaran, baru kemampuan yang ditunjukkannya. */
-const NADA_INTRA=Object.freeze({
-  'Sangat Baik':'mengikuti kegiatan pembelajaran intrakurikuler dengan sangat baik dan konsisten',
-  'Baik':'mengikuti kegiatan pembelajaran intrakurikuler dengan baik',
-  'Cukup':'mengikuti kegiatan pembelajaran intrakurikuler dengan cukup baik',
-  'Perlu Bimbingan':'mengikuti kegiatan pembelajaran intrakurikuler dan masih memerlukan bimbingan',
+   Rumusan keterampilan pada katalog sudah ditulis sebagai frasa kerja ("menyajikan ...",
+   "mempraktikkan ..."), jadi kata kerja pembukanya adalah kata sifat kemampuan - bukan kata
+   kerja kedua yang akan berderet salah. */
+const KERJA_TEORI=Object.freeze({
+  'Sangat Baik':'menguasai',
+  'Baik':'memahami',
+  'Cukup':'memahami',
+  'Perlu Bimbingan':'mulai memahami',
+});
+const KERJA_PRAKTIK=Object.freeze({
+  'Sangat Baik':'sangat terampil',
+  'Baik':'terampil',
+  'Cukup':'mampu',
+  'Perlu Bimbingan':'mulai mampu',
 });
 
-/* Deskripsi Intrakurikuler dari BUTIR CP yang dinilai. */
-export function composeIntracurricularButirDescription({studentName='',subjectName='',capaian=[],
-  predicate='Baik',kktp=KKTP_BAWAAN}={}){
-  const {dinilai,unggul,bimbingan}=bagiCapaian(capaian,kktp);
-  if(!dinilai.length)return null;
-  const nama=String(studentName||'').trim()||'Ananda';
-  const mapel=String(subjectName||'').trim();
-  const nada=NADA_INTRA[predicate]||NADA_INTRA.Baik;
-  const bagianMapel=mapel?` pada mata pelajaran ${mapel}`:'';
-  const kalimat=[`Ananda ${nama} ${nada}${bagianMapel}.`];
-  const kuat=unggul.map(item=>frasaButir(item,tingkatButir(item.nilai,kktp))).filter(Boolean);
-  if(kuat.length)kalimat.push(`Ananda menunjukkan kemampuan ${rangkai(kuat)}.`);
-  const lemah=bimbingan.map(item=>frasaButir(item,'bimbingan')).filter(Boolean);
-  if(lemah.length)kalimat.push(`Ananda masih memerlukan bimbingan untuk ${rangkai(lemah)}.`);
-  return kalimat.join(' ');
+export function kataKerjaIntrakurikuler(jenis,predikat){
+  const tabel=jenis==='praktik'?KERJA_PRAKTIK:KERJA_TEORI;
+  return tabel[predikat]||tabel.Baik;
 }
 
-/* Bentuk lama tanpa nilai butir: dipakai bila belum ada satu pun butir yang dinilai, sehingga
-   guru tetap mendapat kalimat yang benar alih-alih kolom kosong. Lingkup kompetensinya diambil
-   dari nama elemen CP resmi, dan FASE tidak pernah disebut. */
-export function composeIntracurricularCpDescription({studentName='',subjectName='',cp=null,predicate='Baik'}={}){
+/* ---------------------------------------------------- 1. GENERATOR INTRAKURIKULER
+
+   SUMBERNYA PERSIS TIGA HAL, dan tidak ada yang keempat:
+
+     1. BUTIR CP YANG BENAR-BENAR DIPILIH GURU. Butir yang tidak dipilih tidak pernah masuk;
+        butir nonaktif tidak pernah sampai ke sini karena tidak ditawarkan.
+     2. JENIS penilaian - Teori atau Praktik - yang menentukan rumusan substansi mana yang
+        dibaca dan kata kerja mana yang dipakai.
+     3. PREDIKAT kegiatan, yang menentukan seberapa kuat kata kerjanya.
+
+   BEBERAPA BUTIR DIRINGKAS MENJADI SATU KALIMAT, bukan disalin menjadi tiga paragraf. Guru yang
+   memilih tiga butir mendapat satu kalimat yang mencakup ketiga substansinya. */
+export function composeIntracurricularButirDescription({butir=[],jenis='teori',predicate='Baik'}={}){
+  const daftar=(Array.isArray(butir)?butir:[]).filter(Boolean);
+  if(!daftar.length)return null;
+  const isi=daftar.map(item=>substansiButir(item,jenis)).filter(Boolean);
+  if(!isi.length)return null;
+  const kerja=kataKerjaIntrakurikuler(jenis,predicate);
+  const penutup=predicate==='Perlu Bimbingan'
+    ? ' Masih memerlukan bimbingan agar capaian tersebut mantap.'
+    : '';
+  return `${kerja[0].toUpperCase()}${kerja.slice(1)} ${rangkai(isi)}.${penutup}`.trim();
+}
+
+/* Bentuk cadangan: guru belum memilih satu butir pun. Lingkup kompetensinya diambil dari nama
+   elemen CP resmi supaya kalimatnya tetap benar, bukan kolom kosong. Nama mata pelajaran dan
+   fase tetap tidak pernah disebut. */
+export function composeIntracurricularCpDescription({cp=null,jenis='teori',predicate='Baik'}={}){
   if(!cp||!cp.elements?.length)return null;
-  const nama=String(studentName||'').trim()||'Ananda';
-  const mapel=String(subjectName||'').trim();
-  const nada=NADA_INTRA[predicate]||NADA_INTRA.Baik;
+  const kerja=kataKerjaIntrakurikuler(jenis,predicate);
   const fokus=rangkai(cp.elements.map(namaElemen));
-  const bagianMapel=mapel?` pada mata pelajaran ${mapel}`:'';
-  return `Ananda ${nama} ${nada}${bagianMapel}, dengan lingkup kompetensi yang meliputi ${fokus}.`;
+  return `${kerja[0].toUpperCase()}${kerja.slice(1)} lingkup kompetensi ${fokus}.`;
 }
 
-/* ------------------------------------------------- 2. GENERATOR CAPAIAN KOMPETENSI RAPOR */
+/* ------------------------------------------- 2. GENERATOR CAPAIAN KOMPETENSI RAPOR
 
-/* Nada kalimat Nilai Rapor mengikuti CAPAIAN AKADEMIK - nilai butir dan Nilai Akhir terhadap
-   KKTP - bukan predikat kegiatan. Inilah yang membuat kalimatnya berbeda dari Intrakurikuler
-   meskipun butir CP-nya sama. */
+   SUMBERNYA BERBEDA DARI INTRAKURIKULER, dan itulah yang membuat kalimatnya berbeda meskipun
+   kompetensinya sama:
+
+     - tingkat capaiannya berasal dari NILAI AKHIR mata pelajaran terhadap KKTP - angka yang
+       sudah dihitung lima komponen penilaian yang berjalan - bukan dari predikat kegiatan;
+     - bahasanya adalah bahasa LAPORAN HASIL BELAJAR satu semester, bukan bahasa satu kegiatan
+       penilaian;
+     - kalimatnya lebih ringkas: rapor merangkum, tidak merinci.
+
+   Kompetensi yang disebut adalah BUTIR CP AKTIF mata pelajaran itu, diringkas seperlunya. */
 function tingkatAkademik(finalScore,kktp){
   if(finalScore===null||finalScore===undefined)return null;
   if(finalScore>=90)return 'sangat baik';
@@ -188,44 +176,51 @@ function tingkatAkademik(finalScore,kktp){
   return 'perlu bimbingan';
 }
 
-/* Deskripsi Capaian Kompetensi rapor dari BUTIR CP yang dinilai. */
-export function composeReportButirDescription({studentName='',capaian=[],finalScore=null,
-  kktp=KKTP_BAWAAN}={}){
-  const {dinilai,unggul,bimbingan}=bagiCapaian(capaian,kktp);
-  if(!dinilai.length)return null;
-  const nama=String(studentName||'').trim()||'Ananda';
-  /* Tingkat keseluruhan diambil dari Nilai Akhir bila ada; bila belum, dari rata-rata nilai
-     butir yang sudah dinilai. Keduanya angka capaian murid, bukan tebakan. */
-  const rerata=Math.round((dinilai.reduce((total,item)=>total+item.nilai,0)/dinilai.length)*100)/100;
-  const acuan=finalScore===null||finalScore===undefined?rerata:finalScore;
-  const tingkat=tingkatAkademik(acuan,kktp)||'baik';
-  const kuat=unggul.map(item=>frasaButir(item,tingkatButir(item.nilai,kktp))).filter(Boolean);
-  const lemah=bimbingan.map(item=>frasaButir(item,'bimbingan')).filter(Boolean);
-  const kalimat=[];
-  if(kuat.length)kalimat.push(`Ananda ${nama} menunjukkan capaian ${tingkat} dalam ${rangkai(kuat)}.`);
-  else kalimat.push(`Ananda ${nama} menunjukkan capaian ${tingkat} pada kompetensi yang dinilai.`);
-  if(lemah.length)kalimat.push(`Perlu penguatan pada kemampuan ${rangkai(lemah)}.`);
-  return kalimat.join(' ');
+/* Berapa kompetensi yang wajar disebut satu kalimat rapor. Rapor MERANGKUM satu semester,
+   jadi batasnya lebih ketat daripada Intrakurikuler yang menceritakan satu kegiatan: lebih dari
+   dua kompetensi dalam satu kalimat berhenti dapat dibaca orang tua. */
+const MAKS_KOMPETENSI_RAPOR=2;
+
+export function composeReportButirDescription({butir=[],finalScore=null,kktp=KKTP_BAWAAN}={}){
+  const daftar=(Array.isArray(butir)?butir:[]).filter(Boolean);
+  if(!daftar.length)return null;
+  /* Rapor memakai rumusan PENGETAHUAN sebagai bahasa dasarnya - inilah bahasa capaian
+     kompetensi satu semester - lalu meringkasnya. */
+  const isi=daftar.slice(0,MAKS_KOMPETENSI_RAPOR)
+    .map(item=>substansiButir(item,'teori')).filter(Boolean);
+  if(!isi.length)return null;
+  const fokus=rangkai(isi);
+  const tingkat=tingkatAkademik(finalScore,kktp);
+  if(tingkat===null)return `Menempuh pembelajaran pada kompetensi ${fokus}.`;
+  if(tingkat==='perlu bimbingan')
+    return `Menunjukkan penguasaan ${fokus} yang masih memerlukan bimbingan dan penguatan agar mencapai ketuntasan.`;
+  return `Menunjukkan pemahaman ${tingkat} tentang ${fokus}.`;
 }
 
-/* Bentuk lama tanpa nilai butir, memakai nama elemen CP. Tetap dipertahankan supaya mata
-   pelajaran yang butirnya belum dinilai tidak kehilangan deskripsi rapornya. FASE tidak
-   pernah disebut di sini. */
-export function composeReportCpDescription({studentName='',subjectName='',cp=null,finalScore=null,kktp=KKTP_BAWAAN}={}){
+/* Bentuk cadangan tanpa Butir CP, memakai nama elemen CP. Dipertahankan supaya mata pelajaran
+   yang butirnya belum tersedia tidak kehilangan deskripsi rapornya. */
+export function composeReportCpDescription({cp=null,finalScore=null,kktp=KKTP_BAWAAN}={}){
   if(!cp||!cp.elements?.length)return null;
-  const nama=String(studentName||'').trim()||'Ananda';
   const fokus=rangkai(cp.elements.map(namaElemen));
   const tingkat=tingkatAkademik(finalScore,kktp);
-  if(tingkat===null)
-    return `Ananda ${nama} menempuh pembelajaran pada lingkup kompetensi ${fokus}.`;
+  if(tingkat===null)return `Menempuh pembelajaran pada lingkup kompetensi ${fokus}.`;
   if(tingkat==='perlu bimbingan')
-    return `Ananda ${nama} menunjukkan penguasaan kompetensi ${fokus} yang masih memerlukan bimbingan dan penguatan agar mencapai ketuntasan.`;
-  return `Ananda ${nama} menunjukkan penguasaan ${tingkat} pada kompetensi ${fokus}.`;
+    return `Menunjukkan penguasaan kompetensi ${fokus} yang masih memerlukan bimbingan dan penguatan agar mencapai ketuntasan.`;
+  return `Menunjukkan penguasaan ${tingkat} pada kompetensi ${fokus}.`;
 }
 
 /* --------------------------------------------------------------------- PENJAGA KEBOCORAN */
 
 /* Satu tempat untuk memeriksa bahwa kalimat yang keluar tidak memuat bahasa administratif
    kurikulum. Dipakai penyusun deskripsi dan test regresi. */
-const POLA_TERLARANG=/\bfase\s*[abc]\b|\bpada akhir fase\b|\bcp\s*fase\b|\belemen cp\b/i;
+const POLA_TERLARANG=/\bfase\s*[abc]\b|\bpada akhir fase\b|\bcp\s*fase\b|\belemen cp\b|\btujuan pembelajaran\b/i;
 export function deskripsiBocorFase(teks){return POLA_TERLARANG.test(String(teks||''));}
+
+/* Nama mata pelajaran tidak boleh diulang di dalam kalimat deskripsi: ia sudah tercetak pada
+   kolom rapor. Dipakai test regresi untuk membuktikannya, bukan sekadar dijanjikan komentar. */
+export function deskripsiMengulangMapel(teks,subjectName){
+  const nama=String(subjectName||'').trim();
+  if(!nama)return false;
+  const pola=new RegExp(`\\b(mata pelajaran|mapel|pelajaran)\\s+${nama.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&')}\\b`,'i');
+  return pola.test(String(teks||''));
+}

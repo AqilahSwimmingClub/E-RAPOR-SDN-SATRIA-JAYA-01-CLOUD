@@ -1,31 +1,35 @@
 import { cpElements } from '../data/curriculum-cp.js';
-import { BUTIR_CP_STATUS, defaultCpButir, JENIS_PENILAIAN, jenisPenilaian, jenisValid,
-  hasCpButir } from '../data/cp-butir-defaults.js';
+import { BUTIR_CP_STATUS, defaultCpButir, hasCpButir } from '../data/cp-butir-defaults.js';
 import { phaseForClassId } from '../data/learning-objective-defaults.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
 import { requireActiveSubject } from './subjects.js';
 import { listStudents } from './students.js';
 
-/* BUTIR CP sebagai objek penilaian.
+/* BUTIR CP sebagai objek kompetensi.
 
-   Rantainya: CP RESMI -> ELEMEN -> BUTIR CP -> SEMESTER -> JENIS PENILAIAN -> NILAI SISWA.
-   Butir CP menggantikan TP sebagai dasar penilaian kompetensi; TP tidak dihapus dari aplikasi
-   dan catatan lamanya tetap terbaca, tetapi tidak lagi menjadi objek yang dinilai.
+   Rantainya sekarang pendek dan itu memang disengaja:
 
-   DUA PENYIMPANAN, DUA CAKUPAN YANG SENGAJA BERBEDA:
+     CP RESMI -> ELEMEN -> BUTIR CP
 
-   - `cpButir`       penyesuaian guru atas butir bawaan dan butir buatan guru sendiri. Kuncinya
-                     TIDAK memuat semester, karena semester adalah PROPERTI butir: satu daftar
-                     butir dipetakan ke Semester 1 dan Semester 2 sekaligus. Kalau kuncinya
-                     memuat semester, butir Semester 2 akan hilang saat guru membuka Semester 1.
-   - `cpButirScores` nilai murid. Kuncinya MEMUAT semester lewat scopeKey, karena nilai memang
-                     milik satu semester berjalan dan tidak boleh terbawa ke semester lain.
+   Tidak ada semester dan tidak ada jenis penilaian di dalamnya. Keduanya pernah menjadi
+   properti butir dan keduanya DIBUANG:
+
+   - SEMESTER. CP ditetapkan pemerintah per FASE, bukan per semester. Membaginya hanya membuat
+     guru mengurus parameter yang tidak dituntut siapa pun, dan membuat butir yang sama harus
+     digandakan bila dipakai di dua semester. Sekarang SELURUH butir aktif tersedia pada
+     semester mana pun; semester sebuah PENILAIAN mengikuti semester aplikasi yang sedang aktif
+     dan sudah terbawa oleh scopeKey.
+   - JENIS PENILAIAN. Satu butir kompetensi yang sama wajar dinilai sebagai pengetahuan maupun
+     keterampilan. Yang menentukan Teori atau Praktik adalah KEGIATAN PENILAIANNYA, bukan
+     butirnya. Karena itu Teori/Praktik pindah ke Intrakurikuler, tempat penilaian benar-benar
+     terjadi, dan tidak pernah lagi muncul di menu CP.
+
+   Yang tersisa untuk guru pada menu CP hanyalah: Aktifkan, Nonaktifkan, Edit, dan Tambah.
 
    Tidak ada satu pun fungsi di berkas ini yang menghapus data akademik pengguna. Butir bawaan
-   tidak dapat dihapus - hanya dinonaktifkan - supaya nilai yang pernah terikat padanya tetap
-   dapat ditelusuri. */
-
-export { JENIS_PENILAIAN, jenisPenilaian, jenisValid };
+   tidak dapat dihapus - hanya dinonaktifkan - supaya catatan yang pernah terikat padanya tetap
+   dapat ditelusuri, dan field lama (`semester`, `jenis`) pada catatan penyesuaian guru dibiarkan
+   tersimpan apa adanya: ia hanya tidak lagi dibaca. */
 
 function clone(value){return JSON.parse(JSON.stringify(value));}
 function clean(value,max){return String(value??'').trim().replace(/\s+/g,' ').slice(0,max);}
@@ -59,29 +63,34 @@ function phaseOf(session){
   return phase;
 }
 
-function normalizeSemester(value,fallback=1){
-  const angka=Number.parseInt(String(value??''),10);
-  return angka===2?2:angka===1?1:fallback;
-}
-
 /* --------------------------------------------------------------------------- Pembacaan */
 
 /* Daftar butir CP satu mata pelajaran: bawaan yang sudah ditimpa penyesuaian guru, ditambah
    butir buatan guru. Butir bawaan yang belum pernah disentuh tampil apa adanya. */
-export function listCpButir(session,subjectId,{semester='ALL',activeOnly=false}={}){
+/* Field lama pada catatan penyesuaian guru dibuang saat DIBACA, bukan dihapus dari storage.
+   Butir yang dulu tersimpan dengan semester/jenis tetap utuh di basis data - ia hanya tidak
+   lagi ikut ke dalam model. Guru yang membuka semester mana pun kini melihat butir yang sama. */
+const FIELD_LAMA=['semester','jenis'];
+function tanpaFieldLama(record){
+  const salinan={...record};
+  for(const kunci of FIELD_LAMA)delete salinan[kunci];
+  return salinan;
+}
+
+export function listCpButir(session,subjectId,{activeOnly=false}={}){
   requireActiveSubject(session,subjectId);
   const phase=phaseOf(session);
   const tersimpan=new Map(simpanan(loadDb(),session,subjectId).map(record=>[record.id,record]));
   const bawaan=defaultCpButir(subjectId,phase).map(item=>{
     const timpa=tersimpan.get(item.id);
     tersimpan.delete(item.id);
-    return timpa?{...item,...timpa,isDefault:true,editable:true,disesuaikan:true}:{...item,disesuaikan:false};
+    return timpa?{...item,...tanpaFieldLama(timpa),isDefault:true,editable:true,disesuaikan:true}
+      :{...item,disesuaikan:false};
   });
   const manual=[...tersimpan.values()]
     .filter(record=>record.phase===phase)
-    .map(record=>({...record,isDefault:false,editable:true,disesuaikan:true}));
+    .map(record=>({...tanpaFieldLama(record),isDefault:false,editable:true,disesuaikan:true}));
   return [...bawaan,...manual]
-    .filter(item=>semester==='ALL'||normalizeSemester(item.semester)===normalizeSemester(semester))
     .filter(item=>!activeOnly||item.active!==false)
     .map(clone)
     .sort((a,b)=>(a.elementOrder||99)-(b.elementOrder||99)||(a.order||0)-(b.order||0)
@@ -89,14 +98,22 @@ export function listCpButir(session,subjectId,{semester='ALL',activeOnly=false}=
 }
 
 export function getCpButir(session,subjectId,butirId){
-  return listCpButir(session,subjectId,{semester:'ALL'}).find(item=>item.id===String(butirId))||null;
+  return listCpButir(session,subjectId).find(item=>item.id===String(butirId))||null;
 }
 
-/* Butir yang dipakai penilaian dan deskripsi pada semester berjalan: aktif, dan semesternya
-   cocok dengan semester sesi. */
+/* Butir yang tersedia untuk penilaian dan deskripsi pada semester BERJALAN.
+
+   Jawabannya kini sederhana: SELURUH butir aktif. Butir tidak lagi dimiliki satu semester, jadi
+   butir yang sama boleh dipakai pada Ganjil maupun Genap. Yang memisahkan hasilnya adalah kunci
+   penyimpanan penilaiannya, yang memang sudah memuat semester lewat scopeKey. */
 export function listCpButirForSemester(session,subjectId){
-  const semester=/genap/i.test(String(session?.semester||''))?2:1;
-  return listCpButir(session,subjectId,{semester,activeOnly:true});
+  return listCpButir(session,subjectId,{activeOnly:true});
+}
+
+/* Nomor semester dari sesi aplikasi. Ganjil -> 1, Genap -> 2. Inilah satu-satunya penentu
+   semester sebuah penilaian; guru tidak pernah memilihnya pada CP. */
+export function semesterNumberOf(session){
+  return /genap/i.test(String(session?.semester||''))?2:1;
 }
 
 export function cpButirAvailable(session,subjectId){
@@ -114,16 +131,15 @@ function validate(session,subjectId,input,{existing=null}={}){
   const elementId=clean(input?.elementId??existing?.elementId,160);
   const element=elemen.find(item=>item.id===elementId);
   if(!element)throw new Error('Pilih Elemen CP yang berlaku pada mata pelajaran dan fase ini.');
-  const jenis=clean(input?.jenis??existing?.jenis??'teori',40);
-  if(!jenisValid(jenis))throw new Error('Jenis penilaian harus Teori, Praktik, atau Teori + Praktik.');
   const teori=clean(input?.teori??existing?.teori??'',400)||null;
   const praktik=clean(input?.praktik??existing?.praktik??'',400)||null;
-  /* Minimal satu rumusan substansi harus ada; tanpa itu deskripsi tidak akan punya isi. */
-  if(!teori&&!praktik)throw new Error('Isi Butir CP wajib diisi minimal pada salah satu jenis penilaian.');
+  /* Minimal satu rumusan substansi harus ada; tanpa itu deskripsi tidak akan punya isi. Guru
+     TIDAK diminta memilih jenis penilaian maupun semester di sini - keduanya bukan milik CP. */
+  if(!teori&&!praktik)
+    throw new Error('Isi Butir CP wajib diisi minimal pada rumusan pengetahuan atau keterampilan.');
   return {
     name,elementId,elementName:element.name,elementOrder:element.order,
-    semester:normalizeSemester(input?.semester??existing?.semester,1),
-    jenis,teori,praktik,
+    teori,praktik,
     active:input?.active===undefined?(existing?.active!==false):input.active!==false,
   };
 }
@@ -191,17 +207,32 @@ export function setCpButirActive(session,subjectId,butirId,active){
   return updateCpButir(session,subjectId,butirId,{...existing,active:Boolean(active)});
 }
 
-export function setCpButirJenis(session,subjectId,butirId,jenis){
-  const existing=getCpButir(session,subjectId,butirId);
-  if(!existing)throw new Error('Butir CP tidak ditemukan pada mata pelajaran ini.');
-  return updateCpButir(session,subjectId,butirId,{...existing,jenis});
+/* NONAKTIFKAN SELURUH BUTIR CP SATU MATA PELAJARAN.
+
+   CAKUPANNYA SATU MATA PELAJARAN, dan itu ditegakkan oleh bentuk kuncinya sendiri, bukan oleh
+   kehati-hatian pemanggil: `butirKey` memuat subjectId, jadi tidak ada jalan bagi fungsi ini
+   menyentuh baris milik mata pelajaran lain. Menonaktifkan seluruh Butir CP IPAS tidak dapat
+   mengubah satu butir pun pada Matematika.
+
+   NONAKTIF BUKAN HAPUS. Yang berubah hanya field `active`. Rumusan butirnya tetap ada, catatan
+   Intrakurikuler yang pernah menunjuknya tetap ada, deskripsi rapor yang sudah tersimpan tetap
+   ada, dan nilai apa pun tidak tersentuh. Butir yang dinonaktifkan berhenti DITAWARKAN, bukan
+   berhenti ADA - itulah sebabnya butir bawaan memang tidak boleh dihapus sama sekali.
+
+   Tidak ada pasangan "aktifkan semua" di berkas ini. Mengaktifkan kembali dilakukan satu per
+   satu lewat setCpButirActive, sesuai perancangan alurnya. */
+export function deactivateAllCpButir(session,subjectId){
+  assertTeacher(session);
+  requireActiveSubject(session,subjectId);
+  const daftar=listCpButir(session,subjectId).filter(item=>item.active!==false);
+  let dinonaktifkan=0;
+  for(const butir of daftar){
+    updateCpButir(session,subjectId,butir.id,{...butir,active:false});
+    dinonaktifkan+=1;
+  }
+  return {subjectId,dinonaktifkan,tersisaAktif:listCpButir(session,subjectId,{activeOnly:true}).length};
 }
 
-export function setCpButirSemester(session,subjectId,butirId,semester){
-  const existing=getCpButir(session,subjectId,butirId);
-  if(!existing)throw new Error('Butir CP tidak ditemukan pada mata pelajaran ini.');
-  return updateCpButir(session,subjectId,butirId,{...existing,semester});
-}
 
 /* ------------------------------------------------------------------------ Nilai per butir */
 
@@ -213,21 +244,20 @@ function angka(value){
   return Math.round(nilai*100)/100;
 }
 
-/* PENGGABUNGAN TEORI DAN PRAKTIK.
+/* CATATAN NILAI PER BUTIR - WARISAN, BUKAN JALUR AKTIF.
 
-   Untuk butir berjenis Teori + Praktik, nilai butirnya adalah RATA-RATA kedua nilai. Aturan ini
-   dipilih karena paling mudah dijelaskan kepada guru dan tidak memerlukan bobot baru yang harus
-   diatur di tempat lain. Bila baru satu sisi yang terisi, nilai butirnya memakai sisi itu apa
-   adanya sehingga guru dapat menilai bertahap tanpa angka yang menyesatkan.
+   Bagian ini melayani catatan yang SUDAH TERSIMPAN dari versi sebelumnya. Ia sengaja tidak
+   dihapus: menghapusnya akan membuat angka yang pernah diisi guru tidak dapat dibaca lagi.
 
-   Nilai butir TIDAK ikut ke perhitungan Nilai Akhir rapor: lima komponen penilaian yang sudah
-   berjalan tetap menjadi satu-satunya penentu Nilai Akhir. Nilai butir dipakai untuk menyatakan
-   capaian per kompetensi dan menjadi bahan deskripsi. */
-export function gabungNilaiButir({jenis='teori',teori=null,praktik=null}={}){
-  const info=jenisPenilaian(jenis)||jenisPenilaian('teori');
-  const dipakai=[];
-  if(info.teori&&teori!==null&&teori!==undefined)dipakai.push(Number(teori));
-  if(info.praktik&&praktik!==null&&praktik!==undefined)dipakai.push(Number(praktik));
+   Yang berubah: menu CP tidak lagi menyediakan input angka per butir, dan tidak ada satu pun
+   penyusun deskripsi yang membacanya. Intrakurikuler memakai PREDIKAT, dan Rapor memakai NILAI
+   AKHIR mata pelajaran dari lima komponen penilaian yang sudah berjalan. Tidak ada angka baru
+   yang lahir dari CP.
+
+   Karena butir tidak lagi punya jenis penilaian, kedua kolom - pengetahuan dan keterampilan -
+   selalu tersedia dan nilai butir adalah rata-rata sisi yang terisi. */
+export function gabungNilaiButir({teori=null,praktik=null}={}){
+  const dipakai=[teori,praktik].filter(nilai=>nilai!==null&&nilai!==undefined).map(Number);
   if(!dipakai.length)return null;
   return Math.round((dipakai.reduce((total,item)=>total+item,0)/dipakai.length)*100)/100;
 }
@@ -237,35 +267,31 @@ export function getCpButirScore(session,subjectId,butirId,studentId){
   return record?clone(record):null;
 }
 
-/* Lembar nilai satu butir untuk seluruh murid rombel, siap ditampilkan sebagai tabel. Kolom
-   yang muncul mengikuti JENIS PENILAIAN butir itu, bukan pengaturan global mata pelajaran. */
+/* Lembar nilai satu butir untuk seluruh murid rombel. Dipertahankan agar catatan lama tetap
+   terbaca; kedua kolom selalu tersedia karena butir tidak lagi mengunci jenis penilaian. */
 export function getCpButirScoreSheet(session,subjectId,butirId){
   requireActiveSubject(session,subjectId);
   const butir=getCpButir(session,subjectId,butirId);
   if(!butir)throw new Error('Butir CP tidak ditemukan pada mata pelajaran ini.');
-  const info=jenisPenilaian(butir.jenis)||jenisPenilaian('teori');
   const db=loadDb();
   const rows=listStudents(session,{classId:session.classId}).map(student=>{
     const record=db.cpButirScores?.[scoreKey(session,subjectId,butirId,student.id)]||null;
     const teori=record?.teori??null;
     const praktik=record?.praktik??null;
-    return {studentId:student.id,name:student.name,nis:student.nis,
-      teori:info.teori?teori:null,praktik:info.praktik?praktik:null,
-      nilai:gabungNilaiButir({jenis:butir.jenis,teori,praktik})};
+    return {studentId:student.id,name:student.name,nis:student.nis,teori,praktik,
+      nilai:gabungNilaiButir({teori,praktik})};
   });
-  return {butir,jenis:info,kolomTeori:info.teori,kolomPraktik:info.praktik,rows};
+  return {butir,kolomTeori:true,kolomPraktik:true,rows};
 }
 
-/* Menyimpan nilai satu butir untuk beberapa murid sekaligus. Kolom yang tidak berlaku pada
-   jenis penilaian butir diabaikan, sehingga nilai praktik tidak pernah tersimpan diam-diam
-   pada butir yang guru tetapkan sebagai Teori saja. */
+/* Menyimpan nilai satu butir untuk beberapa murid sekaligus. Dipertahankan untuk pemanggil dan
+   catatan lama; menu CP tidak lagi memanggilnya. */
 export function saveCpButirScores(session,subjectId,butirId,values={}){
   assertTeacher(session);
   requireActiveSubject(session,subjectId);
   const butir=getCpButir(session,subjectId,butirId);
   if(!butir)throw new Error('Butir CP tidak ditemukan pada mata pelajaran ini.');
   if(butir.active===false)throw new Error('Butir CP ini sedang nonaktif dan tidak dapat dinilai.');
-  const info=jenisPenilaian(butir.jenis)||jenisPenilaian('teori');
   const murid=new Map(listStudents(session,{classId:session.classId}).map(item=>[item.id,item]));
   const masukan=Object.entries(values||{});
   for(const [studentId] of masukan)
@@ -274,21 +300,21 @@ export function saveCpButirScores(session,subjectId,butirId,values={}){
   updateDb(db=>{
     const now=new Date().toISOString();
     for(const [studentId,isi] of masukan){
-      const teori=info.teori?angka(isi?.teori):null;
-      const praktik=info.praktik?angka(isi?.praktik):null;
+      const teori=angka(isi?.teori);
+      const praktik=angka(isi?.praktik);
       const key=scoreKey(session,subjectId,butirId,studentId);
       if(teori===null&&praktik===null){delete db.cpButirScores[key];continue;}
       const lama=db.cpButirScores[key]||null;
       db.cpButirScores[key]={studentId,subjectId,butirId,classId:session.classId,
         semester:session.semester,academicYear:session.academicYear,
-        jenis:butir.jenis,teori,praktik,
-        nilai:gabungNilaiButir({jenis:butir.jenis,teori,praktik}),
+        teori,praktik,
+        nilai:gabungNilaiButir({teori,praktik}),
         createdAt:lama?.createdAt||now,updatedAt:now};
       tersimpan+=1;
     }
     return db;
   });
-  return {butirId:butir.id,jenis:butir.jenis,tersimpan};
+  return {butirId:butir.id,tersimpan};
 }
 
 /* Capaian seluruh butir satu murid pada mata pelajaran dan semester berjalan. Inilah bahan
@@ -300,7 +326,7 @@ export function studentCpButirAchievements(session,subjectId,studentId,{onlyScor
     const record=db.cpButirScores?.[scoreKey(session,subjectId,butir.id,studentId)]||null;
     return {
       butirId:butir.id,code:butir.code,name:butir.name,
-      elementName:butir.elementName,jenis:butir.jenis,
+      elementName:butir.elementName,
       teoriTeks:butir.teori,praktikTeks:butir.praktik,
       teori:record?.teori??null,praktik:record?.praktik??null,
       nilai:record?record.nilai:null,

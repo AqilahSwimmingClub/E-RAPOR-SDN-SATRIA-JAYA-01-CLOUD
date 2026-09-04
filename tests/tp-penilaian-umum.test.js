@@ -173,18 +173,18 @@ test('5. Satu TP aktif menghasilkan deskripsi sesuai TP itu',()=>{
   /* Tanpa menyebut TP satu pun: deskripsi Nilai Rapor kini bersumber CP mata pelajaran pada
      fase rombel, bukan TP. TP tetap dipakai bila pemanggil menyebutnya sendiri. */
   const hasil=generateReportDescription(session,'mtk',siswa.studentId,{});
-  assert.match(hasil.text,/^Ananda /);
-  assert.equal(hasil.source,'CP');
+  /* SUMBERNYA BUTIR CP, bukan TP dan bukan sekadar nama elemen. Kalimatnya juga tidak lagi
+     dibuka nama murid: rapor mencetak nama murid pada kepala dokumen, jadi mengulangnya di
+     dalam kolom deskripsi hanya memakan ruang. */
+  assert.equal(hasil.source,'CP_BUTIR');
   assert.equal(hasil.cpPhase,'C');
-  const kalimat=hasil.text.toLowerCase();
-  for(const elemen of cpElements('mtk','C').map(item=>item.name))
-    assert.ok(kalimat.includes(elemen.toLowerCase()),`elemen CP ${elemen} terbawa`);
   assert.equal(/TP-\d/.test(hasil.text),false,'tidak menulis kode TP');
+  assert.equal(/mata pelajaran/i.test(hasil.text),false,'tidak mengulang nama mata pelajaran');
 
-  /* Menyebut TP secara eksplisit tetap menghasilkan deskripsi berbasis TP itu. */
+  /* Menyebut TP secara eksplisit TIDAK LAGI mengubah hasilnya: TP bukan lagi basis generator. */
   const lewatTp=generateReportDescription(session,'mtk',siswa.studentId,{objectiveIds:[tp.id]});
-  assert.match(lewatTp.text,/menjelaskan perubahan wujud benda/,'inti TP terbawa bila diminta');
-  assert.notEqual(lewatTp.text,hasil.text);
+  assert.equal(lewatTp.text,hasil.text,'objectiveIds tidak lagi menyetir deskripsi');
+  assert.equal(lewatTp.text.includes('perubahan wujud benda'),false,'isi TP tidak masuk deskripsi');
 });
 
 test('6. Dua dan tiga TP aktif diringkas menjadi satu deskripsi natural',()=>{
@@ -240,8 +240,8 @@ test('8. Tingkat capaian memakai Nilai Akhir dan KKTP existing',()=>{
   };
   /* Nilai Akhir tetap yang menentukan tingkat capaian; kalimatnya kini bernada akademik
      karena bersumber CP, bukan TP. */
-  assert.match(deskripsi(95),/penguasaan sangat baik pada kompetensi/);
-  assert.match(deskripsi(80),/penguasaan baik pada kompetensi/);
+  assert.match(deskripsi(95),/pemahaman sangat baik tentang/);
+  assert.match(deskripsi(80),/pemahaman baik tentang/);
   assert.match(deskripsi(60),/masih memerlukan bimbingan dan penguatan/);
   assert.equal(new Set([deskripsi(95),deskripsi(80),deskripsi(60)]).size,3,
     'tiga tingkat nilai menghasilkan tiga kalimat berbeda');
@@ -272,14 +272,30 @@ test('10. Hanya ada satu sumber TP di seluruh aplikasi',()=>{
   /* Modul yang MASIH membaca TP membacanya lewat layanan bersama, bukan koleksi sendiri.
      Halaman Nilai Rapor sudah keluar dari daftar ini: deskripsi rapornya bersumber Butir CP,
      sehingga ia tidak lagi membaca TP sama sekali. */
-  for(const berkas of ['src/services/intracurricular.js','src/services/descriptions.js',
-    'src/services/report-bulk.js','src/pages/assessment.js'])
+  for(const berkas of ['src/services/descriptions.js','src/pages/assessment.js'])
     assert.match(read(berkas),/from '\.\.\/services\/learning-objectives\.js'|from '\.\/learning-objectives\.js'/,
       `${berkas} membaca TP dari layanan bersama`);
+  /* report-bulk.js KELUAR SEPENUHNYA dari daftar ini. Ia dulu MEWAJIBKAN TP aktif sebelum
+     membuat deskripsi, sehingga "Simpan Otomatis Semua Mapel" gagal total pada mapel tanpa TP.
+     Sekarang tidak ada satu pun rujukan TP di dalamnya. */
+  const bulk=read('src/services/report-bulk.js').replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+  assert.equal(/learning-objectives\.js/.test(bulk),false,
+    'report-bulk.js tidak lagi menjadikan TP basis generator');
+
+  /* intracurricular.js masih MENGEKSPOR pembaca TP untuk catatan lama - itu memang sengaja
+     dipertahankan - tetapi PENYUSUN DESKRIPSINYA tidak boleh lagi menyentuhnya. Yang diperiksa
+     adalah fungsi penyusunnya, bukan seluruh berkas. */
+  const intra=read('src/services/intracurricular.js');
+  const penyusun=intra.slice(intra.indexOf('function susunDeskripsiIntra'),
+    intra.indexOf('export function composeIntracurricularDescription('));
+  for(const sisa of ['Objective','objectiveIds','learning-objectives'])
+    assert.equal(penyusun.includes(sisa),false,
+      `penyusun deskripsi Intrakurikuler tidak lagi menyentuh ${sisa}`);
+  assert.match(penyusun,/butirTerpilih/,'penyusunnya memakai Butir CP yang dipilih guru');
   const halamanRapor=read('src/pages/reports.js');
   assert.equal(/learning-objectives\.js/.test(halamanRapor),false,
     'halaman Nilai Rapor tidak lagi membaca TP');
-  assert.match(halamanRapor,/studentCpButirAchievements/,'deskripsi rapor bersumber Butir CP');
+  assert.match(halamanRapor,/listCpButirForSemester/,'deskripsi rapor bersumber Butir CP aktif');
   assert.equal(/data-best|data-improve/.test(halamanRapor),false,
     'guru tidak lagi diminta memilih dua TP untuk membuat deskripsi');
   for(const berkas of ['src/services/intracurricular.js','src/services/assessment.js'])
@@ -329,22 +345,33 @@ test('12. Desain rapor tidak berubah dan tidak ada bagian baru berisi daftar TP'
 test('13. Menu Capaian Pembelajaran menjadi pusat pengaturan CP dan Butir CP',()=>{
   const halaman=read('src/pages/objectives.js');
   /* Menu ini berganti substansi, bukan sekadar berganti label: yang dikelola sekarang adalah
-     CP resmi beserta BUTIR CP PENILAIAN-nya. Alurnya: pilih mapel, lihat CP resmi, kelola
-     butir, tentukan semester dan jenis penilaian, lalu isi nilai per butir. */
+     CP resmi beserta BUTIR CP-nya, dan HANYA itu. Alurnya: pilih mapel, lihat CP resmi, lalu
+     Aktifkan/Nonaktifkan/Edit/Tambah butir.
+
+     Semester, Jenis Penilaian, dan input nilai per butir sudah DIBUANG dari menu ini - semester
+     mengikuti semester aplikasi, Teori/Praktik milik Intrakurikuler, dan angka milik Rapor. */
   assert.match(halaman,/Tambah CP/,'tombol Tambah CP tersedia');
   assert.match(halaman,/Tambah Capaian Pembelajaran/,'modal pemilihan Butir CP');
   assert.match(halaman,/Aktifkan Butir CP Terpilih/,'hanya butir terpilih yang diaktifkan');
   assert.match(halaman,/data-pilih-semua/,'tersedia Pilih Semua');
   assert.match(halaman,/Buat CP Manual/,'guru tetap dapat merumuskan CP sendiri');
   assert.match(halaman,/createCpButir|updateCpButir/,'pengelolaan lewat layanan Butir CP');
-  assert.match(halaman,/saveCpButirScores/,'nilai siswa diisi per Butir CP');
+  assert.equal(halaman.includes('saveCpButirScores'),false,
+    'menu CP tidak lagi menyediakan input nilai angka');
+  for(const aksi of ['data-toggle','data-edit'])
+    assert.ok(halaman.includes(aksi),`aksi ${aksi} tersedia langsung pada daftar butir`);
   assert.equal(/Simpan Katalog sebagai TP Sekolah|adoptCatalogueObjectives|isCatalogueOnly/.test(halaman),false,
     'alur adopsi katalog sudah dihapus dari UI');
-  /* Fase read-only dan tabel memuat kolom yang diminta. */
-  assert.match(halaman,/id="objectivePhase"[^>]*readonly|readonly/,'fase tidak dipilih manual');
-  for(const kolom of ['<th>No</th>','<th>Elemen CP</th>','<th>Butir CP</th>','<th>Semester</th>',
-    '<th>Jenis Penilaian</th>','<th>Status</th>','<th>Aksi</th>'])
+  /* FASE TIDAK LAGI DITAMPILKAN SAMA SEKALI. Ia tetap dihitung otomatis dari tingkat rombel
+     dan tetap menentukan Butir CP mana yang berlaku, tetapi guru tidak perlu melihatnya:
+     ia tidak dapat mengubahnya dan tidak pernah memilihnya. */
+  assert.equal(/id="objectivePhase"/.test(halaman),false,'kolom Fase tidak lagi ditampilkan');
+  assert.equal(/Fase \$\{escapeHtml\(fase\)\}/.test(halaman),false,'nilai fase tidak dicetak ke layar');
+  /* Tabel hanya memuat kolom yang benar-benar dipakai guru. */
+  for(const kolom of ['<th>No</th>','<th>Butir CP</th>','<th>Status</th>','<th>Aksi</th>'])
     assert.ok(halaman.includes(kolom),`kolom ${kolom} tersedia`);
+  for(const dibuang of ['<th>Semester</th>','<th>Jenis Penilaian</th>','<th>Elemen CP</th>'])
+    assert.equal(halaman.includes(dibuang),false,`kolom ${dibuang} sudah dibuang`);
   /* Arsip TP lama tetap dapat dibaca guru, tidak dihapus dari aplikasi. */
   assert.match(halaman,/Arsip Tujuan Pembelajaran/,'catatan TP lama tetap terbaca');
 

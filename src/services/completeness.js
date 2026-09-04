@@ -126,7 +126,22 @@ export function saveStudentCocurricular(session,studentId,input){requireStudent(
 /* Intrakurikuler memakai koleksi intracurricularScores sendiri. Kunci, validasi, dan
    bentuk record sengaja sejajar dengan kokurikuler supaya perilaku keduanya konsisten,
    tetapi penyimpanannya tidak pernah bersinggungan. */
-function intracurricularKey(session,studentId){return `${scopeKey(session)}|${studentId}`;}
+/* KUNCI INTRAKURIKULER MEMUAT MATA PELAJARAN.
+
+   Dulu kuncinya hanya `scope|siswa`, sehingga satu murid hanya punya SATU catatan Intrakurikuler
+   untuk seluruh mata pelajaran. Akibatnya nyata dan merusak: mengisi Intrakurikuler IPAS
+   MENIMPA catatan Pancasila murid yang sama, dan halaman yang membaca ulang catatan itu
+   menampilkan mapel yang tersimpan terakhir - itulah sebab "pilih IPAS, Isi Semua, lalu kembali
+   ke Pancasila dan hasil IPAS hilang".
+
+   Kunci baru memuat subjectId sehingga tiap mata pelajaran berdiri sendiri. Catatan LAMA yang
+   masih memakai kunci tanpa mapel TIDAK dihapus dan tetap terbaca: `intracurricularKey` jatuh
+   ke bentuk lama ketika mapelnya tidak disebut, dan pembacaan per mapel mengenali catatan lama
+   yang kebetulan menyimpan subjectId yang cocok. */
+function intracurricularKey(session,studentId,subjectId=''){
+  const mapel=clean(subjectId,40);
+  return mapel?`${scopeKey(session)}|${mapel}|${studentId}`:`${scopeKey(session)}|${studentId}`;
+}
 /* Sejak Tahap 8E kegiatan intrakurikuler boleh mengacu pada satu mata pelajaran beserta TP-nya.
    Kedua field itu OPSIONAL: catatan lama yang hanya berisi nama kegiatan tetap sah dan tidak
    diubah, sehingga data instalasi lama terbaca apa adanya. */
@@ -141,6 +156,15 @@ function normalizeIntracurricular(input){
     ? [...new Set(input.objectiveIds.map(id=>clean(id,80)).filter(Boolean))].slice(0,20)
     : [];
   if(objectiveIds.length)record.objectiveIds=objectiveIds;
+  /* BUTIR CP YANG DIPILIH GURU beserta JENIS penilaiannya. Keduanya opsional supaya catatan
+     lama tetap sah, tetapi alur Intrakurikuler yang baru selalu mengisinya - itulah yang
+     membuat deskripsi dapat ditelusuri kembali ke butir yang benar-benar dipilih. */
+  const butirIds=Array.isArray(input?.butirIds)
+    ? [...new Set(input.butirIds.map(id=>clean(id,120)).filter(Boolean))].slice(0,40)
+    : [];
+  if(butirIds.length)record.butirIds=butirIds;
+  const jenis=clean(input?.jenis,20);
+  if(jenis)record.jenis=jenis;
   /* Jejak asal deskripsi. `source` menyebut CP atau TP, `cpPhase` fase yang dipakai, dan
      `status` membedakan kalimat susunan aplikasi (AUTO) dari yang diketik guru (EDITED).
      Ketiganya opsional supaya catatan lama tetap terbaca apa adanya. */
@@ -153,9 +177,71 @@ function normalizeIntracurricular(input){
   return record;
 }
 
-export function getStudentIntracurricular(session,studentId){requireStudent(session,studentId);const record=loadDb().intracurricularScores?.[intracurricularKey(session,studentId)];return record?clone(record):null;}
+/* Catatan Intrakurikuler satu murid.
 
-export function saveStudentIntracurricular(session,studentId,input){requireStudent(session,studentId);const value=normalizeIntracurricular(input);let saved;updateDb(db=>{const key=intracurricularKey(session,studentId);const existing=db.intracurricularScores?.[key];const now=new Date().toISOString();saved=scopedRecord(session,studentId,{...value,createdAt:existing?.createdAt||now,updatedAt:now});if(!db.intracurricularScores)db.intracurricularScores={};db.intracurricularScores[key]=saved;return db;});return clone(saved);}
+   Tanpa `subjectId`, yang dikembalikan adalah catatan yang paling wajar mewakili murid itu:
+   catatan lama tanpa mapel bila ada, atau catatan per mapel yang PALING BARU diperbarui.
+   Bentuk ini dipertahankan karena dokumen rapor memang menampilkan satu baris Intrakurikuler
+   per murid, dan desain rapor tidak diubah oleh perubahan penyimpanan ini. */
+export function getStudentIntracurricular(session,studentId,subjectId=''){
+  requireStudent(session,studentId);
+  const semua=loadDb().intracurricularScores||{};
+  const mapel=clean(subjectId,40);
+  if(mapel){
+    const langsung=semua[intracurricularKey(session,studentId,mapel)];
+    if(langsung)return clone(langsung);
+    /* Catatan lama tanpa mapel pada kunci sebelumnya tetap dikenali bila memang milik mapel
+       yang diminta, sehingga isian guru dari versi sebelumnya tidak hilang dari layar. */
+    const lama=semua[intracurricularKey(session,studentId)];
+    return lama&&lama.subjectId===mapel?clone(lama):null;
+  }
+  const lama=semua[intracurricularKey(session,studentId)];
+  if(lama)return clone(lama);
+  const awalan=`${scopeKey(session)}|`;
+  const akhiran=`|${studentId}`;
+  const kandidat=Object.entries(semua)
+    .filter(([key])=>key.startsWith(awalan)&&key.endsWith(akhiran)
+      &&key.slice(awalan.length,key.length-akhiran.length).length>0)
+    .map(([,record])=>record)
+    .sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
+  return kandidat.length?clone(kandidat[0]):null;
+}
+
+/* Seluruh catatan Intrakurikuler satu murid, satu baris per mata pelajaran. */
+export function listStudentIntracurricular(session,studentId){
+  requireStudent(session,studentId);
+  const semua=loadDb().intracurricularScores||{};
+  const awalan=`${scopeKey(session)}|`;
+  const akhiran=`|${studentId}`;
+  const hasil=Object.entries(semua)
+    .filter(([key])=>key.startsWith(awalan)&&key.endsWith(akhiran))
+    .map(([,record])=>clone(record));
+  return hasil.sort((a,b)=>String(a.activity||'').localeCompare(String(b.activity||''),'id'));
+}
+
+export function saveStudentIntracurricular(session,studentId,input){
+  requireStudent(session,studentId);
+  const value=normalizeIntracurricular(input);
+  let saved;
+  updateDb(db=>{
+    const key=intracurricularKey(session,studentId,value.subjectId||'');
+    const existing=db.intracurricularScores?.[key];
+    const now=new Date().toISOString();
+    saved=scopedRecord(session,studentId,{...value,createdAt:existing?.createdAt||now,updatedAt:now});
+    if(!db.intracurricularScores)db.intracurricularScores={};
+    db.intracurricularScores[key]=saved;
+    /* Catatan lama tanpa mapel milik MAPEL YANG SAMA dibereskan ke kunci barunya supaya tidak
+       ada dua sumber kebenaran untuk satu mapel. Catatan lama milik mapel LAIN - atau yang
+       memang tidak punya mapel - tidak disentuh sama sekali. */
+    if(value.subjectId){
+      const kunciLama=intracurricularKey(session,studentId);
+      const lama=db.intracurricularScores[kunciLama];
+      if(lama&&lama.subjectId===value.subjectId)delete db.intracurricularScores[kunciLama];
+    }
+    return db;
+  });
+  return clone(saved);
+}
 
 /* Bawaan overwrite:false supaya isian guru per siswa tidak tertimpa diam-diam oleh isian massal. */
 export function saveIntracurricularBulk(session,input,{overwrite=false}={}){
@@ -167,7 +253,7 @@ export function saveIntracurricularBulk(session,input,{overwrite=false}={}){
     const now=new Date().toISOString();
     if(!db.intracurricularScores)db.intracurricularScores={};
     students.forEach(student=>{
-      const key=intracurricularKey(session,student.id);
+      const key=intracurricularKey(session,student.id,value.subjectId||'');
       const existing=db.intracurricularScores[key];
       if(existing&&!overwrite){dilewati+=1;saved.push(clone(existing));return;}
       const record=scopedRecord(session,student.id,{...value,createdAt:existing?.createdAt||now,updatedAt:now});

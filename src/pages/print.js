@@ -332,7 +332,32 @@ export function renderPrint(session,initialTab='ledger'){
   function reportA4(doc){
     const student=doc.student,school=doc.master.school,teacher=doc.master.teacher,settings=doc.printSettings;
     const head=`<table class="report-head-table"><tbody><tr><td>Nama Murid</td><td>:</td><td>${escapeHtml(student.name)}</td><td>Kelas</td><td>:</td><td>${escapeHtml(doc.classLabel)}</td></tr><tr><td>NIS/NISN</td><td>:</td><td>${escapeHtml(student.nis)} / ${escapeHtml(student.nisn)}</td><td>Semester</td><td>:</td><td>${doc.semesterNumber}</td></tr><tr><td>Sekolah</td><td>:</td><td>${escapeHtml(school.name)}</td><td>Tahun Ajaran</td><td>:</td><td>${escapeHtml(doc.academicYear)}</td></tr><tr><td>Alamat</td><td>:</td><td colspan="4">${blank(school.address)}</td></tr></tbody></table>`;
-    const signatures=`<div class="report-signatures"><div><span>Orang Tua Murid</span><span class="signature-spacer"></span><strong>${DOTS}</strong></div><div><span>Kepala Sekolah</span><span class="signature-spacer"></span>${signatureBlock(school.principalName,school.principalNip)}</div><div><span>${escapeHtml(settings.printDateLabel||`${settings.city||'Bekasi'}, ${DOTS.slice(0,18)}`)}</span><span>Wali Kelas</span><span class="signature-spacer"></span>${signatureBlock(teacher.name,teacher.nip)}</div></div>`;
+    /* TIGA BLOK TANDA TANGAN YANG SEJAJAR.
+
+       Sebelumnya hanya kolom Wali Kelas yang membawa baris tanggal "Kab. Bekasi, ......",
+       sehingga seluruh isinya - peran, area tanda tangan, nama, dan NIP - turun satu baris
+       dibanding Kepala Sekolah di sebelahnya. Yang terlihat guru: nama Wali Kelas tidak pernah
+       sejajar dengan nama Kepala Sekolah.
+
+       Perbaikannya bukan menghapus baris tanggal - baris itu memang diminta tetap ada -
+       melainkan MENYAMAKAN STRUKTUR BARIS ketiga kolom. Setiap kolom kini punya lima baris yang
+       sama persis:
+
+           1. tanggal      2. peran      3. area tanda tangan      4. nama      5. NIP
+
+       Kolom yang memang tidak punya isi pada suatu baris tetap menyediakan barisnya sebagai
+       ruang kosong yang tingginya sama, sehingga keempat baris lainnya berdiri sejajar. */
+    const barisTanggal=teks=>`<span class="signature-date">${teks||'&nbsp;'}</span>`;
+    const barisNip=teks=>teks===null?'<small class="signature-nip-empty">&nbsp;</small>':teks;
+    const tanggalCetak=escapeHtml(settings.printDateLabel||`${settings.city||'Bekasi'}, ${DOTS.slice(0,18)}`);
+    const signatures=`<div class="report-signatures">`
+      +`<div class="signature-col">${barisTanggal('')}<span class="signature-role">Orang Tua Murid</span>`
+        +`<span class="signature-spacer"></span><strong>${DOTS}</strong>${barisNip(null)}</div>`
+      +`<div class="signature-col">${barisTanggal('')}<span class="signature-role">Kepala Sekolah</span>`
+        +`<span class="signature-spacer"></span>${signatureBlock(school.principalName,school.principalNip)}</div>`
+      +`<div class="signature-col">${barisTanggal(tanggalCetak)}<span class="signature-role">Wali Kelas</span>`
+        +`<span class="signature-spacer"></span>${signatureBlock(teacher.name,teacher.nip)}</div>`
+      +`</div>`;
     return `<section class="document-a4 document-sheet report-a4">${head}<h2 class="document-heading">LAPORAN HASIL BELAJAR</h2>${attitudeBlock(doc)}<h3 class="document-section">B. Pengetahuan dan Keterampilan</h3><table class="document-table report-learning-table"><thead><tr><th>No</th><th>Mata Pelajaran</th><th>Nilai Akhir</th><th>Capaian Kompetensi</th></tr></thead><tbody>${subjectRows(doc)}</tbody></table>${extracurricularTable(doc)}${cocurricularTable(doc)}${intracurricularTable(doc)}<div class="report-lower-grid"><section class="document-box"><div class="document-box-head">Ketidakhadiran</div><div class="document-box-body"><table class="absence-document-table"><tbody><tr><th>Sakit</th><td>: ${doc.attendance.Sakit} hari</td></tr><tr><th>Izin</th><td>: ${doc.attendance.Izin} hari</td></tr><tr><th>Tanpa Keterangan</th><td>: ${doc.attendance.Alpa} hari</td></tr></tbody></table></div></section><section class="document-box"><div class="document-box-head">Catatan Wali Kelas</div><div class="document-box-body"><p>${escapeHtml(doc.homeroomNote||'')}</p></div></section></div>${finalStatusBlock(doc)}<section class="document-box response-box"><div class="document-box-head">Tanggapan Orang Tua/Wali Murid</div><div class="document-box-body"></div></section>${signatures}<div class="document-foot">${escapeHtml(doc.classLabel)} | ${escapeHtml(student.name)} | ${escapeHtml(student.nis)}</div></section>`;
   }
 

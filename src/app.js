@@ -5,6 +5,7 @@ import { renderOwnerActivation } from './pages/activation.js';
 import { renderSchoolSetup } from './pages/school-setup.js';
 import { renderLicenseActivation } from './pages/license-activation.js';
 import { checkLicense, getLicenseState, noteClockObservation } from './services/license.js';
+import { ensureInstallationId } from './services/installation.js';
 import { getAdminReadiness, isTeacherUsageActive } from './services/admin-readiness.js';
 import { isSchoolIdentityReady } from './services/master.js';
 import { renderDashboard } from './pages/dashboard.js';
@@ -69,10 +70,19 @@ function segarkanLisensiDariServer(){
   /* Waktu yang sedang dilihat aplikasi dicatat lebih dulu, sehingga jam yang dimundurkan tidak
      memperpanjang masa tenggang offline. */
   try{noteClockObservation();}catch{}
-  Promise.resolve().then(()=>checkLicense({force:true})).then(()=>{
-    const sebelum=licenseState.state;
-    if(refreshLicenseState().state!==sebelum)navigate(getSession()?'dashboard':'login');
-  }).catch(()=>{});
+  /* Identitas perangkat dikunci lebih dulu. Pada Android dan Windows nilainya diturunkan dari
+     perangkat itu sendiri, sehingga catatan lisensi hasil menyalin storage perangkat lain
+     langsung ketahuan pada penyegaran status berikutnya. Kegagalannya tidak pernah menahan
+     aplikasi: perangkat tanpa sinyal apa pun tetap memakai identitas yang sudah tersimpan. */
+  Promise.resolve().then(()=>ensureInstallationId()).catch(()=>{})
+    .then(()=>{
+      const sebelumIdentitas=licenseState.state;
+      if(refreshLicenseState().state!==sebelumIdentitas)navigate(getSession()?'dashboard':'login');
+    })
+    .then(()=>checkLicense({force:true})).then(()=>{
+      const sebelum=licenseState.state;
+      if(refreshLicenseState().state!==sebelum)navigate(getSession()?'dashboard':'login');
+    }).catch(()=>{});
 }
 
 function scheduleSessionExpiry(activeSession){

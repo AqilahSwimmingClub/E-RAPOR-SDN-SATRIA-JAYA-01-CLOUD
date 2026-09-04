@@ -27,15 +27,15 @@ test('04. License Key baru dapat diaktivasi dan mengembalikan token bertanda tan
   assert.ok(klaim.next_check_at>klaim.issued_at);
 });
 
-test('05-06. Kunci terikat ke satu instalasi dan ditolak pada instalasi lain',async t=>{
+test('05-06. Slot perangkat terikat ke satu instalasi dan ditolak pada instalasi lain',async t=>{
   const s=await startTestServer();t.after(()=>s.close());
   const [lisensi]=await s.buatLisensi();
-  assert.equal((await s.call('/activate',{method:'POST',body:{license_key:lisensi.key,installation_id:A}})).status,200);
-  const kedua=await s.call('/activate',{method:'POST',body:{license_key:lisensi.key,installation_id:B}});
+  assert.equal((await s.call('/activate',{method:'POST',body:{license_key:lisensi.key,installation_id:A,platform:'windows'}})).status,200);
+  const kedua=await s.call('/activate',{method:'POST',body:{license_key:lisensi.key,installation_id:B,platform:'windows'}});
   assert.equal(kedua.status,409);
-  assert.equal(kedua.data.error.code,'ALREADY_ACTIVATED');
+  assert.equal(kedua.data.error.code,'SLOT_TAKEN');
   const aktif=s.db.prepare('SELECT COUNT(*) AS n FROM device_activations WHERE license_id=? AND is_active=1').get(lisensi.id);
-  assert.equal(aktif.n,1,'hanya satu perangkat aktif di database');
+  assert.equal(aktif.n,1,'hanya satu perangkat Windows aktif di database');
 });
 
 test('07. Perangkat yang sama dapat mengaktifkan ulang tanpa menambah slot',async t=>{
@@ -102,7 +102,7 @@ test('16-18. Reset device melepas perangkat lama lalu kunci dapat dipakai perang
     'kunci dapat diaktifkan di perangkat baru');
   /* Perangkat lama tidak otomatis kembali sah tanpa otorisasi pemilik. */
   assert.equal((await s.call('/check',{method:'POST',body:{installation_id:A,license_id:lisensi.id}})).data.error.code,'NOT_BOUND');
-  assert.equal((await s.call('/activate',{method:'POST',body:{license_key:lisensi.key,installation_id:A}})).data.error.code,'ALREADY_ACTIVATED');
+  assert.equal((await s.call('/activate',{method:'POST',body:{license_key:lisensi.key,installation_id:A}})).data.error.code,'SLOT_TAKEN');
 
   const jenis=s.db.prepare('SELECT type FROM license_events WHERE license_id=? ORDER BY created_at').all(lisensi.id).map(r=>r.type);
   assert.ok(jenis.includes('DEVICE_RESET'),'reset tercatat di audit log');

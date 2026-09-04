@@ -1,6 +1,6 @@
 import { getAssessmentSettings } from '../services/assessment.js';
-import { generateReportDescription, getReportDescription, lockReportDescription, saveReportDescription } from '../services/descriptions.js';
-import { studentCpButirAchievements } from '../services/cp-butir.js';
+import { generateAllReportDescriptions, generateReportDescription, getReportDescription, lockReportDescription, saveReportDescription } from '../services/descriptions.js';
+import { listCpButirForSemester } from '../services/cp-butir.js';
 import { commitReportImport, previewReportImport, reportTemplateCsv } from '../services/report-import.js';
 import { calculateReportSheet, getCompletionSummary, getReportScore, getStoredReportRows, saveAutomaticReportScores, saveManualReportScore, saveManualReportScoresBulk, visibleStoredReportRows } from '../services/report.js';
 import { saveAllAutomaticReports } from '../services/report-bulk.js';
@@ -31,8 +31,8 @@ export function renderReportInput(session,mode='input'){
     if(tab==='automatic')drawAutomatic();if(tab==='manual')drawManual();if(tab==='import')drawImport();
   }
   function drawAutomatic(){
-    const rows=calculateReportSheet(session,subjectId);const complete=rows.filter(row=>row.completionStatus==='COMPLETE').length;actions.innerHTML=`<button class="btn btn-light" data-save-all-auto>Simpan Otomatis Semua Mapel</button><button class="btn btn-primary" data-save-auto>${icon('save',17)} Simpan Hasil Otomatis</button>`;
-    if(!rows.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan siswa sebelum menghitung Nilai Rapor.</p></section>';actions.querySelector('[data-save-auto]').disabled=true;return;}
+    const rows=calculateReportSheet(session,subjectId);const complete=rows.filter(row=>row.completionStatus==='COMPLETE').length;actions.innerHTML=`<button class="btn btn-light" data-generate-all title="Susun ulang deskripsi mata pelajaran ini untuk seluruh siswa">${icon('activity',17)} Generate Semua Siswa</button><button class="btn btn-light" data-save-all-auto>Simpan Otomatis Semua Mapel</button><button class="btn btn-primary" data-save-auto>${icon('save',17)} Simpan Hasil Otomatis</button>`;
+    if(!rows.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan siswa sebelum menghitung Nilai Rapor.</p></section>';actions.querySelector('[data-save-auto]').disabled=true;actions.querySelector('[data-generate-all]').disabled=true;return;}
     view.innerHTML=`<div class="report-summary"><article class="stat-card"><div class="stat-label">Nilai Lengkap</div><div class="stat-value">${complete}</div><div class="stat-foot">dari ${rows.length} siswa</div></article><article class="stat-card"><div class="stat-label">Belum Lengkap</div><div class="stat-value">${rows.length-complete}</div><div class="stat-foot">komponen kosong bukan 0</div></article><article class="stat-card"><div class="stat-label">KKTP Mapel</div><div class="stat-value">${getAssessmentSettings(session,subjectId).kktp}</div><div class="stat-foot">mengikuti Bobot Penilaian</div></article></div><section class="card report-table-card"><div class="table-scroll"><table class="data-table report-table"><thead><tr><th>Siswa</th><th>5 Komponen</th><th>Mentah</th><th>Pembulatan</th><th>KKTP</th><th>Status</th><th>Deskripsi</th></tr></thead><tbody>${rows.map(row=>automaticRow(row)).join('')}</tbody></table></div></section><div class="report-card-list">${rows.map(row=>automaticCard(row)).join('')}</div>`;
     bindDescriptionButtons();
     /* Kedua tombol diberi status sibuk, penanganan galat, dan umpan balik. Sebelumnya galat
@@ -51,12 +51,36 @@ export function renderReportInput(session,mode='input'){
       drawAutomatic();
       toast(`${bernilai} dari ${saved.length} siswa memperoleh nilai rapor. Override manual tetap dipertahankan.`);
     });
+    /* GENERATE SEMUA SISWA - satu klik, satu mata pelajaran.
+
+       `subjectId` dibaca dari state halaman saat tombol ditekan dan dikunci ke variabel lokal
+       sebelum proses berjalan, lalu dipakai juga untuk menggambar ulang. Halaman TIDAK pernah
+       berpindah mapel karenanya: pilihan guru tetap seperti semula, dan hasilnya tersimpan pada
+       mata pelajaran itu juga. */
+    actions.querySelector('[data-generate-all]').onclick=async()=>{
+      const mapelDiproses=subjectId;
+      const nama=subjects.find(item=>item.id===mapelDiproses)?.name||'';
+      if(!await confirmDialog({title:'Generate Semua Siswa',
+        message:`Buat deskripsi rapor untuk seluruh siswa pada mata pelajaran ${nama}? Deskripsi yang terkunci dan yang sudah Anda edit sendiri tetap dipertahankan.`,
+        confirmText:'Generate Semua'}))return;
+      await jalankan(actions.querySelector('[data-generate-all]'),'Memproses…',()=>{
+        const hasil=generateAllReportDescriptions(session,mapelDiproses);
+        drawAutomatic();
+        const catatan=[`${hasil.terisi} dari ${hasil.total} siswa`];
+        if(hasil.dilewati.length)catatan.push(`${hasil.dilewati.length} dipertahankan`);
+        if(hasil.gagal.length)catatan.push(`${hasil.gagal.length} gagal`);
+        toast(`${nama}: ${catatan.join(' · ')}`,hasil.gagal.length?'warning':'success');
+      });
+    };
     actions.querySelector('[data-save-all-auto]').onclick=async()=>{
-      if(!await confirmDialog({title:'Simpan Otomatis Semua Mapel',message:'Hitung nilai rapor dan buat deskripsi untuk seluruh mapel aktif? Override manual dan deskripsi terkunci tetap dipertahankan.',confirmText:'Proses Semua'}))return;
+      if(!await confirmDialog({title:'Simpan Otomatis Semua Mapel',message:'Hitung Nilai Akhir seluruh mapel aktif, lalu buat dan simpan Deskripsi Rapor untuk setiap siswa yang sudah punya nilai? Override manual, deskripsi terkunci, dan deskripsi yang Anda tulis sendiri tetap dipertahankan.',confirmText:'Proses Semua'}))return;
       await jalankan(actions.querySelector('[data-save-all-auto]'),'Memproses…',()=>{
         const result=saveAllAutomaticReports(session);
         drawAutomatic();
-        toast(result.errors.length?`${result.scoreCount} nilai tersimpan, ${result.errors.length} mapel belum dapat dibuatkan deskripsi. Periksa TP mapel tersebut.`:`${result.scoreCount} nilai dan ${result.descriptionCount} deskripsi berhasil diproses.`,result.errors.length?'warning':'success');
+        const catatan=[`${result.scoreCount} nilai dan ${result.descriptionCount} deskripsi tersimpan otomatis`];
+        if(result.skippedCount)catatan.push(`${result.skippedCount} dipertahankan atau belum bernilai`);
+        if(result.errors.length)catatan.push(`${result.errors.length} belum dapat dibuat — aktifkan Butir CP mapel tersebut pada menu Capaian Pembelajaran`);
+        toast(catatan.join(' · '),result.errors.length?'warning':'success');
       });
     };
   }
@@ -106,21 +130,22 @@ export function renderReportInput(session,mode='input'){
 
        Dulu modal ini menolak terbuka selama belum ada TP aktif, lalu memaksa guru memilih dua
        TP - "capaian terbaik" dan "perlu ditingkatkan" - yang kemudian dikirim sebagai
-       objectiveIds sehingga penyusun deskripsi selalu mengambil jalur TP. Keduanya tidak lagi
-       benar sejak penilaian kompetensi memakai Butir CP: guru tidak perlu menyiapkan TP untuk
-       dapat menulis deskripsi, dan sumber kalimatnya adalah butir yang benar-benar dinilai.
+       objectiveIds sehingga penyusun deskripsi selalu mengambil jalur TP. TP sudah TIDAK LAGI
+       menjadi basis generator: tidak ada pilihan TP di sini, tidak ada objectiveIds yang
+       dikirim, dan tidak ada pesan yang menyuruh guru memeriksa TP.
 
-       Yang ditampilkan sekarang adalah butir mana saja yang menjadi bahan kalimat beserta
-       nilainya, supaya guru tahu persis dari mana deskripsi itu berasal. */
-    let capaian=[];
-    try{capaian=studentCpButirAchievements(session,subjectId,studentId);}catch{capaian=[];}
+       Yang ditampilkan sekarang adalah Butir CP aktif mana saja yang menjadi bahan kalimat,
+       supaya guru tahu persis dari mana deskripsi itu berasal. Rapor tetap satu Nilai Akhir per
+       mata pelajaran; tidak ada kolom maupun pilihan Teori/Praktik di halaman ini. */
+    let butir=[];
+    try{butir=listCpButirForSemester(session,subjectId);}catch{butir=[];}
     const current=getReportDescription(session,subjectId,studentId);
     const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);
     const locked=Boolean(current?.locked);
-    const daftarButir=capaian.map(item=>`${item.name} (${item.nilai})`).join(', ');
-    const banner=capaian.length
-      ? `Deskripsi disusun otomatis dari ${capaian.length} Butir CP yang dinilai: ${escapeHtml(daftarButir)}. Nilai Akhir tetap dari lima jenis penilaian.`
-      : 'Belum ada Butir CP yang dinilai pada mata pelajaran ini. Deskripsi disusun dari lingkup kompetensi CP mata pelajaran; isi nilai Butir CP pada menu Capaian Pembelajaran agar kalimatnya menyebut kemampuan yang benar-benar dinilai.';
+    const daftarButir=butir.map(item=>item.name).join(', ');
+    const banner=butir.length
+      ? `Deskripsi disusun dari ${butir.length} Butir CP aktif: ${escapeHtml(daftarButir)}. Tingkat capaiannya mengikuti Nilai Akhir dari lima jenis penilaian — tidak ada nilai Teori atau Praktik terpisah di rapor.`
+      : 'Belum ada Butir CP aktif pada mata pelajaran ini. Deskripsi disusun dari lingkup kompetensi CP mata pelajaran; aktifkan Butir CP pada menu Capaian Pembelajaran agar kalimatnya menyebut kompetensi yang benar-benar diajarkan.';
     const modal=el(`<div class="modal-backdrop"><div class="modal-card modal-wide description-modal"><div class="modal-head"><div><h3>Deskripsi Rapor</h3><p>${escapeHtml(student?.name||'')} · ${escapeHtml(subjects.find(subject=>subject.id===subjectId)?.name||'')}</p></div><button class="btn btn-light btn-icon" data-close aria-label="Tutup">${icon('x',17)}</button></div><div class="description-status">${statusBadge(Boolean(current?.text),current?.status==='LOCKED'?'Terkunci':current?.status==='EDITED'?'Diedit Guru':current?.status==='AUTO'?'Otomatis':'Belum Disimpan')}</div><div class="source-banner" data-sumber-cp>${banner}</div><div class="form-grid"><div class="field form-span-2"><label>Deskripsi</label><textarea class="input" rows="6" maxlength="1500" data-text ${locked?'disabled':''}>${escapeHtml(current?.text||'')}</textarea></div></div><div class="modal-actions"><button class="btn btn-light" data-generate ${locked?'disabled':''}>Generate</button><button class="btn btn-primary" data-save-description ${locked?'disabled':''}>Simpan</button><button class="btn btn-warning" data-lock ${locked?'disabled':''}>Kunci</button></div></div></div>`);
     document.body.append(modal);const close=()=>modal.remove();modal.querySelector('[data-close]').onclick=close;
     /* Tidak ada objectiveIds yang dikirim: penyusun deskripsi memakai jalur CP/Butir CP. */

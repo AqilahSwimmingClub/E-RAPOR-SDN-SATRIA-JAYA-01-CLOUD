@@ -110,5 +110,9 @@ export function isUniqueViolation(error,indexName=''){
   const pesan=String(error?.message||'');
   const kode=String(error?.code||'');
   if(kode==='23505')return !indexName||pesan.includes(indexName)||String(error?.constraint||'')===indexName;
-  return /UNIQUE constraint failed/i.test(pesan)&&(!indexName||pesan.includes(indexName.replace('ux_one_active_device','device_activations.license_id')));
+  /* SQLite menyebut kolomnya, bukan nama indeksnya, pada pesan pelanggaran UNIQUE. */
+  const kolomSqlite={ux_one_active_device:'device_activations.license_id',
+    ux_one_active_slot:'device_activations.license_id'};
+  return /UNIQUE constraint failed/i.test(pesan)
+    &&(!indexName||pesan.includes(kolomSqlite[indexName]||indexName));
 }

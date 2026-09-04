@@ -92,6 +92,59 @@ test('4. Penyusun markup rapor identik dengan baseline d093b99',()=>{
     assert.equal(extractFunctionSource(sumber,nama),teks,`fungsi ${nama} berubah dari baseline`);
 });
 
+/* SATU PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA.
+
+   Baseline `reportA4` digeser satu kali untuk memperbaiki blok tanda tangan: dulu hanya kolom
+   Wali Kelas yang membawa baris tanggal "Kab. Bekasi, ......", sehingga peran, area tanda
+   tangan, nama, dan NIP-nya turun satu baris dan tidak pernah sejajar dengan Kepala Sekolah.
+
+   Karena baseline tidak lagi dapat menjaga bagian ini sendirian, strukturnya dikunci di sini
+   secara eksplisit - lebih ketat daripada sekadar "tidak berubah". */
+test('4b. Tiga blok tanda tangan sejajar dan barisnya seragam',()=>{
+  const sumber=read('src/pages/print.js');
+  const blok=sumber.slice(sumber.indexOf('const barisTanggal='),sumber.indexOf('return `<section class="document-a4 document-sheet report-a4">'));
+  /* Tetap TIGA kolom, dengan urutan peran yang tidak berubah. */
+  const peran=[...blok.matchAll(/class="signature-role">([^<]+)</g)].map(item=>item[1]);
+  assert.deepEqual(peran,['Orang Tua Murid','Kepala Sekolah','Wali Kelas'],
+    'tiga kolom tanda tangan dengan urutan peran yang tetap');
+  /* Setiap kolom memuat lima baris yang sama. */
+  assert.equal((blok.match(/class="signature-col"/g)||[]).length,3);
+  assert.equal((blok.match(/barisTanggal\(/g)||[]).length,3,'ketiga kolom memanggil baris tanggal');
+  assert.equal((blok.match(/class="signature-spacer"/g)||[]).length,3,'tiga area tanda tangan');
+  assert.equal((blok.match(/signatureBlock\(/g)||[]).length,2,'nama dan NIP untuk Kepala Sekolah dan Wali Kelas');
+  /* Baris "Kab. Bekasi, ..." tetap ada, dan hanya pada kolom Wali Kelas. */
+  assert.match(blok,/settings\.printDateLabel\|\|`\$\{settings\.city\|\|'Bekasi'\}, \$\{DOTS\.slice\(0,18\)\}`/,
+    'baris tanggal Wali Kelas dipertahankan');
+  assert.ok(blok.includes('barisTanggal(tanggalCetak)'),'tanggal dipasang di kolom Wali Kelas');
+  const wali=blok.slice(blok.indexOf('barisTanggal(tanggalCetak)'));
+  assert.match(wali,/signature-role">Wali Kelas/,'tanggal berada tepat di atas peran Wali Kelas');
+  /* Kolom lain menyediakan barisnya sebagai ruang kosong, bukan menghilangkannya. */
+  assert.equal((blok.match(/barisTanggal\(''\)/g)||[]).length,2,
+    'dua kolom lain tetap punya baris tanggal kosong agar tingginya sama');
+  assert.match(blok,/barisNip\(null\)/,'kolom Orang Tua punya baris NIP kosong agar sejajar');
+
+  /* Aturan gayanya menegakkan hal yang sama. */
+  const gaya=read('src/styles/app.css');
+  assert.match(gaya,/\.report-signatures\{display:grid;grid-template-columns:repeat\(3,1fr\)/,'tetap tiga kolom');
+  assert.match(gaya,/\.report-signatures \.signature-col\{display:flex;flex-direction:column\}/);
+  assert.match(gaya,/\.report-signatures \.signature-date,\.report-signatures \.signature-role\{min-height:1\.4em/,
+    'baris tanggal dan peran punya tinggi yang sama di ketiga kolom');
+  assert.match(gaya,/\.report-signatures \.signature-nip-empty\{visibility:hidden\}/);
+  /* Cetak tetap tiga kolom dan tidak terpotong halaman. */
+  assert.match(gaya,/\.report-a4 \.report-signatures\{grid-template-columns:repeat\(3,1fr\)/,'cetak tetap tiga kolom');
+  assert.match(gaya,/break-inside:avoid/,'blok tanda tangan tidak terbelah halaman');
+});
+
+/* Footer identitas siswa yang miring SENGAJA dipertahankan apa adanya. */
+test('4c. Footer identitas siswa tetap miring dan tidak diubah',()=>{
+  const sumber=read('src/pages/print.js');
+  assert.match(sumber,/<div class="document-foot">\$\{escapeHtml\(doc\.classLabel\)\} \| \$\{escapeHtml\(student\.name\)\} \| \$\{escapeHtml\(student\.nis\)\}<\/div>/,
+    'isi footer identitas siswa tidak berubah');
+  const gaya=read('src/styles/app.css');
+  const aturan=gaya.slice(gaya.indexOf('.document-foot'),gaya.indexOf('.document-foot')+220);
+  assert.match(aturan,/font-style:italic/,'footer identitas siswa tetap miring');
+});
+
 test('5. Header dan urutan bagian rapor tetap',()=>{
   const baseline=readJson('tests/fixtures/report-markup-baseline.json');
   assert.match(baseline.reportA4,/<th>No<\/th><th>Mata Pelajaran<\/th><th>Nilai Akhir<\/th><th>Capaian Kompetensi<\/th>/);

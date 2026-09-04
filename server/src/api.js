@@ -182,7 +182,17 @@ export function createApi({store,secrets,logger=()=>{},publicDir=null}){
   const PULIH_DARI=new Set(['SUSPENDED','REVOKED']);
 
   const aksiLisensi={
-    'reset-device':async(owner,id,body)=>({result:await lisensi.resetDevice(store,id,{actor:owner.username,reason:body?.reason})}),
+    /* Reset perangkat. Tiga aksi terpisah supaya Admin Lisensi tidak pernah membebaskan slot
+       yang tidak ia maksud: 'reset-device-android' hanya menyentuh slot Android, dan
+       'reset-device-windows' hanya menyentuh slot Windows. 'reset-device' tanpa akhiran tetap
+       membebaskan seluruh perangkat, sesuai perilaku lama.
+
+       Slot dibaca dari nama aksi, BUKAN dari badan permintaan, sehingga tidak ada jalan bagi
+       badan permintaan untuk memperluas cakupan reset. Ketiganya melewati wajibOwner() yang sama
+       - tanpa sesi Owner yang sah, semuanya dijawab 401. */
+    'reset-device':async(owner,id,body)=>({result:await lisensi.resetDevice(store,id,{actor:owner.username,reason:body?.reason,slot:null})}),
+    'reset-device-android':async(owner,id,body)=>({result:await lisensi.resetDevice(store,id,{actor:owner.username,reason:body?.reason,slot:'android'})}),
+    'reset-device-windows':async(owner,id,body)=>({result:await lisensi.resetDevice(store,id,{actor:owner.username,reason:body?.reason,slot:'windows'})}),
     'suspend':async(owner,id,body)=>({license:await lisensi.setStatus(store,id,'SUSPENDED',{actor:owner.username,reason:body?.reason})}),
     /* Pemulihan berlaku untuk lisensi yang ditangguhkan maupun yang sudah dicabut. Record-nya
        tidak pernah dihapus, jadi pemulihan hanya mengembalikan status: bila perangkat lamanya

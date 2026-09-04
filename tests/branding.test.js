@@ -278,7 +278,9 @@ test('15. Alur lisensi hasil perbaikan sebelumnya tetap utuh',()=>{
   assert.match(konfigurasi,/LICENSE_API_BASE='https:\/\//,'alamat server lisensi produksi tetap ada');
   assert.equal(/BEGIN PRIVATE KEY|"d"\s*:/.test(konfigurasi),false,'tidak ada kunci privat di aplikasi');
   const lisensi=read('server/src/licenses.js');
-  assert.match(lisensi,/LICENSE_TYPES=Object\.freeze\(\['CUSTOMER','DEVELOPER'\]\)/);
+  /* Daftar jenis lisensi tetap tertutup dan ditulis di server. OWNER ditambahkan sebagai nama
+     baku untuk lisensi tanpa batas perangkat; DEVELOPER adalah nama lamanya dan tetap berlaku. */
+  assert.match(lisensi,/LICENSE_TYPES=Object\.freeze\(\['CUSTOMER','DEVELOPER','OWNER'\]\)/);
   assert.match(lisensi,/tanpaRahasiaLisensi/,'hash dan paket pemulihan tetap disaring dari API');
   const panel=read('server/public/owner/app.js');
   for(const status of ['ACTIVE','UNUSED','SUSPENDED','REVOKED'])

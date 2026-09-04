@@ -112,8 +112,35 @@ test('7. Alur rilis Android menyiapkan dan memeriksa konfigurasi produksi',()=>{
     'konfigurasi disiapkan sebelum aset disalin ke Android');
   assert.match(alur,/node scripts\/verify-android-assets\.mjs/,'aset Android diperiksa, bukan hanya sumbernya');
   const pemeriksa=read('scripts/verify-android-assets.mjs');
-  assert.match(pemeriksa,/android\/app\/src\/main\/assets\/public\/src\/data\/license-config\.js/);
+  assert.match(pemeriksa,/android\/app\/src\/main\/assets\/public/);
+  assert.match(pemeriksa,/src\/data\/license-config\.js/);
   assert.match(pemeriksa,/BEGIN PRIVATE KEY/,'rahasia server tidak boleh ikut ke aset');
+});
+
+/* AKAR MASALAH "Server lisensi belum dikonfigurasi pada aplikasi ini." pada installer Windows.
+
+   Job Android sejak awal menyuntikkan LICENSE_API_BASE dan LICENSE_PUBLIC_JWK sebelum
+   membangun; job Windows tidak. Akibatnya .exe yang terkirim membawa kunci publik null dan
+   berhenti di layar Aktivasi Lisensi - License Key sekolah tidak pernah salah. Test ini
+   menjaga agar langkah itu tidak pernah hilang lagi. */
+test('7b. Alur rilis Windows menyiapkan dan memeriksa konfigurasi produksi yang sama',()=>{
+  const berkas=read('.github/workflows/rilis.yml');
+  const alur=berkas.slice(berkas.indexOf('\n  windows:'));
+  assert.ok(alur.length>0,'pekerjaan windows ditemukan di alur rilis');
+  assert.match(alur,/npm run verify:production/,'penjaga dijalankan sebelum membangun installer');
+  assert.match(alur,/LICENSE_API_BASE:/);
+  assert.match(alur,/LICENSE_PUBLIC_JWK:/);
+  assert.ok(alur.indexOf('npm run verify:production')<alur.indexOf('npm run desktop:win'),
+    'konfigurasi disiapkan sebelum installer dibangun');
+  /* Jalur build produksi memeriksa dist/ yang BENAR-BENAR dikemas, bukan berkas sumbernya. */
+  const skrip=JSON.parse(read('package.json')).scripts;
+  assert.match(skrip['desktop:win'],/^npm run build:production &&/);
+  assert.match(skrip['desktop:win'],/npm run verify:desktop-assets/);
+  assert.match(skrip['verify:desktop-assets'],/verify-android-assets\.mjs dist/);
+  assert.match(skrip['build:production'],/npm run verify:production/);
+  /* Seluruh jalur build yang hasilnya dikirim ke sekolah memakai penjaga yang sama. */
+  for(const jalur of ['cap:android','desktop:make','desktop:package','desktop:win'])
+    assert.match(skrip[jalur],/^npm run build:production/,`${jalur} memakai build produksi`);
 });
 
 /* ------------------------------------------------- 40-41. Status dan identitas Owner Panel */

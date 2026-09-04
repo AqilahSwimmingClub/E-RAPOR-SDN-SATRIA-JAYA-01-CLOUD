@@ -27,34 +27,33 @@ import { cpElements, elementIdOf } from './curriculum-cp.js';
    rumusan yang tidak dapat ditelusuri ke dokumen penetapnya. Guru tetap dapat membuat Butir CP
    sendiri lewat Buat CP Manual, dan kesiapan Admin tidak menuntutnya.
 
-   BENTUK SATU BUTIR: [nama, semester, jenis, frasaTeori, frasaPraktik]
+   BENTUK SATU BARIS KATALOG: [nama, _, _, frasaTeori, frasaPraktik]
 
-   - `nama`        label pendek butir, dipakai di tabel dan pemilihan.
-   - `semester`    1 atau 2. Pemerintah TIDAK membagi CP per semester - CP adalah capaian per
-                   fase. Pembagian ini murni pemetaan internal aplikasi untuk kebutuhan
-                   pembelajaran dan penilaian, dan guru boleh memindahkannya.
-   - `jenis`       jenis penilaian BAWAAN: 'teori', 'praktik', atau 'teori_praktik'. Ini hanya
-                   nilai awal; guru menentukannya sendiri PER BUTIR.
+   - `nama`        label pendek butir, dipakai di daftar dan pemilihan.
    - `frasaTeori`  substansi butir dalam bentuk yang wajar dibaca setelah kata kerja
                    pengetahuan ("memahami ...", "menguasai ...").
    - `frasaPraktik` substansi yang sama dalam bentuk yang wajar dibaca setelah kata kerja
                    keterampilan ("mampu ...", "terampil ..."). Keduanya ditulis terpisah supaya
                    deskripsi tidak lahir dari pertukaran kata secara buta.
 
-   Salah satu frasa boleh null bila butirnya memang tidak wajar dinilai pada jenis itu; penyusun
-   deskripsi akan memakai frasa yang tersedia. */
+   Salah satu frasa boleh null bila butirnya memang tidak wajar dibaca pada sisi itu; penyusun
+   deskripsi memakai frasa yang tersedia.
+
+   DUA KOLOM YANG SUDAH TIDAK DIPAKAI. Posisi kedua dan ketiga dulu memuat `semester` (1/2) dan
+   `jenis` ('teori'/'praktik'/'teori_praktik'). Keduanya DIBUANG dari model CP:
+
+     - SEMESTER bukan milik CP. Pemerintah menetapkan CP per FASE, bukan per semester, dan
+       membaginya hanya memaksa guru mengurus parameter yang tidak dituntut siapa pun. Semester
+       sebuah PENILAIAN kini mengikuti semester aplikasi yang sedang aktif.
+     - JENIS PENILAIAN bukan milik CP. Satu butir kompetensi yang sama wajar dinilai sebagai
+       pengetahuan maupun keterampilan; yang menentukan adalah KEGIATANNYA, bukan butirnya.
+       Teori/Praktik karena itu pindah ke Intrakurikuler, tempat penilaian benar-benar terjadi.
+
+   Nilai lamanya sengaja DIBIARKAN di dalam larik supaya 291 baris substansi CP tidak perlu
+   disentuh sama sekali - pembacanya di bawah hanya melewatinya. Tidak ada satu pun rumusan CP
+   yang berubah karena penyederhanaan ini. */
 
 export const BUTIR_CP_STATUS='butir_cp';
-
-export const JENIS_PENILAIAN=Object.freeze([
-  Object.freeze({id:'teori',label:'Teori / Pengetahuan',singkat:'Teori',teori:true,praktik:false}),
-  Object.freeze({id:'praktik',label:'Praktik / Keterampilan',singkat:'Praktik',teori:false,praktik:true}),
-  Object.freeze({id:'teori_praktik',label:'Teori + Praktik',singkat:'Teori + Praktik',teori:true,praktik:true}),
-]);
-
-export const JENIS_IDS=Object.freeze(JENIS_PENILAIAN.map(item=>item.id));
-export function jenisPenilaian(id){return JENIS_PENILAIAN.find(item=>item.id===id)||null;}
-export function jenisValid(id){return JENIS_IDS.includes(String(id||''));}
 
 /* ------------------------------------------------------------------------ KATALOG BUTIR */
 
@@ -720,7 +719,8 @@ export function defaultCpButir(subjectId,phase){
   const hasil=[];
   for(const item of elemen){
     const daftar=perElemen[item.name]||[];
-    daftar.forEach(([nama,semester,jenis,teori,praktik],index)=>{
+    /* Kolom kedua dan ketiga larik katalog (dulu semester dan jenis) sengaja dilewati. */
+    daftar.forEach(([nama,,,teori,praktik],index)=>{
       const order=index+1;
       hasil.push(Object.freeze({
         id:butirIdOf(subjectId,phase,item.id,order),
@@ -731,8 +731,6 @@ export function defaultCpButir(subjectId,phase){
         elementName:item.name,
         elementOrder:item.order,
         order,
-        semester,
-        jenis,
         teori:teori||null,
         praktik:praktik||null,
         active:true,
@@ -761,8 +759,6 @@ export function cpButirCoverage(subjectIds,phases=['A','B','C']){
       elemen:elemen.length,
       butir:butir.length,
       elemenTanpaButir:elemen.filter(item=>!terpakai.has(item.id)).map(item=>item.name),
-      semester1:butir.filter(item=>item.semester===1).length,
-      semester2:butir.filter(item=>item.semester===2).length,
     };
   }));
 }

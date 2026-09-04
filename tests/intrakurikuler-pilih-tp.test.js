@@ -96,7 +96,10 @@ test('2. Daftar TP aktif tetap ada untuk fitur lain, tetapi Intrakurikuler memak
   assert.match(halaman,/getIntracurricularCp/,'halaman membaca CP mapel pada fase rombel');
   assert.equal(/data-objective|listIntracurricularObjectives|listInactiveReferencedObjectives/.test(halaman),
     false,'tidak ada satu pun checkbox atau daftar TP di halaman Intrakurikuler');
-  assert.match(halaman,/Acuan Capaian Pembelajaran/,'yang ditampilkan adalah acuan CP');
+  /* Yang ditampilkan sekarang adalah daftar BUTIR CP AKTIF yang dapat dicentang guru -
+     kompetensi yang benar-benar dinilai - bukan sekadar nama elemen CP. */
+  assert.match(halaman,/Butir CP yang Dinilai/,'yang ditampilkan adalah Butir CP aktif');
+  assert.match(halaman,/listIntracurricularButir/,'halaman membaca Butir CP aktif');
   assert.equal(/Tujuan Pembelajaran \*/.test(halaman),false,'TP bukan lagi isian wajib di sini');
 });
 

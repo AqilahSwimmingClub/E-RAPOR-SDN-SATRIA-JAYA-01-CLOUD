@@ -386,7 +386,7 @@ test('20. Aturan satu lisensi = satu perangkat aktif tetap utuh',async t=>{
   const ditolak=await modul.activateLicense({licenseKey:kunci.key,school:{name:'SDN Uji',npsn:'12345678'}})
     .then(()=>null).catch(error=>error);
   assert.ok(ditolak,'perangkat kedua tidak boleh ikut aktif');
-  assert.equal(ditolak.code,'ALREADY_ACTIVATED','satu lisensi tetap hanya untuk satu perangkat aktif');
+  assert.equal(ditolak.code,'SLOT_TAKEN','slot perangkat yang sama tetap hanya untuk satu perangkat aktif');
 
   /* Masa tenggang offline tidak menambah satu pun perangkat aktif. */
   const daftar=await server.store.query('SELECT * FROM device_activations WHERE license_id=$1 AND is_active=TRUE',

@@ -53,9 +53,8 @@ CREATE TABLE IF NOT EXISTS device_activations(
   released_at TEXT,
   is_active INTEGER NOT NULL DEFAULT 1
 );
-/* Inti aturan komersial: paling banyak SATU baris aktif per lisensi. */
-CREATE UNIQUE INDEX IF NOT EXISTS ux_one_active_device
-  ON device_activations(license_id) WHERE is_active=1;
+/* Indeks lama - satu perangkat aktif per lisensi - digantikan indeks per SLOT di bawah.
+   Namanya dipertahankan di sini hanya agar basis data lama dapat mengenalinya saat dilepas. */
 CREATE INDEX IF NOT EXISTS ix_activation_installation ON device_activations(installation_id);
 
 CREATE TABLE IF NOT EXISTS license_events(
@@ -104,6 +103,36 @@ CREATE TABLE IF NOT EXISTS app_versions(
 /* Kolom lisensi tambahan: tipe (CUSTOMER/DEVELOPER), nama pembeli, dan jejak pencabutan.
    Sama seperti app_versions, kolomnya ditambahkan hanya bila belum ada sehingga basis data
    pengembangan yang sudah berisi lisensi tetap utuh. */
+/* SLOT PERANGKAT.
+
+   Satu lisensi pembelian memberi DUA slot yang terpisah: satu Android, satu Windows. Aturannya
+   ditegakkan UNIQUE INDEX parsial atas (license_id, slot), bukan oleh pemeriksaan di kode: dua
+   permintaan aktivasi yang datang bersamaan tidak mungkin sama-sama mendapat slot yang sama.
+
+   Lisensi OWNER tidak memakai slot - barisnya menyimpan slot NULL. Baik SQLite maupun
+   PostgreSQL memperlakukan NULL sebagai nilai yang selalu berbeda pada UNIQUE INDEX, sehingga
+   lisensi OWNER dapat memiliki perangkat aktif sebanyak apa pun tanpa aturan tambahan. */
+const KOLOM_AKTIVASI=[
+  ['slot','TEXT'],
+  ['device_hint','TEXT'],
+];
+function lengkapiAktivasi(db){
+  const ada=new Set(db.prepare('PRAGMA table_info(device_activations)').all().map(baris=>baris.name));
+  for(const [nama,tipe] of KOLOM_AKTIVASI)
+    if(!ada.has(nama))db.exec(`ALTER TABLE device_activations ADD COLUMN ${nama} ${tipe}`);
+  /* Basis data lama: baris aktif yang belum bernomor slot diisi dari platformnya, KECUALI
+     milik lisensi tanpa batas. Indeks lama menjamin paling banyak satu baris aktif per
+     lisensi, jadi pengisian ini tidak mungkin melahirkan slot kembar. */
+  db.exec(`UPDATE device_activations SET slot=CASE WHEN LOWER(COALESCE(platform,''))='android'
+      THEN 'android' ELSE 'windows' END
+    WHERE slot IS NULL AND is_active=1
+      AND license_id IN (SELECT id FROM licenses WHERE license_type='CUSTOMER')`);
+  db.exec('DROP INDEX IF EXISTS ux_one_active_device');
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_one_active_slot
+    ON device_activations(license_id,slot) WHERE is_active=1 AND slot IS NOT NULL`);
+  db.exec('CREATE INDEX IF NOT EXISTS ix_activation_active ON device_activations(installation_id,is_active)');
+}
+
 const KOLOM_LISENSI=[
   ['license_type',"TEXT NOT NULL DEFAULT 'CUSTOMER'"],
   ['buyer_name','TEXT'],
@@ -136,6 +165,7 @@ export function openDatabase(file=':memory:'){
   const db=new DatabaseSync(file);
   db.exec(SCHEMA);
   lengkapiLicenses(db);
+  lengkapiAktivasi(db);
   lengkapiAppVersions(db);
   return db;
 }

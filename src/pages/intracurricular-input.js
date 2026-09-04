@@ -1,23 +1,29 @@
 import { defaultIntracurricularActivities, generateIntracurricularDescription } from '../data/intracurricular-defaults.js';
 import { ACTIVITY_PREDICATES, DEFAULT_ACTIVITY_PREDICATE, getStudentIntracurricular, saveIntracurricularBulk, saveStudentIntracurricular } from '../services/completeness.js';
-import { composeIntracurricularDescriptionFromCp, fillAllIntracurricular,
-  getIntracurricularCp, getStudentIntracurricularSelection, INTRACURRICULAR_PREDICATES,
-  listAssignedIntracurricularActivities, listIntracurricularSubjects,
+import { composeIntracurricularDescriptionFromCp, DEFAULT_JENIS_INTRAKURIKULER,
+  fillAllIntracurricular, getIntracurricularCp, getStudentIntracurricularSelection,
+  INTRACURRICULAR_PREDICATES, JENIS_INTRAKURIKULER, jenisIntrakurikulerValid,
+  listAssignedIntracurricularActivities, listIntracurricularButir, listIntracurricularSubjects,
   saveStudentIntracurricularSelection } from '../services/intracurricular.js';
 import { listStudents } from '../services/students.js';
 import { el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 
-/* Alur Intrakurikuler: Mata Pelajaran → Fase otomatis dari rombel → CP resmi → Predikat →
-   Deskripsi otomatis.
+/* ALUR INTRAKURIKULER:
 
-   Guru TIDAK lagi diminta memilih atau mencentang Tujuan Pembelajaran di sini. Acuannya adalah
-   Capaian Pembelajaran mata pelajaran pada fase rombel, sehingga tidak ada pekerjaan mencentang
-   ulang TP yang sudah aktif. Menu Tujuan Pembelajaran sendiri tidak berubah.
+     Siswa -> Mata Pelajaran -> Butir CP aktif (satu atau beberapa) -> TEORI atau PRAKTIK ->
+     PREDIKAT -> Deskripsi.
+
+   Guru TIDAK diminta memilih Tujuan Pembelajaran, TIDAK diminta memilih semester, dan TIDAK
+   pernah mengisi angka. Intrakurikuler menghasilkan PREDIKAT dan DESKRIPSI; Nilai Akhir mata
+   pelajaran tetap milik menu Rapor.
+
+   BEBERAPA BUTIR, SATU PREDIKAT. Guru yang mencentang tiga Butir CP tidak diminta tiga predikat:
+   ketiganya kompetensi yang ditunjukkan pada penilaian yang sama, dan deskripsinya meringkas
+   ketiganya menjadi satu kalimat.
 
    Bila rombel belum punya mapel ber-CP, halaman kembali ke alur kegiatan lama sehingga sekolah
-   yang sudah memakainya tidak kehilangan apa pun. Tidak ada input angka pada halaman ini:
-   Intrakurikuler menghasilkan predikat dan deskripsi, bukan nilai. */
+   yang sudah memakainya tidak kehilangan apa pun. */
 
 function studentOptions(students,selected=''){
   return students.map(student=>`<option value="${escapeHtml(student.id)}" ${student.id===selected?'selected':''}>${escapeHtml(student.name)} · ${escapeHtml(student.nis)}</option>`).join('');
@@ -44,29 +50,61 @@ export function renderIntracurricularInput(session){
     return drawLegacyFlow(students,student);
   }
 
-  /* ------------------------------------------- Alur CP: mapel, fase, predikat, deskripsi */
+  /* ------------------- Alur CP: mapel -> Butir CP -> Teori/Praktik -> Predikat -> Deskripsi
+
+     Empat pilihan, itu saja. Tidak ada input angka: Intrakurikuler menghasilkan PREDIKAT dan
+     DESKRIPSI. Nilai Akhir mata pelajaran tetap milik lima komponen penilaian di menu Rapor.
+
+     MATA PELAJARAN ADALAH STATE HALAMAN, bukan turunan catatan siswa yang sedang dibuka.
+     Dulu `subjectId` dihitung ulang dari catatan murid pertama setiap kali halaman digambar
+     ulang, sehingga sehabis "Isi Otomatis Semua Siswa" mapelnya melompat kembali ke mapel
+     pertama - IPAS berubah menjadi Pancasila. Sekarang pilihan guru bertahan sampai ia sendiri
+     yang menggantinya. */
+  let subjectId='';
+  let jenis=DEFAULT_JENIS_INTRAKURIKULER;
+  let predicate=DEFAULT_ACTIVITY_PREDICATE;
+  let butirTerpilih=new Set();
+  let mapelTerakhirButir='';
+
   function drawSubjectFlow(students,student,subjects){
-    const current=getStudentIntracurricularSelection(session,selectedStudentId);
-    let subjectId=subjects.some(item=>item.id===current?.subjectId)?current.subjectId:subjects[0].id;
-    let predicate=INTRACURRICULAR_PREDICATES.includes(current?.predicate)?current.predicate:DEFAULT_ACTIVITY_PREDICATE;
+    if(!subjects.some(item=>item.id===subjectId))subjectId=subjects[0].id;
+    const current=getStudentIntracurricularSelection(session,selectedStudentId,subjectId);
+    /* Pilihan butir mengikuti catatan murid ketika mapelnya berganti; selama guru berada pada
+       mapel yang sama, centangnya tidak pernah direset oleh penggambaran ulang. */
+    if(mapelTerakhirButir!==subjectId){
+      mapelTerakhirButir=subjectId;
+      butirTerpilih=new Set(current?.butirIds||[]);
+      if(jenisIntrakurikulerValid(current?.jenis))jenis=current.jenis;
+      if(INTRACURRICULAR_PREDICATES.includes(current?.predicate))predicate=current.predicate;
+    }
 
     function render(){
-      const subject=subjects.find(item=>item.id===subjectId);
+      const tersimpan=getStudentIntracurricularSelection(session,selectedStudentId,subjectId);
       const cp=getIntracurricularCp(session,subjectId);
-      view.innerHTML=`<section class="card module-filter"><div class="field compact-field"><label>Siswa</label><select class="input" data-student>${studentOptions(students,selectedStudentId)}</select></div><div class="scope-note">Kelas ${escapeHtml(session.classId)}<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section><section class="card"><div class="section-head"><div><h3>Intrakurikuler ${escapeHtml(student.name)}</h3><p>Pilih mata pelajaran, tentukan predikat, lalu deskripsi tersusun otomatis dari Capaian Pembelajaran fase rombel. Tidak perlu memilih Tujuan Pembelajaran.</p></div><button class="btn btn-light" type="button" data-fill-all>${icon('activity',16)} Isi Otomatis Semua Siswa</button></div><div class="form-grid"><div class="field"><label>Mata Pelajaran *</label><select class="input" data-subject>${subjects.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===subjectId?'selected':''}>${escapeHtml(item.name)}</option>`).join('')}</select></div><div class="field"><label>Predikat *</label><select class="input" data-predicate>${predicateOptions(predicate)}</select></div><div class="field form-span-2"><label>Acuan Capaian Pembelajaran</label>${cp.available?`<div class="cp-elements">${cp.elements.map(nama=>`<span class="cp-element">${escapeHtml(nama)}</span>`).join('')}</div><div class="objective-reference-foot">Fase ${escapeHtml(cp.phase)} · ditentukan otomatis dari tingkat rombel. Deskripsi Intrakurikuler disusun dari acuan ini.</div>`:`<p class="cp-empty">${escapeHtml(cp.reason||'CP belum tersedia untuk mata pelajaran ini pada fase rombel aktif.')}</p>`}</div><div class="field form-span-2"><label>Deskripsi *</label><textarea class="input" rows="4" data-description placeholder="Kosongkan untuk memakai deskripsi otomatis...">${escapeHtml(current?.description||'')}</textarea><div class="actions" style="margin-top:8px"><button class="btn btn-light" type="button" data-generate-description>${icon('activity',16)} Generate Deskripsi Otomatis</button></div></div></div><div class="actions"><button class="btn btn-primary" data-save>${icon('save',16)} Simpan Siswa Ini</button></div></section>`;
+      const butir=listIntracurricularButir(session,subjectId);
+      /* Butir yang sudah tidak aktif dibuang dari centang supaya tidak pernah ikut ke deskripsi. */
+      const idAktif=new Set(butir.map(item=>item.id));
+      butirTerpilih=new Set([...butirTerpilih].filter(id=>idAktif.has(id)));
+      const pilihanButir=butir.length
+        ? `<div class="picker-toolbar"><label class="objective-reference-item picker-all"><input type="checkbox" data-butir-semua ${butir.length&&butirTerpilih.size===butir.length?'checked':''}/><span><strong>Pilih Semua</strong></span></label><span class="objective-picker-count" data-butir-count>${butirTerpilih.size} Butir CP dipilih</span></div>
+           <div class="objective-reference-list" data-butir-list>${butir.map(item=>`<label class="objective-reference-item"><input type="checkbox" data-butir value="${escapeHtml(item.id)}" ${butirTerpilih.has(item.id)?'checked':''}/><span>${escapeHtml(item.name)}<small class="cp-tag">Elemen CP: ${escapeHtml(item.elementName)}</small></span></label>`).join('')}</div>`
+        : `<p class="cp-empty">${escapeHtml(cp.reason||'Belum ada Butir CP aktif pada mata pelajaran ini. Aktifkan Butir CP melalui menu Capaian Pembelajaran.')}</p>`;
 
-      /* `studentId` WAJIB ikut: tanpanya penyusun deskripsi tidak dapat membaca nilai Butir CP
-         murid ini dan jatuh ke kalimat lingkup elemen. Akibatnya tombol Generate menampilkan
-         kalimat yang lebih lemah daripada yang tersimpan saat Simpan ditekan - dua kalimat
-         berbeda untuk murid yang sama. */
+      view.innerHTML=`<section class="card module-filter"><div class="field compact-field"><label>Siswa</label><select class="input" data-student>${studentOptions(students,selectedStudentId)}</select></div><div class="scope-note">Kelas ${escapeHtml(session.classId)}<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section>
+        <section class="card"><div class="section-head"><div><h3>Intrakurikuler ${escapeHtml(student.name)}</h3><p>Pilih mata pelajaran, centang Butir CP yang dinilai, tentukan Teori atau Praktik, lalu pilih predikat. Deskripsi tersusun otomatis dari butir yang Anda pilih.</p></div><button class="btn btn-light" type="button" data-fill-all>${icon('activity',16)} Isi Otomatis Semua Siswa</button></div>
+        <div class="form-grid"><div class="field"><label>Mata Pelajaran *</label><select class="input" data-subject>${subjects.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===subjectId?'selected':''}>${escapeHtml(item.name)}</option>`).join('')}</select></div>
+        <div class="field"><label>Jenis Penilaian *</label><select class="input" data-jenis>${JENIS_INTRAKURIKULER.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===jenis?'selected':''}>${escapeHtml(item.label)}</option>`).join('')}</select></div>
+        <div class="field"><label>Predikat *</label><select class="input" data-predicate>${predicateOptions(predicate)}</select></div>
+        <div class="field form-span-2"><label>Butir CP yang Dinilai *</label>${pilihanButir}<div class="objective-reference-foot">Hanya Butir CP aktif yang dapat dipilih. Semester penilaian mengikuti ${escapeHtml(session.semester)} dan tidak perlu diatur.</div></div>
+        <div class="field form-span-2"><label>Deskripsi *</label><textarea class="input" rows="4" data-description placeholder="Kosongkan untuk memakai deskripsi otomatis...">${escapeHtml(tersimpan?.description||'')}</textarea><div class="actions" style="margin-top:8px"><button class="btn btn-light" type="button" data-generate-description>${icon('activity',16)} Generate Deskripsi Otomatis</button></div></div></div>
+        <div class="actions"><button class="btn btn-primary" data-save>${icon('save',16)} Simpan Siswa Ini</button></div></section>`;
+
+      const idTerpilih=()=>[...butirTerpilih];
       const susun=()=>composeIntracurricularDescriptionFromCp(session,{
-        studentName:student.name,subjectName:subject?.name||'',subjectId,
-        studentId:student.id,
-        predicate:view.querySelector('[data-predicate]').value,
-      });
-      /* Deskripsi otomatis menyesuaikan setiap kali mapel atau predikat berubah, kecuali guru
-         sudah menuliskan kalimatnya sendiri. Tulisan guru tidak pernah ditimpa. */
-      let terakhirOtomatis=current?.description||'';
+        subjectId,butirIds:idTerpilih(),jenis,predicate});
+      /* Deskripsi otomatis menyesuaikan setiap kali pilihan berubah, kecuali guru sudah
+         menuliskan kalimatnya sendiri. Tulisan guru tidak pernah ditimpa. */
+      let terakhirOtomatis=tersimpan?.description||'';
       const segarkanDeskripsi=()=>{
         const kotak=view.querySelector('[data-description]');
         const isi=kotak.value.trim();
@@ -74,19 +112,40 @@ export function renderIntracurricularInput(session){
         terakhirOtomatis=susun()||'';
         kotak.value=terakhirOtomatis;
       };
-      view.querySelector('[data-subject]').onchange=event=>{subjectId=event.target.value;render();};
+      const hitungButir=()=>{
+        const hitungan=view.querySelector('[data-butir-count]');
+        if(hitungan)hitungan.textContent=`${butirTerpilih.size} Butir CP dipilih`;
+        const semua=view.querySelector('[data-butir-semua]');
+        if(semua)semua.checked=butir.length>0&&butirTerpilih.size===butir.length;
+      };
+      view.querySelectorAll('[data-butir]').forEach(kotak=>{
+        kotak.onchange=()=>{
+          if(kotak.checked)butirTerpilih.add(kotak.value);
+          else butirTerpilih.delete(kotak.value);
+          hitungButir();segarkanDeskripsi();
+        };
+      });
+      const semuaKotak=view.querySelector('[data-butir-semua]');
+      if(semuaKotak)semuaKotak.onchange=()=>{
+        butirTerpilih=semuaKotak.checked?new Set(butir.map(item=>item.id)):new Set();
+        view.querySelectorAll('[data-butir]').forEach(kotak=>{kotak.checked=butirTerpilih.has(kotak.value);});
+        hitungButir();segarkanDeskripsi();
+      };
+      view.querySelector('[data-subject]').onchange=event=>{subjectId=event.target.value;draw();};
+      view.querySelector('[data-jenis]').onchange=event=>{jenis=event.target.value;segarkanDeskripsi();};
       view.querySelector('[data-predicate]').onchange=event=>{predicate=event.target.value;segarkanDeskripsi();};
       view.querySelector('[data-generate-description]').onclick=()=>{
         const teks=susun();
-        if(!teks){toast(cp.reason||'CP belum tersedia untuk mata pelajaran ini.','warning');return;}
+        if(!teks){toast(cp.reason||'Pilih minimal satu Butir CP atau aktifkan Butir CP pada menu Capaian Pembelajaran.','warning');return;}
         terakhirOtomatis=teks;
         view.querySelector('[data-description]').value=teks;
         toast('Deskripsi intrakurikuler berhasil dibuat otomatis.');
       };
       view.querySelector('[data-fill-all]').onclick=()=>{
         try{
-          const hasil=fillAllIntracurricular(session,{subjectId,
-            predicate:view.querySelector('[data-predicate]').value});
+          /* Mapel yang diproses adalah mapel yang SEDANG DIPILIH, dan halaman tetap berada di
+             mapel itu sesudahnya. */
+          const hasil=fillAllIntracurricular(session,{subjectId,butirIds:idTerpilih(),jenis,predicate});
           draw();
           const catatan=[`${hasil.terisi} dari ${hasil.total} siswa terisi`];
           if(hasil.dilewati.length)catatan.push(`${hasil.dilewati.length} dilewati karena deskripsi manual`);
@@ -97,13 +156,18 @@ export function renderIntracurricularInput(session){
       view.querySelector('[data-save]').onclick=()=>{
         try{
           saveStudentIntracurricularSelection(session,selectedStudentId,{
-            subjectId,predicate:view.querySelector('[data-predicate]').value,
+            subjectId,butirIds:idTerpilih(),jenis,predicate,
             description:view.querySelector('[data-description]').value,
           });
           draw();toast('Intrakurikuler siswa berhasil disimpan.');
         }catch(error){toast(error.message,'error');}
       };
-      view.querySelector('[data-student]').onchange=event=>{selectedStudentId=event.target.value;draw();};
+      view.querySelector('[data-student]').onchange=event=>{
+        selectedStudentId=event.target.value;
+        /* Berganti siswa memuat ulang pilihan butir murid itu, tetapi TIDAK mengganti mapel. */
+        mapelTerakhirButir='';
+        draw();
+      };
     }
     render();
   }

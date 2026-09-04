@@ -7,7 +7,9 @@ const http=require('node:http');
 const net=require('node:net');
 const path=require('node:path');
 const fs=require('node:fs');
-const {randomBytes}=require('node:crypto');
+const {createHash,randomBytes}=require('node:crypto');
+const os=require('node:os');
+const {execFileSync}=require('node:child_process');
 const {safeStorage}=require('electron');
 const {createDapodikConfigStore}=require('./dapodik-config.cjs');
 const {createDapodikClient}=require('./dapodik-client.cjs');
@@ -121,6 +123,99 @@ function bridgeTokenMeta(){
   return `<meta name="erapor-desktop-bridge-token" content="${bridgeToken}">`;
 }
 
+/* ------------------------------------------------------- IDENTITAS PERANGKAT WINDOWS
+
+   Lisensi e-Rapor terikat pada perangkat. Kalau identitasnya hanya nilai acak di penyimpanan
+   browser, menyalin folder profil browser ke komputer lain sudah cukup untuk membuat komputer
+   kedua ikut dianggap berlisensi. Karena itu identitasnya DITURUNKAN dari komputer ini:
+
+     1. MachineGuid Windows - nilai yang dibuat sistem saat Windows dipasang. Ia bertahan
+        melewati pembaruan aplikasi, penggantian browser, dan pemasangan ulang e-Rapor.
+     2. Bila registry tidak dapat dibaca (izin, Windows versi lama, atau bukan Windows sama
+        sekali), dipakai nama host digabung alamat MAC adaptor jaringan pertama yang bukan
+        adaptor internal.
+     3. Bila keduanya gagal, dipakai nilai yang tersimpan dari peluncuran sebelumnya, dan hanya
+        bila itu pun belum ada barulah nilai acak dibuat sekali lalu disimpan.
+
+   NILAI MENTAHNYA TIDAK PERNAH KELUAR DARI PROSES INI. Yang disuntikkan ke halaman - dan
+   karenanya satu-satunya yang mungkin sampai ke server lisensi - adalah SHA-256-nya. Aplikasi
+   masih menghash sekali lagi di sisinya sendiri sebelum mengirim.
+
+   ALASAN_PERANGKAT bukan rahasia: apa pun yang ada di dalam .exe dapat dibaca siapa saja.
+   Gunanya semata pemisahan domain agar hash ini tidak pernah bertabrakan dengan hash keperluan
+   lain. Keamanannya datang dari nilai mentah yang tidak pernah dikirim, bukan dari string ini.
+
+   Berkas penyimpanannya berada di %APPDATA% - folder yang TIDAK disentuh installer - sehingga
+   memperbarui aplikasi pada komputer yang sama tidak pernah dianggap perangkat baru. */
+const ALASAN_PERANGKAT='erapor-desktop-device/v1';
+const devicePath=path.join(userDataPath,'device-identity.json');
+
+function bacaMachineGuid(){
+  if(process.platform!=='win32')return '';
+  try{
+    const keluaran=execFileSync('reg',
+      ['query','HKLM\\SOFTWARE\\Microsoft\\Cryptography','/v','MachineGuid'],
+      {encoding:'utf8',windowsHide:true,timeout:4000});
+    const cocok=keluaran.match(/MachineGuid\s+REG_SZ\s+([^\r\n]+)/i);
+    return cocok?cocok[1].trim():'';
+  }catch{return '';}
+}
+
+function bacaSidikJaringan(){
+  try{
+    const antarmuka=Object.values(os.networkInterfaces()||{}).flat()
+      .filter(item=>item&&!item.internal&&item.mac&&item.mac!=='00:00:00:00:00:00')
+      .map(item=>String(item.mac).toLowerCase()).sort();
+    if(!antarmuka.length)return '';
+    return `${os.hostname()}|${antarmuka[0]}`;
+  }catch{return '';}
+}
+
+function bacaIdentitasTersimpan(){
+  try{
+    const isi=JSON.parse(fs.readFileSync(devicePath,'utf8'));
+    return typeof isi?.deviceId==='string'&&/^[0-9a-f]{64}$/.test(isi.deviceId)?isi.deviceId:'';
+  }catch{return '';}
+}
+function simpanIdentitas(deviceId,sumber){
+  try{
+    fs.mkdirSync(userDataPath,{recursive:true});
+    fs.writeFileSync(devicePath,JSON.stringify({deviceId,source:sumber,updatedAt:new Date().toISOString()},null,2));
+  }catch{/* penyimpanan opsional: kegagalannya tidak boleh menggagalkan peluncuran */}
+}
+
+const hashPerangkat=nilai=>createHash('sha256').update(`${ALASAN_PERANGKAT}:${nilai}`).digest('hex');
+
+let deviceIdCache=null;
+function desktopDeviceId(){
+  if(deviceIdCache)return deviceIdCache;
+  /* Nilai turunan komputer SELALU menang atas nilai tersimpan. Karena itu menyalin folder
+     %APPDATA% ke komputer lain tidak memindahkan identitas: komputer kedua menurunkan
+     identitasnya sendiri dan menimpa nilai yang ikut tersalin. */
+  const guid=bacaMachineGuid();
+  if(guid){
+    deviceIdCache=hashPerangkat(`machine-guid:${guid.toLowerCase()}`);
+    simpanIdentitas(deviceIdCache,'machine-guid');
+    return deviceIdCache;
+  }
+  const jaringan=bacaSidikJaringan();
+  if(jaringan){
+    deviceIdCache=hashPerangkat(`host-mac:${jaringan.toLowerCase()}`);
+    simpanIdentitas(deviceIdCache,'host-mac');
+    return deviceIdCache;
+  }
+  const tersimpan=bacaIdentitasTersimpan();
+  if(tersimpan){deviceIdCache=tersimpan;return deviceIdCache;}
+  deviceIdCache=hashPerangkat(`acak:${randomBytes(32).toString('hex')}`);
+  simpanIdentitas(deviceIdCache,'acak');
+  return deviceIdCache;
+}
+
+function deviceIdMeta(){
+  return `<meta name="erapor-desktop-device-id" content="${desktopDeviceId()}">`
+    +'<meta name="erapor-desktop-platform" content="windows">';
+}
+
 function legacyBootstrapScript(){
   if(!legacyPayload)return '';
   return `<script>try{var K=${JSON.stringify(STORAGE_KEY)};if(!localStorage.getItem(K)){localStorage.setItem(K,${JSON.stringify(legacyPayload)});if(navigator.sendBeacon)navigator.sendBeacon('/__erapor/legacy-consumed');}else if(navigator.sendBeacon)navigator.sendBeacon('/__erapor/legacy-consumed');}catch(error){}</script>`;
@@ -169,7 +264,7 @@ function handleRequest(request,response){
     if(error)return kirim(response,404,'Berkas tidak ditemukan.');
     const type=MIME[path.extname(file).toLowerCase()]||'application/octet-stream';
     if(path.basename(file)==='index.html'){
-      const html=data.toString('utf8').replace('</head>',`${bridgeTokenMeta()}${legacyBootstrapScript()}</head>`);
+      const html=data.toString('utf8').replace('</head>',`${bridgeTokenMeta()}${deviceIdMeta()}${legacyBootstrapScript()}</head>`);
       return kirim(response,200,html,type);
     }
     response.writeHead(200,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});

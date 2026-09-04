@@ -216,13 +216,15 @@ test('12-13. Status Guru bertahan melewati pencabutan dan penggantian lisensi',a
 
 /* --------------------------------------------------------- §N.14-16 ATURAN DAN WARISAN */
 
-test('14. Aturan satu lisensi satu perangkat tidak tersentuh',()=>{
+test('14. Aturan satu perangkat aktif per slot tidak tersentuh',()=>{
   /* Pengikatan perangkat tetap dijaga server lewat indeks unik parsial, dan client tidak
      menyentuh installation_id maupun token. */
   const server=read('server/src/db.js');
-  /* Aturannya ditegakkan indeks unik parsial di database, bukan pemeriksaan di kode. */
-  assert.match(server,/CREATE UNIQUE INDEX IF NOT EXISTS ux_one_active_device\s*\n\s*ON device_activations\(license_id\) WHERE is_active=1;/,
-    'paling banyak satu perangkat aktif per lisensi');
+  /* Aturannya ditegakkan indeks unik parsial di database, bukan pemeriksaan di kode. Satu
+     lisensi pembelian punya tepat dua slot: satu Android dan satu Windows. */
+  assert.match(server,/CREATE UNIQUE INDEX IF NOT EXISTS ux_one_active_slot\s*\n\s*ON device_activations\(license_id,slot\) WHERE is_active=1 AND slot IS NOT NULL/,
+    'paling banyak satu perangkat aktif per slot');
+  assert.match(server,/DROP INDEX IF EXISTS ux_one_active_device/,'indeks lama dilepas, bukan dibiarkan bertabrakan');
   const license=read('src/services/license.js');
   assert.match(license,/installation_id/,'aktivasi tetap membawa Installation ID');
   /* Gerbang login hanya membaca status; ia tidak pernah menulis atau menghapus catatan lisensi. */

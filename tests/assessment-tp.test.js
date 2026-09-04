@@ -109,80 +109,88 @@ test('TP aktif tidak menyimpan satu pun angka per TP',()=>{
 
 /* --------------------------------------------------------- Deskripsi bersumber dari TP terpilih */
 
-test('Satu TP terpilih menghasilkan deskripsi yang memuat TP itu saja',()=>{
+/* ------------------------------------------------- TP BUKAN LAGI BASIS DESKRIPSI RAPOR
+
+   Enam test di blok ini dulu menjaga janji yang sudah RESMI BERUBAH: bahwa deskripsi rapor
+   disusun dari TP yang dipilih guru. Sejak penilaian kompetensi beralih ke Butir CP, meminta
+   guru memilih TP untuk menghasilkan deskripsi adalah pekerjaan yang tidak lagi dituntut
+   siapa pun, dan jalur TP yang selalu didahulukan itulah yang membuat "Generate Semua" gagal
+   pada mata pelajaran yang tidak punya TP.
+
+   Yang dijaga sekarang adalah kebalikannya, dan itu diuji secara eksplisit:
+
+   1. Untuk mata pelajaran yang PUNYA CP, deskripsi SELALU bersumber Butir CP - bahkan ketika
+      objectiveIds dikirim pemanggil. TP tidak dapat lagi menyetir hasilnya.
+   2. Jalur TP tetap ada sebagai CADANGAN untuk mata pelajaran yang memang belum berlaku pada
+      fase rombel, supaya sekolah yang sudah memakainya tidak kehilangan apa pun.
+
+   Nilai Akhir tidak tersentuh sama sekali oleh perubahan ini - itu tetap dijaga blok di atas. */
+
+test('CP mengalahkan TP: objectiveIds yang dikirim tidak lagi menyetir deskripsi rapor',()=>{
   const siswa=siapkanKelas();
   const daftar=tpLokal(3);
   aktifkanHanya(guru,'mtk',[daftar[0].id]);
   const hasil=generateReportDescription(guru,'mtk',siswa.id,{objectiveIds:[daftar[0].id]});
-  assert.match(hasil.text,/Siswa 1/);
-  assert.ok(hasil.text.includes(daftar[0].description));
-  assert.equal(hasil.text.includes(daftar[1].description),false,'TP tak terpilih tidak ikut');
-  assert.equal(hasil.text.includes(daftar[2].description),false);
-  assert.deepEqual(hasil.objectiveIds,[daftar[0].id]);
+  assert.equal(hasil.source,'CP_BUTIR','deskripsi bersumber Butir CP, bukan TP');
+  assert.equal(hasil.objectiveIds,null,'tidak ada TP yang menjadi acuan');
+  for(const tp of daftar)
+    assert.equal(hasil.text.includes(tp.description),false,`isi TP "${tp.description}" tidak masuk deskripsi`);
 });
 
-test('Dua dan tiga TP terpilih memuat seluruh TP tepat satu kali tanpa repetisi',()=>{
+test('Deskripsi rapor tetap memakai Nilai Akhir existing untuk menentukan tingkat capaian',()=>{
   const siswa=siapkanKelas();
-  const daftar=tpLokal(4);
-  for(const jumlah of [2,3,4]){
-    const dipakai=daftar.slice(0,jumlah);
-    const hasil=generateReportDescription(guru,'mtk',siswa.id,{objectiveIds:dipakai.map(item=>item.id)});
-    for(const tp of dipakai){
-      const kemunculan=hasil.text.split(tp.description).length-1;
-      assert.equal(kemunculan,1,`${jumlah} TP: "${tp.description}" muncul tepat sekali`);
-    }
-    for(const tp of daftar.slice(jumlah)){
-      assert.equal(hasil.text.includes(tp.description),false,'TP di luar pilihan tidak muncul');
-    }
-    assert.equal(hasil.text.split('Ananda').length-1,1,'kata Ananda tidak diulang');
-    assert.equal(hasil.text.split('mampu').length-1,1,'kalimat pembuka tidak diulang');
-    assert.equal(/TP-\d/.test(hasil.text),false,'kode TP tidak ikut tercetak');
-    assert.match(hasil.text,/\.$/);
-  }
-});
-
-test('Deskripsi TP memakai Nilai Akhir existing untuk menentukan tingkat capaian',()=>{
-  const siswa=siapkanKelas();
-  const daftar=tpLokal(2);
-  const ids=daftar.map(item=>item.id);
-  const tinggi=generateReportDescription(guru,'mtk',siswa.id,{objectiveIds:ids});
-  assert.equal(tinggi.finalScore,calculateReportScore(guru,'mtk',siswa.id).finalScore);
-  assert.match(tinggi.text,/baik/);
+  const tinggi=generateReportDescription(guru,'mtk',siswa.id,{});
+  assert.equal(tinggi.finalScore,calculateReportScore(guru,'mtk',siswa.id).finalScore,
+    'tingkat capaian dibaca dari Nilai Akhir yang sudah ada');
+  assert.match(tinggi.text,/pemahaman baik|pemahaman sangat baik/);
   isiLimaKomponen(guru,'mtk',siswa.id,{formative:50,daily:55,practice:60,scopeSummative:50,semesterSummative:45});
-  const rendah=generateReportDescription(guru,'mtk',siswa.id,{objectiveIds:ids});
+  const rendah=generateReportDescription(guru,'mtk',siswa.id,{});
   assert.ok(rendah.finalScore<75);
-  assert.match(rendah.text,/perlu/);
-  for(const tp of daftar)assert.ok(rendah.text.includes(tp.description),'TP tetap lengkap meski nilai rendah');
+  assert.match(rendah.text,/memerlukan bimbingan/,'nilai di bawah KKTP dinyatakan apa adanya');
 });
 
-test('Deskripsi menolak TP di luar daftar TP mapel tersebut',()=>{
+test('Deskripsi rapor dapat disimpan dan berstatus AUTO bila tidak diedit',()=>{
   const siswa=siapkanKelas();
-  tpLokal(2);
-  assert.throws(()=>generateReportDescription(guru,'mtk',siswa.id,{objectiveIds:['tp-palsu']}),/Tujuan Pembelajaran/i);
-});
-
-test('Deskripsi berbasis TP dapat disimpan dan berstatus AUTO bila tidak diedit',()=>{
-  const siswa=siapkanKelas();
-  const daftar=tpLokal(2);
-  const ids=daftar.map(item=>item.id);
-  const dibuat=generateReportDescription(guru,'mtk',siswa.id,{objectiveIds:ids});
-  const disimpan=saveReportDescription(guru,'mtk',siswa.id,{objectiveIds:ids,text:dibuat.text});
+  const dibuat=generateReportDescription(guru,'mtk',siswa.id,{});
+  const disimpan=saveReportDescription(guru,'mtk',siswa.id,{text:dibuat.text});
   assert.equal(disimpan.status,'AUTO');
-  assert.deepEqual(disimpan.objectiveIds,ids);
-  const diedit=saveReportDescription(guru,'mtk',siswa.id,{objectiveIds:ids,text:`${dibuat.text} Tetap semangat.`});
+  const diedit=saveReportDescription(guru,'mtk',siswa.id,{text:`${dibuat.text} Tetap semangat.`});
   assert.equal(diedit.status,'EDITED');
-  assert.ok(diedit.text.includes(daftar[0].description));
 });
 
-test('Cara lama TP terbaik dan TP perlu ditingkatkan tetap berjalan',()=>{
-  const siswa=siapkanKelas();
-  const daftar=tpLokal(2);
-  const lama=generateReportDescription(guru,'mtk',siswa.id,
-    {bestObjectiveId:daftar[0].id,improvementObjectiveId:daftar[1].id});
-  assert.match(lama.text,/sangat baik dalam/);
-  assert.match(lama.text,/perlu meningkatkan kemampuan dalam/);
-  assert.equal(lama.bestObjectiveId,daftar[0].id);
-  assert.equal(lama.improvementObjectiveId,daftar[1].id);
+test('Jalur TP tetap menjadi cadangan bagi mapel yang belum berlaku pada fase rombel',()=>{
+  /* Bahasa Inggris belum berlaku pada Fase A, jadi CP-nya memang tidak ada. Di sinilah - dan
+     hanya di sini - TP masih dipakai, supaya sekolah yang sudah mengisinya tidak kehilangan
+     deskripsi rapornya. */
+  useMemoryStorage();
+  const kelas1={role:'teacher',classId:'1A',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
+  aktifkanMapel(kelas1,['bing']);
+  const siswa=createStudent(kelas1,{classId:'1A',nis:'1A-1',nisn:'995500001',
+    name:'Siswa Cadangan',gender:'P',photo:''});
+  saveAssessmentSettings(kelas1,'bing',{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
+  isiLimaKomponen(kelas1,'bing',siswa.id,{formative:80,daily:70,practice:90,scopeSummative:85,semesterSummative:75});
+  const tp=createLearningObjective(kelas1,'bing',{description:'menyebutkan salam sederhana',active:true});
+  const hasil=generateReportDescription(kelas1,'bing',siswa.id,{});
+  assert.ok(hasil.text.includes(tp.description),'TP dipakai ketika CP memang belum tersedia');
+  assert.deepEqual(hasil.objectiveIds,[tp.id]);
+  /* Guru tetap tidak diminta MEMILIH TP: TP aktif dipakai apa adanya. */
+  assert.equal(hasil.bestObjectiveId,null);
+  assert.equal(hasil.improvementObjectiveId,null);
+});
+
+test('Cara lama TP terbaik dan TP perlu ditingkatkan tetap tersedia bagi mapel tanpa CP',()=>{
+  useMemoryStorage();
+  const kelas1={role:'teacher',classId:'1A',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
+  aktifkanMapel(kelas1,['bing']);
+  const siswa=createStudent(kelas1,{classId:'1A',nis:'1A-2',nisn:'995500002',
+    name:'Siswa Lama',gender:'L',photo:''});
+  saveAssessmentSettings(kelas1,'bing',{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
+  const satu=createLearningObjective(kelas1,'bing',{description:'menyebutkan warna dasar',active:true});
+  const dua=createLearningObjective(kelas1,'bing',{description:'menyebutkan angka satu sampai sepuluh',active:true});
+  const lama=generateReportDescription(kelas1,'bing',siswa.id,
+    {bestObjectiveId:satu.id,improvementObjectiveId:dua.id,objectiveIds:[satu.id,dua.id]});
+  assert.ok(lama.text.includes(satu.description));
+  assert.ok(lama.text.includes(dua.description));
 });
 
 /* ------------------------------------------------------------------ Halaman Penilaian Umum */

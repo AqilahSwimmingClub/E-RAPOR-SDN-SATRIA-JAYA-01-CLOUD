@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
    pemeriksaan berkala, pembedaan REVOKED dengan gagal-jaringan) tidak pernah dapat dijalankan
    oleh test biasa: panggil() berhenti lebih dulu dengan NOT_CONFIGURED.
 
-   Karena itu berkas sumbernya disalin ke berkas sementara dengan TIGA specifier import yang
+   Karena itu berkas sumbernya disalin ke berkas sementara dengan specifier import-nya saja yang
    diubah - isinya tidak disentuh sama sekali - lalu diarahkan ke konfigurasi uji yang memuat
    kunci publik server uji. Yang diuji tetap kode sungguhan, bukan tiruan. */
 
@@ -32,6 +32,7 @@ export async function loadLicenseService({publicJwk,apiBase}){
   const sumber=readFileSync(fileURLToPath(new URL('src/services/license.js',root)),'utf8')
     .replace("'../data/license-config.js'",JSON.stringify(configPath.href))
     .replace("'./installation.js'",JSON.stringify(new URL('src/services/installation.js',root).href))
+    .replace("'./device-identity.js'",JSON.stringify(new URL('src/services/device-identity.js',root).href))
     .replace("'../data/version.js'",JSON.stringify(new URL('src/data/version.js',root).href));
   writeFileSync(fileURLToPath(servicePath),sumber);
 

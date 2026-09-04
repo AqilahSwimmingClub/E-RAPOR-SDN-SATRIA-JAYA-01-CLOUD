@@ -1,4 +1,3 @@
-import { composeActivityDescription } from './activity-description.js';
 
 /* Pilihan ekstrakurikuler tersedia langsung di dropdown. Guru tidak perlu membuat master
    apa pun sebelum mengisi nilai siswa. Pramuka selalu berada di urutan pertama sebagai
@@ -37,8 +36,31 @@ export function findExtracurricularDefault(classId,name){
   return defaultExtracurricularActivities(classId).find(item=>item.name.toLowerCase()===target)||null;
 }
 
+/* DESKRIPSI EKSTRAKURIKULER - penyusun sendiri, bukan template bersama.
+
+   Ekstrakurikuler bukan mata pelajaran, jadi kalimatnya tidak boleh berbunyi seperti deskripsi
+   mata pelajaran. Yang diceritakan adalah KEIKUTSERTAAN anak pada kegiatan itu beserta
+   perkembangan yang ditunjukkannya - untuk Pramuka misalnya kemandirian, kedisiplinan, dan
+   kerja sama, yang memang tersimpan sebagai keterangan kegiatannya.
+
+   SUMBERNYA HANYA DATA EKSTRAKURIKULER YANG MEMANG ADA: nama kegiatan, keterangan kegiatan yang
+   tersimpan atau bawaannya, dan predikat. Kegiatan yang tidak punya keterangan tidak dikarangkan
+   capaian - kalimatnya berhenti pada keikutsertaan dan predikat. */
+const NADA_EKSTRA=Object.freeze({
+  'Sangat Baik':'mengikuti dengan sangat baik, aktif, dan konsisten',
+  'Baik':'mengikuti dengan baik dan tertib',
+  'Cukup':'mengikuti dengan cukup baik',
+  'Perlu Bimbingan':'mengikuti dan masih memerlukan bimbingan',
+});
+function tanpaTitikEkstra(teks){return String(teks||'').trim().replace(/[.!?]+$/,'');}
+
 export function generateExtracurricularDescription({studentName='',activity,predicate='Baik',classId=''}={}){
   const activityName=String(activity?.name||activity||'').trim();
-  const detail=String(activity?.description||findExtracurricularDefault(classId,activityName)?.description||'').trim();
-  return composeActivityDescription({studentName,activityName,detail,predicate,fallbackActivity:'ekstrakurikuler'});
+  const detail=tanpaTitikEkstra(activity?.description
+    ||findExtracurricularDefault(classId,activityName)?.description||'');
+  const nada=NADA_EKSTRA[predicate]||NADA_EKSTRA.Baik;
+  const nama=String(studentName||'Siswa').trim()||'Siswa';
+  const kegiatan=activityName||'kegiatan ekstrakurikuler';
+  const inti=`${nama} ${nada} pada kegiatan ekstrakurikuler ${kegiatan}.`;
+  return detail?`${inti} Kegiatan ini ${detail}.`:inti;
 }

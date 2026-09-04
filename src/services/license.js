@@ -1,6 +1,7 @@
 import { LICENSE_API_BASE, LICENSE_CLOCK_TOLERANCE_MINUTES, LICENSE_OFFLINE_GRACE_HOURS,
   LICENSE_PUBLIC_JWK, LICENSE_STORAGE_KEY } from '../data/license-config.js';
-import { getInstallationId } from './installation.js';
+import { ensureInstallationId, getInstallationId } from './installation.js';
+import { detectPlatform as deteksiPlatformPerangkat } from './device-identity.js';
 import { APP_VERSION } from '../data/version.js';
 
 /* Lisensi sisi aplikasi sekolah.
@@ -15,13 +16,24 @@ import { APP_VERSION } from '../data/version.js';
 export const LICENSE_MESSAGES=Object.freeze({
   OK:'Aktivasi berhasil. Perangkat ini telah terdaftar.',
   INVALID_KEY:'License Key tidak valid.',
+  /* ALREADY_ACTIVATED adalah kode server versi lama - satu lisensi satu perangkat. Kodenya
+     dipertahankan supaya aplikasi yang sudah terpasang tetap menampilkan pesan yang benar bila
+     menghubungi server lama. Server sekarang menjawab SLOT_TAKEN atau DEVICE_BOUND_ELSEWHERE. */
   ALREADY_ACTIVATED:'License Key ini sudah terikat pada perangkat lain. Hubungi penyedia e-Rapor.',
+  SLOT_TAKEN:'Slot perangkat untuk jenis perangkat ini sudah dipakai. Satu License Key melayani satu perangkat Android dan satu perangkat Windows. Minta Admin Lisensi melakukan Reset perangkat.',
+  DEVICE_BOUND_ELSEWHERE:'Perangkat ini masih terikat pada License Key lain. Minta Admin Lisensi melakukan Reset perangkat lebih dulu.',
   SUSPENDED:'Lisensi sedang ditangguhkan. Hubungi penyedia e-Rapor.',
   REVOKED:'Lisensi telah dicabut. Hubungi penyedia e-Rapor.',
   NOT_BOUND:'Perangkat ini tidak lagi terdaftar pada lisensi tersebut. Hubungi penyedia e-Rapor.',
   NETWORK:'Tidak dapat menghubungi server lisensi. Periksa koneksi internet.',
   RATE_LIMITED:'Terlalu banyak percobaan aktivasi. Coba lagi beberapa menit lagi.',
-  NOT_CONFIGURED:'Server lisensi belum dikonfigurasi pada aplikasi ini.',
+  /* Pesan ini BUKAN pertanda lisensinya bermasalah. Ia berarti berkas aplikasi yang terpasang
+     dibangun tanpa alamat server dan kunci verifikasi publik - kesalahan pada proses BUILD,
+     bukan pada License Key. Karena itu pesannya menyebut apa yang sebenarnya terjadi dan apa
+     yang harus dilakukan, alih-alih membuat sekolah mengira kuncinya salah. */
+  NOT_CONFIGURED:'Aplikasi ini dipasang dari paket yang dibangun tanpa konfigurasi server lisensi, '
+    +'sehingga aktivasi belum dapat dilakukan. License Key Anda tidak bermasalah. '
+    +'Unduh ulang aplikasi versi rilis resmi dari penyedia e-Rapor.',
 });
 
 const JAM=3600000;
@@ -129,9 +141,18 @@ export function buildActivationPayload({licenseKey,school={},platform=detectPlat
   };
 }
 
+/* Platform yang dilaporkan bersama aktivasi. Sinyal yang benar-benar milik lingkungan -
+   Capacitor dan meta tag peluncur Windows - selalu didahulukan; user-agent hanya cadangan
+   terakhir karena nilainya dapat diubah siapa saja.
+
+   Nilai ini TIDAK menentukan hak apa pun. Server memutuskan sendiri slot mana yang dipakai, dan
+   berbohong tentang platform paling jauh hanya memindahkan perangkat itu ke slot seberang milik
+   lisensinya sendiri - tidak pernah menambah jumlah perangkat yang boleh aktif. */
 export function detectPlatform(){
+  const nyata=deteksiPlatformPerangkat();
+  if(nyata!=='web')return nyata;
   const ua=String(globalThis.navigator?.userAgent||'').toLowerCase();
-  if(globalThis.Capacitor?.isNativePlatform?.()||ua.includes('android'))return 'android';
+  if(ua.includes('android'))return 'android';
   if(globalThis.eraporDesktop||ua.includes('electron'))return 'windows';
   return 'web';
 }
@@ -227,6 +248,9 @@ export function offlineGraceStatus(record=baca(),now=Date.now()){
 }
 
 export async function activateLicense({licenseKey,school={},deviceLabel=''}={}){
+  /* Identitas perangkat diturunkan lebih dulu, sehingga yang dikirim ke server benar-benar
+     identitas perangkat ini - bukan nilai yang kebetulan tersimpan di storage. */
+  await ensureInstallationId();
   const data=await panggil('/activate',buildActivationPayload({licenseKey,school,deviceLabel}));
   const claims=await verifyActivationToken(data.activation_token);
   if(!claims){const error=new Error('Activation Token dari server tidak dapat diverifikasi.');error.code='INVALID_TOKEN';throw error;}
@@ -257,6 +281,7 @@ export async function checkLicense({force=false,now=Date.now()}={}){
   if(!record)return null;
   if(!force&&!isCheckDue(record,now))return record;
   try{
+    await ensureInstallationId();
     const data=await panggil('/check',{installation_id:getInstallationId(),license_id:record.license_id});
     const claims=await verifyActivationToken(data.activation_token);
     if(!claims)return tulis({...record,last_check_at:iso(now),last_check_error:'INVALID_TOKEN'});
@@ -297,6 +322,19 @@ export function isCheckDue(record=baca(),now=Date.now()){
 export function getLicenseState({now=Date.now()}={}){
   const record=baca();
   if(!record?.activation_token)return {state:'UNLICENSED',canUseApp:false,canEditData:false,record:null};
+
+  /* 0. CATATAN LISENSI HANYA BERLAKU DI PERANGKAT YANG MENERIMANYA.
+
+     Menyalin isi localStorage dari perangkat A ke perangkat B memindahkan Activation Token
+     berikut seluruh catatan masa tenggangnya. Yang TIDAK ikut berpindah adalah identitas
+     perangkat: pada Android dan Windows nilainya diturunkan dari perangkat itu sendiri dan
+     ditulis ulang setiap kali aplikasi dijalankan. Karena itu catatan yang membawa
+     installation_id perangkat lain ditolak di sini, sebelum masa tenggang apa pun dihitung.
+
+     Yang diputus hanyalah HAK AKSES. Tidak satu pun data akademik disentuh atau dihapus. */
+  if(record.installation_id&&record.installation_id!==getInstallationId())
+    return {state:'UNLICENSED',canUseApp:false,canEditData:false,record,
+      message:'Catatan lisensi ini milik perangkat lain. Lakukan Aktivasi Lisensi pada perangkat ini.'};
 
   /* 1. JAWABAN SERVER MENGALAHKAN SEGALANYA.
 

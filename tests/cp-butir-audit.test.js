@@ -2,7 +2,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { capaianPembelajaran, CP_SUBJECTS } from '../src/data/curriculum-cp.js';
-import { defaultCpButir, JENIS_IDS } from '../src/data/cp-butir-defaults.js';
+import { defaultCpButir } from '../src/data/cp-butir-defaults.js';
 
 /* AUDIT KETERLACAKAN BUTIR CP KE NASKAH CP RESMI.
 
@@ -100,8 +100,14 @@ test('A2. Setiap Butir CP menempel pada elemen CP resmi mata pelajaran dan fasen
   for(const row of auditButir()){
     assert.ok(row.elemen,`${row.subjectId}/${row.phase} ${row.item.name}: elemen induk ditemukan`);
     assert.equal(row.item.elementName,row.elemen.name,'nama elemen butir sama dengan elemen CP resmi');
-    assert.ok([1,2].includes(row.item.semester),`${row.item.code}: dipetakan ke Semester 1 atau 2`);
-    assert.ok(JENIS_IDS.includes(row.item.jenis),`${row.item.code}: jenis penilaian valid`);
+    /* SEMESTER DAN JENIS PENILAIAN SUDAH BUKAN MILIK BUTIR CP.
+
+       Keduanya dulu wajib ada pada setiap butir dan diperiksa di sini. Model CP kini
+       disederhanakan: CP ditetapkan per FASE - bukan per semester - dan Teori/Praktik adalah
+       sifat KEGIATAN PENILAIAN, bukan sifat kompetensinya. Karena itu yang diperiksa sekarang
+       adalah kebalikannya: butir TIDAK BOLEH lagi membawa kedua field itu. */
+    assert.equal('semester' in row.item,false,`${row.item.code}: tidak lagi membawa semester`);
+    assert.equal('jenis' in row.item,false,`${row.item.code}: tidak lagi membawa jenis penilaian`);
     assert.ok(row.item.teori||row.item.praktik,`${row.item.code}: memiliki rumusan substansi`);
   }
 });

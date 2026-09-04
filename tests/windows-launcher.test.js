@@ -101,7 +101,7 @@ test('10. Installer memaketkan hasil build web terbaru beserta aset launcher',()
   for(const pola of ['electron/**/*','dist/**/*','package.json'])assert.ok(daftar.includes(pola),`${pola} ikut dipaketkan`);
   assert.match(main(),/const distPath=path\.join\(__dirname,'\.\.','dist'\)/,'server melayani hasil build web');
   assert.match(main(),/path\.join\(distPath,'assets','icon-only\.png'\)/,'ikon tray diambil dari aset yang ikut dipaketkan');
-  assert.match(JSON.parse(read('package.json')).scripts['desktop:win'],/^npm run build &&/,'installer selalu dibangun dari source terbaru');
+  assert.match(JSON.parse(read('package.json')).scripts['desktop:win'],/^npm run build:production &&/,'installer selalu dibangun dari source terbaru');
 });
 
 test('11. Server melayani SPA, aset, dan tidak menyajikan berkas basi',()=>{

@@ -14,7 +14,11 @@ test('Versi desktop mengikuti rilis aplikasi dan identitas produk konsisten',()=
   assert.equal(pkg.productName,'e-Rapor SDN Satria Jaya 01','nama produk desktop konsisten');
   assert.equal(pkg.main,'electron/main.cjs','entry Electron tidak berubah');
   assert.match(pkg.scripts['desktop:win'],/electron-builder --win nsis/,'tersedia perintah build installer Windows');
-  assert.match(pkg.scripts['desktop:win'],/^npm run build &&/,'installer selalu memakai hasil build web terbaru');
+  /* build:production membangun ulang aset web DAN menghentikan build bila konfigurasi lisensi
+     belum disuntikkan, sehingga tidak mungkin lagi mengirim .exe yang tidak dapat diaktivasi. */
+  assert.match(pkg.scripts['desktop:win'],/^npm run build:production &&/,'installer selalu memakai hasil build web terbaru');
+  assert.match(pkg.scripts['build:production'],/verify:production/,'build produksi memeriksa konfigurasi lisensi');
+  assert.match(pkg.scripts['desktop:win'],/verify:desktop-assets/,'dist yang benar-benar dikemas ikut diperiksa');
 });
 
 test('Identitas aplikasi tidak berubah antar versi sehingga installer mengenali instalasi lama',()=>{

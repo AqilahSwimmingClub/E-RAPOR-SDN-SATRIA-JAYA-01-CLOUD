@@ -67,9 +67,13 @@ test('Handler Vercel meneruskan seluruh endpoint publik dan pemilik',async t=>{
   assert.equal(aktivasi.status,200);
   assert.equal(aktivasi.data.status,'ACTIVE');
   assert.ok(aktivasi.data.activation_token);
-  const kedua=await s.panggil({method:'POST',url:'/api/v1/activate',body:{license_key:key,installation_id:B}});
-  assert.equal(kedua.status,409,'aturan satu perangkat tetap berlaku lewat Vercel');
-  assert.equal(kedua.data.error.code,'ALREADY_ACTIVATED');
+  /* Slot Android sudah dipakai A, jadi perangkat Android kedua ditolak lewat Vercel juga. */
+  const kedua=await s.panggil({method:'POST',url:'/api/v1/activate',body:{license_key:key,installation_id:B,platform:'android'}});
+  assert.equal(kedua.status,409,'aturan satu perangkat per slot tetap berlaku lewat Vercel');
+  assert.equal(kedua.data.error.code,'SLOT_TAKEN');
+  /* Slot Windows masih kosong, jadi laptop guru yang sama tetap boleh diaktifkan. */
+  const windows=await s.panggil({method:'POST',url:'/api/v1/activate',body:{license_key:key,installation_id:B,platform:'windows'}});
+  assert.equal(windows.status,200,'slot Windows terpisah dari slot Android');
 });
 
 test('CORS hanya untuk endpoint publik, tidak pernah untuk endpoint pemilik',async t=>{

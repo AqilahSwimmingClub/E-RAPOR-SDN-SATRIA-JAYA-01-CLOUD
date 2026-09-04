@@ -1,4 +1,3 @@
-import { composeActivityDescription } from './activity-description.js';
 
 /* Kegiatan kokurikuler bawaan beserta pilihan deskripsi rapor.
    Setiap kegiatan punya 5 deskripsi kelas rendah (1-3) dan 5 deskripsi kelas tinggi (4-6),
@@ -102,12 +101,34 @@ export function findCocurricularPreset(activity){
   return COCURRICULAR_ACTIVITY_PRESETS.find(item=>item.id===value||item.name.toLowerCase()===value)||null;
 }
 
-/* Deskripsi kokurikuler otomatis: fokus kegiatan diambil dari preset sesuai tingkat kelas,
-   lalu disusun dengan bentuk kalimat yang sama seperti Ekstrakurikuler dan Intrakurikuler. */
+/* DESKRIPSI KOKURIKULER - penyusun sendiri, bukan template bersama.
+
+   Kokurikuler adalah PROJEK: anak mengerjakan sesuatu bersama, dan yang layak diceritakan
+   adalah kegiatan projeknya beserta capaian yang ditunjukkannya. Karena itu kalimatnya dibuka
+   dengan keikutsertaan pada projek - bukan dengan "menunjukkan penguasaan" seperti mata
+   pelajaran, dan bukan dengan bahasa kompetensi seperti Intrakurikuler.
+
+   SUMBERNYA HANYA DATA KOKURIKULER YANG MEMANG ADA: nama kegiatan yang tersimpan, capaian dari
+   preset tingkat kelasnya, dan predikat. Tidak ada capaian yang dikarang untuk kegiatan yang
+   presetnya tidak dikenal - kalimatnya cukup berhenti pada keikutsertaan dan predikat. */
+const NADA_KOKURIKULER=Object.freeze({
+  'Sangat Baik':'terlibat aktif dan konsisten',
+  'Baik':'terlibat dengan baik',
+  'Cukup':'terlibat dengan cukup baik',
+  'Perlu Bimbingan':'terlibat dan masih memerlukan bimbingan',
+});
+function tanpaTitik(teks){return String(teks||'').trim().replace(/[.!?]+$/,'');}
+function hurufKecilAwal(teks){return `${String(teks||'').charAt(0).toLowerCase()}${String(teks||'').slice(1)}`;}
+
 export function generateCocurricularDescription({studentName='',activity,predicate='Baik',classId=''}={}){
   const activityName=String(activity?.name||activity||'').trim();
   const preset=findCocurricularPreset(activityName);
   const grade=Number.parseInt(String(classId||'').trim(),10);
   const daftar=preset?(grade&&grade<=3?preset.lower:preset.upper):[];
-  return composeActivityDescription({studentName,activityName,detail:daftar[0]||'',predicate,fallbackActivity:'kokurikuler'});
+  const nada=NADA_KOKURIKULER[predicate]||NADA_KOKURIKULER.Baik;
+  const nama=String(studentName||'Siswa').trim()||'Siswa';
+  const kegiatan=activityName||'kegiatan kokurikuler';
+  const capaian=tanpaTitik(daftar[0]||'');
+  const inti=`${nama} ${nada} pada kegiatan kokurikuler ${kegiatan}.`;
+  return capaian?`${inti} ${capaian[0].toUpperCase()}${hurufKecilAwal(capaian).slice(1)}.`:inti;
 }

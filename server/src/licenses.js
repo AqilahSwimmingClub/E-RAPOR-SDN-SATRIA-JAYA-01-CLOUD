@@ -32,7 +32,41 @@ function bersih(value,max=180){return String(value??'').trim().slice(0,max);}
 
 /* ------------------------------------------------------------------ Pembuatan lisensi */
 
-export const LICENSE_TYPES=Object.freeze(['CUSTOMER','DEVELOPER']);
+export const LICENSE_TYPES=Object.freeze(['CUSTOMER','DEVELOPER','OWNER']);
+
+/* SLOT PERANGKAT.
+
+   Lisensi PEMBELIAN/GURU memberi DUA slot terpisah - satu Android, satu Windows - sehingga
+   seorang guru dapat memakai satu kunci pada HP-nya DAN pada laptopnya sekaligus. Slot Android
+   tidak pernah dapat diisi perangkat Windows, dan sebaliknya.
+
+   Hanya lisensi OWNER - lisensi milik pemilik aplikasi - yang TIDAK memakai slot sama sekali:
+   barisnya menyimpan slot NULL sehingga jumlah perangkatnya tidak dibatasi.
+
+   DEVELOPER TIDAK termasuk di dalamnya. Lisensi DEVELOPER dirancang sebagai lisensi resmi untuk
+   QA dan demo, BUKAN jalan pintas, dan tunduk pada aturan slot yang sama persis seperti lisensi
+   pembelian. Melonggarkannya akan menghapus jaminan yang selama ini diuji.
+
+   JENIS LISENSI SELALU DIPUTUSKAN SERVER dari kolom license_type. Tidak ada satu pun jalur di
+   berkas ini yang membaca klaim tipe dari badan permintaan client - itulah yang membuat client
+   tidak dapat mengaku OWNER. */
+export const DEVICE_SLOTS=Object.freeze(['android','windows']);
+const TIPE_TANPA_BATAS=new Set(['OWNER']);
+
+export function isUnlimitedLicenseType(licenseType){
+  return TIPE_TANPA_BATAS.has(String(licenseType||'').trim().toUpperCase());
+}
+
+/* Platform yang dilaporkan client dipetakan ke slot. Nilai yang tidak dikenal - termasuk 'web'
+   dan nilai karangan - jatuh ke slot Windows, karena mode desktop e-Rapor memang dilayani lewat
+   browser pada komputer yang sama. Client dapat berbohong tentang platformnya, tetapi kebohongan
+   itu hanya memindahkan miliknya sendiri antar dua slot; ia tidak pernah menambah jumlah
+   perangkat yang boleh aktif. */
+export function slotForPlatform(platform){
+  const nilai=String(platform||'').trim().toLowerCase();
+  if(nilai==='android'||nilai==='ios')return 'android';
+  return 'windows';
+}
 
 /* Lisensi pembeli WAJIB membawa identitas pemiliknya: tanpa nama pembeli, nama sekolah, dan
    NPSN, kunci yang sudah terbit tidak dapat ditelusuri lagi milik siapa. Lisensi DEVELOPER
@@ -161,6 +195,9 @@ export function buildActivationToken(license,activation,secrets){
     license_hint:license.license_hint,
     installation_id:activation.installation_id,
     activation_id:activation.id,
+    slot:activation.slot??null,
+    license_type:license.license_type||'CUSTOMER',
+    unlimited_devices:isUnlimitedLicenseType(license.license_type),
     status:license.status,
     issued_at:nowIso(),
     next_check_at:new Date(Date.now()+CHECK_INTERVAL_DAYS*86400000).toISOString(),
@@ -169,9 +206,19 @@ export function buildActivationToken(license,activation,secrets){
   return signActivationToken(payload,secrets.signingPrivateKeyPem);
 }
 
-/* Aktivasi berjalan dalam satu transaksi. Bila dua perangkat menekan Aktifkan pada detik yang
-   sama, hanya satu yang lolos UNIQUE INDEX parsial; yang lain menerima penolakan, bukan
-   aktivasi kedua. */
+/* AKTIVASI.
+
+   Urutannya disengaja dan tidak boleh dibalik:
+
+     1. Kunci dicari, statusnya dipastikan dapat dipakai.
+     2. JENIS LISENSI DIBACA DARI DATABASE - bukan dari badan permintaan.
+     3. Slot ditentukan dari platform, lalu aturan slot diterapkan HANYA untuk lisensi
+        pembelian. Lisensi OWNER melewati seluruh pembatasan slot.
+     4. Pengikatan dikerjakan satu pernyataan INSERT yang dijaga UNIQUE INDEX parsial, sehingga
+        dua permintaan bersamaan tidak mungkin sama-sama mendapat slot yang sama.
+
+   Aktivasi ulang perangkat yang SAMA pada slot yang sama tidak pernah memakan slot baru: ia
+   hanya menyegarkan baris yang sudah ada. */
 export async function activateLicense(store,input,secrets){
   const installationId=bersih(input?.installation_id,80);
   if(!/^inst_[0-9a-f]{32}$/.test(installationId))throw new LicenseError('INVALID_INSTALLATION','Installation ID tidak valid.');
@@ -180,51 +227,92 @@ export async function activateLicense(store,input,secrets){
 
   const platform=bersih(input?.platform,40)||'web';
   const deviceLabel=bersih(input?.device_label,120);
+  const deviceHint=bersih(input?.device_hint,120);
   const schoolName=bersih(input?.school_name,150);
   const npsn=bersih(input?.npsn,40);
   const appVersion=bersih(input?.app_version,40);
 
-  const aktif=await store.one('SELECT * FROM device_activations WHERE license_id=$1 AND is_active=TRUE',[license.id]);
-  if(aktif&&aktif.installation_id!==installationId){
-    await catat(store,{licenseId:license.id,type:'ACTIVATION_REJECTED',actor:'system',
-      detail:{reason:'ALREADY_BOUND',installation_id:installationId,bound_to:aktif.installation_id}});
-    throw new LicenseError('ALREADY_ACTIVATED','License Key ini sudah terikat pada perangkat lain.',409);
+  /* Jenis lisensi datang dari kolom database, sehingga klaim apa pun pada badan permintaan
+     tidak berpengaruh. */
+  const tanpaBatas=isUnlimitedLicenseType(license.license_type);
+  const slot=tanpaBatas?null:slotForPlatform(platform);
+
+  /* Perangkat yang sudah terikat lisensi pembelian LAIN tidak boleh berpindah begitu saja.
+     Perpindahan dilakukan lewat Reset perangkat oleh Owner. Lisensi OWNER dikecualikan: ia
+     memang dipakai berpindah-pindah untuk QA dan demo. */
+  /* Lisensi yang SUDAH DICABUT dikecualikan dari penjagaan ini. Sekolah yang lisensinya dicabut
+     lalu membeli kunci pengganti harus dapat langsung mengaktifkannya di perangkat yang sama;
+     ikatan lama yang sudah mati tidak boleh menyanderanya. Barisnya tetap disimpan apa adanya
+     untuk audit - tidak ada yang dihapus. */
+  if(!tanpaBatas){
+    const terikatLain=await store.one(
+      `SELECT a.*,l.license_hint AS hint FROM device_activations a JOIN licenses l ON l.id=a.license_id
+       WHERE a.installation_id=$1 AND a.is_active=TRUE AND a.license_id<>$2 AND a.slot IS NOT NULL
+         AND l.status<>'REVOKED' LIMIT 1`,
+      [installationId,license.id]);
+    if(terikatLain){
+      await catat(store,{licenseId:license.id,type:'ACTIVATION_REJECTED',actor:'system',
+        detail:{reason:'DEVICE_BOUND_ELSEWHERE',installation_id:installationId,bound_license:terikatLain.license_id}});
+      throw new LicenseError('DEVICE_BOUND_ELSEWHERE',
+        'Perangkat ini masih terikat pada License Key lain. Minta Owner melakukan Reset perangkat lebih dulu.',409);
+    }
   }
 
-  /* Pengikatan perangkat sengaja dikerjakan oleh SATU pernyataan INSERT yang dijaga partial
-     unique index, bukan oleh isolasi transaksi. Satu pernyataan selalu atomik pada PostgreSQL
-     maupun SQLite, sehingga aturan satu-perangkat tetap utuh walau permintaan datang bersamaan
-     dari koneksi yang berbeda, dari fungsi serverless yang berbeda, atau bahkan berbagi satu
-     koneksi. Pemenangnya ditentukan database; yang kalah menerima penolakan. */
+  /* Baris aktif yang relevan: untuk lisensi pembelian, baris pada SLOT yang sama; untuk OWNER,
+     baris perangkat itu sendiri. */
+  const aktif=tanpaBatas
+    ? await store.one('SELECT * FROM device_activations WHERE license_id=$1 AND installation_id=$2 AND is_active=TRUE',
+      [license.id,installationId])
+    : await store.one('SELECT * FROM device_activations WHERE license_id=$1 AND slot=$2 AND is_active=TRUE',
+      [license.id,slot]);
+
+  if(!tanpaBatas&&aktif&&aktif.installation_id!==installationId){
+    await catat(store,{licenseId:license.id,type:'ACTIVATION_REJECTED',actor:'system',
+      detail:{reason:'SLOT_TAKEN',slot,installation_id:installationId,bound_to:aktif.installation_id}});
+    throw new LicenseError('SLOT_TAKEN',
+      `Slot ${slot==='android'?'Android':'Windows'} pada License Key ini sudah dipakai perangkat lain.`,409);
+  }
+
   try{
     let activation=aktif;
     if(activation){
-      await store.run('UPDATE device_activations SET last_seen_at=$1,platform=$2,device_label=$3,app_version=$4 WHERE id=$5',
-        [nowIso(),platform,deviceLabel,appVersion,activation.id]);
+      await store.run('UPDATE device_activations SET last_seen_at=$1,platform=$2,device_label=$3,app_version=$4,device_hint=$5 WHERE id=$6',
+        [nowIso(),platform,deviceLabel,appVersion,deviceHint||null,activation.id]);
+      activation={...activation,slot:activation.slot??slot};
     }else{
       const id=newId('act');
-      await store.run(`INSERT INTO device_activations(id,license_id,installation_id,platform,device_label,app_version,activated_at,last_seen_at,is_active)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,TRUE)`,[id,license.id,installationId,platform,deviceLabel,appVersion,nowIso(),nowIso()]);
-      activation={id,license_id:license.id,installation_id:installationId};
+      await store.run(`INSERT INTO device_activations(id,license_id,installation_id,platform,slot,device_label,device_hint,app_version,activated_at,last_seen_at,is_active)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,TRUE)`,
+        [id,license.id,installationId,platform,slot,deviceLabel,deviceHint||null,appVersion,nowIso(),nowIso()]);
+      activation={id,license_id:license.id,installation_id:installationId,slot};
     }
     await store.run(`UPDATE licenses SET status='ACTIVE',activated_at=COALESCE(activated_at,$1),last_check_at=$2,
       school_name=COALESCE(NULLIF($3,''),school_name),npsn=COALESCE(NULLIF($4,''),npsn) WHERE id=$5`,
       [nowIso(),nowIso(),schoolName,npsn,license.id]);
     await catat(store,{licenseId:license.id,type:aktif?'ACTIVATION_REFRESHED':'ACTIVATION_CREATED',actor:'system',
-      detail:{installation_id:installationId,platform,school_name:schoolName,npsn}});
+      detail:{installation_id:installationId,platform,slot,school_name:schoolName,npsn}});
     const segar=await store.one('SELECT * FROM licenses WHERE id=$1',[license.id]);
     return {license:segar,activation,token:buildActivationToken(segar,activation,secrets)};
   }catch(error){
-    if(isUniqueViolation(error,'ux_one_active_device')){
+    if(isUniqueViolation(error,'ux_one_active_slot')){
       await catat(store,{licenseId:license.id,type:'ACTIVATION_REJECTED',actor:'system',
-        detail:{reason:'RACE_LOST',installation_id:installationId}});
-      throw new LicenseError('ALREADY_ACTIVATED','License Key ini sudah terikat pada perangkat lain.',409);
+        detail:{reason:'RACE_LOST',slot,installation_id:installationId}});
+      throw new LicenseError('SLOT_TAKEN',
+        `Slot ${slot==='android'?'Android':'Windows'} pada License Key ini sudah dipakai perangkat lain.`,409);
     }
     throw error;
   }
 }
 
-/* Pemeriksaan berkala. Tidak pernah menghapus apa pun; hanya melaporkan status terkini. */
+/* Pemeriksaan berkala. Tidak pernah menghapus apa pun; hanya melaporkan status terkini.
+
+   Pencariannya SELALU lewat installation_id, bukan lewat slot. Akibatnya Reset Android hanya
+   memutus perangkat Android - perangkat Windows pada lisensi yang sama masih menemukan barisnya
+   sendiri dan tetap lolos. Sebaliknya perangkat yang barisnya sudah dilepas menerima NOT_BOUND
+   walaupun slot seberang masih aktif.
+
+   Menyalin storage dari perangkat lain juga tidak menolong: baris aktif dicari dengan
+   installation_id perangkat yang sedang berjalan, bukan dengan isi token yang dibawa. */
 export async function checkLicense(store,input,secrets){
   const installationId=bersih(input?.installation_id,80);
   const licenseId=bersih(input?.license_id,80);
@@ -241,18 +329,47 @@ export async function checkLicense(store,input,secrets){
 
 /* --------------------------------------------------------------- Tindakan pemilik saja */
 
-export async function resetDevice(store,licenseId,{actor,reason=''}){
+/* RESET PERANGKAT OLEH OWNER.
+
+   slot='android'  -> hanya slot Android yang dibebaskan; Windows tidak tersentuh.
+   slot='windows'  -> hanya slot Windows yang dibebaskan; Android tidak tersentuh.
+   slot kosong     -> seluruh perangkat aktif dibebaskan (perilaku lama, tetap dipertahankan).
+
+   Status lisensi dikembalikan ke UNUSED HANYA bila tidak ada lagi perangkat aktif yang tersisa.
+   Melepas slot Android pada lisensi yang Windows-nya masih dipakai tidak boleh memutus akses
+   perangkat Windows itu, jadi lisensinya tetap ACTIVE.
+
+   Reset TIDAK menghapus baris aktivasi mana pun - barisnya ditandai released_at supaya riwayat
+   perangkat tetap dapat ditelusuri - dan tidak menyentuh satu pun data akademik sekolah. */
+export async function resetDevice(store,licenseId,{actor,reason='',slot=null}={}){
   const license=await store.one('SELECT * FROM licenses WHERE id=$1',[licenseId]);
   if(!license)throw new LicenseError('NOT_FOUND','Lisensi tidak ditemukan.',404);
-  const aktif=await store.one('SELECT * FROM device_activations WHERE license_id=$1 AND is_active=TRUE',[licenseId]);
-  if(!aktif)throw new LicenseError('NO_ACTIVE_DEVICE','Lisensi ini belum terikat perangkat mana pun.',409);
+  const slotDiminta=bersih(slot,20).toLowerCase()||null;
+  if(slotDiminta&&!DEVICE_SLOTS.includes(slotDiminta))
+    throw new LicenseError('INVALID_SLOT','Slot perangkat tidak dikenal.',400);
+  const semua=(await store.query('SELECT * FROM device_activations WHERE license_id=$1 AND is_active=TRUE ORDER BY activated_at ASC',
+    [licenseId])).rows;
+  const sasaran=slotDiminta?semua.filter(row=>row.slot===slotDiminta):semua;
+  if(!sasaran.length){
+    const pesan=slotDiminta
+      ?`Slot ${slotDiminta==='android'?'Android':'Windows'} pada lisensi ini belum terikat perangkat mana pun.`
+      :'Lisensi ini belum terikat perangkat mana pun.';
+    throw new LicenseError('NO_ACTIVE_DEVICE',pesan,409);
+  }
+  const tersisa=semua.length-sasaran.length;
   await store.transaction(async tx=>{
-    await tx.run('UPDATE device_activations SET is_active=FALSE,released_at=$1 WHERE id=$2',[nowIso(),aktif.id]);
-    await tx.run("UPDATE licenses SET status='UNUSED' WHERE id=$1 AND status='ACTIVE'",[licenseId]);
+    for(const baris of sasaran)
+      await tx.run('UPDATE device_activations SET is_active=FALSE,released_at=$1 WHERE id=$2',[nowIso(),baris.id]);
+    if(tersisa===0)await tx.run("UPDATE licenses SET status='UNUSED' WHERE id=$1 AND status='ACTIVE'",[licenseId]);
   });
   await catat(store,{licenseId,type:'DEVICE_RESET',actor,
-    detail:{old_installation_id:aktif.installation_id,reason:bersih(reason,300)}});
-  return {released:aktif.installation_id};
+    detail:{slot:slotDiminta,reason:bersih(reason,300),
+      old_installation_id:sasaran[0].installation_id,
+      released:sasaran.map(row=>({installation_id:row.installation_id,slot:row.slot??null})),
+      remaining_active:tersisa}});
+  return {released:sasaran[0].installation_id,slot:slotDiminta,
+    released_devices:sasaran.map(row=>({installation_id:row.installation_id,slot:row.slot??null})),
+    remaining_active:tersisa};
 }
 
 export async function setStatus(store,licenseId,status,{actor,reason=''}){
@@ -318,7 +435,10 @@ export async function listLicenses(store,{q='',status='',type='',limit=100}={}){
   const hasil=await store.query(`SELECT l.*, c.name AS customer_name,
       (SELECT d.installation_id FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE LIMIT 1) AS active_installation,
       (SELECT d.platform FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE LIMIT 1) AS active_platform,
-      (SELECT d.last_seen_at FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE LIMIT 1) AS active_last_seen
+      (SELECT d.last_seen_at FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE LIMIT 1) AS active_last_seen,
+      (SELECT d.installation_id FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE AND d.slot='android' LIMIT 1) AS android_installation,
+      (SELECT d.installation_id FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE AND d.slot='windows' LIMIT 1) AS windows_installation,
+      (SELECT COUNT(*) FROM device_activations d WHERE d.license_id=l.id AND d.is_active=TRUE) AS active_devices
     FROM licenses l LEFT JOIN customers c ON c.id=l.customer_id
     WHERE ($1='' OR l.status=$1)
       AND ($4='' OR COALESCE(l.license_type,'CUSTOMER')=$4)
@@ -328,16 +448,39 @@ export async function listLicenses(store,{q='',status='',type='',limit=100}={}){
     ORDER BY l.created_at DESC LIMIT $3`,[status,cari,Math.min(Number(limit)||100,500),tipe]);
   return hasil.rows.map(row=>({...tanpaRahasiaLisensi(row),
     license_type:String(row.license_type||'CUSTOMER').toUpperCase(),
+    unlimited_devices:isUnlimitedLicenseType(row.license_type),
+    android_bound:Boolean(row.android_installation),windows_bound:Boolean(row.windows_installation),
+    active_devices:Number(row.active_devices||0),
     created_at:iso(row.created_at),activated_at:iso(row.activated_at),
     revoked_at:iso(row.revoked_at),active_last_seen:iso(row.active_last_seen)}));
+}
+
+/* Ringkasan satu slot untuk layar Admin Lisensi: terikat atau belum, dan bila terikat, oleh
+   perangkat mana. Nilai yang ditampilkan adalah installation_id yang SUDAH di-hash di sisi
+   client - identitas perangkat mentah tidak pernah sampai ke server, jadi tidak ada yang bisa
+   bocor dari layar ini. */
+function ringkasSlot(devices,slot){
+  const baris=devices.find(row=>row.is_active&&row.slot===slot);
+  if(!baris)return {slot,bound:false,installation_id:null,device_hint:null,platform:null,
+    activated_at:null,last_seen_at:null};
+  return {slot,bound:true,installation_id:baris.installation_id,device_hint:baris.device_hint??null,
+    platform:baris.platform??null,activated_at:iso(baris.activated_at),last_seen_at:iso(baris.last_seen_at)};
 }
 
 export async function licenseDetail(store,licenseId){
   const license=await store.one('SELECT * FROM licenses WHERE id=$1',[licenseId]);
   if(!license)throw new LicenseError('NOT_FOUND','Lisensi tidak ditemukan.',404);
+  const devices=(await store.query('SELECT * FROM device_activations WHERE license_id=$1 ORDER BY activated_at DESC',[licenseId])).rows
+    .map(row=>({...row,is_active:row.is_active===true||Number(row.is_active)===1,slot:row.slot??null}));
+  const tanpaBatas=isUnlimitedLicenseType(license.license_type);
   return {
     license,
-    devices:(await store.query('SELECT * FROM device_activations WHERE license_id=$1 ORDER BY activated_at DESC',[licenseId])).rows,
+    devices,
+    /* Lisensi OWNER tidak memakai slot, jadi kedua slot dilaporkan sebagai tidak terpakai dan
+       jumlah perangkat aktifnya dilaporkan apa adanya. */
+    unlimited_devices:tanpaBatas,
+    active_device_count:devices.filter(row=>row.is_active).length,
+    slots:{android:ringkasSlot(devices,'android'),windows:ringkasSlot(devices,'windows')},
     events:(await store.query('SELECT * FROM license_events WHERE license_id=$1 ORDER BY created_at DESC LIMIT 100',[licenseId])).rows,
   };
 }

@@ -1,11 +1,11 @@
 import { composeReportButirDescription, composeReportCpDescription, cpAcuanFor } from './cp-descriptions.js';
-import { studentCpButirAchievements } from './cp-butir.js';
+import { listCpButirForSemester } from './cp-butir.js';
 import { listActiveObjectives, listObjectivesForAssessment } from './learning-objectives.js';
 import { ringkasObjectives } from './objective-summary.js';
 import { calculateReportScore, getReportScore } from './report.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
-import { listActiveSubjects, requireActiveSubject } from './subjects.js';
+import { requireActiveSubject } from './subjects.js';
 
 export { ringkasObjectives };
 
@@ -63,60 +63,116 @@ function objectiveDescription(session,subjectId,studentId,objectiveIds){
   return {text,objectiveIds:dipilih.map(item=>item.id),bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};
 }
 
-/* Deskripsi Capaian Kompetensi Nilai Rapor bersumber CP mata pelajaran pada fase rombel, lalu
-   dinyatakan menurut Nilai Akhir murid terhadap KKTP.
+/* DESKRIPSI CAPAIAN KOMPETENSI NILAI RAPOR.
 
-   Penyusunnya SENGAJA berbeda dari penyusun Intrakurikuler meskipun CP-nya sama: yang satu
-   menceritakan capaian akademik, yang lain menceritakan keikutsertaan pada kegiatan. Menyatukan
-   keduanya membuat dua kolom berbeda di rapor berbunyi sama. */
+   SUMBERNYA: Butir CP AKTIF mata pelajaran itu, dinyatakan menurut NILAI AKHIR murid terhadap
+   KKTP. Nilai Akhir tetap satu angka dari lima komponen penilaian yang sudah berjalan - tidak
+   ada nilai Teori, tidak ada nilai Praktik, dan tidak ada angka baru yang lahir dari CP.
+
+   TIDAK ADA TP di jalur ini. Guru tidak pernah diminta memilih Tujuan Pembelajaran untuk
+   menghasilkan deskripsi rapor. Jalur TP hanya tersisa sebagai CADANGAN untuk mata pelajaran
+   yang memang belum punya CP pada fase rombel, dan hanya bila pemanggil menyebut objectiveIds
+   secara eksplisit - itu pun agar catatan lama tetap dapat diproses, bukan sebagai alur baru.
+
+   Penyusunnya SENGAJA berbeda dari penyusun Intrakurikuler meskipun kompetensinya sama: yang
+   satu merangkum capaian satu semester dari Nilai Akhir, yang lain menceritakan satu kegiatan
+   penilaian dari predikat. Menyatukan keduanya membuat dua kolom berbeda di rapor berbunyi
+   sama. */
 function cpDescription(session,subjectId,studentId){
   requireActiveSubject(session,subjectId);
   const cp=cpAcuanFor(session,subjectId);
   if(!cp)return null;
   const student=studentOf(session,studentId);
   const {finalScore,kktp}=finalScoreOf(session,subjectId,studentId);
-  const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
-  /* SUMBER UTAMA adalah BUTIR CP yang dinilai murid: butir + jenis penilaian + hasil nilai.
-     Kalimatnya menyebut kompetensi yang benar-benar dinilai, bukan menyalin lingkup elemen. */
-  let capaian=[];
-  try{capaian=studentCpButirAchievements(session,subjectId,studentId);}catch{capaian=[];}
-  const dariButir=composeReportButirDescription({studentName:student.name,capaian,finalScore,kktp});
+  /* SUMBER UTAMA adalah BUTIR CP AKTIF mata pelajaran ini - kompetensi yang memang diajarkan
+     dan dinilai pada semester berjalan. */
+  let butir=[];
+  try{butir=listCpButirForSemester(session,subjectId);}catch{butir=[];}
+  const dariButir=composeReportButirDescription({butir,finalScore,kktp});
   if(dariButir)
     return {text:dariButir,source:'CP_BUTIR',cpPhase:cp.phase,objectiveIds:null,
-      butirIds:capaian.map(item=>item.butirId),
+      butirIds:butir.map(item=>item.id),studentId:student.id,
       bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};
-  /* Belum ada butir yang dinilai: lingkup elemen CP dipakai supaya rapor tidak kosong. */
-  const text=composeReportCpDescription({
-    studentName:student.name,subjectName:subject?.name||'',cp,finalScore,kktp});
+  /* Mata pelajaran ini belum punya Butir CP: lingkup elemen CP dipakai supaya rapor tidak
+     kosong. Nama mata pelajaran tetap tidak pernah disebut di dalam kalimat. */
+  const text=composeReportCpDescription({cp,finalScore,kktp});
   if(!text)return null;
-  return {text,source:'CP',cpPhase:cp.phase,objectiveIds:null,
+  return {text,source:'CP',cpPhase:cp.phase,objectiveIds:null,studentId:student.id,
     bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};
 }
 
 export function generateReportDescription(session,subjectId,studentId,input){
-  /* CP adalah sumber utama. TP hanya dipakai bila pemanggil memang menyebutnya secara eksplisit,
-     atau bila CP mata pelajaran itu belum tersedia pada fase rombel. */
-  const memintaTp=Boolean(input?.bestObjectiveId||input?.improvementObjectiveId
-    ||(Array.isArray(input?.objectiveIds)&&input.objectiveIds.length));
-  if(!memintaTp){
-    const dariCp=cpDescription(session,subjectId,studentId);
-    if(dariCp)return dariCp;
-  }
-  /* Sumber utama adalah TP AKTIF pada menu Tujuan Pembelajaran. Pemanggil boleh menyebut
-     objectiveIds secara eksplisit, tetapi tidak wajib: bila tidak disebut, TP aktif dipakai
-     apa adanya sehingga guru tidak pernah diminta memilih TP untuk kedua kalinya. */
+  /* CP adalah sumber utama dan didahulukan tanpa syarat. */
+  const dariCp=cpDescription(session,subjectId,studentId);
+  if(dariCp)return dariCp;
+  /* CADANGAN UNTUK MAPEL TANPA CP. Hanya sampai di sini bila mata pelajaran itu memang belum
+     berlaku pada fase rombel atau elemennya belum diketahui. TP aktif dipakai apa adanya
+     sehingga guru tetap tidak diminta memilih TP. */
   const objectiveIds=Array.isArray(input?.objectiveIds)&&input.objectiveIds.length
     ? input.objectiveIds
-    : (input?.bestObjectiveId||input?.improvementObjectiveId
-        ? null
-        : listActiveObjectives(session,subjectId).map(item=>item.id));
-  if(objectiveIds&&objectiveIds.length)return objectiveDescription(session,subjectId,studentId,objectiveIds);
+    : listActiveObjectives(session,subjectId).map(item=>item.id);
+  if(objectiveIds.length)return objectiveDescription(session,subjectId,studentId,objectiveIds);
   const {bestObjectiveId,improvementObjectiveId}=input||{};
   const {student,best,improvement}=context(session,subjectId,studentId,bestObjectiveId,improvementObjectiveId);
   const text=best.id===improvement.id
     ? `Ananda ${student.name} menunjukkan capaian pada ${phrase(best.description)}.`
     : `Ananda ${student.name} sangat baik dalam ${phrase(best.description)}, serta perlu meningkatkan kemampuan dalam ${phrase(improvement.description)}.`;
   return {text,bestObjectiveId:best.id,improvementObjectiveId:improvement.id};
+}
+
+/* ------------------------------------------------------ GENERATE SEMUA SISWA SATU MAPEL
+
+   Guru tidak perlu membuka modal deskripsi satu per satu. Satu klik menghasilkan deskripsi
+   untuk SELURUH siswa rombel pada mata pelajaran YANG SEDANG DIPILIH.
+
+   MATA PELAJARANNYA ADALAH YANG DIKIRIM PEMANGGIL. Tidak ada satu jalur pun di sini yang
+   membaca "mapel pertama" atau indeks tampilan, dan setiap penyimpanan memakai subjectId yang
+   sama persis - itulah yang membuat Generate IPAS tidak pernah menulis ke Pancasila.
+
+   Deskripsi yang sudah DIKUNCI tidak pernah ditimpa. Deskripsi yang disunting guru ditimpa
+   hanya bila pemanggil memintanya secara eksplisit. */
+export function generateAllReportDescriptions(session,subjectId,{overwriteEdited=false,
+  requireScore=false}={}){
+  requireActiveSubject(session,subjectId);
+  const students=listStudents(session,{classId:session.classId});
+  const hasil={subjectId,total:students.length,terisi:0,dilewati:[],gagal:[]};
+  for(const student of students){
+    try{
+      /* `requireScore` dipakai jalur OTOMATIS. Deskripsi rapor menyatakan tingkat capaian, dan
+         tingkat itu dibaca dari Nilai Akhir; murid yang belum punya nilai sama sekali akan
+         mendapat kalimat "menempuh pembelajaran pada kompetensi ..." yang tampak seolah rapornya
+         sudah terisi padahal belum. Jalur manual tetap boleh membuatnya - guru yang menekan
+         Generate memang tahu apa yang ia minta. */
+      if(requireScore&&!punyaNilai(session,subjectId,student.id)){
+        hasil.dilewati.push({studentId:student.id,name:student.name,alasan:'belum ada nilai'});
+        continue;
+      }
+      const lama=getReportDescription(session,subjectId,student.id);
+      if(lama?.locked){
+        hasil.dilewati.push({studentId:student.id,name:student.name,alasan:'deskripsi terkunci'});
+        continue;
+      }
+      if(!overwriteEdited&&lama?.status==='EDITED'){
+        hasil.dilewati.push({studentId:student.id,name:student.name,alasan:'deskripsi diedit guru'});
+        continue;
+      }
+      const dibuat=generateReportDescription(session,subjectId,student.id,{});
+      saveReportDescription(session,subjectId,student.id,{text:dibuat.text});
+      hasil.terisi+=1;
+    }catch(error){
+      hasil.gagal.push({studentId:student.id,name:student.name,alasan:error.message});
+    }
+  }
+  return hasil;
+}
+
+/* Apakah murid ini benar-benar punya Nilai Akhir pada mata pelajaran ini - baik dari nilai
+   rapor yang sudah tersimpan maupun dari perhitungan lima komponen yang sudah terisi. */
+function punyaNilai(session,subjectId,studentId){
+  try{
+    const {finalScore}=finalScoreOf(session,subjectId,studentId);
+    return finalScore!==null&&finalScore!==undefined;
+  }catch{return false;}
 }
 
 export function getReportDescription(session,subjectId,studentId){

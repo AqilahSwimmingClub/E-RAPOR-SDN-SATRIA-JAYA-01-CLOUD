@@ -75,9 +75,18 @@ test('Report scores remain isolated by class, subject, and semester',()=>{
   assert.equal(getReportScore(teacher5b,'agama',sharedId).finalScore,81);assert.equal(getReportScore(teacher5c,'agama',sharedId).finalScore,82);assert.equal(getReportScore(teacher5b,'mtk',sharedId).finalScore,83);assert.equal(getReportScore(teacher5bGenap,'agama',sharedId).finalScore,84);
 });
 
-test('Description generation uses active best and improvement Learning Objectives',()=>{
-  useMemoryStorage();const student=addStudent(teacher5b);const {best,improve}=addTwoObjectives(teacher5b,'bindo');const generated=generateReportDescription(teacher5b,'bindo',student.id,{bestObjectiveId:best.id,improvementObjectiveId:improve.id});
-  assert.match(generated.text,/memahami konsep utama/);assert.match(generated.text,/menerapkan konsep/);assert.doesNotMatch(generated.text,/\.\s*(,|dan|serta)/);const saved=saveReportDescription(teacher5b,'bindo',student.id,{...generated});assert.equal(saved.status,'AUTO');
+test('Description generation now uses Butir CP, not Learning Objectives',()=>{
+  /* TP tidak lagi menjadi basis generator deskripsi rapor. Mengirim bestObjectiveId dan
+     improvementObjectiveId TIDAK LAGI menyetir hasilnya: mata pelajaran yang punya CP selalu
+     memakai Butir CP-nya. Yang tetap dijaga adalah penyimpanannya - deskripsi yang tidak
+     diedit guru berstatus AUTO. */
+  useMemoryStorage();const student=addStudent(teacher5b);const {best,improve}=addTwoObjectives(teacher5b,'bindo');
+  const generated=generateReportDescription(teacher5b,'bindo',student.id,{bestObjectiveId:best.id,improvementObjectiveId:improve.id});
+  assert.equal(generated.source,'CP_BUTIR','deskripsi bersumber Butir CP');
+  assert.equal(generated.text.includes('memahami konsep utama'),false,'isi TP tidak masuk deskripsi');
+  assert.equal(generated.text.includes('menerapkan konsep'),false);
+  assert.doesNotMatch(generated.text,/\.\s*(,|dan|serta)/);
+  const saved=saveReportDescription(teacher5b,'bindo',student.id,{...generated});assert.equal(saved.status,'AUTO');
 });
 
 test('Locked report description cannot be edited',()=>{

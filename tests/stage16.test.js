@@ -159,16 +159,22 @@ test('Bobot dan KKTP seluruh mapel dapat disimpan sekaligus dan tetap independen
   assert.equal(getAssessmentSettings(session,'mtk').kktp,71,'penyimpanan gagal tidak mengubah data lama');
 });
 
-test('Deskripsi rapor berhenti pada deskripsi TP tanpa kalimat penutup',()=>{
+test('Deskripsi rapor berhenti pada kompetensinya tanpa kalimat penutup basa-basi',()=>{
+  /* Dulu test ini memeriksa kalimat berbasis TP. TP sudah bukan basis generator deskripsi
+     rapor; yang dijaga tetap sama - kalimatnya berhenti pada kompetensi yang diterangkan, tanpa
+     penutup basa-basi yang tidak menerangkan apa pun. */
   useMemoryStorage();
   const session=guru('5B');
   siapkanLeger(session,['mtk']);
   const siswa=tambahSiswa(session,'D');
   const tp=createLearningObjective(session,'mtk',{code:'TP-1',description:'memahami operasi hitung campuran.'});
-  const sama=generateReportDescription(session,'mtk',siswa.id,{bestObjectiveId:tp.id,improvementObjectiveId:tp.id});
-  assert.equal(sama.text,`Ananda ${siswa.name} menunjukkan capaian pada memahami operasi hitung campuran.`);
-  assert.equal(/perlu terus mengembangkan kemampuan tersebut/.test(sama.text),false);
+  const hasil=generateReportDescription(session,'mtk',siswa.id,{bestObjectiveId:tp.id,improvementObjectiveId:tp.id});
+  assert.equal(hasil.source,'CP_BUTIR','deskripsi rapor bersumber Butir CP, bukan TP');
+  assert.match(hasil.text,/\.$/,'kalimat ditutup titik, bukan digantung');
+  assert.equal(/perlu terus mengembangkan kemampuan tersebut/.test(hasil.text),false);
   assert.equal(read('src/services/descriptions.js').includes('perlu terus mengembangkan kemampuan tersebut'),false);
+  assert.equal(/Tetap semangat|terus berlatih|semoga/i.test(hasil.text),false,
+    'tidak ada kalimat penutup basa-basi');
 });
 
 test('Catatan wali kelas massal tidak menimpa catatan individual tanpa diminta',()=>{

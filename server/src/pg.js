@@ -54,9 +54,23 @@ CREATE TABLE IF NOT EXISTS device_activations(
   is_active       BOOLEAN NOT NULL DEFAULT TRUE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_one_active_device
-  ON device_activations(license_id) WHERE is_active = TRUE;
+/* SLOT PERANGKAT: satu lisensi pembelian memberi satu slot Android dan satu slot Windows.
+   Lisensi OWNER menyimpan slot NULL, dan NULL selalu dianggap berbeda oleh UNIQUE INDEX,
+   sehingga OWNER tidak pernah kehabisan slot. Indeks lama dilepas setelah baris lama diberi
+   slot dari platformnya. */
+ALTER TABLE device_activations ADD COLUMN IF NOT EXISTS slot        TEXT;
+ALTER TABLE device_activations ADD COLUMN IF NOT EXISTS device_hint TEXT;
+
+UPDATE device_activations SET slot = CASE WHEN LOWER(COALESCE(platform,'')) = 'android'
+    THEN 'android' ELSE 'windows' END
+  WHERE slot IS NULL AND is_active = TRUE
+    AND license_id IN (SELECT id FROM licenses WHERE license_type = 'CUSTOMER');
+
+DROP INDEX IF EXISTS ux_one_active_device;
+CREATE UNIQUE INDEX IF NOT EXISTS ux_one_active_slot
+  ON device_activations(license_id, slot) WHERE is_active = TRUE AND slot IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_activation_installation ON device_activations(installation_id);
+CREATE INDEX IF NOT EXISTS ix_activation_active ON device_activations(installation_id, is_active);
 
 CREATE TABLE IF NOT EXISTS license_events(
   id         TEXT PRIMARY KEY,

@@ -227,6 +227,26 @@ function barisIdentitas(l){
     </td>`;
 }
 
+/* Status perangkat per SLOT. Satu lisensi pembelian melayani tepat satu perangkat Android dan
+   satu perangkat Windows, jadi keduanya selalu ditampilkan - termasuk ketika masih kosong -
+   supaya Admin Lisensi tahu slot mana yang sebenarnya terpakai sebelum menekan Reset.
+
+   Yang ditampilkan adalah Installation ID, yaitu nilai yang SUDAH di-hash di sisi aplikasi.
+   Identitas perangkat mentah tidak pernah dikirim ke server, jadi tidak ada yang dapat bocor
+   dari layar ini. */
+function selSlot(nama,installation){
+  return installation
+    ?`<div><strong>${nama}</strong> terikat<br/><code>${esc(installation)}</code></div>`
+    :`<div style="color:var(--muted)"><strong>${nama}</strong> belum terikat</div>`;
+}
+function selPerangkat(l){
+  if(l.unlimited_devices)
+    return `<div>${Number(l.active_devices||0)} perangkat aktif</div>
+      <small style="color:var(--muted)">Lisensi OWNER - tanpa batas slot</small>`;
+  return `${selSlot('ANDROID',l.android_installation)}${selSlot('WINDOWS',l.windows_installation)}
+    <small style="color:var(--muted)">terlihat ${waktu(l.active_last_seen)}</small>`;
+}
+
 async function muatTabel(host,{status='',type=''}={}){
   const form=host.querySelector('[data-cari]');
   const {licenses}=await api(`/owner/licenses?q=${encodeURIComponent(form.q.value)}`
@@ -241,14 +261,14 @@ async function muatTabel(host,{status='',type=''}={}){
         ${l.license_type==='DEVELOPER'?'<br/><span class="pill ACTIVE">DEVELOPER</span>':''}
         <br/><small style="color:var(--muted)">${esc(l.id)}</small></td>
       <td><span class="pill ${esc(l.status)}">${esc(l.status)}</span></td>
-      <td>${l.active_installation?`<code>${esc(l.active_installation)}</code>
-          <br/><small style="color:var(--muted)">${esc(l.active_platform||'—')}</small>
-          <br/><small style="color:var(--muted)">terlihat ${waktu(l.active_last_seen)}</small>`:'—'}</td>
+      <td>${selPerangkat(l)}</td>
       <td><small>${waktu(l.created_at)}</small>
         <br/><small style="color:var(--muted)">${dicabut?waktu(l.revoked_at):waktu(l.activated_at)}</small>
         ${dicabut&&l.revoke_reason?`<br/><small style="color:var(--muted)">${esc(l.revoke_reason)}</small>`:''}</td>
       <td><div class="actions">
-        ${l.active_installation?`<button class="btn ghost" data-aksi="reset-device" data-id="${esc(l.id)}">Reset Device</button>`:''}
+        ${l.android_bound?`<button class="btn ghost" data-aksi="reset-device-android" data-id="${esc(l.id)}">Reset Android</button>`:''}
+        ${l.windows_bound?`<button class="btn ghost" data-aksi="reset-device-windows" data-id="${esc(l.id)}">Reset Windows</button>`:''}
+        ${l.unlimited_devices&&l.active_devices?`<button class="btn ghost" data-aksi="reset-device" data-id="${esc(l.id)}">Reset Semua Perangkat</button>`:''}
         ${l.status==='SUSPENDED'
           ?`<button class="btn ghost" data-aksi="reactivate" data-id="${esc(l.id)}">Aktifkan</button>`
           :l.status!=='REVOKED'?`<button class="btn ghost" data-aksi="suspend" data-id="${esc(l.id)}">Tangguhkan</button>`:''}
@@ -260,7 +280,12 @@ async function muatTabel(host,{status='',type=''}={}){
 
   host.querySelectorAll('[data-aksi]').forEach(btn=>btn.onclick=async()=>{
     const aksi=btn.dataset.aksi;
-    const konfirmasi={'reset-device':'Lepaskan perangkat aktif dari lisensi ini? Identitas pembeli, sekolah, dan riwayatnya tetap tersimpan.',
+    /* Tiga reset yang berbeda dan tidak pernah saling menyentuh: melepas Android tidak
+       memutus perangkat Windows sekolah, dan sebaliknya. Yang dilepas hanya ikatan perangkat -
+       data akademik sekolah tidak pernah ikut terhapus. */
+    const konfirmasi={'reset-device':'Lepaskan SELURUH perangkat aktif dari lisensi ini? Identitas pembeli, sekolah, dan riwayatnya tetap tersimpan.',
+      'reset-device-android':'Lepaskan slot ANDROID dari lisensi ini? Perangkat Windows pada lisensi yang sama TIDAK ikut dilepas, dan tidak ada data sekolah yang dihapus.',
+      'reset-device-windows':'Lepaskan slot WINDOWS dari lisensi ini? Perangkat Android pada lisensi yang sama TIDAK ikut dilepas, dan tidak ada data sekolah yang dihapus.',
       suspend:'Tangguhkan lisensi ini? Data akademik sekolah tidak dihapus.',
       revoke:'Cabut lisensi ini? Catatannya tetap tersimpan dan masih dapat dipulihkan.',
       reactivate:'Pulihkan lisensi ini sehingga dapat dipakai lagi?',

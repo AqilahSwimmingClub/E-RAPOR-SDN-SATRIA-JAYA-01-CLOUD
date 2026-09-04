@@ -4,6 +4,8 @@
    authenticate() perlu menyatakan keadaan lisensi perangkatnya secara eksplisit. Helper ini
    hanya menulis catatan lokal - tidak menyentuh server, kunci, maupun ikatan perangkat. */
 
+import { getInstallationId } from '../../src/services/installation.js';
+
 const KUNCI='erapor_license_v1';
 const JAM=60*60*1000;
 const HARI=24*JAM;
@@ -15,7 +17,10 @@ export function aktifkanLisensiLokal({status='ACTIVE',hariLagi=30,jamLalu=0,cloc
   const diverifikasi=new Date(sekarang-jamLalu*JAM).toISOString();
   globalThis.localStorage.setItem(KUNCI,JSON.stringify({
     activation_token:'token-uji',license_id:'lic-uji',status,
-    installation_id:'inst-uji',school_name:'SD Uji',npsn:'12345678',
+    /* Installation ID diambil dari perangkat uji yang sedang berjalan, bukan nilai karangan.
+       Catatan lisensi memang hanya berlaku pada perangkat yang menerimanya, jadi memakai nilai
+       tetap di sini akan menguji keadaan yang tidak pernah ada di aplikasi sungguhan. */
+    installation_id:getInstallationId(),school_name:'SD Uji',npsn:'12345678',
     issued_at:diverifikasi,last_successful_check_at:diverifikasi,last_verified_at:diverifikasi,
     ...(clockSeenAt?{clock_seen_at:clockSeenAt}:{}),
     next_check_at:new Date(sekarang+hariLagi*HARI).toISOString(),

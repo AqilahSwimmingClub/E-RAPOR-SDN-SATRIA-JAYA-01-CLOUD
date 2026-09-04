@@ -214,8 +214,23 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      # Installer Windows WAJIB membawa alamat server lisensi dan kunci verifikasi PUBLIK,
+      # persis seperti APK. Langkah ini sebelumnya tidak ada, sehingga .exe yang terkirim
+      # membawa LICENSE_PUBLIC_JWK kosong dan menjawab "Server lisensi belum dikonfigurasi
+      # pada aplikasi ini." pada layar Aktivasi Lisensi - lisensinya tidak pernah salah.
+      # Keduanya bukan rahasia. Kunci PRIVAT penandatangan tidak pernah dipakai di sini.
+      - name: Siapkan dan periksa konfigurasi lisensi produksi
+        env:
+          LICENSE_API_BASE: ${{ vars.LICENSE_API_BASE || 'https://e-rapor-sdn-satria-jaya-01-cloud.vercel.app' }}
+          LICENSE_PUBLIC_JWK: ${{ vars.LICENSE_PUBLIC_JWK }}
+        run: npm run verify:production
+      # desktop:win membangun ulang lewat build:production lalu memeriksa dist/ yang
+      # BENAR-BENAR dikemas installer, bukan berkas sumbernya.
       # Installer tidak memerlukan secret apa pun: paket Windows memang tidak ditandatangani.
       - name: Bangun installer NSIS
+        env:
+          LICENSE_API_BASE: ${{ vars.LICENSE_API_BASE || 'https://e-rapor-sdn-satria-jaya-01-cloud.vercel.app' }}
+          LICENSE_PUBLIC_JWK: ${{ vars.LICENSE_PUBLIC_JWK }}
         run: npm run desktop:win
       - uses: actions/upload-artifact@v4
         with:

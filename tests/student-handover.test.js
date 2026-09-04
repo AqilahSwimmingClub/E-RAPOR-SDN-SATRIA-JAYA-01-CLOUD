@@ -44,7 +44,11 @@ test('Berkas serah terima hanya membawa biodata dan metadata sumber',()=>{
   globalThis.localStorage.setItem('erapor_installation_v1','inst_'+'a'.repeat(32));
 
   const berkas=exportStudentHandover(sumber,{studentIds:daftar.map(item=>item.id)});
-  const teks=JSON.stringify(berkas);
+  /* `exportedAt` adalah cap waktu ISO, dan milidetiknya kadang kebetulan memuat "88" - angka
+     nilai yang justru sedang dibuktikan TIDAK terbawa. Tanpa dikecualikan, test ini gagal
+     sendiri kira-kira dua kali dari seratus jalan tanpa ada yang berubah pada kodenya. Yang
+     diperiksa adalah ISI berkasnya, jadi cap waktunya dikeluarkan lebih dulu. */
+  const teks=JSON.stringify({...berkas,source:{...berkas.source,exportedAt:''}});
   assert.equal(berkas.schema,HANDOVER_SCHEMA);
   assert.equal(berkas.students.length,3);
   assert.ok(berkas.source.academicYear&&berkas.source.semester&&berkas.source.classId&&berkas.source.exportedAt);
