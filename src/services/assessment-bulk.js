@@ -13,11 +13,18 @@ export function fillAllAssessmentScores(session,subjectId,value=80,{studentId=nu
   const students=studentId?classStudents.filter(student=>student.id===studentId):classStudents;
   if(studentId&&!students.length)throw new Error('Siswa tidak ditemukan pada scope rombel aktif.');
   const values=Object.fromEntries(students.map(student=>[student.id,score]));
+  /* Isi Semua Nilai SELALU mengisi kelima komponen, termasuk Penilaian Harian - juga ketika
+     Nilai Kehadiran sedang ON.
+
+     Sebelumnya komponen Harian dilewati saat toggle ON, dan itu keliru: yang berpindah karena
+     toggle bukanlah tempat penyimpanan nilainya, melainkan SUMBER yang dipakai saat menghitung
+     Nilai Akhir. Nilai Harian manual tetap data milik guru; ia tetap ditulis, tetap tersimpan,
+     dan langsung terpakai kembali begitu toggle dimatikan - tanpa guru diminta mengisinya ulang. */
   const dailyFromAttendance=getDailyAttendanceMode(session,subjectId);
-  const savedTypes=[];const skippedTypes=[];
+  const savedTypes=[];
   ASSESSMENT_TYPES.forEach(type=>{
-    if(type.id==='daily'&&dailyFromAttendance){skippedTypes.push(type.id);return;}
     saveAssessmentScores(session,subjectId,type.id,values);savedTypes.push(type.id);
   });
-  return {subjectId,value:score,studentId,studentCount:students.length,dailyFromAttendance,savedTypes,skippedTypes};
+  /* `skippedTypes` dipertahankan sebagai array kosong supaya pemanggil lama tidak pecah. */
+  return {subjectId,value:score,studentId,studentCount:students.length,dailyFromAttendance,savedTypes,skippedTypes:[]};
 }

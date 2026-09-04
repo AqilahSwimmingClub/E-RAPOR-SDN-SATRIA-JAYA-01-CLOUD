@@ -33,7 +33,23 @@ test('tahun lama tetap arsip dan Mapping, Bobot, KKTP, serta TP dapat disalin ta
 
 test('import Excel siswa melalui preview, validasi, lalu simpan dengan satu Nama Orang Tua',()=>{setup();const session=teacher();const cells=['1201','001201','Alya Excel','P','Islam','Bekasi, 4 Maret 2017','Ibu Alya','','Jl. Satria'].map(value=>`<Cell><Data ss:Type="String">${value}</Data></Cell>`).join('');const xml=studentTemplateExcel().replace('</Table>',`<Row>${cells}</Row></Table>`);const preview=previewStudentExcelImport(session,xml,{classId:'2A'});assert.equal(preview.validCount,1);assert.equal(listStudents(session).length,0);commitStudentImport(session,preview);assert.equal(listStudents(session)[0].parentName,'Ibu Alya');assert.equal(listStudents(session)[0].phone,'');});
 
-test('Isi Semua Nilai mengisi lima komponen dan melewati Harian saat Absensi ON',()=>{setup();const session=teacher();onlySubject(session);const student=addStudent(session);let result=fillAllAssessmentScores(session,'agama',80);assert.equal(result.savedTypes.length,5);assert.equal(getAssessmentSheet(session,'agama','daily').rows[0].score,80);saveDailyAttendanceMode(session,'agama',true);result=fillAllAssessmentScores(session,'agama',82);assert.deepEqual(result.skippedTypes,['daily']);assert.equal(getAssessmentSheet(session,'agama','daily').rows[0].score,80);assert.equal(getAssessmentSheet(session,'agama','formative').rows.find(row=>row.studentId===student.id).score,82);});
+test('Isi Semua Nilai mengisi lima komponen, termasuk Harian, juga saat Nilai Kehadiran ON',()=>{
+  setup();const session=teacher();onlySubject(session);const student=addStudent(session);
+  let result=fillAllAssessmentScores(session,'agama',80);
+  assert.equal(result.savedTypes.length,5);
+  assert.equal(getAssessmentSheet(session,'agama','daily').rows[0].score,80);
+
+  /* Toggle ON tidak mengubah APA yang diisi, hanya sumber yang dipakai saat menghitung.
+     Melewati komponen Harian saat ON adalah perilaku lama yang keliru. */
+  saveDailyAttendanceMode(session,'agama',true);
+  result=fillAllAssessmentScores(session,'agama',82);
+  assert.equal(result.savedTypes.length,5,'kelima komponen tetap diisi');
+  assert.ok(result.savedTypes.includes('daily'),'Penilaian Harian ikut diisi');
+  assert.deepEqual(result.skippedTypes,[],'tidak ada komponen yang dilewati');
+  assert.equal(getAssessmentSheet(session,'agama','daily').rows[0].score,82,
+    'Nilai Harian tetap tersimpan dan diperbarui');
+  assert.equal(getAssessmentSheet(session,'agama','formative').rows.find(row=>row.studentId===student.id).score,82);
+});
 
 test('fase TP otomatis A/B/C dan fase yang tidak sesuai ditolak',()=>{setup();assert.equal(phaseForClass('1A'),'A');assert.equal(phaseForClass('4D'),'B');assert.equal(phaseForClass('6C'),'C');const session=teacher('5A');onlySubject(session);assert.throws(()=>createLearningObjective(session,'agama',{code:'TP-X',description:'Uji fase.',phase:'A'}),/wajib Fase C/);assert.equal(createLearningObjective(session,'agama',{code:'TP-C',description:'Uji fase benar.'}).phase,'C');});
 
