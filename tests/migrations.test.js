@@ -34,12 +34,14 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.2.1 uses versionCode 13 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.2.1');
-  assert.equal(VERSION_CODE,13);
+test('release v1.2.2 uses versionCode 14 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.2.2');
+  assert.equal(VERSION_CODE,14);
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.2.1-HOTFIX-ABSENSI-PENILAIAN');
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.0',versionCode:12});
+  assert.equal(BUILD_TAG,'1.2.2-INTRAKURIKULER-SIKAP-RUBRIK');
+  /* Rilis sebelumnya bergeser ke 1.2.1 supaya APK baru tetap dapat dipasang menimpanya
+     tanpa uninstall. Format data tidak berubah: schema tetap 5. */
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.1',versionCode:13});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
