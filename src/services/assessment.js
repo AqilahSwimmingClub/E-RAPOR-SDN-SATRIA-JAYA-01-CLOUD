@@ -2,6 +2,7 @@ import { ASSESSMENT_DEFAULT } from '../data/constants.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
 import { requireActiveSubject } from './subjects.js';
+import { defaultReportRubric, normalizeReportRubric, readReportRubric } from './report-rubric.js';
 
 export const ASSESSMENT_TYPES=[
   {id:'formative',label:'Formatif'},
@@ -70,19 +71,51 @@ export function scopeSummativeAverage(parts){
   return Number((nilai.reduce((sum,item)=>sum+item,0)/nilai.length).toFixed(2));
 }
 
-export function defaultAssessmentSettings(){return {...ASSESSMENT_DEFAULT,kktp:DEFAULT_KKTP};}
+/* RUBRIK KATEGORI DESKRIPSI RAPOR ikut di sini, pada catatan pengaturan penilaian mata
+   pelajaran - tempat KKTP sudah tinggal sejak awal.
+
+   PER MATA PELAJARAN, bukan global, karena di sinilah arsitektur aplikasi memang menyimpan
+   ambang penilaian: kuncinya sudah memuat tahun | semester | kelas | subjectId, sehingga
+   rubrik Matematika kelas 5B Semester Ganjil tidak pernah terbaca oleh mata pelajaran, rombel,
+   maupun semester lain. Membuat penyimpanan global yang baru berarti dua tempat berbeda untuk
+   dua ambang yang dibaca berdampingan pada kalimat yang sama.
+
+   Guru yang menghendaki rubrik seragam cukup menyimpan angka yang sama; halaman Bobot
+   Penilaian menyediakan tabel semua mapel sekaligus untuk itu. */
+export function defaultAssessmentSettings(){
+  return {...ASSESSMENT_DEFAULT,kktp:DEFAULT_KKTP,rubric:defaultReportRubric()};
+}
+
+/* Rubrik yang dipakai satu catatan pengaturan. Catatan lama yang belum punya kolom ini dibaca
+   sebagai default - dibaca saja, tidak ditulis ulang dan tidak diubah. */
+function rubrikCatatan(record){return readReportRubric(record?.rubric);}
 
 export function getAssessmentSettings(session,subjectId){
   requireActiveSubject(session,subjectId);
-  return clone(loadDb().assessmentSettings[settingsKey(session,subjectId)] || defaultAssessmentSettings());
+  const record=loadDb().assessmentSettings[settingsKey(session,subjectId)];
+  if(!record)return defaultAssessmentSettings();
+  return {...clone(record),rubric:rubrikCatatan(record)};
 }
 
 export function saveAssessmentSettings(session,subjectId,input){
   requireActiveSubject(session,subjectId);
   const weights=normalizeWeights(input);
   const kktp=numberInRange(input?.kktp,'KKTP');
-  const saved={...weights,kktp,subjectId,classId:session.classId,semester:session.semester,academicYear:session.academicYear,updatedAt:new Date().toISOString()};
-  updateDb(db=>{db.assessmentSettings[settingsKey(session,subjectId)]=saved;return db;});
+  /* Rubrik yang tidak dikirim pemanggil TIDAK dianggap dihapus: yang tersimpan dipertahankan.
+     Menyimpan bobot dari halaman lain karena itu tidak pernah membuang rubrik yang sudah
+     disusun guru. */
+  let saved;
+  updateDb(db=>{
+    const key=settingsKey(session,subjectId);
+    const sebelum=db.assessmentSettings[key];
+    const rubric=input?.rubric===undefined||input?.rubric===null
+      ? rubrikCatatan(sebelum)
+      : normalizeReportRubric(input.rubric);
+    saved={...weights,kktp,rubric,subjectId,classId:session.classId,semester:session.semester,
+      academicYear:session.academicYear,updatedAt:new Date().toISOString()};
+    db.assessmentSettings[key]=saved;
+    return db;
+  });
   return clone(saved);
 }
 
@@ -95,14 +128,18 @@ export function saveAllAssessmentSettings(session,entries){
   const prepared=list.map(entry=>{
     const subject=requireActiveSubject(session,entry.subjectId);
     try{
-      return {subjectId:subject.id,weights:normalizeWeights(entry),kktp:numberInRange(entry?.kktp,'KKTP')};
+      return {subjectId:subject.id,weights:normalizeWeights(entry),kktp:numberInRange(entry?.kktp,'KKTP'),
+        rubric:entry?.rubric===undefined||entry?.rubric===null?null:normalizeReportRubric(entry.rubric)};
     }catch(error){throw new Error(`${subject.name}: ${error.message}`);}
   });
   const now=new Date().toISOString();const saved=[];
   updateDb(db=>{
     prepared.forEach(item=>{
-      const record={...item.weights,kktp:item.kktp,subjectId:item.subjectId,classId:session.classId,semester:session.semester,academicYear:session.academicYear,updatedAt:now};
-      db.assessmentSettings[settingsKey(session,item.subjectId)]=record;saved.push(record);
+      const key=settingsKey(session,item.subjectId);
+      /* Sama seperti penyimpanan satu mapel: rubrik yang tidak dikirim tetap dipertahankan. */
+      const rubric=item.rubric||rubrikCatatan(db.assessmentSettings[key]);
+      const record={...item.weights,kktp:item.kktp,rubric,subjectId:item.subjectId,classId:session.classId,semester:session.semester,academicYear:session.academicYear,updatedAt:now};
+      db.assessmentSettings[key]=record;saved.push(record);
     });
     return db;
   });

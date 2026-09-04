@@ -177,34 +177,33 @@ function normalizeIntracurricular(input){
   return record;
 }
 
-/* Catatan Intrakurikuler satu murid.
+/* Catatan Intrakurikuler satu murid pada SATU mata pelajaran.
 
-   Tanpa `subjectId`, yang dikembalikan adalah catatan yang paling wajar mewakili murid itu:
-   catatan lama tanpa mapel bila ada, atau catatan per mapel yang PALING BARU diperbarui.
-   Bentuk ini dipertahankan karena dokumen rapor memang menampilkan satu baris Intrakurikuler
-   per murid, dan desain rapor tidak diubah oleh perubahan penyimpanan ini. */
+   `subjectId` adalah bagian dari identitas catatan, sama pentingnya dengan tahun, semester,
+   rombel, dan murid. Tanpa `subjectId` yang dikembalikan HANYA catatan lama yang memang
+   disimpan tanpa mata pelajaran - bentuk kegiatan bebas dari versi sebelum Intrakurikuler
+   beralih ke mapel.
+
+   Yang sengaja TIDAK dilakukan di sini: menebak. Tidak ada penelusuran "catatan pertama",
+   tidak ada "catatan yang paling baru diperbarui", dan tidak ada mapel bawaan. Menebak
+   membuat rapor menampilkan mapel yang tidak pernah dinilai guru - persis bug yang membuat
+   IPAS yang disimpan muncul sebagai Pendidikan Pancasila. Pemanggil yang peduli mapel WAJIB
+   menyebut mapelnya; yang ingin semuanya memakai listStudentIntracurricular. */
 export function getStudentIntracurricular(session,studentId,subjectId=''){
   requireStudent(session,studentId);
   const semua=loadDb().intracurricularScores||{};
   const mapel=clean(subjectId,40);
+  const lama=semua[intracurricularKey(session,studentId)];
   if(mapel){
     const langsung=semua[intracurricularKey(session,studentId,mapel)];
     if(langsung)return clone(langsung);
     /* Catatan lama tanpa mapel pada kunci sebelumnya tetap dikenali bila memang milik mapel
        yang diminta, sehingga isian guru dari versi sebelumnya tidak hilang dari layar. */
-    const lama=semua[intracurricularKey(session,studentId)];
     return lama&&lama.subjectId===mapel?clone(lama):null;
   }
-  const lama=semua[intracurricularKey(session,studentId)];
-  if(lama)return clone(lama);
-  const awalan=`${scopeKey(session)}|`;
-  const akhiran=`|${studentId}`;
-  const kandidat=Object.entries(semua)
-    .filter(([key])=>key.startsWith(awalan)&&key.endsWith(akhiran)
-      &&key.slice(awalan.length,key.length-akhiran.length).length>0)
-    .map(([,record])=>record)
-    .sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
-  return kandidat.length?clone(kandidat[0]):null;
+  /* Catatan lama yang sudah punya mapel bukan milik "tanpa mapel": mengembalikannya di sini
+     sama saja dengan menebak mapel. Ia hanya terbaca lewat subjectId-nya sendiri. */
+  return lama&&!lama.subjectId?clone(lama):null;
 }
 
 /* Seluruh catatan Intrakurikuler satu murid, satu baris per mata pelajaran. */

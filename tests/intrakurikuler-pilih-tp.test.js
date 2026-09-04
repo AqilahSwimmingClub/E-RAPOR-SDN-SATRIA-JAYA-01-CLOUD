@@ -172,7 +172,10 @@ test('5. TP yang dinonaktifkan tidak dapat dipakai untuk input baru',()=>{
   assert.ok(sesudah.description,'input baru tetap berhasil walau TP dinonaktifkan');
 
   /* Catatan lama tidak dihapus. */
-  const lama=getStudentIntracurricularSelection(session,siswa.id);
+  /* Mapelnya disebut. Membaca tanpa subjectId dulu mengembalikan catatan mana pun yang
+     terakhir diperbarui; harapan itu diubah dengan sengaja karena justru itulah sumber bug
+     rapor yang mencetak mata pelajaran yang salah. */
+  const lama=getStudentIntracurricularSelection(session,siswa.id,'ipas');
   assert.deepEqual(lama.objectiveIds,dipilih.map(item=>item.id),'rujukan TP lama tetap tersimpan');
   assert.ok(lama.description,'deskripsi lama tetap ada');
 

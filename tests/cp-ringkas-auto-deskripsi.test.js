@@ -298,8 +298,9 @@ test('20-21. Tidak ada data silang antar-mapel maupun antar-siswa',()=>{
   const tinggi=getReportDescription(session,'ipas',murid[0].id).text;
   const rendah=getReportDescription(session,'ipas',murid[1].id).text;
   assert.notEqual(tinggi,rendah,'21. dua siswa dengan nilai berbeda, dua kalimat berbeda');
-  assert.match(tinggi,/sangat baik/i);
-  assert.match(rendah,/memerlukan bimbingan/i);
+  /* Bentuk kalimat rapor diubah atas permintaan resmi menjadi empat kategori terhadap KKTP. */
+  assert.match(tinggi,/^Mencapai kompetensi dengan sangat baik dalam hal /);
+  assert.match(rendah,/^(Cukup mencapai|Perlu meningkatkan) kompetensi/);
 });
 
 test('22. Deskripsi otomatis bertahan setelah database dibaca ulang',()=>{
@@ -363,7 +364,8 @@ test('Deskripsi otomatis tunduk pada aturan deskripsi yang sudah berlaku',()=>{
     assert.equal(deskripsiBocorFase(teks),false,`${mapel}: bebas Fase, kode CP, dan TP`);
     assert.equal(deskripsiMengulangMapel(teks,nama[mapel]),false,`${mapel}: nama mapel tidak diulang`);
     assert.equal(/mata pelajaran/i.test(teks),false);
-    assert.match(teks,/^Menunjukkan |^Menempuh /,'memakai bingkai capaian rapor');
+    assert.match(teks,/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /,
+      'memakai bingkai capaian rapor');
   }
   /* Dan tetap berbeda dari deskripsi Intrakurikuler. */
   const butir=listCpButirForSemester(session,'ipas').slice(0,2).map(item=>item.id);
@@ -404,8 +406,12 @@ test('25-27. Tiga blok tanda tangan sejajar: peran, nama, dan NIP',()=>{
     '27. baris NIP tetap ada meski kosong, agar NIP sejajar');
   /* Nama diberi tinggi minimum dua baris. Tanpa ini, nama Kepala Sekolah yang membungkus ke
      baris kedua sementara nama Wali Kelas tidak akan menurunkan NIP-nya sendiri dan merusak
-     kesejajaran lagi - hal yang benar-benar terjadi pada kolom sempit. */
-  assert.match(gaya,/\.report-signatures strong\{min-height:2\.5em/,
+     kesejajaran lagi - hal yang benar-benar terjadi pada kolom sempit.
+
+     Sejak perbaikan jarak Nama-NIP, kotak nama juga MENGISI sisa tinggi kolom (flex:1) di
+     dalam kolom yang diregangkan setinggi baris, sehingga baris nama terakhir ketiga kolom
+     berhenti pada garis yang sama berapa pun baris yang dipakai masing-masing. */
+  assert.match(gaya,/\.report-signatures strong\{flex:1 1 auto;min-height:2\.5em/,
     '27. nama menempati tinggi yang sama meski panjangnya berbeda');
 });
 

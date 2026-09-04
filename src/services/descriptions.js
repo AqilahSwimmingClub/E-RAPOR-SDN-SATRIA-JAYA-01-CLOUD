@@ -1,4 +1,6 @@
-import { composeReportButirDescription, composeReportCpDescription, cpAcuanFor } from './cp-descriptions.js';
+import { composeReportButirDescription, composeReportCpDescription, cpAcuanFor,
+  kategoriRapor } from './cp-descriptions.js';
+import { getAssessmentSettings } from './assessment.js';
 import { listCpButirForSemester } from './cp-butir.js';
 import { listActiveObjectives, listObjectivesForAssessment } from './learning-objectives.js';
 import { ringkasObjectives } from './objective-summary.js';
@@ -30,18 +32,30 @@ function studentOf(session,studentId){
   if(!student)throw new Error('Siswa tidak ditemukan pada scope aktif.');
   return student;
 }
+/* KKTP DAN RUBRIK SELALU MILIK MATA PELAJARAN YANG SEDANG DIPROSES.
+
+   Keduanya dibaca dari pengaturan penilaian mata pelajaran itu, dan keduanya menjawab
+   pertanyaan yang berbeda: KKTP menentukan status ketuntasan, RUBRIK menentukan kategori yang
+   dipakai kalimat Deskripsi Rapor. Tidak ada angka tetap di sini - menuliskan satu angka
+   berarti menilai seluruh mata pelajaran dengan penggaris yang sama, padahal setiap mata
+   pelajaran menetapkan ambangnya sendiri. */
+function pengaturanMapel(session,subjectId){
+  try{return getAssessmentSettings(session,subjectId);}catch{return null;}
+}
 function finalScoreOf(session,subjectId,studentId){
+  const pengaturan=pengaturanMapel(session,subjectId);
+  const rubric=pengaturan?.rubric??null;
   const tersimpan=getReportScore(session,subjectId,studentId);
   if(tersimpan&&tersimpan.finalScore!==null&&tersimpan.finalScore!==undefined)
-    return {finalScore:tersimpan.finalScore,kktp:tersimpan.kktp??75};
+    return {finalScore:tersimpan.finalScore,kktp:tersimpan.kktp??pengaturan?.kktp??null,rubric};
   const dihitung=calculateReportScore(session,subjectId,studentId);
-  return {finalScore:dihitung.finalScore,kktp:dihitung.kktp};
+  return {finalScore:dihitung.finalScore,kktp:dihitung.kktp??pengaturan?.kktp??null,rubric};
 }
-function levelCapaian(finalScore,kktp){
-  if(finalScore===null||finalScore===undefined)return null;
-  if(finalScore>=90)return 'sangat baik';
-  if(finalScore>=kktp)return 'baik';
-  return 'cukup';
+/* Jalur TP lama memakai rubrik yang sama persis dengan jalur CP, sehingga tidak ada dua
+   standar capaian yang saling bertentangan di dalam satu aplikasi. */
+function levelCapaian(finalScore,rubric){
+  const kategori=kategoriRapor(finalScore,rubric);
+  return kategori===null?null:kategori.toLowerCase();
 }
 function objectiveDescription(session,subjectId,studentId,objectiveIds){
   requireActiveSubject(session,subjectId);
@@ -50,8 +64,8 @@ function objectiveDescription(session,subjectId,studentId,objectiveIds){
   const dipilih=[...new Set(objectiveIds.map(id=>String(id)))]
     .map(id=>tersedia.find(item=>item.id===id)||null);
   if(dipilih.some(item=>!item))throw new Error('Tujuan Pembelajaran acuan tidak ditemukan pada mata pelajaran ini.');
-  const {finalScore,kktp}=finalScoreOf(session,subjectId,studentId);
-  const level=levelCapaian(finalScore,kktp);
+  const {finalScore,kktp,rubric}=finalScoreOf(session,subjectId,studentId);
+  const level=levelCapaian(finalScore,rubric);
   const isi=ringkasObjectives(dipilih);
   /* Tingkat capaian tetap berasal dari Nilai Akhir dan KKTP yang sudah ada; tidak ada standar
      interval baru yang diperkenalkan di sini. */
@@ -83,19 +97,19 @@ function cpDescription(session,subjectId,studentId){
   const cp=cpAcuanFor(session,subjectId);
   if(!cp)return null;
   const student=studentOf(session,studentId);
-  const {finalScore,kktp}=finalScoreOf(session,subjectId,studentId);
+  const {finalScore,kktp,rubric}=finalScoreOf(session,subjectId,studentId);
   /* SUMBER UTAMA adalah BUTIR CP AKTIF mata pelajaran ini - kompetensi yang memang diajarkan
      dan dinilai pada semester berjalan. */
   let butir=[];
   try{butir=listCpButirForSemester(session,subjectId);}catch{butir=[];}
-  const dariButir=composeReportButirDescription({butir,finalScore,kktp});
+  const dariButir=composeReportButirDescription({butir,finalScore,rubric});
   if(dariButir)
     return {text:dariButir,source:'CP_BUTIR',cpPhase:cp.phase,objectiveIds:null,
       butirIds:butir.map(item=>item.id),studentId:student.id,
       bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};
   /* Mata pelajaran ini belum punya Butir CP: lingkup elemen CP dipakai supaya rapor tidak
      kosong. Nama mata pelajaran tetap tidak pernah disebut di dalam kalimat. */
-  const text=composeReportCpDescription({cp,finalScore,kktp});
+  const text=composeReportCpDescription({cp,finalScore,rubric});
   if(!text)return null;
   return {text,source:'CP',cpPhase:cp.phase,objectiveIds:null,studentId:student.id,
     bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};

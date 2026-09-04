@@ -122,7 +122,7 @@ test('7-8. Generator Intrakurikuler dan Nilai Rapor terpisah dan hasilnya berbed
   /* Masing-masing berbicara sesuai fungsinya: Intrakurikuler menyatakan kompetensi yang
      ditunjukkan pada kegiatan penilaian, Rapor menyatakan tingkat penguasaan satu semester. */
   assert.match(intra,/^Menguasai /,'Intrakurikuler memakai bahasa kegiatan penilaian');
-  assert.match(rapor,/penguasaan/i,'Nilai Rapor bicara penguasaan kompetensi');
+  assert.match(rapor,/kompetensi/i,'Nilai Rapor bicara pencapaian kompetensi');
   assert.equal(/^Menguasai /.test(rapor),false,'Nilai Rapor tidak memakai bingkai Intrakurikuler');
   for(const teks of [intra,rapor])
     assert.equal(/mata pelajaran/i.test(teks),false,'nama mata pelajaran tidak diulang di kalimat');
@@ -170,16 +170,23 @@ test('9-11. Isi Otomatis Semua Siswa bekerja, tanpa duplikasi, tanpa menimpa tul
   assert.equal(hasil.gagal.length,0);
   assert.equal(hasil.phase,'C');
 
-  assert.equal(getStudentIntracurricularSelection(sesi,anak[2].id).description,
+  /* Pembacaan WAJIB menyebut mapel. Bentuk lama tanpa subjectId dulu mengembalikan "catatan
+     yang paling baru diperbarui", dan itulah yang membuat rapor mencetak mapel yang salah.
+     Harapan test ini diubah dengan sengaja: yang benar adalah membaca catatan 'mtk' sebagai
+     'mtk', bukan menebaknya. */
+  assert.equal(getStudentIntracurricularSelection(sesi,anak[2].id,'mtk').description,
     'Catatan khusus wali kelas untuk murid ini.','deskripsi manual utuh');
   for(const index of [0,1])
-    assert.ok(getStudentIntracurricularSelection(sesi,anak[index].id).description);
+    assert.ok(getStudentIntracurricularSelection(sesi,anak[index].id,'mtk').description);
+  /* Dan tanpa mapel, tidak ada tebakan sama sekali. */
+  assert.equal(getStudentIntracurricularSelection(sesi,anak[0].id),null,
+    'tanpa subjectId tidak ada catatan per mapel yang dikembalikan');
 
   /* Dijalankan dua kali tidak menggandakan catatan: satu murid tetap satu record. */
   const ulang=fillAllIntracurricular(sesi,{subjectId:'mtk',predicate:'Sangat Baik'});
   assert.equal(ulang.terisi,2);
-  assert.equal(getStudentIntracurricularSelection(sesi,anak[0].id).description,
-    getStudentIntracurricularSelection(sesi,anak[0].id).description);
+  assert.equal(getStudentIntracurricularSelection(sesi,anak[0].id,'mtk').description,
+    getStudentIntracurricularSelection(sesi,anak[0].id,'mtk').description);
 });
 
 /* --------------------------------------------------------- §V.12-13 DESKRIPSI NILAI RAPOR */
@@ -192,8 +199,9 @@ test('12-13. Deskripsi Nilai Rapor memakai CP sesuai fase dan mengikuti Nilai Ak
   const teks=nilai=>{nilaiPenuh(sesi,'mtk',siswa.id,nilai);return generateReportDescription(sesi,'mtk',siswa.id,{}).text;};
   const tinggi=teks(95),sedang=teks(80),rendah=teks(60);
   assert.equal(new Set([tinggi,sedang,rendah]).size,3,'Nilai Akhir mengubah konteks kalimat');
-  assert.match(tinggi,/sangat baik/i);
-  assert.match(rendah,/bimbingan/i);
+  /* Bentuk kalimat rapor diubah atas permintaan resmi menjadi empat kategori terhadap KKTP. */
+  assert.match(tinggi,/^Mencapai kompetensi dengan sangat baik dalam hal /);
+  assert.match(rendah,/^(Cukup mencapai|Perlu meningkatkan) kompetensi/);
   const hasil=generateReportDescription(sesi,'mtk',siswa.id,{});
   assert.equal(hasil.cpPhase,'C','CP mengikuti fase rombel');
   /* Yang masuk kalimat adalah SUBSTANSI Butir CP - kompetensi yang benar-benar diajarkan -

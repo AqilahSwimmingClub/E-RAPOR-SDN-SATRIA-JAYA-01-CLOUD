@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { getAssessmentSettings, getAssessmentSheet, resetAssessmentSettings, saveAssessmentScores, saveAssessmentSettings } from '../src/services/assessment.js';
 import { createStudent } from '../src/services/students.js';
+import { DEFAULT_REPORT_RUBRIC } from '../src/services/report-rubric.js';
 import { saveSubjectMapping } from '../src/services/storage.js';
 import { listActiveSubjects } from '../src/services/subjects.js';
 
@@ -33,7 +34,12 @@ test('Weights and KKTP remain different between subjects and can reset independe
   assert.equal(getAssessmentSettings(teacher5b,'agama').kktp,72);
   assert.equal(getAssessmentSettings(teacher5b,'mtk').kktp,80);
   resetAssessmentSettings(teacher5b,'agama');
-  assert.deepEqual(getAssessmentSettings(teacher5b,'agama'),{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
+  /* Pengaturan penilaian kini juga memuat RUBRIK kategori Deskripsi Rapor - tempat KKTP sudah
+     tinggal sejak awal - sehingga bentuk defaultnya bertambah satu kolom. Harapan test ini
+     diperbarui dengan sengaja mengikuti perubahan resmi itu; bobot dan KKTP-nya tidak berubah
+     sedikit pun. */
+  assert.deepEqual(getAssessmentSettings(teacher5b,'agama'),{formative:30,daily:20,practice:20,
+    scopeSummative:15,semesterSummative:15,kktp:75,rubric:DEFAULT_REPORT_RUBRIC.map(item=>({...item}))});
   assert.equal(getAssessmentSettings(teacher5b,'mtk').kktp,80);
 });
 

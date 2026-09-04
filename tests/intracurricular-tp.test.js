@@ -162,8 +162,11 @@ test('Pilihan mapel dan predikat tersimpan beserta deskripsi otomatis dari CP',(
   const kalimat=saved.description.toLowerCase();
   for(const elemen of cpElements('mtk','C').map(item=>item.name))
     assert.ok(kalimat.includes(elemen.toLowerCase()),`elemen CP ${elemen} terbawa`);
-  const dibaca=getStudentIntracurricularSelection(kelas,siswa.id);
+  /* Dibaca dengan menyebut mapelnya. Pembacaan tanpa subjectId sengaja tidak lagi menebak
+     catatan mana yang mewakili murid: itulah sumber bug rapor mencetak mapel yang salah. */
+  const dibaca=getStudentIntracurricularSelection(kelas,siswa.id,'mtk');
   assert.equal(dibaca.subjectId,'mtk');
+  assert.equal(getStudentIntracurricularSelection(kelas,siswa.id),null,'tanpa mapel tidak menebak');
 });
 
 test('Deskripsi Intrakurikuler berubah mengikuti predikat, dan tulisan guru dipertahankan',()=>{
@@ -246,7 +249,7 @@ test('Intrakurikuler tidak menimpa Kokurikuler maupun Penilaian Umum',()=>{
   const koku=getStudentCocurricular(kelas,siswa.id);
   assert.equal(koku.activity,'Projek Penguatan Profil Pelajar Pancasila');
   assert.equal(koku.description,'Aktif dalam projek kelompok.');
-  assert.equal(getStudentIntracurricular(kelas,siswa.id).activity,'Matematika');
+  assert.equal(getStudentIntracurricular(kelas,siswa.id,'mtk').activity,'Matematika');
 });
 
 /* --------------------------------------------------------------------- Tampilan rapor tetap */

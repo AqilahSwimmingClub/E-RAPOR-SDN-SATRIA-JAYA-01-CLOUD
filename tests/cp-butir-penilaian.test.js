@@ -320,8 +320,9 @@ test('18. Deskripsi Rapor berbeda dari deskripsi Intrakurikuler',()=>{
   const rapor=generateReportDescription(session,'mtk',siswa.id,{});
   assert.notEqual(intra.description,rapor.text,'18. dua konteks, dua kalimat');
   /* Bedanya struktural: rapor menyatakan tingkat capaian dari Nilai Akhir. */
-  assert.match(rapor.text,/^Menunjukkan /,'rapor memakai bingkai capaian');
-  assert.equal(/^Menunjukkan /.test(intra.description),false,
+  assert.match(rapor.text,/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /,
+    'rapor memakai bingkai capaian');
+  assert.equal(/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /.test(intra.description),false,
     'Intrakurikuler tidak memakai bingkai capaian rapor');
   /* Keduanya memakai penyusun yang berbeda, bukan satu template yang dipakai bergantian. */
   const generatorIntra=composeIntracurricularButirDescription({butir,jenis:'teori',predicate:'Baik'});

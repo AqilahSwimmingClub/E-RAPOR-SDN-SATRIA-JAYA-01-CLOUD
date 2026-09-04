@@ -247,52 +247,105 @@ export function saveStudentIntracurricularSelection(session,studentId,{subjectId
 
 /* ------------------------------------------------------- ISI OTOMATIS SEMUA SISWA
 
-   Guru tidak perlu menyusuri siswa satu per satu. Satu mata pelajaran, satu kumpulan Butir CP,
-   satu jenis, dan satu predikat diproses untuk seluruh murid rombel aktif.
+   Alur Intrakurikuler hanya punya DUA tombol, dan keduanya berlaku untuk SELURUH siswa rombel:
+
+     [Isi Otomatis Semua Siswa]  menyusun hasil untuk semua murid dan MENAMPILKANNYA saja.
+                                 Tidak ada satu pun tulisan ke penyimpanan pada tahap ini.
+     [Simpan Semua]              menyimpan apa yang sedang ditampilkan itu.
+
+   Pemisahan ini disengaja: guru dapat melihat, menimbang, dan mengubah hasilnya lebih dulu.
+   Selama ia belum menekan Simpan Semua, memuat ulang aplikasi mengembalikan keadaan sebelumnya
+   - hasil yang belum disimpan memang belum menjadi data.
 
    MATA PELAJARAN YANG DIPROSES ADALAH YANG DIKIRIM PEMANGGIL, dan hasilnya ditulis dengan kunci
-   mata pelajaran itu juga. Tidak ada satu jalur pun di sini yang jatuh ke "mapel pertama".
+   mata pelajaran itu juga. Tidak ada satu jalur pun di sini yang jatuh ke "mapel pertama",
+   dan menyimpan satu mapel tidak pernah menyentuh catatan mapel lain.
 
-   Dua sikap hati-hati yang disengaja:
-   - Catatan yang PERNAH DISUNTING guru (status EDITED) tidak ditimpa diam-diam.
-   - Kegagalan satu murid tidak menggagalkan seluruh batch; tiap kegagalan dicatat sendiri. */
-export function fillAllIntracurricular(session,{subjectId,butirIds=[],
-  jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate='Baik',overwriteManual=false}={}){
+   Satu sikap hati-hati yang disengaja: catatan yang PERNAH DISUNTING guru (status EDITED)
+   tidak ditimpa diam-diam. */
+
+function konteksIsiSemua(session,{subjectId,butirIds=[],jenis=DEFAULT_JENIS_INTRAKURIKULER,
+  predicate='Baik'}={}){
   assertTeacherScope(session);
   const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
   if(!subject)throw new Error('Pilih mata pelajaran intrakurikuler yang aktif pada rombel ini.');
   const cp=cpAcuanFor(session,subject.id);
   if(!cp)throw new Error(cpAlasanTidakTersedia(session,subject.id)||'CP mata pelajaran ini belum tersedia pada fase rombel aktif.');
   if(!INTRACURRICULAR_PREDICATES.includes(predicate))throw new Error('Predikat intrakurikuler tidak valid.');
-
   const pilihanJenis=jenisBersih(jenis);
-  const butir=butirTerpilih(session,subject.id,butirIds);
-  const idButir=butir.map(item=>item.id);
-  const students=listStudents(session,{classId:session.classId});
-  const hasil={subjectId:subject.id,subjectName:subject.name,phase:cp.phase,predicate,
-    jenis:pilihanJenis,butirIds:idButir,semesterNumber:semesterNumberOf(session),
-    total:students.length,terisi:0,dilewati:[],gagal:[]};
+  const idButir=butirTerpilih(session,subject.id,butirIds).map(item=>item.id);
   const otomatis=susunDeskripsiIntra(session,{subjectId:subject.id,butirIds:idButir,
     jenis:pilihanJenis,predicate});
+  return {subject,cp,pilihanJenis,idButir,otomatis,
+    students:listStudents(session,{classId:session.classId})};
+}
+
+/* Deskripsi yang diketik sendiri oleh guru tidak boleh hilang hanya karena tombol batch
+   ditekan. Catatan baru menandainya dengan status EDITED; catatan LAMA belum punya penanda
+   itu, sehingga dikenali dengan membandingkan isinya terhadap kalimat yang akan disusun
+   aplikasi - berbeda berarti tulisan tangan guru. */
+function deskripsiManual(lama,otomatis){
+  return Boolean(lama&&(lama.status==='EDITED'
+    ||(!lama.status&&String(lama.description||'').trim()&&String(lama.description||'').trim()!==otomatis)));
+}
+
+/* HASIL TANPA MENYIMPAN. Fungsi ini tidak menulis apa pun; ia hanya menyusun apa yang AKAN
+   disimpan bila guru menekan Simpan Semua. */
+export function previewAllIntracurricular(session,{subjectId,butirIds=[],
+  jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate='Baik',overwriteManual=false}={}){
+  const {subject,cp,pilihanJenis,idButir,otomatis,students}=
+    konteksIsiSemua(session,{subjectId,butirIds,jenis,predicate});
+  const hasil={subjectId:subject.id,subjectName:subject.name,phase:cp.phase,predicate,
+    jenis:pilihanJenis,butirIds:idButir,semesterNumber:semesterNumberOf(session),
+    total:students.length,rows:[],dilewati:[]};
   for(const student of students){
+    const lama=getStudentIntracurricularSelection(session,student.id,subject.id);
+    if(!overwriteManual&&deskripsiManual(lama,otomatis)){
+      hasil.dilewati.push({studentId:student.id,name:student.name,alasan:'deskripsi manual dipertahankan'});
+      continue;
+    }
+    hasil.rows.push({studentId:student.id,name:student.name,subjectId:subject.id,
+      butirIds:[...idButir],jenis:pilihanJenis,predicate,description:otomatis});
+  }
+  return hasil;
+}
+
+/* MENYIMPAN apa yang sedang ditampilkan. Baris dikirim apa adanya oleh halaman, termasuk
+   deskripsi yang sudah disunting guru, dan setiap baris membawa mapelnya sendiri.
+   Kegagalan satu murid tidak menggagalkan seluruh batch; tiap kegagalan dicatat sendiri. */
+export function saveAllIntracurricular(session,{subjectId,rows=[]}={}){
+  assertTeacherScope(session);
+  const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
+  if(!subject)throw new Error('Pilih mata pelajaran intrakurikuler yang aktif pada rombel ini.');
+  const daftar=Array.isArray(rows)?rows:[];
+  if(!daftar.length)throw new Error('Belum ada hasil yang dapat disimpan. Tekan Isi Otomatis Semua Siswa terlebih dahulu.');
+  const hasil={subjectId:subject.id,subjectName:subject.name,total:daftar.length,tersimpan:0,gagal:[]};
+  for(const row of daftar){
     try{
-      const lama=getStudentIntracurricularSelection(session,student.id,subject.id);
-      /* Deskripsi yang diketik sendiri oleh guru tidak boleh hilang hanya karena tombol batch
-         ditekan. Catatan baru menandainya dengan status EDITED; catatan LAMA belum punya
-         penanda itu, sehingga dikenali dengan membandingkan isinya terhadap kalimat yang akan
-         disusun aplikasi - berbeda berarti tulisan tangan guru. */
-      const manual=Boolean(lama&&(lama.status==='EDITED'
-        ||(!lama.status&&String(lama.description||'').trim()&&String(lama.description||'').trim()!==otomatis)));
-      if(!overwriteManual&&manual){
-        hasil.dilewati.push({studentId:student.id,name:student.name,alasan:'deskripsi manual dipertahankan'});
-        continue;
-      }
-      saveStudentIntracurricularSelection(session,student.id,{subjectId:subject.id,
-        butirIds:idButir,jenis:pilihanJenis,predicate});
-      hasil.terisi+=1;
+      /* Mapel baris selalu dipaksa ke mapel yang sedang diproses, sehingga tidak ada baris
+         yang bisa nyasar menimpa catatan mata pelajaran lain. */
+      saveStudentIntracurricularSelection(session,row.studentId,{subjectId:subject.id,
+        butirIds:row.butirIds,jenis:row.jenis,predicate:row.predicate,description:row.description});
+      hasil.tersimpan+=1;
     }catch(error){
-      hasil.gagal.push({studentId:student.id,name:student.name,alasan:error.message});
+      hasil.gagal.push({studentId:row.studentId,name:row.name,alasan:error.message});
     }
   }
+  return hasil;
+}
+
+/* Bentuk gabungan: susun lalu langsung simpan. Dipakai pemanggil lama dan Simpan Otomatis
+   Semua Mapel yang memang tidak menampilkan pratinjau. */
+export function fillAllIntracurricular(session,{subjectId,butirIds=[],
+  jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate='Baik',overwriteManual=false}={}){
+  const pratinjau=previewAllIntracurricular(session,{subjectId,butirIds,jenis,predicate,overwriteManual});
+  const hasil={subjectId:pratinjau.subjectId,subjectName:pratinjau.subjectName,phase:pratinjau.phase,
+    predicate:pratinjau.predicate,jenis:pratinjau.jenis,butirIds:pratinjau.butirIds,
+    semesterNumber:pratinjau.semesterNumber,total:pratinjau.total,terisi:0,
+    dilewati:pratinjau.dilewati,gagal:[]};
+  if(!pratinjau.rows.length)return hasil;
+  const disimpan=saveAllIntracurricular(session,{subjectId:pratinjau.subjectId,rows:pratinjau.rows});
+  hasil.terisi=disimpan.tersimpan;
+  hasil.gagal=disimpan.gagal;
   return hasil;
 }

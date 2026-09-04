@@ -88,12 +88,20 @@ function singleActivityRows(item){
   return item?.activity?[{name:item.activity,predicate:item.predicate,description:item.description}]:[];
 }
 
+/* Intrakurikuler dinilai PER MATA PELAJARAN, jadi rapor mencetak satu baris per mapel yang
+   memang dinilai guru - bukan satu catatan yang dipilih mewakili semuanya. Bentuk lama (satu
+   objek) tetap dikenali supaya catatan kegiatan bebas dari versi sebelumnya masih tercetak. */
+function activityRowsOf(value){
+  if(Array.isArray(value))return value.flatMap(item=>singleActivityRows(item));
+  return singleActivityRows(value);
+}
+
 export function cocurricularTable(doc){
   return activityTable('Kokurikuler',singleActivityRows(doc?.cocurricular),{studentName:doc?.student?.name});
 }
 
 export function intracurricularTable(doc){
-  return activityTable('Intrakurikuler',singleActivityRows(doc?.intracurricular),{studentName:doc?.student?.name});
+  return activityTable('Intrakurikuler',activityRowsOf(doc?.intracurricular),{studentName:doc?.student?.name});
 }
 
 const PRINT_MODES=Object.freeze({

@@ -142,11 +142,13 @@ test('Deskripsi rapor tetap memakai Nilai Akhir existing untuk menentukan tingka
   const tinggi=generateReportDescription(guru,'mtk',siswa.id,{});
   assert.equal(tinggi.finalScore,calculateReportScore(guru,'mtk',siswa.id).finalScore,
     'tingkat capaian dibaca dari Nilai Akhir yang sudah ada');
-  assert.match(tinggi.text,/pemahaman baik|pemahaman sangat baik/);
+  /* Bentuk kalimat rapor diubah atas permintaan resmi: empat kategori dinyatakan relatif
+     terhadap KKTP mata pelajaran, dengan kalimat baku "Mencapai kompetensi dengan ...". */
+  assert.match(tinggi.text,/^Mencapai kompetensi dengan (sangat )?baik dalam hal /);
   isiLimaKomponen(guru,'mtk',siswa.id,{formative:50,daily:55,practice:60,scopeSummative:50,semesterSummative:45});
   const rendah=generateReportDescription(guru,'mtk',siswa.id,{});
   assert.ok(rendah.finalScore<75);
-  assert.match(rendah.text,/memerlukan bimbingan/,'nilai di bawah KKTP dinyatakan apa adanya');
+  assert.match(rendah.text,/^Perlu meningkatkan kompetensi dalam hal /,'nilai jauh di bawah KKTP dinyatakan apa adanya');
 });
 
 test('Deskripsi rapor dapat disimpan dan berstatus AUTO bila tidak diedit',()=>{

@@ -37,7 +37,8 @@ test('Stored attendance and descriptions are included in the report document',()
   useMemoryStorage();saveSubjectMapping(teacher,mapping());const student=addStudent(1);completeStudent(student,1);const document=getReportDocument(teacher,student.id);assert.equal(document.attendance.Sakit,1);assert.equal(document.attendance.Izin,0);/* Deskripsi rapor kini bersumber Butir CP mata pelajaran, bukan TP: yang diperiksa adalah
      kolomnya benar-benar terisi kalimat capaian, dan tidak mengulang nama mata pelajaran. */
   for(const baris of document.subjects.slice(0,2)){
-    assert.match(baris.description,/^Menunjukkan /,'deskripsi rapor memakai bingkai capaian');
+    assert.match(baris.description,/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /,
+      'deskripsi rapor memakai bingkai capaian');
     assert.equal(/mata pelajaran/i.test(baris.description),false,'nama mapel tidak diulang');
   }assert.equal(document.finalStatusLabel,'Naik ke Kelas 6B','status kenaikan tersedia tanpa menunggu semester Genap');
 });

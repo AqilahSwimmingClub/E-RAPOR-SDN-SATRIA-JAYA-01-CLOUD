@@ -92,6 +92,33 @@ test('4. Penyusun markup rapor identik dengan baseline d093b99',()=>{
     assert.equal(extractFunctionSource(sumber,nama),teks,`fungsi ${nama} berubah dari baseline`);
 });
 
+/* PERUBAHAN BASELINE KEDUA YANG DISENGAJA DAN DIMINTA.
+
+   `intracurricularTable` dulu memanggil `singleActivityRows`, sehingga rapor mencetak SATU
+   catatan Intrakurikuler saja untuk seluruh mata pelajaran. Dokumen memilih catatan itu tanpa
+   menyebut mapel, dan yang terpilih bisa saja mapel yang salah - guru menyimpan IPAS tetapi
+   rapor mencetak Pendidikan Pancasila beserta predikat dan deskripsinya.
+
+   Karena Intrakurikuler dinilai per mata pelajaran, tabelnya sekarang menerima daftar dan
+   mencetak satu baris per mapel. Bentuk tabel, kolom, dan gayanya tidak berubah sama sekali;
+   yang berubah hanya jumlah baris isinya, mengikuti berapa mapel yang benar-benar dinilai. */
+test('4c. Tabel Intrakurikuler mencetak satu baris per mata pelajaran',()=>{
+  const doc={student:{name:'Siswa 1'},intracurricular:[
+    {activity:'IPAS',predicate:'Sangat Baik',description:'Deskripsi IPAS.'},
+    {activity:'Pendidikan Pancasila',predicate:'Baik',description:'Deskripsi Pancasila.'},
+  ]};
+  const html=intracurricularTable(doc);
+  assert.equal((html.match(/<td class="activity-no">/g)||[]).length,2,'dua mapel, dua baris');
+  assert.match(html,/IPAS<\/span><span class="activity-predicate">SANGAT BAIK[\s\S]*deskripsi IPAS\./);
+  assert.match(html,/Pendidikan Pancasila<\/span><span class="activity-predicate">BAIK[\s\S]*deskripsi Pancasila\./);
+  /* Bentuk lama (satu objek) tetap tercetak apa adanya. */
+  assert.equal((intracurricularTable({student:{name:'Siswa 1'},
+    intracurricular:{activity:'Matematika',predicate:'Baik',description:'Deskripsi.'}})
+    .match(/<td class="activity-no">/g)||[]).length,1);
+  /* Tanpa catatan sama sekali, tidak ada tabel - bukan tabel kosong. */
+  assert.equal(intracurricularTable({student:{name:'Siswa 1'},intracurricular:[]}),'');
+});
+
 /* SATU PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA.
 
    Baseline `reportA4` digeser satu kali untuk memperbaiki blok tanda tangan: dulu hanya kolom
@@ -188,7 +215,7 @@ test('6. Nol sampai tiga bagian kegiatan tidak menambah baris atau judul kosong'
     const sebagian={...doc,student:{name:'Siswa 1'}};
     if(jumlah>=1)sebagian.extracurricular=isi.extracurricular;
     if(jumlah>=2)sebagian.cocurricular=isi.cocurricular;
-    if(jumlah>=3)sebagian.intracurricular=isi.intracurricular;
+    if(jumlah>=3)sebagian.intracurricular=[isi.intracurricular];
     const gabungan=[extracurricularTable(sebagian),cocurricularTable(sebagian),intracurricularTable(sebagian)];
     assert.equal(gabungan.filter(Boolean).length,jumlah,`${jumlah} bagian menghasilkan ${jumlah} tabel`);
   }

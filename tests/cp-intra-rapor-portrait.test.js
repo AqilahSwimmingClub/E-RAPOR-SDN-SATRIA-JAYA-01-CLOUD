@@ -417,14 +417,15 @@ test('37-40. Empat generator terpisah, masing-masing memakai sumber datanya send
   /* 38. Rapor bukan salinan Intrakurikuler. */
   const rapor=generateReportDescription(session,'ipas',murid[0].id,{});
   assert.notEqual(rapor.text,intra.description,'38. Rapor tidak menyalin Intrakurikuler');
-  assert.match(rapor.text,/^Menunjukkan /,'Rapor memakai bingkai capaian semester');
+  assert.match(rapor.text,/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /,
+    'Rapor memakai bingkai capaian semester');
 
   /* 39. Kokurikuler dari data kokurikuler. */
   const koku=generateCocurricularDescription({studentName:'Alya',activity:'Bakti Sosial',
     predicate:'Sangat Baik',classId:'5B'});
   assert.match(koku,/kokurikuler/i,'39. kalimat kokurikuler menyebut kegiatannya sendiri');
   assert.match(koku,/Bakti Sosial/);
-  assert.equal(/mata pelajaran|Menunjukkan pemahaman/.test(koku),false,
+  assert.equal(/mata pelajaran|Mencapai kompetensi dengan/.test(koku),false,
     'Kokurikuler tidak berbunyi seperti deskripsi mata pelajaran');
 
   /* 40. Ekstrakurikuler dari data ekstrakurikuler. */
@@ -433,7 +434,7 @@ test('37-40. Empat generator terpisah, masing-masing memakai sumber datanya send
     predicate:'Baik',classId:'5B'});
   assert.match(ekstra,/ekstrakurikuler/i,'40. kalimat ekstrakurikuler menyebut kegiatannya sendiri');
   assert.match(ekstra,new RegExp(kegiatan.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
-  assert.equal(/mata pelajaran|Menunjukkan pemahaman/.test(ekstra),false,
+  assert.equal(/mata pelajaran|Mencapai kompetensi dengan/.test(ekstra),false,
     'Ekstrakurikuler tidak berbunyi seperti deskripsi mata pelajaran');
 
   /* Keempatnya benar-benar empat kalimat yang berbeda bentuknya. */

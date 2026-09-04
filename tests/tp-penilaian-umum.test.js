@@ -240,9 +240,11 @@ test('8. Tingkat capaian memakai Nilai Akhir dan KKTP existing',()=>{
   };
   /* Nilai Akhir tetap yang menentukan tingkat capaian; kalimatnya kini bernada akademik
      karena bersumber CP, bukan TP. */
-  assert.match(deskripsi(95),/pemahaman sangat baik tentang/);
-  assert.match(deskripsi(80),/pemahaman baik tentang/);
-  assert.match(deskripsi(60),/masih memerlukan bimbingan dan penguatan/);
+  /* Bentuk kalimatnya diubah atas permintaan resmi. Dengan KKTP 75: 95 >= 90 SANGAT BAIK,
+     80 berada pada 75-89 BAIK, dan 60 di bawah 65 PERLU BIMBINGAN. */
+  assert.match(deskripsi(95),/^Mencapai kompetensi dengan sangat baik dalam hal /);
+  assert.match(deskripsi(80),/^Mencapai kompetensi dengan baik dalam hal /);
+  assert.match(deskripsi(60),/^Perlu meningkatkan kompetensi dalam hal /);
   assert.equal(new Set([deskripsi(95),deskripsi(80),deskripsi(60)]).size,3,
     'tiga tingkat nilai menghasilkan tiga kalimat berbeda');
 });

@@ -1,5 +1,5 @@
 import { semesterAttendanceRecap } from './attendance.js';
-import { getGraduationStatus, getHomeroomNote, getPromotionStatus, getStudentCocurricular, getStudentIntracurricular, listExtracurriculars } from './completeness.js';
+import { getGraduationStatus, getHomeroomNote, getPromotionStatus, getStudentCocurricular, listExtracurriculars, listStudentIntracurricular } from './completeness.js';
 import { listStudentAttitudes } from './attitudes.js';
 import { getPrintSettings } from './print-settings.js';
 import { getStoredReportRows } from './report.js';
@@ -97,13 +97,29 @@ export function getReportCompleteness(session){
   return {students:rows,studentCount:rows.length,completeStudents:rows.filter(row=>row.status==='COMPLETE').length,incompleteStudents:rows.filter(row=>row.status==='INCOMPLETE').length,overallPercentage:totalItems?Math.round(completedItems/totalItems*100):0,status:rows.length&&rows.every(row=>row.status==='COMPLETE')?'COMPLETE':'INCOMPLETE'};
 }
 
+/* INTRAKURIKULER RAPOR: satu baris per mata pelajaran yang benar-benar dinilai guru.
+
+   Dokumen tidak pernah memilih salah satu catatan mewakili yang lain. Setiap catatan dicetak
+   dengan nama mata pelajarannya sendiri, urut mengikuti urutan mapel murid itu, dan catatan
+   milik mapel yang tidak diampu murid ini tidak ikut. Karena setiap baris membawa mapelnya
+   sendiri, tidak ada jalur yang dapat menukar deskripsi IPAS menjadi Pendidikan Pancasila. */
+function studentIntracurricularRows(session,studentId,subjectIds){
+  const urutan=[...subjectIds];
+  const posisi=id=>{const index=urutan.indexOf(id);return index<0?urutan.length:index;};
+  return listStudentIntracurricular(session,studentId)
+    .filter(record=>!record.subjectId||subjectIds.has(record.subjectId))
+    .sort((a,b)=>posisi(a.subjectId||'')-posisi(b.subjectId||'')
+      ||String(a.activity||'').localeCompare(String(b.activity||''),'id'))
+    .map(record=>clone(record));
+}
+
 export function getReportDocument(session,studentId){
   assertTeacher(session);
   const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);
   if(!student)throw new Error('Siswa tidak ditemukan pada scope rombel aktif.');
   const summary=studentCompleteness(session,student,{reportRows:getStoredReportRows(session),attendance:semesterAttendanceRecap(session,{classId:session.classId})});
   const studentSubjectIds=new Set(listSubjectsForStudent(session,summary.student).map(item=>item.id));
-  const reportRows=getStoredReportRows(session).filter(row=>row.student.id===studentId&&studentSubjectIds.has(row.subject.id));const attendance=semesterAttendanceRecap(session,{classId:session.classId}).students.find(item=>item.id===studentId)||{Hadir:0,Sakit:0,Izin:0,Alpa:0};const extracurricular=listExtracurriculars(session,studentId);const cocurricular=getStudentCocurricular(session,studentId);const intracurricular=getStudentIntracurricular(session,studentId);const attitudes=listStudentAttitudes(session,studentId).filter(item=>item.status!=='EMPTY');const homeroomNote=getHomeroomNote(session,studentId);const status=finalStatus(session,studentId);
+  const reportRows=getStoredReportRows(session).filter(row=>row.student.id===studentId&&studentSubjectIds.has(row.subject.id));const attendance=semesterAttendanceRecap(session,{classId:session.classId}).students.find(item=>item.id===studentId)||{Hadir:0,Sakit:0,Izin:0,Alpa:0};const extracurricular=listExtracurriculars(session,studentId);const cocurricular=getStudentCocurricular(session,studentId);const intracurricular=studentIntracurricularRows(session,studentId,studentSubjectIds);const attitudes=listStudentAttitudes(session,studentId).filter(item=>item.status!=='EMPTY');const homeroomNote=getHomeroomNote(session,studentId);const status=finalStatus(session,studentId);
   /* Tanpa keterangan "tidak diperlukan". Bila guru belum menentukan, bagian ini tidak dicetak. */
   const statusLabel=gradeOf(session.classId)===6
     ?(status?.status==='GRADUATED'?'Lulus':status?.status==='NOT_GRADUATED'?'Tidak Lulus':'')

@@ -1,3 +1,4 @@
+import { categoryForScore, REPORT_CATEGORIES } from './report-rubric.js';
 import { capaianPembelajaranFor } from './learning-objectives.js';
 
 /* SATU CP, DUA KONTEKS DESKRIPSI YANG WAJIB BERBEDA.
@@ -45,8 +46,6 @@ function rangkai(daftar){
    huruf pertamanya agar "mengalir" di tengah kalimat justru merusak nama yang berkapital di
    tengah - "Analisis Data dan Peluang" menjadi "analisis Data dan Peluang". */
 function namaElemen(teks){return String(teks||'').trim();}
-
-const KKTP_BAWAAN=75;
 
 /* Acuan CP satu mata pelajaran untuk rombel pada sesi berjalan. Mengembalikan null bila mata
    pelajaran itu memang belum berlaku pada fase tersebut, atau elemennya belum diketahui. */
@@ -169,11 +168,49 @@ export function composeIntracurricularCpDescription({cp=null,jenis='teori',predi
      - kalimatnya lebih ringkas: rapor merangkum, tidak merinci.
 
    Kompetensi yang disebut adalah BUTIR CP AKTIF mata pelajaran itu, diringkas seperlunya. */
-function tingkatAkademik(finalScore,kktp){
-  if(finalScore===null||finalScore===undefined)return null;
-  if(finalScore>=90)return 'sangat baik';
-  if(finalScore>=Number(kktp||KKTP_BAWAAN))return 'baik';
-  return 'perlu bimbingan';
+/* KATEGORI CAPAIAN RAPOR DITETAPKAN OLEH RUBRIK MATA PELAJARAN, BUKAN OLEH RUMUS.
+
+   Tidak ada satu pun ambang yang ditulis di sini. Kategori satu Nilai Akhir dibaca dari rentang
+   yang ditetapkan guru pada Pengaturan Bobot Penilaian mata pelajaran itu, dan modul ini hanya
+   menerjemahkan kategori menjadi kalimat.
+
+   Yang dibuang dengan sengaja: aturan turunan KKTP - "KKTP + 15" untuk Sangat Baik dan
+   "KKTP - 10" untuk Cukup. Selisih itu buatan aplikasi, tidak berdasar aturan mana pun, dan
+   tidak dapat diubah guru. KKTP sendiri tidak disentuh: ia tetap menentukan status ketuntasan.
+
+   Nilai Akhir tidak diubah, tidak dihitung ulang, dan tidak dibulatkan lagi di sini. Ia hanya
+   dicari letaknya pada rentang rubrik. */
+export { REPORT_CATEGORIES as KATEGORI_RAPOR };
+
+export function kategoriRapor(finalScore,rubric){
+  return categoryForScore(finalScore,rubric);
+}
+
+/* Kalimat rapor yang berlaku, satu bentuk baku per kategori.
+
+   RINGKAS DAN SATU KALIMAT. Rapor merangkum satu semester, dan orang tua membacanya sekali:
+   "Mencapai kompetensi dengan sangat baik dalam hal menganalisis pelaksanaan kewajiban, hak,
+   dan tanggung jawab sebagai warga negara."
+
+   Kalimat ini SENGAJA berbeda dari kalimat Intrakurikuler. Keduanya boleh membaca Butir CP
+   yang sama, tetapi yang satu berbicara tentang capaian satu semester menurut Nilai Akhir, dan
+   yang lain tentang satu penilaian menurut predikat kegiatan. Menyamakannya membuat dua kolom
+   rapor yang berbeda berbunyi persis sama. */
+const KALIMAT_RAPOR=Object.freeze({
+  'SANGAT BAIK':fokus=>`Mencapai kompetensi dengan sangat baik dalam hal ${fokus}.`,
+  'BAIK':fokus=>`Mencapai kompetensi dengan baik dalam hal ${fokus}.`,
+  'CUKUP':fokus=>`Cukup mencapai kompetensi dalam hal ${fokus}.`,
+  'PERLU BIMBINGAN':fokus=>`Perlu meningkatkan kompetensi dalam hal ${fokus}.`,
+});
+
+export function kalimatRapor(kategori,fokus){
+  const isi=String(fokus||'').trim();
+  if(!isi)return null;
+  const susun=KALIMAT_RAPOR[kategori];
+  /* Belum ada Nilai Akhir: kategorinya memang belum ada. Yang dilaporkan adalah kompetensi
+     yang ditempuh, bukan tingkat capaian yang dikarang. */
+  if(!susun)return `Menempuh pembelajaran pada kompetensi ${isi}.`;
+  return susun(isi);
 }
 
 /* Berapa kompetensi yang wajar disebut satu kalimat rapor. Rapor MERANGKUM satu semester,
@@ -181,7 +218,10 @@ function tingkatAkademik(finalScore,kktp){
    dua kompetensi dalam satu kalimat berhenti dapat dibaca orang tua. */
 const MAKS_KOMPETENSI_RAPOR=2;
 
-export function composeReportButirDescription({butir=[],finalScore=null,kktp=KKTP_BAWAAN}={}){
+/* Kompetensi rapor berasal dari BUTIR CP MATA PELAJARAN ITU SENDIRI - butir yang dikirim
+   pemanggil setelah disaring menurut mapel dan semester berjalan. Yang tidak pernah masuk ke
+   dalam kalimat: nama mata pelajaran, fase, kode CP, naskah CP resmi, dan Tujuan Pembelajaran. */
+export function composeReportButirDescription({butir=[],finalScore=null,rubric=null}={}){
   const daftar=(Array.isArray(butir)?butir:[]).filter(Boolean);
   if(!daftar.length)return null;
   /* Rapor memakai rumusan PENGETAHUAN sebagai bahasa dasarnya - inilah bahasa capaian
@@ -189,24 +229,14 @@ export function composeReportButirDescription({butir=[],finalScore=null,kktp=KKT
   const isi=daftar.slice(0,MAKS_KOMPETENSI_RAPOR)
     .map(item=>substansiButir(item,'teori')).filter(Boolean);
   if(!isi.length)return null;
-  const fokus=rangkai(isi);
-  const tingkat=tingkatAkademik(finalScore,kktp);
-  if(tingkat===null)return `Menempuh pembelajaran pada kompetensi ${fokus}.`;
-  if(tingkat==='perlu bimbingan')
-    return `Menunjukkan penguasaan ${fokus} yang masih memerlukan bimbingan dan penguatan agar mencapai ketuntasan.`;
-  return `Menunjukkan pemahaman ${tingkat} tentang ${fokus}.`;
+  return kalimatRapor(kategoriRapor(finalScore,rubric),rangkai(isi));
 }
 
 /* Bentuk cadangan tanpa Butir CP, memakai nama elemen CP. Dipertahankan supaya mata pelajaran
    yang butirnya belum tersedia tidak kehilangan deskripsi rapornya. */
-export function composeReportCpDescription({cp=null,finalScore=null,kktp=KKTP_BAWAAN}={}){
+export function composeReportCpDescription({cp=null,finalScore=null,rubric=null}={}){
   if(!cp||!cp.elements?.length)return null;
-  const fokus=rangkai(cp.elements.map(namaElemen));
-  const tingkat=tingkatAkademik(finalScore,kktp);
-  if(tingkat===null)return `Menempuh pembelajaran pada lingkup kompetensi ${fokus}.`;
-  if(tingkat==='perlu bimbingan')
-    return `Menunjukkan penguasaan kompetensi ${fokus} yang masih memerlukan bimbingan dan penguatan agar mencapai ketuntasan.`;
-  return `Menunjukkan penguasaan ${tingkat} pada kompetensi ${fokus}.`;
+  return kalimatRapor(kategoriRapor(finalScore,rubric),rangkai(cp.elements.map(namaElemen)));
 }
 
 /* --------------------------------------------------------------------- PENJAGA KEBOCORAN */
