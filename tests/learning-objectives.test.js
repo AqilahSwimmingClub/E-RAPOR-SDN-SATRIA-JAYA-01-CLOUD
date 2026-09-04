@@ -82,7 +82,10 @@ test('Sumber rujukan menyebut keputusan resmi terbaru untuk mapel umum dan agama
   /* Agama memakai keputusan resmi 2025 yang sama, dengan entri sumbernya sendiri. */
   assert.match(TP_SOURCES.cp_pabp.decision,/046\/H\/KR\/2025/);
   assert.equal(TP_SOURCES.cp_pabp.year,2025);
-  assert.match(TP_SOURCES.cp_koding_ka.decision,/Koding dan Kecerdasan Artifisial/);
+  /* Koding & KA memakai keputusan 046/2025; nama mapelnya ada pada judul dan babnya. */
+  assert.match(TP_SOURCES.cp_koding_ka.decision,/046\/H\/KR\/2025/);
+  assert.match(TP_SOURCES.cp_koding_ka.title,/Koding dan Kecerdasan Artifisial/);
+  assert.match(TP_SOURCES.cp_koding_ka.section,/XXVIII/);
   /* Muatan lokal bersumber pada keputusan daerah, dan itu harus terbaca dari metadatanya. */
   assert.equal(TP_SOURCES.cp_mulok_jabar.scope,'muatan_lokal');
   assert.equal(TP_SOURCES.cp_mulok_jabar.authority,'Dinas Pendidikan Provinsi Jawa Barat');

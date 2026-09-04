@@ -125,12 +125,21 @@ test('5. IPAS dan Bahasa Inggris tidak menawarkan TP baru pada Fase A',()=>{
 
 test('6. Koding & KA memakai sumber resminya sendiri dan Fase C tetap operasional',()=>{
   const sumber=cpRegulationFor('koding');
+  /* CP Koding & KA ditetapkan pada Bab XXVIII keputusan yang sama dengan mapel nasional lain.
+     Panduan Mata Pelajaran adalah dokumen penerapan, bukan penetap CP, sehingga tidak boleh
+     dikutip sebagai sumber CP-nya. */
   assert.equal(sumber.id,'cp_koding_ka');
-  assert.notEqual(sumber.id,'cp_umum');
-  assert.match(sumber.decision,/Koding dan Kecerdasan Artifisial/);
+  assert.match(sumber.decision,/BSKAP Nomor 046\/H\/KR\/2025/);
+  assert.match(sumber.section,/XXVIII/);
+  assert.match(sumber.title,/Koding dan Kecerdasan Artifisial/);
   assert.equal(sumber.year,2025);
   assert.equal(sumber.verified,true);
-  assert.match(sumber.authority,/Pusat Kurikulum dan Pembelajaran/);
+  assert.match(sumber.authority,/Badan Standar, Kurikulum, dan Asesmen Pendidikan/);
+  assert.equal(/Panduan Mata Pelajaran/.test(String(sumber.decision)),false,
+    'panduan penerapan tidak dikutip sebagai penetap CP');
+  /* Entrinya tetap terpisah dari cp_umum karena hanya mapel ini yang mulai pada Fase C. */
+  assert.notEqual(sumber.id,'cp_umum');
+  assert.match(sumber.note,/Fase C/);
   assert.deepEqual(cpPhasesFor('koding'),['C']);
   for(const kelas of ['5A','5B','5C','5D','6A','6B','6C','6D']){
     assert.equal(capaianPembelajaran(kelas,'koding').available,true);
@@ -140,6 +149,9 @@ test('6. Koding & KA memakai sumber resminya sendiri dan Fase C tetap operasiona
 
 test('7. Elemen Koding & KA Fase C tersimpan dan TP-nya berelasi dengan elemen',()=>{
   const elemen=cpElements('koding','C');
+  /* Lima elemen resmi Bab XXVIII, tidak kurang dan tidak ditambah karangan. */
+  assert.deepEqual(elemen.map(item=>item.name),['Berpikir Komputasional','Literasi Digital',
+    'Algoritma Pemrograman','Analisis Data','Literasi dan Etika Kecerdasan Artifisial']);
   assert.ok(elemen.length>=4);
   for(const item of elemen){
     assert.ok(item.id.startsWith('koding:'));

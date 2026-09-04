@@ -54,19 +54,24 @@ export const TP_SOURCES=Object.freeze({
     year:2026,
     url:'https://guru.kemendikdasmen.go.id/kurikulum/referensi-penerapan/capaian-pembelajaran/',
   }),
-  /* Koding dan Kecerdasan Artifisial tidak ditetapkan lewat keputusan CP umum, melainkan lewat
-     panduan mata pelajarannya sendiri. Karena itu ia diberi sumber terpisah: memaksakan
-     046/H/KR/2025 kepadanya akan menyebut regulasi yang bukan sumbernya. */
+  /* Koding dan Kecerdasan Artifisial ditetapkan pada keputusan CP yang sama dengan mata
+     pelajaran nasional lainnya, yaitu Bab XXVIII Keputusan Kepala BSKAP Nomor 046/H/KR/2025.
+     Sebelumnya berkas ini mengutip Panduan Mata Pelajaran sebagai sumber CP-nya; panduan itu
+     dokumen penerapan, bukan penetap CP, sehingga kutipannya dikoreksi ke keputusannya.
+
+     Entrinya tetap terpisah dari cp_umum - seperti cp_pabp - karena catatannya berbeda: hanya
+     mata pelajaran ini yang pada jenjang SD baru berlaku mulai Fase C. */
   cp_koding_ka:Object.freeze({
     id:'cp_koding_ka',
-    title:'Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial',
-    decision:'Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial (Pusat Kurikulum dan Pembelajaran, 2025)',
-    authority:'Pusat Kurikulum dan Pembelajaran, Kementerian Pendidikan Dasar dan Menengah',
+    title:'Capaian Pembelajaran Koding dan Kecerdasan Artifisial',
+    decision:'Keputusan Kepala BSKAP Nomor 046/H/KR/2025',
+    section:'XXVIII. Capaian Pembelajaran Koding dan Kecerdasan Artifisial',
+    authority:'Badan Standar, Kurikulum, dan Asesmen Pendidikan, Kementerian Pendidikan Dasar dan Menengah',
     scope:'nasional',
     verified:true,
-    note:'Pada jenjang SD, Koding dan Kecerdasan Artifisial dimulai pada Fase C (kelas 5-6). Fase A dan Fase B tidak memiliki CP mata pelajaran ini.',
+    note:'Bab XXVIII pada Keputusan Kepala BSKAP Nomor 046/H/KR/2025. Pada jenjang SD, Koding dan Kecerdasan Artifisial dimulai pada Fase C (kelas 5-6); Fase A dan Fase B tidak memiliki CP mata pelajaran ini.',
     year:2025,
-    url:'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/33.%20Final%20Panduan%20Mata%20Pelajaran%20Panduan%20Mata%20Pelajaran%20Koding%20dan%20Kecerdasan%20Artifisial_12_Sep_2025_revisi%203.pdf',
+    url:'https://kurikulum.kemdikbud.go.id/rujukan/regulasi-kurikulum-merdeka',
   }),
   /* Bahasa Sunda adalah MUATAN LOKAL Jawa Barat, bukan mata pelajaran nasional: kewenangan
      penetapan CP-nya ada pada Dinas Pendidikan Provinsi Jawa Barat, bukan Kemendikdasmen.
