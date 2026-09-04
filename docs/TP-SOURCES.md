@@ -47,10 +47,11 @@ Catatan atas tabel di atas:
 - **Koding dan Kecerdasan Artifisial** ditetapkan pada **Bab XXVIII** Keputusan Kepala BSKAP
   Nomor 046/H/KR/2025 — keputusan yang sama dengan mata pelajaran nasional lainnya. Panduan Mata
   Pelajaran Koding dan Kecerdasan Artifisial adalah dokumen *penerapan*, bukan penetap CP,
-  sehingga tidak dikutip sebagai sumber CP. Lima elemen resminya: Berpikir Komputasional,
-  Literasi Digital, Algoritma Pemrograman, Analisis Data, serta Literasi dan Etika Kecerdasan
-  Artifisial. Pada jenjang SD mata pelajaran ini dimulai pada **Fase C** (kelas 5-6); Fase A dan
-  Fase B sengaja tidak berkatalog karena CP-nya memang belum ada pada fase tersebut.
+  sehingga tidak dikutip sebagai sumber CP. Pada **Fase C SD** dokumen tersebut memuat empat
+  bagian capaian: **Berpikir Komputasional, Literasi Digital, Literasi dan Etika Kecerdasan
+  Artifisial, serta Pemanfaatan dan Pengembangan Kecerdasan Artifisial**. Pada jenjang SD mata
+  pelajaran ini dimulai pada **Fase C** (kelas 5-6); Fase A dan Fase B sengaja tidak berkatalog
+  karena CP-nya memang belum berlaku pada fase tersebut.
 - **Pendidikan Agama dan Budi Pekerti** memakai keputusan yang sama dengan mapel nasional
   lainnya, yaitu 046/H/KR/2025. Keputusan Kepala BKPDM Nomor 020 Tahun 2026 memang sudah terbit
   dan memperbarui CP Agama, tetapi pada tahap ini aplikasi sengaja memakai versi resmi 2025
@@ -62,15 +63,16 @@ Catatan atas tabel di atas:
   adalah Dinas Pendidikan Provinsi Jawa Barat lewat Keputusan Nomor 32817/Pk.05.02/Sekre/2022,
   yang dimuat pada Buku Saku Kurikulum Merdeka Bahasa Sunda. Naskah capaiannya diambil dari
   Lampiran II dokumen tersebut, khusus jenjang SD (Fase A, B, dan C).
-- **Mata pelajaran agama** tersedia untuk keenam agama pada Data Siswa. Empat di antaranya —
-  Katolik, Hindu, Buddha, dan Khonghucu — dibawa dalam keadaan **nonaktif** supaya Mapping
-  sekolah yang sudah berjalan tidak berubah sendiri; sekolah mengaktifkannya lewat Mapping Mata
-  Pelajaran ketika memang punya siswanya.
-- Kolom **naskah CP** pada seluruh baris masih `null`. Aplikasi menampilkan elemen CP dan
-  kutipan regulasinya, tidak pernah teks pengganti. Jalankan `cpNaskahReport()` pada
-  `src/data/curriculum-cp.js` untuk melihat daftar terkini beserta alasan tiap kekosongan.
-  Naskahnya diisi pada `src/data/curriculum-cp-naskah.js` — berkas data terpisah, sehingga
-  memuat naskah resmi tidak menyentuh satu baris logika pun.
+- **Agama pada biodata siswa** tetap menyediakan enam pilihan untuk kompatibilitas data. Namun
+  master mata pelajaran dan CP/TP aplikasi hanya menyediakan **PAI BP (`agama`) dan PAK BP
+  (`agama_kristen`)**. Katolik, Hindu, Buddha, dan Khonghucu tidak dibuat sebagai master mapel
+  CP/TP pada versi ini.
+- Dataset naskah CP resmi saat ini memuat **29 kombinasi mapel-fase**, termasuk Koding & KA Fase
+  C. Kombinasi yang memang belum berlaku (IPAS A, Bahasa Inggris A, Koding A/B) tetap kosong,
+  dan `seni` generik A-C tetap tidak diisi otomatis sebagai Seni Rupa. Jalankan
+  `cpNaskahReport()` pada `src/data/curriculum-cp.js` untuk melihat laporan terkini. Naskah
+  disimpan pada berkas data `src/data/curriculum-cp-naskah.js` dan modul-modul data yang
+  diimpornya, terpisah dari logika aplikasi.
 - Sumber yang belum terverifikasi ditandai `verified:false` dan wajib mempunyai `decision`,
   `year`, serta `url` bernilai `null`. Kontrak itu dijaga `tests/tp-source-integrity.test.js`.
 
