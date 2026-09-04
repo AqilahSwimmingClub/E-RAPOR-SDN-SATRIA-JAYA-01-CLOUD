@@ -142,10 +142,14 @@ test('10-12. Suspended dan revoked membatasi penyuntingan tanpa menghapus data',
     birthPlace:'Kota',birthDate:'2015-01-02',parentName:'Ortu',phone:'08',address:'Jl',photo:''});
   const sebelum=JSON.stringify(loadDb());
 
-  /* Ditangguhkan bersifat sementara, jadi aplikasi tetap terbuka terbatas. Dicabut dan tidak
-     terikat mengembalikan perangkat ke halaman Aktivasi — tetapi data akademik lokal tetap utuh,
-     karena status lisensi tidak pernah menjadi alasan menghapus data sekolah. */
-  for(const [status,bolehDibuka] of [['SUSPENDED',true],['REVOKED',false],['NOT_BOUND',false]]){
+  /* Ditangguhkan, dicabut, dan tidak terikat sama-sama mengembalikan perangkat ke halaman
+     Aktivasi Lisensi. Ketiganya adalah JAWABAN SERVER bahwa lisensi ini tidak boleh dipakai,
+     jadi ketiganya memutus akses tanpa masa tenggang - termasuk SUSPENDED, yang sebelumnya
+     masih membuka aplikasi dalam mode terbatas.
+
+     Yang TIDAK berubah: data akademik lokal tetap utuh. Status lisensi tidak pernah menjadi
+     alasan menghapus data sekolah, dan itulah yang diperiksa di bawah. */
+  for(const [status,bolehDibuka] of [['SUSPENDED',false],['REVOKED',false],['NOT_BOUND',false]]){
     globalThis.localStorage.setItem(LICENSE_STORAGE_KEY,JSON.stringify({schema:1,activation_token:'token',
       license_id:'lic',license_hint:'ERAPOR-••••-••••-AAAA',installation_id:getInstallationId(),status,
       issued_at:new Date().toISOString(),next_check_at:new Date(Date.now()+864e5).toISOString()}));
@@ -165,26 +169,40 @@ test('10-12. Suspended dan revoked membatasi penyuntingan tanpa menghapus data',
     assert.equal(read('src/services/license.js').includes(larangan),false,`layanan lisensi tidak pernah ${larangan}`);
 });
 
-test('Masa tenggang berjalan sebelum mode terbatas, dan tidak menghapus apa pun',async()=>{
+test('Masa tenggang offline berjalan penuh, lalu berhenti setelah 72 jam',async()=>{
   siapkanSekolah();
   const {modul}=await muatLisensi();
-  const dasar={schema:1,activation_token:'token',license_id:'lic',license_hint:'ERAPOR-••••-••••-AAAA',
-    installation_id:getInstallationId(),status:'ACTIVE',issued_at:new Date().toISOString()};
-  const pasang=next=>globalThis.localStorage.setItem(LICENSE_STORAGE_KEY,JSON.stringify({...dasar,next_check_at:next}));
-  const hari=86400000;
+  const jam=3600000;
+  /* Masa tenggang diukur dari VERIFIKASI SERVER TERAKHIR yang menyatakan lisensi ACTIVE, bukan
+     dari jadwal pemeriksaan berikutnya. Jadwal itu berjarak dua pekan, sehingga kalau ia yang
+     dipakai perangkat dapat berbulan-bulan offline tanpa pernah memeriksa lisensinya. */
+  const pasang=(jamLalu,nextCheck)=>{
+    const diverifikasi=new Date(Date.now()-jamLalu*jam).toISOString();
+    globalThis.localStorage.setItem(LICENSE_STORAGE_KEY,JSON.stringify({schema:1,
+      activation_token:'token',license_id:'lic',license_hint:'ERAPOR-••••-••••-AAAA',
+      installation_id:getInstallationId(),status:'ACTIVE',issued_at:diverifikasi,
+      last_verified_at:diverifikasi,next_check_at:nextCheck}));
+  };
 
-  pasang(new Date(Date.now()+5*hari).toISOString());
+  pasang(1,new Date(Date.now()+5*24*jam).toISOString());
   assert.equal(modul.getLicenseState().state,'ACTIVE');
-  pasang(new Date(Date.now()-3*hari).toISOString());
+
+  /* Lewat separuh masa tenggang: aplikasi tetap penuh, hanya diberi tahu. */
+  pasang(40,new Date(Date.now()+5*24*jam).toISOString());
   const tenggang=modul.getLicenseState();
   assert.equal(tenggang.state,'GRACE');
   assert.equal(tenggang.canEditData,true,'selama masa tenggang aplikasi tetap penuh');
   assert.match(tenggang.message,/Sambungkan internet/);
-  pasang(new Date(Date.now()-30*hari).toISOString());
+
+  /* Lewat 72 jam: akses diputus sampai lisensi berhasil diverifikasi lagi. Data tidak disentuh. */
+  const sebelum=JSON.stringify(loadDb());
+  pasang(80,new Date(Date.now()+5*24*jam).toISOString());
   const habis=modul.getLicenseState();
   assert.equal(habis.state,'GRACE_EXPIRED');
-  assert.equal(habis.canUseApp,true,'aplikasi tetap dapat dibuka untuk melihat dan membackup data');
+  assert.equal(habis.canUseApp,false,'lebih dari 72 jam tanpa verifikasi menutup akses');
   assert.equal(habis.canEditData,false);
+  assert.match(habis.message,/Lisensi perlu diverifikasi/);
+  assert.equal(JSON.stringify(loadDb()),sebelum,'tidak satu pun data berubah karenanya');
 });
 
 /* ---------------------------------------------- 13-15. Backup tidak memindahkan lisensi */

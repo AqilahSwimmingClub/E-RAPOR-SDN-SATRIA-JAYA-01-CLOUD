@@ -4,7 +4,7 @@ import { renderLogin } from './pages/login.js';
 import { renderOwnerActivation } from './pages/activation.js';
 import { renderSchoolSetup } from './pages/school-setup.js';
 import { renderLicenseActivation } from './pages/license-activation.js';
-import { checkLicense, getLicenseState } from './services/license.js';
+import { checkLicense, getLicenseState, noteClockObservation } from './services/license.js';
 import { getAdminReadiness, isTeacherUsageActive } from './services/admin-readiness.js';
 import { isSchoolIdentityReady } from './services/master.js';
 import { renderDashboard } from './pages/dashboard.js';
@@ -66,6 +66,9 @@ let expiryTimer=null;
    kapan sebuah status menjadi REVOKED atau SUSPENDED. Tidak ada data yang disentuh. */
 function segarkanLisensiDariServer(){
   if(startupError)return;
+  /* Waktu yang sedang dilihat aplikasi dicatat lebih dulu, sehingga jam yang dimundurkan tidak
+     memperpanjang masa tenggang offline. */
+  try{noteClockObservation();}catch{}
   Promise.resolve().then(()=>checkLicense({force:true})).then(()=>{
     const sebelum=licenseState.state;
     if(refreshLicenseState().state!==sebelum)navigate(getSession()?'dashboard':'login');
@@ -128,7 +131,9 @@ function mount(requestedRoute){
     &&!TEACHER_ALWAYS_OPEN_ROUTES.has(route)&&!isTeacherUsageActive(session);
   const content=terkunciLisensi?limitedNotice():terkunciAdmin?readinessNotice(session):pageFor(route,session);
   app.append(renderLayout({session,route,onNavigate:navigate,onLogout:()=>navigate('login'),content,
-    licenseNotice:licenseState.canEditData?null:licenseState.message}));
+    /* Masa tenggang offline yang sedang berjalan diberi tahu secara ringan lewat baris status
+       yang sama, tanpa menutup satu pun halaman: aplikasi masih berjalan penuh. */
+    licenseNotice:licenseState.canEditData&&licenseState.state!=='GRACE'?null:licenseState.message}));
 }
 /* Saat lisensi bermasalah, aplikasi TIDAK menghapus apa pun. Pengguna tetap dapat melihat
    datanya, mencetak, dan yang terpenting membuat backup, sehingga data sekolah tidak pernah

@@ -470,6 +470,11 @@ textarea.input{color:var(--light-ink)}
 .license-school code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;color:var(--cyan);word-break:break-all}
 .license-input{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;letter-spacing:.12em;text-align:center;text-transform:uppercase}
 .license-ok{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:12px;background:rgba(46,230,192,.14);border:1px solid rgba(46,230,192,.35);color:#8ff3e0}
+/* Blok pemeriksaan ulang lisensi: muncul hanya ketika masa tenggang offline habis, jadi
+   nadanya peringatan yang menenangkan - bukan galat merah seperti lisensi yang dicabut. */
+.license-verify{margin:0 0 14px;padding:13px 14px;border-radius:12px;background:rgba(255,193,79,.12);border:1px solid rgba(255,193,79,.34)}
+.license-verify p{margin:0 0 10px;font-size:12.5px;line-height:1.55;color:var(--dark-ink)}
+.license-verify .actions{margin:0}
 .license-banner{margin-bottom:14px;padding:11px 14px;border-radius:12px;font-size:12px;line-height:1.55;background:rgba(255,201,61,.14);border:1px solid rgba(255,201,61,.4);color:#7a5a05}
 @media(max-width:767px){.license-input{font-size:14px;letter-spacing:.08em}}
 /* Panel kesiapan penggunaan pada halaman Status Penilaian Admin. */

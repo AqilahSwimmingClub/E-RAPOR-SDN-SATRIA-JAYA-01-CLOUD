@@ -29,6 +29,28 @@ export const LICENSE_PUBLIC_JWK=null;
 export const LICENSE_CHECK_INTERVAL_DAYS=14;
 export const LICENSE_GRACE_PERIOD_DAYS=14;
 
+/* MASA TENGGANG OFFLINE.
+
+   Sekolah tidak boleh menuntut internet terus-menerus: guru harus tetap dapat mengisi rapor
+   ketika jaringan sekolah sedang mati. Tetapi aplikasi juga tidak boleh dapat dipakai offline
+   selamanya, karena pencabutan lisensi tidak akan pernah sampai ke perangkat.
+
+   Batasnya 72 jam sejak VERIFIKASI SERVER TERAKHIR YANG BERHASIL menyatakan lisensi ACTIVE.
+
+   BATAS TEPAT 72 JAM MASIH DIIZINKAN. Yang memblokir hanyalah selisih yang LEBIH DARI 72 jam,
+   sehingga perangkat yang jamnya meleset beberapa detik di ujung masa tenggang tidak terkunci
+   hanya karena pembulatan.
+
+   Nilai ini TIDAK menggantikan LICENSE_GRACE_PERIOD_DAYS di atas: yang di atas mengatur kapan
+   pemeriksaan berkala dianggap tertunda, sedangkan yang ini adalah batas keras penggunaan
+   offline. */
+export const LICENSE_OFFLINE_GRACE_HOURS=72;
+
+/* Toleransi jam perangkat. Koreksi waktu yang wajar - NTP, pindah zona waktu, jam yang meleset
+   beberapa menit - tidak boleh dianggap kecurangan. Yang dijaga hanyalah pemunduran tanggal
+   yang jelas disengaja untuk memperpanjang masa tenggang. */
+export const LICENSE_CLOCK_TOLERANCE_MINUTES=10;
+
 /* Kunci penyimpanan lisensi sengaja TERPISAH dari DB_KEY aplikasi. Karena backup hanya
    mengekspor isi DB_KEY, lisensi dan Installation ID otomatis tidak pernah ikut ke berkas
    backup dan tidak dapat berpindah perangkat lewat restore. */

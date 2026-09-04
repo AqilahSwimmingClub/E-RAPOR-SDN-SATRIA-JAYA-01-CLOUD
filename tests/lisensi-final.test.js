@@ -48,10 +48,14 @@ test('3. Lisensi dicabut dan perangkat tidak terikat dikembalikan ke Aktivasi',a
     assert.equal(keadaan.state,status);
     assert.equal(keadaan.canUseApp,false,`${status} wajib kembali ke halaman Aktivasi`);
   }
-  /* Ditangguhkan bersifat sementara: aplikasi tetap terbuka terbatas beserta keterangannya. */
+  /* Ditangguhkan ikut mengembalikan perangkat ke halaman Aktivasi. Sama seperti dicabut, ini
+     adalah JAWABAN SERVER bahwa lisensi tidak boleh dipakai, jadi ia mengalahkan masa tenggang
+     offline dan memutus login - bukan sekadar menutup penyuntingan. Data akademiknya tetap
+     utuh; yang diputus hanya hak aksesnya sampai Owner memulihkan lisensinya. */
   simpanan.set('erapor_license_v1',JSON.stringify({...dasar,status:'SUSPENDED'}));
   const ditangguhkan=getLicenseState();
-  assert.equal(ditangguhkan.canUseApp,true);
+  assert.equal(ditangguhkan.state,'SUSPENDED');
+  assert.equal(ditangguhkan.canUseApp,false);
   assert.equal(ditangguhkan.canEditData,false);
   assert.match(ditangguhkan.message,/ditangguhkan/i);
 });

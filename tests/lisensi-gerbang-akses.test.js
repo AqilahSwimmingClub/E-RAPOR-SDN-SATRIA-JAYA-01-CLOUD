@@ -288,12 +288,14 @@ test('18. Gerbang lisensi menolak setiap keadaan yang tidak boleh memakai aplika
     assert.throws(()=>assertLicenseAllowsLogin(),error=>{
       assert.equal(error.licenseState,status);return true;},`${status} ditolak`);
   }
-  /* SUSPENDED sengaja tetap membuka aplikasi dalam mode terbatas - sekolah masih boleh
-     melihat data dan membuat backup - sehingga ia tidak memutus login. */
+  /* SUSPENDED ikut memutus login. Penangguhan adalah jawaban server bahwa lisensi ini sedang
+     tidak boleh dipakai, dan jawaban server selalu mengalahkan masa tenggang offline. Tidak ada
+     satu pun data yang dihapus karenanya - lihat test masa tenggang offline. */
   aktifkanLisensiLokal({status:'SUSPENDED'});
-  assert.equal(getLicenseState().canUseApp,true);
+  assert.equal(getLicenseState().canUseApp,false);
   assert.equal(getLicenseState().canEditData,false);
-  assert.doesNotThrow(()=>assertLicenseAllowsLogin());
+  assert.throws(()=>assertLicenseAllowsLogin(),error=>{
+    assert.equal(error.licenseState,'SUSPENDED');return true;},'SUSPENDED ditolak');
 
   aktifkanLisensiLokal({status:'ACTIVE'});
   assert.doesNotThrow(()=>assertLicenseAllowsLogin());
