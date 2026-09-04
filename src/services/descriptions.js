@@ -1,9 +1,10 @@
+import { composeReportCpDescription, cpAcuanFor } from './cp-descriptions.js';
 import { listActiveObjectives, listObjectivesForAssessment } from './learning-objectives.js';
 import { ringkasObjectives } from './objective-summary.js';
 import { calculateReportScore, getReportScore } from './report.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
-import { requireActiveSubject } from './subjects.js';
+import { listActiveSubjects, requireActiveSubject } from './subjects.js';
 
 export { ringkasObjectives };
 
@@ -61,7 +62,35 @@ function objectiveDescription(session,subjectId,studentId,objectiveIds){
   return {text,objectiveIds:dipilih.map(item=>item.id),bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};
 }
 
+/* Deskripsi Capaian Kompetensi Nilai Rapor bersumber CP mata pelajaran pada fase rombel, lalu
+   dinyatakan menurut Nilai Akhir murid terhadap KKTP.
+
+   Penyusunnya SENGAJA berbeda dari penyusun Intrakurikuler meskipun CP-nya sama: yang satu
+   menceritakan capaian akademik, yang lain menceritakan keikutsertaan pada kegiatan. Menyatukan
+   keduanya membuat dua kolom berbeda di rapor berbunyi sama. */
+function cpDescription(session,subjectId,studentId){
+  requireActiveSubject(session,subjectId);
+  const cp=cpAcuanFor(session,subjectId);
+  if(!cp)return null;
+  const student=studentOf(session,studentId);
+  const {finalScore,kktp}=finalScoreOf(session,subjectId,studentId);
+  const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
+  const text=composeReportCpDescription({
+    studentName:student.name,subjectName:subject?.name||'',cp,finalScore,kktp});
+  if(!text)return null;
+  return {text,source:'CP',cpPhase:cp.phase,objectiveIds:null,
+    bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};
+}
+
 export function generateReportDescription(session,subjectId,studentId,input){
+  /* CP adalah sumber utama. TP hanya dipakai bila pemanggil memang menyebutnya secara eksplisit,
+     atau bila CP mata pelajaran itu belum tersedia pada fase rombel. */
+  const memintaTp=Boolean(input?.bestObjectiveId||input?.improvementObjectiveId
+    ||(Array.isArray(input?.objectiveIds)&&input.objectiveIds.length));
+  if(!memintaTp){
+    const dariCp=cpDescription(session,subjectId,studentId);
+    if(dariCp)return dariCp;
+  }
   /* Sumber utama adalah TP AKTIF pada menu Tujuan Pembelajaran. Pemanggil boleh menyebut
      objectiveIds secara eksplisit, tetapi tidak wajib: bila tidak disebut, TP aktif dipakai
      apa adanya sehingga guru tidak pernah diminta memilih TP untuk kedua kalinya. */

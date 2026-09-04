@@ -141,6 +141,15 @@ function normalizeIntracurricular(input){
     ? [...new Set(input.objectiveIds.map(id=>clean(id,80)).filter(Boolean))].slice(0,20)
     : [];
   if(objectiveIds.length)record.objectiveIds=objectiveIds;
+  /* Jejak asal deskripsi. `source` menyebut CP atau TP, `cpPhase` fase yang dipakai, dan
+     `status` membedakan kalimat susunan aplikasi (AUTO) dari yang diketik guru (EDITED).
+     Ketiganya opsional supaya catatan lama tetap terbaca apa adanya. */
+  const source=clean(input?.source,20);
+  if(source)record.source=source;
+  const cpPhase=clean(input?.cpPhase,4);
+  if(cpPhase)record.cpPhase=cpPhase;
+  const status=clean(input?.status,10);
+  if(status)record.status=status;
   return record;
 }
 

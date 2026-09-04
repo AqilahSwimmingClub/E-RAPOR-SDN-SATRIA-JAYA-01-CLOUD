@@ -127,8 +127,17 @@ export function renderAssessment(session){
 
   function draw(){
     drawObjectives();
-    const attendanceMode=assessmentType==='daily'&&getDailyAttendanceMode(session,subjectId);const sheet=attendanceMode?attendanceDerivedSheet(session,subjectId):getAssessmentSheet(session,subjectId,assessmentType);drawSummary(sheet.average,sheet.pendingCount,sheet.filledCount,sheet.rows.length,attendanceMode);
-    saveButton.disabled=!sheet.rows.length||attendanceMode;saveButton.innerHTML=attendanceMode?`${icon('calendar',17)} Dihitung dari Absensi`:`${icon('save',17)} Simpan Nilai`;
+    /* Ketika Nilai Kehadiran aktif, kolom Penilaian Harian TETAP menampilkan dan menerima nilai
+       manual: itu data milik guru dan langsung terpakai kembali begitu toggle dimatikan. Yang
+       berubah hanyalah sumber yang dipakai saat MENGHITUNG Nilai Akhir, dan nilai kehadiran
+       yang sedang dipakai itu ditampilkan berdampingan sebagai keterangan. */
+    const attendanceMode=assessmentType==='daily'&&getDailyAttendanceMode(session,subjectId);
+    const sheet=getAssessmentSheet(session,subjectId,assessmentType);
+    const kehadiranById=new Map(attendanceMode
+      ? attendanceDerivedSheet(session,subjectId).rows.map(row=>[row.studentId,row.score])
+      : []);
+    drawSummary(sheet.average,sheet.pendingCount,sheet.filledCount,sheet.rows.length,attendanceMode);
+    saveButton.disabled=!sheet.rows.length;saveButton.innerHTML=`${icon('save',17)} Simpan Nilai`;
     const target=root.querySelector('[data-fill-target]');const chosen=target.value;
     target.innerHTML=`<option value="">Semua Siswa</option>${sheet.rows.map(row=>`<option value="${escapeHtml(row.studentId)}">${escapeHtml(row.name)}</option>`).join('')}`;
     if(sheet.rows.some(row=>row.studentId===chosen))target.value=chosen;
@@ -146,13 +155,19 @@ export function renderAssessment(session){
       listHost.innerHTML=`<section class="card source-banner">Isi nilai tiap Lingkup Materi (bab). Rata-rata lingkup yang terisi menjadi nilai Sumatif Lingkup Materi, lalu digabung dengan empat komponen lain memakai Bobot Penilaian. Lingkup yang dikosongkan tidak dihitung.</section><section class="card assessment-table-card"><div class="table-scroll"><table class="data-table assessment-table lm-table"><thead><tr><th>No.</th><th>Siswa</th>${kolom}<th>Rata-rata</th><th>Status</th></tr></thead><tbody>${barisLingkup}</tbody></table></div></section><div class="assessment-card-list">${kartuLingkup}</div>`;
       bindInputs();return;
     }
-    const rows=tampil.map((row,index)=>`<tr><td>${index+1}</td><td><strong>${escapeHtml(row.name)}</strong><span>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</span></td><td><input class="input score-input" type="number" min="0" max="100" step="0.01" data-score data-id="${escapeHtml(row.studentId)}" value="${row.score??''}" aria-label="Nilai ${escapeHtml(row.name)}" ${attendanceMode?'disabled':''}/></td><td><span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${attendanceMode?(row.saved?'Dari Absensi':'Belum ada absensi'):(row.saved?'Tersimpan':'Belum diisi')}</span></td></tr>`).join('');
-    const cards=tampil.map((row,index)=>`<article class="card assessment-mobile-card"><div class="assessment-student"><span>${index+1}</span><div><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</small></div></div><div class="score-mobile-input"><label>Nilai 0–100</label><input class="input score-input" type="number" min="0" max="100" step="0.01" data-score data-id="${escapeHtml(row.studentId)}" value="${row.score??''}" aria-label="Nilai ${escapeHtml(row.name)}" ${attendanceMode?'disabled':''}/><span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${attendanceMode?(row.saved?'Dari Absensi':'Belum ada absensi'):(row.saved?'Tersimpan':'Belum diisi')}</span></div></article>`).join('');
-    listHost.innerHTML=`<section class="card assessment-table-card"><div class="table-scroll"><table class="data-table assessment-table"><thead><tr><th>No.</th><th>Siswa</th><th>Nilai 0–100</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div></section><div class="assessment-card-list">${cards}</div>`;
+    const nilaiKehadiran=row=>{
+      const angka=kehadiranById.get(row.studentId);
+      return angka===null||angka===undefined?'—':angka;
+    };
+    const statusSel=row=>row.saved?'Tersimpan':'Belum diisi';
+    const kolomKehadiran=attendanceMode?'<th>Nilai Kehadiran (dipakai)</th>':'';
+    const rows=tampil.map((row,index)=>`<tr><td>${index+1}</td><td><strong>${escapeHtml(row.name)}</strong><span>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</span></td><td><input class="input score-input" type="number" min="0" max="100" step="0.01" data-score data-id="${escapeHtml(row.studentId)}" value="${row.score??''}" aria-label="Nilai ${escapeHtml(row.name)}"/></td>${attendanceMode?`<td><strong data-attendance-score>${escapeHtml(String(nilaiKehadiran(row)))}</strong></td>`:''}<td><span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${statusSel(row)}</span></td></tr>`).join('');
+    const cards=tampil.map((row,index)=>`<article class="card assessment-mobile-card"><div class="assessment-student"><span>${index+1}</span><div><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</small></div></div><div class="score-mobile-input"><label>Nilai 0–100</label><input class="input score-input" type="number" min="0" max="100" step="0.01" data-score data-id="${escapeHtml(row.studentId)}" value="${row.score??''}" aria-label="Nilai ${escapeHtml(row.name)}"/>${attendanceMode?`<small class="muted">Nilai Kehadiran yang dipakai: <strong data-attendance-score>${escapeHtml(String(nilaiKehadiran(row)))}</strong></small>`:''}<span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${statusSel(row)}</span></div></article>`).join('');
+    listHost.innerHTML=`<section class="card assessment-table-card"><div class="table-scroll"><table class="data-table assessment-table"><thead><tr><th>No.</th><th>Siswa</th><th>Nilai 0–100</th>${kolomKehadiran}<th>Status</th></tr></thead><tbody>${rows}</tbody></table></div></section><div class="assessment-card-list">${cards}</div>`;
     bindInputs();
   }
   function drawSummary(average,pending,filled,total,attendanceMode=false){
-    summaryHost.innerHTML=`${attendanceMode?'<div class="source-banner">Penilaian Harian dihitung dari absensi menggunakan konversi terpusat. Data nilai manual tetap tersimpan terpisah.</div>':''}<div class="assessment-summary"><article class="stat-card"><div class="stat-label">Rata-rata Kelas</div><div class="stat-value" data-average>${formatAverage(average)}</div><div class="stat-foot">Nilai kosong tidak dihitung</div></article><article class="stat-card"><div class="stat-label">Sudah Dinilai</div><div class="stat-value" data-filled>${filled}</div><div class="stat-foot">dari ${total} siswa</div></article><article class="stat-card"><div class="stat-label">Belum Dinilai</div><div class="stat-value" data-pending>${pending}</div><div class="stat-foot">nilai masih kosong</div></article></div>`;
+    summaryHost.innerHTML=`${attendanceMode?'<div class="source-banner">Nilai Kehadiran sedang aktif: perhitungan Nilai Akhir memakai nilai kehadiran pada slot Penilaian Harian. Nilai Harian di bawah tetap dapat diisi dan tersimpan, dan langsung dipakai kembali begitu Nilai Kehadiran dimatikan.</div>':''}<div class="assessment-summary"><article class="stat-card"><div class="stat-label">Rata-rata Kelas</div><div class="stat-value" data-average>${formatAverage(average)}</div><div class="stat-foot">Nilai kosong tidak dihitung</div></article><article class="stat-card"><div class="stat-label">Sudah Dinilai</div><div class="stat-value" data-filled>${filled}</div><div class="stat-foot">dari ${total} siswa</div></article><article class="stat-card"><div class="stat-label">Belum Dinilai</div><div class="stat-value" data-pending>${pending}</div><div class="stat-foot">nilai masih kosong</div></article></div>`;
   }
   function allInputs(){return [...listHost.querySelectorAll('.assessment-table-card [data-score]')];}
   function idsTampil(){return [...new Set([...listHost.querySelectorAll('.assessment-table-card [data-part]')].map(input=>input.dataset.id))];}
@@ -207,7 +222,7 @@ root.querySelector('[data-fill-target]').onchange=()=>draw();
       const result=fillAllAssessmentScores(session,subjectId,value,{studentId});
       draw();
       const sasaran=studentId?`${namaSasaran} saja`:`${result.studentCount} siswa`;
-      toast(result.dailyFromAttendance?`Nilai massal disimpan untuk ${sasaran}. Penilaian Harian dilewati karena memakai Absensi.`:`Nilai massal berhasil disimpan ke lima jenis penilaian untuk ${sasaran}.`);
+      toast(result.dailyFromAttendance?`Nilai massal disimpan ke lima jenis penilaian untuk ${sasaran}. Nilai Harian ikut tersimpan, tetapi selama Nilai Kehadiran aktif perhitungan memakai nilai kehadiran.`:`Nilai massal berhasil disimpan ke lima jenis penilaian untuk ${sasaran}.`);
     }catch(error){toast(error.message,'error');}
     finally{fillButton.disabled=false;fillButton.textContent=label;}
   };

@@ -1,4 +1,5 @@
-import { activateLicense, formatLicenseKeyInput, getLicenseDisplay, LICENSE_MESSAGES } from '../services/license.js';
+import { activateLicense, checkLicense, formatLicenseKeyInput, getLicenseDisplay, getLicenseState,
+  LICENSE_MESSAGES } from '../services/license.js';
 import { getInstallationId } from '../services/installation.js';
 import { getSchoolMaster } from '../services/master.js';
 import { APP_NAME, COPYRIGHT, DEVELOPER_CREDIT_LEAD, DEVELOPER_NAME, DEVELOPER_ROLE } from '../data/app-identity.js';
@@ -13,6 +14,12 @@ import { icon } from '../ui/icons.js';
 export function renderLicenseActivation({onActivated}={}){
   const school=getSchoolMaster();
   const tersimpan=getLicenseDisplay();
+  /* MASA TENGGANG OFFLINE HABIS BUKAN LISENSI DICABUT.
+
+     Perangkat ini sudah lebih dari 72 jam tidak berhasil memverifikasi lisensinya ke server.
+     Lisensinya sendiri boleh jadi masih sah; yang dibutuhkan hanya internet sekali. Karena itu
+     halaman ini menawarkan PEMERIKSAAN ULANG lebih dulu, bukan meminta License Key baru. */
+  const perluVerifikasi=getLicenseState().needsVerification===true;
   let mengirim=false;
 
   const root=el(`<main class="setup-stage">
@@ -27,6 +34,13 @@ export function renderLicenseActivation({onActivated}={}){
         ${school.npsn?`<div><span>NPSN</span><strong>${escapeHtml(school.npsn)}</strong></div>`:''}
         <div><span>Installation ID</span><code>${escapeHtml(getInstallationId())}</code></div>
       </div>
+
+      ${perluVerifikasi?`<div class="license-verify" data-verify>
+        <p><strong>Lisensi perlu diverifikasi.</strong> Hubungkan perangkat ke internet untuk melanjutkan. Seluruh data sekolah tetap tersimpan utuh dan tidak ada yang dihapus.</p>
+        <div class="actions"><button class="btn btn-primary" type="button" data-recheck>${icon('rotate',16)} PERIKSA LISENSI SEKARANG</button></div>
+        <div class="login-error hidden" data-verify-error role="alert"></div>
+      </div>
+      <p class="setup-hint">Bila lisensi sekolah ini memang sudah diganti, masukkan License Key baru di bawah.</p>`:''}
 
       <form data-form>
         <div class="field"><label>License Key</label>
@@ -47,6 +61,25 @@ export function renderLicenseActivation({onActivated}={}){
       <small>${escapeHtml(COPYRIGHT)}</small>
     </footer>
   </main>`);
+
+  /* Pemeriksaan ulang: hanya menghubungi server lisensi, tidak mengubah apa pun di database
+     sekolah. Bila server menjawab ACTIVE, masa tenggang 72 jam dimulai lagi dari verifikasi
+     tersebut dan aplikasi langsung terbuka kembali. */
+  const tombolPeriksa=root.querySelector('[data-recheck]');
+  if(tombolPeriksa){
+    const galatPeriksa=root.querySelector('[data-verify-error]');
+    tombolPeriksa.onclick=async()=>{
+      tombolPeriksa.disabled=true;
+      tombolPeriksa.textContent='Memeriksa…';
+      galatPeriksa.classList.add('hidden');
+      const record=await checkLicense({force:true}).catch(()=>null);
+      if(getLicenseState().canUseApp){onActivated?.(record);return;}
+      galatPeriksa.textContent=getLicenseState().message||LICENSE_MESSAGES.NETWORK;
+      galatPeriksa.classList.remove('hidden');
+      tombolPeriksa.disabled=false;
+      tombolPeriksa.innerHTML=`${icon('rotate',16)} PERIKSA LISENSI SEKARANG`;
+    };
+  }
 
   const input=root.querySelector('[name="licenseKey"]');
   const tombol=root.querySelector('[data-submit]');

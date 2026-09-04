@@ -50,7 +50,9 @@ test('1. Admin dapat membuat, mengedit, mereset, dan menonaktifkan akun Guru',as
   const akun=await listUserAccounts(sesi);
   assert.ok(akun.length>=24,'akun Guru tersedia untuk setiap rombel');
   const lima=akun.find(item=>item.classId==='5B');
-  assert.equal(lima.active,true);
+  /* Akun Guru baru sengaja NONAKTIF: lisensi yang sah membuka aplikasi untuk Admin, bukan
+     untuk seluruh wali kelas sekaligus. Admin yang membukanya lewat menu ini. */
+  assert.equal(lima.active,false,'akun Guru baru menunggu diaktifkan Admin');
   assert.equal(Object.hasOwn(lima,'passwordHash'),false,'hash password tidak pernah keluar dari layanan');
 
   /* Identitas Guru diubah Admin. */

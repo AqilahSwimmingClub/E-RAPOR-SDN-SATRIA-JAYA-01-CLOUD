@@ -7,7 +7,7 @@ import { normalizeMappingGroups } from './mapping.js';
 const MIGRATION_SNAPSHOT_KEY='erapor_migration_safety_snapshots_v1';
 const SCHEMA5_OBJECT_COLLECTIONS=['intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports'];
 const REQUIRED_OBJECT_COLLECTIONS=['settings','masterData','userAccounts','security','subjectMappings','assessmentSettings','students','attendance','learningObjectives','assessmentScores','reportScores','reportDescriptions','extracurricularScores','cocurricularActivities','cocurricularScores',...SCHEMA5_OBJECT_COLLECTIONS,'attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
-const PRESERVED_COLLECTIONS=['students','attendance','learningObjectives','assessmentScores','reportScores','subjectMappings','userAccounts','intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports'];
+const PRESERVED_COLLECTIONS=['students','attendance','manualAttendance','learningObjectives','assessmentScores','reportScores','subjectMappings','userAccounts','intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports'];
 function clone(value){return JSON.parse(JSON.stringify(value));}
 function isObject(value){return value!==null&&typeof value==='object'&&!Array.isArray(value);}
 function snapshots(){try{const parsed=JSON.parse(localStorage.getItem(MIGRATION_SNAPSHOT_KEY)||'[]');return Array.isArray(parsed)?parsed:[];}catch{return [];}}

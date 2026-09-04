@@ -7,6 +7,8 @@ import { authenticate, createPasswordHash, ensureSecurityBootstrap, getSecurityS
 import { updateDb } from '../src/services/storage.js';
 import { activateOwnerAdmin, getOwnerActivationStatus, isInstallationActivated } from '../src/services/owner-activation.js';
 import { flattenNavigation } from '../src/data/navigation.js';
+import { setTeacherActive } from '../src/services/auth.js';
+import { aktifkanLisensiLokal } from './helpers/license-local.js';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
@@ -112,6 +114,8 @@ test('Kontrak layanan login tidak berubah',()=>{
 
 test('Login Admin, login Guru, recovery, dan aktivasi tetap berfungsi',async()=>{
   useMemoryStorage();
+  /* Login bergerbang lisensi, dan akun Guru baru menunggu Admin mengaktifkannya. */
+  aktifkanLisensiLokal();
   const semester=`Ganjil ${ACADEMIC_YEAR}`;
   /* Aktivasi instalasi: kontraknya tetap tersedia dan statusnya terbaca sejak awal. */
   assert.equal(typeof activateOwnerAdmin,'function');
@@ -122,6 +126,7 @@ test('Login Admin, login Guru, recovery, dan aktivasi tetap berfungsi',async()=>
   const status=await getSecurityStatus();
   assert.equal(typeof status.adminActivated,'boolean');
 
+  await setTeacherActive({role:'admin'},'5B',true);
   const guru=await authenticate({role:'teacher',username:'Guru',password:'Kelas5b',semester});
   assert.equal(guru.role,'teacher');
   assert.equal(guru.classId,'5B');

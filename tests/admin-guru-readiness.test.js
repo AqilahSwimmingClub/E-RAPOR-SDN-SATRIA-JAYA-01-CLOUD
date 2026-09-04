@@ -5,6 +5,7 @@ import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { getAdminReadiness, activateTeacherUsage, deactivateTeacherUsage, isTeacherUsageActive,
   READINESS_ITEMS, teacherUsageScopeKey } from '../src/services/admin-readiness.js';
 import { saveSchoolIdentitySetup, saveTeacherProfile } from '../src/services/master.js';
+import { setTeacherActive } from '../src/services/auth.js';
 import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
 import { saveAssessmentScores, saveAssessmentSettings } from '../src/services/assessment.js';
 import { createStudent } from '../src/services/students.js';
@@ -29,6 +30,9 @@ async function lengkapiChecklist(){
     email:'a@contoh.sch.id',website:'',registrationNumber:'',principalName:'Kepala Sekolah Contoh',
     principalNip:'198001012006041001',schoolLogo:''});
   saveTeacherProfile(admin,'5B',{name:'Wali Kelas 5B',nip:'198502022010012001',phone:'08',email:'w@contoh.sch.id',photo:''});
+  /* Akun Guru dibuat nonaktif sejak bootstrap; Admin mengaktifkannya sebagai bagian dari
+     menyiapkan rombel, dan butir kesiapan "Akun Guru" memang menuntut langkah itu. */
+  await setTeacherActive(admin,'5B',true);
   const sesiGuru=guru();
   const aktif=['agama','pancasila','bindo'];
   saveSubjectMapping(sesiGuru,SUBJECTS_DEFAULT.map((item,index)=>({...item,active:aktif.includes(item.id),order:index+1})));

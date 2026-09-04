@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { cpElements } from '../src/data/curriculum-cp.js';
 import { readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { composeIntracurricularDescription, getStudentIntracurricularSelection,
@@ -77,7 +78,7 @@ test('1. Penilaian membaca TP aktif otomatis dan tidak punya pemilihan TP',()=>{
 
 /* ------------------------------------------- Intrakurikuler wajib memilih TP (§3,§4) */
 
-test('2. Intrakurikuler hanya menawarkan TP yang aktif',()=>{
+test('2. Daftar TP aktif tetap ada untuk fitur lain, tetapi Intrakurikuler memakai CP',()=>{
   useMemoryStorage();
   const session=guru();
   aktifkanMapel(session);
@@ -89,35 +90,36 @@ test('2. Intrakurikuler hanya menawarkan TP yang aktif',()=>{
   assert.equal(pilihan.some(item=>item.id===nonaktif.id),false,
     'TP nonaktif tidak muncul sebagai pilihan');
 
-  /* Halaman Intrakurikuler memang menyediakan pemilihan TP. */
+  /* Daftar TP aktif tetap dipakai fitur lain, tetapi halaman Intrakurikuler TIDAK LAGI
+     menyediakan pemilihan TP: acuannya CP. Inilah penjaganya. */
   const halaman=read('src/pages/intracurricular-input.js');
-  assert.match(halaman,/listIntracurricularObjectives/,'daftar TP diambil dari TP aktif');
-  assert.match(halaman,/type="checkbox" data-objective/,'guru memilih TP lewat checkbox');
-  assert.match(halaman,/Tujuan Pembelajaran \*/,'pemilihan TP bersifat wajib');
+  assert.match(halaman,/getIntracurricularCp/,'halaman membaca CP mapel pada fase rombel');
+  assert.equal(/data-objective|listIntracurricularObjectives|listInactiveReferencedObjectives/.test(halaman),
+    false,'tidak ada satu pun checkbox atau daftar TP di halaman Intrakurikuler');
+  assert.match(halaman,/Acuan Capaian Pembelajaran/,'yang ditampilkan adalah acuan CP');
+  assert.equal(/Tujuan Pembelajaran \*/.test(halaman),false,'TP bukan lagi isian wajib di sini');
 });
 
-test('3. Guru memilih sebagian TP aktif dan pilihannya tersimpan',()=>{
+test('3. Intrakurikuler tidak lagi meminta pemilihan TP; deskripsinya dari CP',()=>{
   useMemoryStorage();
   const session=guru();
   aktifkanMapel(session);
-  const {aktif}=siapkanEmpatTp(session);
+  siapkanEmpatTp(session);
   const siswa=tambahSiswa(session);
 
-  const dipilih=aktif.slice(0,2);
+  /* Tanpa satu pun objectiveIds, penyimpanan tetap berhasil. Inilah inti perubahannya:
+     guru tidak perlu mencentang TP, apalagi mencentang ulang TP yang sudah aktif. */
   const saved=saveStudentIntracurricularSelection(session,siswa.id,
-    {subjectId:'ipas',objectiveIds:dipilih.map(item=>item.id),predicate:'Sangat Baik'});
-  assert.deepEqual(saved.objectiveIds,dipilih.map(item=>item.id));
+    {subjectId:'ipas',predicate:'Sangat Baik'});
   assert.equal(saved.predicate,'Sangat Baik');
-  assert.deepEqual(getStudentIntracurricularSelection(session,siswa.id).objectiveIds,
-    dipilih.map(item=>item.id));
+  assert.equal(saved.source,'CP');
+  assert.equal(saved.cpPhase,'C');
+  assert.ok(saved.description,'deskripsi tersusun tanpa TP');
 
-  /* TP aktif yang TIDAK dipilih tidak ikut ke deskripsi. */
-  const tidakDipilih=aktif[2];
-  assert.equal(saved.description.includes(ringkasObjectives([tidakDipilih])),false,
-    'TP aktif yang tidak dicentang tidak masuk deskripsi Intrakurikuler');
-  for(const item of dipilih)
-    assert.ok(saved.description.includes(ringkasObjectives([item])),
-      `inti ${item.code} masuk deskripsi`);
+  /* Isinya bersumber elemen CP, bukan kalimat TP mana pun. */
+  const kalimat=saved.description.toLowerCase();
+  for(const elemen of cpElements('ipas','C').map(item=>item.name))
+    assert.ok(kalimat.includes(elemen.toLowerCase()),`elemen CP ${elemen} terbawa`);
 });
 
 /* ------------------------------------------------------ Deskripsi Intrakurikuler (§6) */
@@ -160,13 +162,15 @@ test('5. TP yang dinonaktifkan tidak dapat dipakai untuk input baru',()=>{
   setActiveObjective(session,'ipas',dipilih[0].id,false);
   assert.equal(listIntracurricularObjectives(session,'ipas').some(item=>item.id===dipilih[0].id),
     false,'TP nonaktif hilang dari pilihan');
-  assert.throws(()=>saveStudentIntracurricularSelection(session,siswa.id,
-    {subjectId:'ipas',objectiveIds:[dipilih[0].id],predicate:'Baik'}),/Tujuan Pembelajaran/i,
-    'input baru menolak TP nonaktif');
+  /* Input baru tidak lagi bergantung pada TP sama sekali, sehingga menonaktifkan TP tidak
+     memblokir Intrakurikuler. Yang tetap dijaga adalah riwayatnya. */
+  const sesudah=saveStudentIntracurricularSelection(session,siswa.id,
+    {subjectId:'ipas',objectiveIds:dipilih.map(item=>item.id),predicate:'Baik'});
+  assert.ok(sesudah.description,'input baru tetap berhasil walau TP dinonaktifkan');
 
   /* Catatan lama tidak dihapus. */
   const lama=getStudentIntracurricularSelection(session,siswa.id);
-  assert.deepEqual(lama.objectiveIds,dipilih.map(item=>item.id),'pilihan lama tetap tersimpan');
+  assert.deepEqual(lama.objectiveIds,dipilih.map(item=>item.id),'rujukan TP lama tetap tersimpan');
   assert.ok(lama.description,'deskripsi lama tetap ada');
 
   /* Dan UI diberi bahan untuk menandainya sebagai nonaktif. */
@@ -176,10 +180,9 @@ test('5. TP yang dinonaktifkan tidak dapat dipakai untuk input baru',()=>{
   assert.equal(tertinggal[0].active,false);
   assert.equal(tertinggal[0].inactive,true);
 
-  const halaman=read('src/pages/intracurricular-input.js');
-  assert.match(halaman,/listInactiveReferencedObjectives/,'halaman membaca TP nonaktif yang dirujuk');
-  assert.match(halaman,/Nonaktif/,'statusnya ditandai di layar');
-  assert.match(halaman,/Catatan lama tidak dihapus/,'guru diberi tahu datanya aman');
+  /* Rujukan TP nonaktif tetap dapat dibaca layanan untuk keperluan riwayat, walau halaman
+     Intrakurikuler sudah tidak menampilkannya lagi. */
+  assert.equal(listInactiveReferencedObjectives(session,'ipas',lama.objectiveIds).length,1);
 });
 
 test('6. TP aktif kembali dapat dipilih lagi tanpa kehilangan catatan',()=>{

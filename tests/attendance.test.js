@@ -51,7 +51,9 @@ test('Monthly and semester attendance recaps count H S I A correctly',()=>{
   const semester=semesterAttendanceRecap(teacher5b);
   assert.equal(semester.daysRecorded,3);
   assert.deepEqual(semester.totals,{Hadir:2,Sakit:2,Izin:1,Alpa:1});
-  assert.deepEqual(studentAbsenceTotals(teacher5b,first.id),{Sakit:1,Izin:1,Alpa:0});
+  /* `source` menyatakan asal angkanya - harian atau rekap manual - sehingga pencegahan
+     double count dapat diperiksa, bukan sekadar dipercaya. */
+  assert.deepEqual(studentAbsenceTotals(teacher5b,first.id),{Sakit:1,Izin:1,Alpa:0,source:'harian'});
 });
 
 test('Attendance remains isolated between classes',()=>{

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { cpElements } from '../src/data/curriculum-cp.js';
 import { readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { ASSESSMENT_TYPES, getAssessmentSheet, saveAssessmentScores,
@@ -169,13 +170,21 @@ test('5. Satu TP aktif menghasilkan deskripsi sesuai TP itu',()=>{
   for(const jenis of ASSESSMENT_TYPES)
     saveAssessmentScores(session,'mtk',jenis.id,{[siswa.studentId]:85});
 
-  /* Tanpa menyebut TP satu pun: deskripsi mengambil TP aktif sendiri. */
+  /* Tanpa menyebut TP satu pun: deskripsi Nilai Rapor kini bersumber CP mata pelajaran pada
+     fase rombel, bukan TP. TP tetap dipakai bila pemanggil menyebutnya sendiri. */
   const hasil=generateReportDescription(session,'mtk',siswa.studentId,{});
   assert.match(hasil.text,/^Ananda /);
-  assert.match(hasil.text,/menjelaskan perubahan wujud benda/,'inti TP terbawa');
-  assert.equal(/dalam kehidupan sehari-hari/.test(hasil.text),false,'keterangan dipangkas');
+  assert.equal(hasil.source,'CP');
+  assert.equal(hasil.cpPhase,'C');
+  const kalimat=hasil.text.toLowerCase();
+  for(const elemen of cpElements('mtk','C').map(item=>item.name))
+    assert.ok(kalimat.includes(elemen.toLowerCase()),`elemen CP ${elemen} terbawa`);
   assert.equal(/TP-\d/.test(hasil.text),false,'tidak menulis kode TP');
-  assert.match(hasil.text,/dengan baik\.$/,'tingkat capaian mengikuti Nilai Akhir existing');
+
+  /* Menyebut TP secara eksplisit tetap menghasilkan deskripsi berbasis TP itu. */
+  const lewatTp=generateReportDescription(session,'mtk',siswa.studentId,{objectiveIds:[tp.id]});
+  assert.match(lewatTp.text,/menjelaskan perubahan wujud benda/,'inti TP terbawa bila diminta');
+  assert.notEqual(lewatTp.text,hasil.text);
 });
 
 test('6. Dua dan tiga TP aktif diringkas menjadi satu deskripsi natural',()=>{
@@ -229,9 +238,13 @@ test('8. Tingkat capaian memakai Nilai Akhir dan KKTP existing',()=>{
       saveAssessmentScores(session,'mtk',jenis.id,{[siswa.studentId]:nilai});
     return generateReportDescription(session,'mtk',siswa.studentId,{}).text;
   };
-  assert.match(deskripsi(95),/dengan sangat baik\.$/);
-  assert.match(deskripsi(80),/dengan baik\.$/);
-  assert.match(deskripsi(60),/dengan bimbingan, dan perlu penguatan agar tercapai secara utuh\.$/);
+  /* Nilai Akhir tetap yang menentukan tingkat capaian; kalimatnya kini bernada akademik
+     karena bersumber CP, bukan TP. */
+  assert.match(deskripsi(95),/penguasaan sangat baik pada kompetensi/);
+  assert.match(deskripsi(80),/penguasaan baik pada kompetensi/);
+  assert.match(deskripsi(60),/masih memerlukan bimbingan dan penguatan/);
+  assert.equal(new Set([deskripsi(95),deskripsi(80),deskripsi(60)]).size,3,
+    'tiga tingkat nilai menghasilkan tiga kalimat berbeda');
 });
 
 /* --------------------------------------------------------- Intrakurikuler dan sumber tunggal */

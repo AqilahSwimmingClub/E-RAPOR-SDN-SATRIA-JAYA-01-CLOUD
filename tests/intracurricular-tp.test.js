@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { cpElements } from '../src/data/curriculum-cp.js';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { ACTIVITY_PREDICATES, getStudentCocurricular, getStudentIntracurricular,
   saveStudentCocurricular } from '../src/services/completeness.js';
@@ -144,56 +145,56 @@ test('Tiga predikat menghasilkan tiga kalimat capaian yang berbeda',()=>{
 
 /* --------------------------------------------------------------------- Penyimpanan per siswa */
 
-test('Pilihan mapel, TP, dan predikat tersimpan beserta deskripsi otomatis',()=>{
+test('Pilihan mapel dan predikat tersimpan beserta deskripsi otomatis dari CP',()=>{
   useMemoryStorage();
   const kelas=guru('5B');
   aktifkanMapel(kelas,['mtk','bindo']);
   const siswa=tambahSiswa(kelas);
-  const tp=listIntracurricularObjectives(kelas,'mtk').slice(0,2);
+  /* Intrakurikuler tidak lagi meminta TP: cukup mata pelajaran dan predikat. */
   const saved=saveStudentIntracurricularSelection(kelas,siswa.id,
-    {subjectId:'mtk',objectiveIds:tp.map(item=>item.id),predicate:'Sangat Baik'});
+    {subjectId:'mtk',predicate:'Sangat Baik'});
   assert.equal(saved.subjectId,'mtk');
-  assert.deepEqual(saved.objectiveIds,tp.map(item=>item.id));
   assert.equal(saved.predicate,'Sangat Baik');
   assert.equal(saved.activity,'Matematika','kolom Kegiatan pada rapor memuat nama mapel');
-  for(const item of tp)assert.ok(saved.description.includes(inti(item)));
+  assert.equal(saved.source,'CP');
+  assert.equal(saved.cpPhase,'C','kelas 5 berada pada Fase C');
+  /* Isi kalimatnya berasal dari elemen CP resmi, bukan dari TP. */
+  const kalimat=saved.description.toLowerCase();
+  for(const elemen of cpElements('mtk','C').map(item=>item.name))
+    assert.ok(kalimat.includes(elemen.toLowerCase()),`elemen CP ${elemen} terbawa`);
   const dibaca=getStudentIntracurricularSelection(kelas,siswa.id);
   assert.equal(dibaca.subjectId,'mtk');
-  assert.deepEqual(dibaca.objectiveIds,tp.map(item=>item.id));
 });
 
-test('Deskripsi diperbarui saat pilihan TP atau predikat berubah',()=>{
+test('Deskripsi Intrakurikuler berubah mengikuti predikat, dan tulisan guru dipertahankan',()=>{
   useMemoryStorage();
   const kelas=guru('5B');
   aktifkanMapel(kelas,['mtk']);
   const siswa=tambahSiswa(kelas);
-  const tp=listIntracurricularObjectives(kelas,'mtk');
-  const pertama=saveStudentIntracurricularSelection(kelas,siswa.id,
-    {subjectId:'mtk',objectiveIds:[tp[0].id],predicate:'Cukup'});
-  const kedua=saveStudentIntracurricularSelection(kelas,siswa.id,
-    {subjectId:'mtk',objectiveIds:[tp[1].id],predicate:'Sangat Baik'});
-  assert.notEqual(kedua.description,pertama.description);
-  assert.ok(kedua.description.includes(inti(tp[1])));
-  assert.equal(kedua.description.includes(inti(tp[0])),false);
+  const pertama=saveStudentIntracurricularSelection(kelas,siswa.id,{subjectId:'mtk',predicate:'Cukup'});
+  const kedua=saveStudentIntracurricularSelection(kelas,siswa.id,{subjectId:'mtk',predicate:'Sangat Baik'});
+  assert.notEqual(kedua.description,pertama.description,'predikat mengubah kalimat');
   const manual=saveStudentIntracurricularSelection(kelas,siswa.id,
-    {subjectId:'mtk',objectiveIds:[tp[1].id],predicate:'Sangat Baik',description:'Deskripsi tulisan wali kelas.'});
+    {subjectId:'mtk',predicate:'Sangat Baik',description:'Deskripsi tulisan wali kelas.'});
   assert.equal(manual.description,'Deskripsi tulisan wali kelas.');
+  assert.equal(manual.status,'EDITED','tulisan guru ditandai supaya tidak ditimpa batch');
 });
 
-test('Pilihan ditolak bila mapel atau TP di luar daftar',()=>{
+test('Pilihan ditolak bila mapel di luar daftar atau CP belum berlaku pada fasenya',()=>{
   useMemoryStorage();
   const kelas=guru('5B');
   aktifkanMapel(kelas,['mtk']);
   const siswa=tambahSiswa(kelas);
-  const tp=listIntracurricularObjectives(kelas,'mtk');
   assert.throws(()=>saveStudentIntracurricularSelection(kelas,siswa.id,
-    {subjectId:'bing',objectiveIds:[tp[0].id],predicate:'Baik'}),/mata pelajaran/i);
+    {subjectId:'bing',predicate:'Baik'}),/mata pelajaran/i);
   assert.throws(()=>saveStudentIntracurricularSelection(kelas,siswa.id,
-    {subjectId:'mtk',objectiveIds:['tp-palsu'],predicate:'Baik'}),/Tujuan Pembelajaran/i);
-  assert.throws(()=>saveStudentIntracurricularSelection(kelas,siswa.id,
-    {subjectId:'mtk',objectiveIds:[],predicate:'Baik'}),/Tujuan Pembelajaran/i);
-  assert.throws(()=>saveStudentIntracurricularSelection(kelas,siswa.id,
-    {subjectId:'mtk',objectiveIds:[tp[0].id],predicate:'Istimewa'}),/Predikat/i);
+    {subjectId:'mtk',predicate:'Istimewa'}),/Predikat/i);
+  /* Koding & KA belum berlaku pada Fase A; menolaknya lebih jujur daripada mengarang CP. */
+  const kelasSatu=guru('1A');
+  aktifkanMapel(kelasSatu,['koding']);
+  const anak=tambahSiswa(kelasSatu,7);
+  assert.throws(()=>saveStudentIntracurricularSelection(kelasSatu,anak.id,
+    {subjectId:'koding',predicate:'Baik'}),/Fase C|belum berlaku/i);
 });
 
 /* ------------------------------------------------------------- Kompatibilitas dan isolasi data */
@@ -255,9 +256,7 @@ test('Tabel rapor Intrakurikuler tetap No, Kegiatan dengan predikat, dan Keteran
   const kelas=guru('5B');
   aktifkanMapel(kelas,['mtk']);
   const siswa=tambahSiswa(kelas);
-  const tp=listIntracurricularObjectives(kelas,'mtk').slice(0,2);
-  const record=saveStudentIntracurricularSelection(kelas,siswa.id,
-    {subjectId:'mtk',objectiveIds:tp.map(item=>item.id),predicate:'Baik'});
+  const record=saveStudentIntracurricularSelection(kelas,siswa.id,{subjectId:'mtk',predicate:'Baik'});
   const html=activityTable('Intrakurikuler',
     [{name:record.activity,predicate:record.predicate,description:record.description}],
     {studentName:siswa.name});
@@ -265,6 +264,8 @@ test('Tabel rapor Intrakurikuler tetap No, Kegiatan dengan predikat, dan Keteran
   assert.match(html,/class="activity-no">1</);
   assert.match(html,/class="activity-name">Matematika</);
   assert.match(html,/class="activity-predicate">BAIK</);
-  for(const item of tp)assert.ok(html.includes(inti(item).replace(/&/g,'&amp;')),
-    `inti ${item.code} ikut pada kolom Keterangan`);
+  /* Bentuk tabelnya tidak berubah; yang berubah hanya SUMBER kolom Keterangan: elemen CP. */
+  const isi=html.toLowerCase();
+  for(const elemen of cpElements('mtk','C').map(item=>item.name))
+    assert.ok(isi.includes(elemen.toLowerCase()),`elemen CP ${elemen} ikut pada kolom Keterangan`);
 });

@@ -1,5 +1,6 @@
 import { composeActivityDescription } from '../data/activity-description.js';
 import { CLASSES } from '../data/constants.js';
+import { composeIntracurricularCpDescription, cpAcuanFor, cpAlasanTidakTersedia } from './cp-descriptions.js';
 import { ACTIVITY_PREDICATES, getStudentIntracurricular, saveStudentIntracurricular } from './completeness.js';
 import { listObjectivesForAssessment, resolveObjective } from './learning-objectives.js';
 import { ringkasObjectives } from './objective-summary.js';
@@ -72,11 +73,24 @@ function assertTeacherScope(session){
   if(session?.role!=='teacher'||!session?.classId)throw new Error('Sesi Guru tidak valid untuk Intrakurikuler.');
 }
 
-/* Mapel intrakurikuler adalah mapel aktif rombel yang memang punya TP pada fasenya. IPAS pada
-   Fase A karena itu tidak muncul: pemerintah baru menempatkannya mulai Fase B. */
+/* Mapel intrakurikuler adalah mapel aktif rombel yang memang mempunyai CP pada fase rombel itu.
+   IPAS pada Fase A karena itu tidak muncul, begitu pula Koding & KA di kelas 1-4: pemerintah
+   memang belum menempatkannya pada fase tersebut.
+
+   Sejak Intrakurikuler beralih ke CP, ketersediaan TP tidak lagi menjadi syarat. Guru tidak
+   perlu menyiapkan TP lebih dulu hanya untuk dapat mengisi Intrakurikuler. */
 export function listIntracurricularSubjects(session){
   assertTeacherScope(session);
-  return listActiveSubjects(session).filter(subject=>listIntracurricularObjectives(session,subject.id).length>0);
+  return listActiveSubjects(session).filter(subject=>Boolean(cpAcuanFor(session,subject.id)));
+}
+
+/* Acuan CP satu mata pelajaran beserta alasannya bila tidak tersedia. Halaman memakai ini untuk
+   menyatakan keadaan sebenarnya, bukan menyembunyikan mapel tanpa penjelasan. */
+export function getIntracurricularCp(session,subjectId){
+  assertTeacherScope(session);
+  const cp=cpAcuanFor(session,subjectId);
+  return cp?{...cp,available:true,reason:null}
+    :{available:false,reason:cpAlasanTidakTersedia(session,subjectId),elements:[],phase:null};
 }
 
 /* Pilihan TP Intrakurikuler HANYA berasal dari TP yang berstatus aktif pada menu Tujuan
@@ -101,9 +115,16 @@ export function listInactiveReferencedObjectives(session,subjectId,objectiveIds=
     .map(item=>({...item,active:false,inactive:true}));
 }
 
-/* Deskripsi disusun dari TP yang DIPILIH guru pada menu Intrakurikuler — bukan dari seluruh
-   TP aktif — lalu diringkas memakai aturan yang sama dengan deskripsi rapor sehingga tidak ada
-   kalimat TP yang ditempel mentah. */
+/* Deskripsi Intrakurikuler disusun dari CP mata pelajaran pada fase rombel, memakai penyusun
+   kalimat KHUSUS Intrakurikuler. Penyusun deskripsi Nilai Rapor sengaja tidak dipakai di sini:
+   keduanya boleh membaca CP yang sama, tetapi hasil kalimatnya harus berbeda. */
+export function composeIntracurricularDescriptionFromCp(session,{studentName='',subjectName='',subjectId='',predicate='Baik'}={}){
+  const cp=cpAcuanFor(session,subjectId);
+  return composeIntracurricularCpDescription({studentName,subjectName,cp,predicate});
+}
+
+/* Bentuk lama berbasis TP dipertahankan supaya catatan dan pemanggil lama tetap berjalan.
+   Alur Intrakurikuler yang baru tidak memakainya lagi. */
 export function composeIntracurricularDescription({studentName='',subjectName='',objectives=[],predicate='Baik'}={}){
   const fokus=ringkasObjectives(objectives||[]);
   const teks=composeActivityDescription({
@@ -126,22 +147,72 @@ export function getStudentIntracurricularSelection(session,studentId){
   return {...record,subjectId:record.subjectId||null,objectiveIds:Array.isArray(record.objectiveIds)?[...record.objectiveIds]:[]};
 }
 
-export function saveStudentIntracurricularSelection(session,studentId,{subjectId,objectiveIds,predicate,description=''}={}){
+/* Menyimpan Intrakurikuler satu murid.
+
+   Pemilihan TP TIDAK lagi diminta. `objectiveIds` masih diterima demi catatan lama dan
+   pemanggil lama, tetapi tidak pernah wajib dan tidak lagi menentukan isi deskripsi. */
+export function saveStudentIntracurricularSelection(session,studentId,{subjectId,objectiveIds=[],predicate,description=''}={}){
   assertTeacherScope(session);
-  const subject=listIntracurricularSubjects(session).find(item=>item.id===subjectId);
-  if(!subject)throw new Error('Pilih mata pelajaran intrakurikuler yang aktif dan memiliki Tujuan Pembelajaran.');
-  const tersedia=listIntracurricularObjectives(session,subject.id);
-  const dipilih=[...new Set((Array.isArray(objectiveIds)?objectiveIds:[]).map(id=>String(id)))]
-    .map(id=>tersedia.find(item=>item.id===id)||null);
-  if(!dipilih.length||dipilih.some(item=>!item))
-    throw new Error('Pilih Tujuan Pembelajaran yang tersedia pada mata pelajaran ini.');
+  const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
+  if(!subject)throw new Error('Pilih mata pelajaran intrakurikuler yang aktif pada rombel ini.');
+  const cp=cpAcuanFor(session,subject.id);
+  if(!cp)throw new Error(cpAlasanTidakTersedia(session,subject.id)||'CP mata pelajaran ini belum tersedia pada fase rombel aktif.');
   if(!INTRACURRICULAR_PREDICATES.includes(predicate))throw new Error('Predikat intrakurikuler tidak valid.');
   const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);
-  const teks=String(description||'').trim()||composeIntracurricularDescription({
-    studentName:student?.name||'',subjectName:subject.name,objectives:dipilih,predicate});
+  const otomatis=composeIntracurricularCpDescription({
+    studentName:student?.name||'',subjectName:subject.name,cp,predicate});
+  const teks=String(description||'').trim()||otomatis;
+  if(!teks)throw new Error('Deskripsi intrakurikuler tidak dapat disusun karena CP belum tersedia.');
+  /* Rujukan TP lama dipertahankan apa adanya supaya riwayat catatan tidak putus. */
+  const rujukanTp=[...new Set((Array.isArray(objectiveIds)?objectiveIds:[]).map(id=>String(id)))];
   const saved=saveStudentIntracurricular(session,studentId,{
     activity:subject.name,predicate,description:teks,
-    subjectId:subject.id,objectiveIds:dipilih.map(item=>item.id),
+    subjectId:subject.id,objectiveIds:rujukanTp,
+    cpPhase:cp.phase,source:'CP',status:teks===otomatis?'AUTO':'EDITED',
   });
-  return {...saved,subjectId:subject.id,objectiveIds:dipilih.map(item=>item.id)};
+  return {...saved,subjectId:subject.id,objectiveIds:rujukanTp,cpPhase:cp.phase,source:'CP'};
+}
+
+/* ------------------------------------------------------- ISI OTOMATIS SEMUA SISWA (§D)
+
+   Guru tidak perlu lagi menyusuri siswa satu per satu. Satu mata pelajaran dan satu predikat
+   diproses untuk seluruh murid rombel aktif.
+
+   Dua sikap hati-hati yang disengaja:
+   - Catatan yang PERNAH DISUNTING guru (status manual) tidak ditimpa diam-diam. Ia dilewati
+     dan dilaporkan, kecuali pemanggil meminta `overwriteManual` secara eksplisit.
+   - Kegagalan satu murid tidak menggagalkan seluruh batch; tiap kegagalan dicatat sendiri. */
+export function fillAllIntracurricular(session,{subjectId,predicate='Baik',overwriteManual=false}={}){
+  assertTeacherScope(session);
+  const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
+  if(!subject)throw new Error('Pilih mata pelajaran intrakurikuler yang aktif pada rombel ini.');
+  const cp=cpAcuanFor(session,subject.id);
+  if(!cp)throw new Error(cpAlasanTidakTersedia(session,subject.id)||'CP mata pelajaran ini belum tersedia pada fase rombel aktif.');
+  if(!INTRACURRICULAR_PREDICATES.includes(predicate))throw new Error('Predikat intrakurikuler tidak valid.');
+
+  const students=listStudents(session,{classId:session.classId});
+  const hasil={subjectId:subject.id,subjectName:subject.name,phase:cp.phase,predicate,
+    total:students.length,terisi:0,dilewati:[],gagal:[]};
+  for(const student of students){
+    try{
+      const lama=getStudentIntracurricularSelection(session,student.id);
+      /* Deskripsi yang diketik sendiri oleh guru tidak boleh hilang hanya karena tombol batch
+         ditekan. Catatan baru menandainya dengan status EDITED; catatan LAMA belum punya
+         penanda itu, sehingga dikenali dengan membandingkan isinya terhadap kalimat yang akan
+         disusun aplikasi - berbeda berarti tulisan tangan guru. */
+      const otomatis=composeIntracurricularCpDescription({
+        studentName:student.name,subjectName:subject.name,cp,predicate});
+      const manual=Boolean(lama&&(lama.status==='EDITED'
+        ||(!lama.status&&String(lama.description||'').trim()&&String(lama.description||'').trim()!==otomatis)));
+      if(!overwriteManual&&manual){
+        hasil.dilewati.push({studentId:student.id,name:student.name,alasan:'deskripsi manual dipertahankan'});
+        continue;
+      }
+      saveStudentIntracurricularSelection(session,student.id,{subjectId:subject.id,predicate});
+      hasil.terisi+=1;
+    }catch(error){
+      hasil.gagal.push({studentId:student.id,name:student.name,alasan:error.message});
+    }
+  }
+  return hasil;
 }

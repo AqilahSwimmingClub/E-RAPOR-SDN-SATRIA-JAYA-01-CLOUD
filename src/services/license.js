@@ -1,4 +1,4 @@
-import { LICENSE_API_BASE, LICENSE_CHECK_INTERVAL_DAYS, LICENSE_GRACE_PERIOD_DAYS,
+import { LICENSE_API_BASE, LICENSE_CLOCK_TOLERANCE_MINUTES, LICENSE_OFFLINE_GRACE_HOURS,
   LICENSE_PUBLIC_JWK, LICENSE_STORAGE_KEY } from '../data/license-config.js';
 import { getInstallationId } from './installation.js';
 import { APP_VERSION } from '../data/version.js';
@@ -24,7 +24,27 @@ export const LICENSE_MESSAGES=Object.freeze({
   NOT_CONFIGURED:'Server lisensi belum dikonfigurasi pada aplikasi ini.',
 });
 
-const HARI=86400000;
+const JAM=3600000;
+const TENGGANG_OFFLINE_MS=LICENSE_OFFLINE_GRACE_HOURS*JAM;
+const TOLERANSI_JAM_MS=LICENSE_CLOCK_TOLERANCE_MINUTES*60000;
+
+/* Jawaban server yang berarti "lisensi ini memang tidak boleh dipakai". Semuanya MENGALAHKAN
+   masa tenggang offline: server berhasil dihubungi dan menjawab, jadi jawabannya adalah
+   sumber kebenaran. Kegagalan konektivitas TIDAK ada dalam daftar ini. */
+const STATUS_DITOLAK_SERVER=Object.freeze({
+  SUSPENDED:'SUSPENDED',REVOKED:'REVOKED',NOT_BOUND:'NOT_BOUND',INVALID_KEY:'INVALID',
+});
+const STATUS_MEMBLOKIR=Object.freeze({
+  REVOKED:LICENSE_MESSAGES.REVOKED,
+  NOT_BOUND:LICENSE_MESSAGES.NOT_BOUND,
+  SUSPENDED:LICENSE_MESSAGES.SUSPENDED,
+  INVALID:LICENSE_MESSAGES.INVALID_KEY,
+});
+
+const PESAN_PERLU_VERIFIKASI='Lisensi perlu diverifikasi. Hubungkan perangkat ke internet untuk melanjutkan.';
+
+function waktu(nilai){const angka=Date.parse(String(nilai||''));return Number.isNaN(angka)?null:angka;}
+const iso=ms=>new Date(ms).toISOString();
 
 /* Kunci hanya ditampilkan tersamar, baik di layar maupun di log. */
 export function maskLicenseKey(value){
@@ -116,19 +136,94 @@ export function detectPlatform(){
   return 'web';
 }
 
-function simpanDariToken(token,claims){
+/* Catatan lisensi ditulis ulang setiap kali server memberi token baru yang tandanya sah.
+
+   `last_verified_at` adalah TITIK NOL masa tenggang offline: waktu terakhir server benar-benar
+   menyatakan lisensi ini masih boleh dipakai. Nilainya diambil dari `issued_at` di dalam KLAIM
+   TOKEN - waktu server, bukan jam perangkat - sehingga memundurkan jam perangkat tidak
+   menggesernya. Jam perangkat hanya dipakai bila token tidak memuat `issued_at`.
+
+   `clock_seen_at` tidak pernah turun: ia mencatat waktu tertinggi yang pernah dilihat aplikasi,
+   dan itulah yang membuat pemunduran jam tidak memperpanjang masa tenggang. */
+function simpanDariToken(token,claims,{now=Date.now()}={}){
+  const sebelumnya=baca();
+  const status=claims.status||'ACTIVE';
+  const diverifikasi=STATUS_DITOLAK_SERVER[status]||STATUS_MEMBLOKIR[status]
+    ? waktu(sebelumnya?.last_verified_at)
+    : (waktu(claims.issued_at)??now);
   return tulis({
     schema:1,
     activation_token:token,
     license_id:claims.license_id,
     license_hint:claims.license_hint,
     installation_id:claims.installation_id,
-    status:claims.status,
+    status,
     issued_at:claims.issued_at,
     next_check_at:claims.next_check_at,
     last_successful_check_at:claims.issued_at,
-    updated_at:new Date().toISOString(),
+    last_verified_at:diverifikasi===null?null:iso(diverifikasi),
+    last_check_at:iso(now),
+    last_check_error:null,
+    clock_seen_at:iso(Math.max(now,waktu(sebelumnya?.clock_seen_at)??0)),
+    updated_at:iso(now),
   });
+}
+
+/* ------------------------------------------------------- Masa tenggang offline 72 jam */
+
+/* Waktu verifikasi server terakhir yang berhasil. Instalasi lama belum menyimpan
+   `last_verified_at`, jadi nilai lama dipakai sebagai gantinya - termasuk `issued_at` yang
+   terbaca dari badan token. Sekolah yang sudah berjalan tidak pernah tiba-tiba kehilangan
+   titik nolnya hanya karena aplikasinya diperbarui. */
+export function licenseVerifiedAt(record=baca()){
+  return waktu(record?.last_verified_at)
+    ??waktu(record?.last_successful_check_at)
+    ??waktu(record?.issued_at)
+    ??waktu(bacaKlaimToken(record)?.issued_at)
+    ??null;
+}
+
+/* Badan token dibaca tanpa memverifikasi tanda tangannya - ini hanya cadangan pembacaan waktu,
+   bukan keputusan sah/tidak sah. Keputusan itu tetap milik server, dan token yang diubah
+   isinya akan gagal pada pemeriksaan berikutnya karena tandanya tidak lagi cocok. */
+function bacaKlaimToken(record){
+  const body=String(record?.activation_token||'').split('.')[0];
+  if(!body)return null;
+  try{return JSON.parse(new TextDecoder().decode(b64uToBytes(body)));}catch{return null;}
+}
+
+/* PENJAGAAN JAM MUNDUR.
+
+   Jam perangkat dapat diputar mundur untuk memperpanjang masa tenggang. Karena itu aplikasi
+   mencatat waktu tertinggi yang pernah dilihatnya; bila jam sekarang lebih awal dari itu di
+   luar batas toleransi, perhitungan tetap memakai waktu tertinggi tadi. Masa tenggang jadi
+   tidak pernah bertambah karena tanggal dimundurkan.
+
+   Koreksi waktu yang wajar tetap diterima apa adanya, sehingga penggunaan normal tidak rusak. */
+export function effectiveNow(record=baca(),now=Date.now()){
+  const tertinggi=waktu(record?.clock_seen_at);
+  if(tertinggi!==null&&now<tertinggi-TOLERANSI_JAM_MS)return tertinggi;
+  return now;
+}
+
+/* Mencatat waktu yang sedang dilihat aplikasi. Tidak pernah menurunkan nilai yang sudah ada. */
+export function noteClockObservation(now=Date.now()){
+  const record=baca();
+  if(!record)return null;
+  const tertinggi=waktu(record.clock_seen_at);
+  if(tertinggi!==null&&tertinggi>=now)return record;
+  return tulis({...record,clock_seen_at:iso(now)});
+}
+
+/* Sisa masa tenggang offline. `expired` hanya benar bila selisihnya LEBIH DARI 72 jam - tepat
+   72 jam masih diizinkan, sesuai batas yang ditetapkan di license-config.js. */
+export function offlineGraceStatus(record=baca(),now=Date.now()){
+  const titikNol=licenseVerifiedAt(record);
+  if(titikNol===null)
+    return {verifiedAt:null,elapsedMs:0,remainingMs:TENGGANG_OFFLINE_MS,expired:false,limitMs:TENGGANG_OFFLINE_MS};
+  const berlalu=Math.max(0,effectiveNow(record,now)-titikNol);
+  return {verifiedAt:titikNol,elapsedMs:berlalu,remainingMs:Math.max(0,TENGGANG_OFFLINE_MS-berlalu),
+    expired:berlalu>TENGGANG_OFFLINE_MS,limitMs:TENGGANG_OFFLINE_MS};
 }
 
 export async function activateLicense({licenseKey,school={},deviceLabel=''}={}){
@@ -141,63 +236,127 @@ export async function activateLicense({licenseKey,school={},deviceLabel=''}={}){
   return simpanDariToken(data.activation_token,claims);
 }
 
-/* Pemeriksaan berkala. Kegagalan jaringan TIDAK PERNAH dianggap lisensi dicabut. */
-export async function checkLicense({force=false}={}){
-  const record=baca();
+/* Pemeriksaan berkala.
+
+   DUA KEGAGALAN YANG SAMA SEKALI BERBEDA dibedakan di sini, dan pembedaan itulah yang membuat
+   masa tenggang offline aman:
+
+     A. SERVER MENJAWAB bahwa lisensi tidak boleh dipakai (SUSPENDED, REVOKED, NOT_BOUND,
+        INVALID_KEY). Jawaban server adalah sumber kebenaran: statusnya disimpan dan akses
+        langsung terputus, betapa pun barunya verifikasi ACTIVE sebelumnya.
+
+     B. SERVER TIDAK DAPAT DIHUBUNGI (fetch gagal -> kode NETWORK). Hanya inilah yang memenuhi
+        syarat masa tenggang: status terakhir dipertahankan dan hitungan 72 jam berjalan dari
+        verifikasi ACTIVE terakhir.
+
+   Kegagalan lain - rate limit, server 5xx, konfigurasi belum diisi, token yang tandanya tidak
+   cocok - tidak pernah dianggap verifikasi berhasil. `last_verified_at` tidak diperbarui,
+   sehingga hitungan 72 jam tetap berjalan dan tidak ada fallback "gagal berarti boleh offline". */
+export async function checkLicense({force=false,now=Date.now()}={}){
+  const record=noteClockObservation(now)||baca();
   if(!record)return null;
-  if(!force&&!isCheckDue(record))return record;
+  if(!force&&!isCheckDue(record,now))return record;
   try{
     const data=await panggil('/check',{installation_id:getInstallationId(),license_id:record.license_id});
     const claims=await verifyActivationToken(data.activation_token);
-    if(!claims)return record;
-    return simpanDariToken(data.activation_token,claims);
+    if(!claims)return tulis({...record,last_check_at:iso(now),last_check_error:'INVALID_TOKEN'});
+    return simpanDariToken(data.activation_token,claims,{now});
   }catch(error){
-    if(error.code==='SUSPENDED'||error.code==='REVOKED'||error.code==='NOT_BOUND'){
-      return tulis({...record,status:error.code==='NOT_BOUND'?'NOT_BOUND':error.code,updated_at:new Date().toISOString()});
-    }
-    /* Jaringan bermasalah: status terakhir dipertahankan, masa tenggang berjalan. */
-    return record;
+    const ditolak=STATUS_DITOLAK_SERVER[error.code];
+    if(ditolak)
+      return tulis({...record,status:ditolak,last_check_at:iso(now),last_check_error:error.code,
+        updated_at:iso(now)});
+    /* Konektivitas bermasalah: status terakhir dipertahankan, masa tenggang berjalan. Tidak ada
+       satu pun data yang disentuh, dan lisensi TIDAK pernah dianggap dicabut karena ini. */
+    return tulis({...record,last_check_at:iso(now),last_check_error:error.code||'NETWORK',
+      last_offline_at:error.code==='NETWORK'?iso(now):record.last_offline_at||null});
   }
 }
 
+/* Pemeriksaan dianggap perlu bila jadwal server sudah lewat, ATAU bila separuh masa tenggang
+   offline sudah terpakai. Yang kedua penting: jadwal server berjarak dua pekan, jadi tanpa itu
+   perangkat baru mencoba menghubungi server ketika 72 jamnya sudah habis. */
 export function isCheckDue(record=baca(),now=Date.now()){
-  if(!record?.next_check_at)return true;
-  return now>=new Date(record.next_check_at).getTime();
+  if(!record)return true;
+  const sekarang=effectiveNow(record,now);
+  const titikNol=licenseVerifiedAt(record);
+  if(titikNol!==null&&sekarang-titikNol>=TENGGANG_OFFLINE_MS/2)return true;
+  if(!record.next_check_at)return true;
+  return sekarang>=new Date(record.next_check_at).getTime();
 }
 
 /* ------------------------------------------------------------------ Status aplikasi */
 
 /* Nilai kembalian dipakai router untuk memutuskan apakah aplikasi berjalan penuh, terbatas,
-   atau harus meminta aktivasi. Tidak ada satu pun cabang yang menghapus data. */
+   atau harus meminta aktivasi. Tidak ada satu pun cabang yang menghapus data.
+
+   URUTANNYA DISENGAJA: jawaban server diperiksa LEBIH DULU, baru masa tenggang offline.
+   Lisensi yang baru dua jam lalu diverifikasi ACTIVE lalu dicabut Owner tetap langsung
+   terblokir begitu server menjawab REVOKED - masa tenggang tidak pernah menutupinya. Masa
+   tenggang hanya berlaku ketika server benar-benar TIDAK DAPAT dihubungi. */
 export function getLicenseState({now=Date.now()}={}){
   const record=baca();
   if(!record?.activation_token)return {state:'UNLICENSED',canUseApp:false,canEditData:false,record:null};
-  /* Lisensi yang dicabut atau perangkat yang tidak lagi terikat mengembalikan aplikasi ke
-     halaman Aktivasi: perangkat ini memang tidak berlisensi lagi, jadi ia harus memasukkan
-     License Key yang sah. Data akademik lokal TIDAK dihapus sama sekali oleh keadaan ini. */
-  if(record.status==='REVOKED')
-    return {state:'REVOKED',canUseApp:false,canEditData:false,record,message:LICENSE_MESSAGES.REVOKED};
-  if(record.status==='NOT_BOUND')
-    return {state:'NOT_BOUND',canUseApp:false,canEditData:false,record,message:LICENSE_MESSAGES.NOT_BOUND};
-  /* Ditangguhkan bersifat sementara, jadi aplikasi tetap terbuka dalam mode terbatas beserta
-     keterangannya; sekolah tetap dapat melihat data dan membuat backup. */
-  if(record.status==='SUSPENDED')
-    return {state:'SUSPENDED',canUseApp:true,canEditData:false,record,message:LICENSE_MESSAGES.SUSPENDED};
 
-  const jatuhTempo=record.next_check_at?new Date(record.next_check_at).getTime():now;
-  const batasTenggang=jatuhTempo+LICENSE_GRACE_PERIOD_DAYS*HARI;
-  if(now>batasTenggang){
-    /* Masa tenggang habis tanpa pernah berhasil menghubungi server. Aplikasi masuk mode
-       terbatas, TETAPI seluruh data tetap utuh dan tetap dapat dibaca serta dibackup. */
-    return {state:'GRACE_EXPIRED',canUseApp:true,canEditData:false,record,
-      message:'Aplikasi belum dapat memeriksa lisensi lebih dari '+(LICENSE_CHECK_INTERVAL_DAYS+LICENSE_GRACE_PERIOD_DAYS)+' hari. Sambungkan internet sekali untuk melanjutkan.'};
+  /* 1. JAWABAN SERVER MENGALAHKAN SEGALANYA.
+
+     Dicabut, ditangguhkan, tidak lagi terikat, dan kunci tidak valid semuanya mengembalikan
+     perangkat ke halaman Aktivasi Lisensi. Data akademik lokal TIDAK dihapus sama sekali oleh
+     keadaan ini - yang diputus hanyalah hak aksesnya sampai lisensi dipulihkan. */
+  const pesanBlokir=STATUS_MEMBLOKIR[record.status];
+  if(pesanBlokir)
+    return {state:record.status,canUseApp:false,canEditData:false,record,message:pesanBlokir,
+      offline:offlineGraceStatus(record,now)};
+
+  /* 2. BARU MASA TENGGANG OFFLINE. */
+  const tenggang=offlineGraceStatus(record,now);
+  if(tenggang.expired)
+    /* Lewat 72 jam tanpa verifikasi. Pesannya sengaja TIDAK menyatakan lisensi dicabut, karena
+       server memang belum pernah berhasil dihubungi; pengguna cukup menyambungkan internet. */
+    return {state:'GRACE_EXPIRED',canUseApp:false,canEditData:false,record,offline:tenggang,
+      message:PESAN_PERLU_VERIFIKASI,needsVerification:true};
+
+  if(isCheckDue(record,now)){
+    const sisaJam=Math.max(1,Math.ceil(tenggang.remainingMs/JAM));
+    return {state:'GRACE',canUseApp:true,canEditData:true,record,offline:tenggang,
+      message:`Aplikasi sedang memakai verifikasi lisensi offline. Sambungkan internet dalam ${sisaJam} jam agar lisensi dapat diperiksa ulang.`};
   }
-  if(now>jatuhTempo){
-    const sisa=Math.max(0,Math.ceil((batasTenggang-now)/HARI));
-    return {state:'GRACE',canUseApp:true,canEditData:true,record,
-      message:`Pemeriksaan lisensi tertunda. Sambungkan internet dalam ${sisa} hari.`};
-  }
-  return {state:'ACTIVE',canUseApp:true,canEditData:true,record};
+  return {state:'ACTIVE',canUseApp:true,canEditData:true,record,offline:tenggang};
+}
+
+/* GERBANG LOGIN.
+
+   Dipanggil dari authenticate() sehingga TIDAK ADA jalur masuk yang dapat melewatinya - baik
+   Admin maupun Guru, baik lewat halaman Login maupun pemanggil lain. Yang diputus hanyalah HAK
+   AKSES; tidak satu pun data akademik disentuh, dihapus, atau direset oleh fungsi ini.
+
+   Statusnya dibaca dari catatan lokal yang sudah disegarkan `checkLicense()` sesaat sebelum
+   login, sehingga pencabutan oleh Owner benar-benar terbaca pada percobaan masuk berikutnya. */
+export function assertLicenseAllowsLogin({now=Date.now()}={}){
+  /* Setiap percobaan masuk ikut mencatat waktu yang sedang dilihat aplikasi, sehingga jam yang
+     dimundurkan setelah pemakaian terakhir tidak dapat memperpanjang masa tenggang. */
+  noteClockObservation(now);
+  const state=getLicenseState({now});
+  if(state.canUseApp)return state;
+  const pesan=state.message
+    ||(state.state==='UNLICENSED'
+      ? 'Perangkat ini belum memiliki lisensi yang sah. Masukkan License Key untuk mengaktifkan aplikasi.'
+      : 'Lisensi perangkat ini tidak berlaku. Masukkan License Key yang sah untuk melanjutkan.');
+  const error=new Error(pesan);
+  error.code='LICENSE_BLOCKED';
+  error.licenseState=state.state;
+  /* Masa tenggang habis BUKAN pencabutan: pengguna cukup menyambungkan internet. Penanda ini
+     dipakai halaman Aktivasi Lisensi untuk menawarkan pemeriksaan ulang, bukan kunci baru. */
+  error.needsVerification=Boolean(state.needsVerification);
+  throw error;
+}
+
+/* Menyegarkan status lisensi ke server sebelum sesi baru dibuat. Kegagalan jaringan sengaja
+   tidak dianggap sebagai pencabutan - `checkLicense` sudah memutuskan itu - sehingga sekolah
+   yang sedang offline tidak terkunci hanya karena internetnya mati. */
+export async function refreshLicenseForLogin(){
+  try{await checkLicense({force:true});}catch{}
+  return getLicenseState();
 }
 
 export function isLicenseActivated(){return Boolean(baca()?.activation_token);}
@@ -209,5 +368,6 @@ export function getLicenseDisplay(){
   const record=baca();
   if(!record)return null;
   return {hint:record.license_hint||maskLicenseKey(''),status:record.status,
-    installation_id:record.installation_id,last_check:record.last_successful_check_at};
+    installation_id:record.installation_id,last_check:record.last_successful_check_at,
+    last_verified_at:record.last_verified_at||record.last_successful_check_at||null};
 }
