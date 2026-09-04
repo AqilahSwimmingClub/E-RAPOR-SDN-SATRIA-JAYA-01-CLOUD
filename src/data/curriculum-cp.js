@@ -26,9 +26,8 @@ const ELEMENTS=Object.freeze({
   seni:['Mengalami','Menciptakan','Merefleksikan','Berpikir dan Bekerja Artistik','Berdampak'],
   seni_rupa:['Mengalami','Menciptakan','Merefleksikan','Berpikir dan Bekerja Artistik','Berdampak'],
   bing:['Menyimak – Berbicara','Membaca – Memirsa','Menulis – Mempresentasikan'],
-  /* Lima elemen sesuai Bab XXVIII Keputusan Kepala BSKAP Nomor 046/H/KR/2025. Yang dicantumkan
-     hanya NAMA elemen; rumusan capaiannya milik dokumen resmi dan masuk lewat berkas naskah. */
-  koding:['Berpikir Komputasional','Literasi Digital','Algoritma Pemrograman','Analisis Data','Literasi dan Etika Kecerdasan Artifisial'],
+  /* Fase C SD pada Bab XXVIII memuat empat elemen berikut. */
+  koding:['Berpikir Komputasional','Literasi Digital','Literasi dan Etika Kecerdasan Artifisial','Pemanfaatan dan Pengembangan Kecerdasan Artifisial'],
   sunda:[['Menyimak','Ngaregepkeun'],['Membaca dan Memirsa','Maca jeung Miarsa'],
     ['Berbicara dan Menyajikan/Mempresentasikan','Nyarita jeung Midangkeun'],['Menulis','Nulis']],
 });
@@ -154,7 +153,7 @@ const OBJECTIVE_ELEMENTS=Object.freeze({
   'seni_rupa|C':['Menciptakan','Berdampak'],
   'bing|B':['Membaca – Memirsa','Menyimak – Berbicara'],
   'bing|C':['Membaca – Memirsa','Menulis – Mempresentasikan'],
-  'koding|C':['Algoritma Pemrograman','Literasi Digital','Literasi dan Etika Kecerdasan Artifisial'],
+  'koding|C':['Berpikir Komputasional','Literasi Digital','Literasi dan Etika Kecerdasan Artifisial'],
 });
 
 export function cpElementForObjective(subjectId,phase,order){
