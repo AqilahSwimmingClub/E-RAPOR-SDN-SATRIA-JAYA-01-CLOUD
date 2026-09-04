@@ -3,11 +3,17 @@ import assert from 'node:assert/strict';
 import { ACADEMIC_YEAR, CLASSES } from '../src/data/constants.js';
 import { authenticate, changeOwnPassword, createPasswordHash, getSession, listUserAccounts, recoverAdmin, resetTeacherPassword, saveSession, setTeacherActive } from '../src/services/auth.js';
 import { loadDb, updateDb } from '../src/services/storage.js';
+import { aktifkanLisensiLokal } from './helpers/license-local.js';
 
 function memoryStorage(){const values=new Map();return {getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};}
 
 test('Keamanan login memakai hash, mendukung 24 Guru, perubahan/reset password, dan expiry sesi',async()=>{
   globalThis.localStorage=memoryStorage();globalThis.sessionStorage=memoryStorage();
+  /* Login kini bergerbang lisensi; perangkat uji dinyatakan berlisensi sah. */
+  aktifkanLisensiLokal();
+  /* Akun Guru baru sengaja dibuat NONAKTIF, jadi Admin membukanya lebih dulu - persis seperti
+     yang harus dilakukan Admin sungguhan setelah lisensi pertama kali aktif. */
+  for(const classId of CLASSES)await setTeacherActive({role:'admin'},classId,true);
   const teacherSessions=[];
   for(const classId of CLASSES){
     const session=await authenticate({role:'teacher',username:'Guru',password:`Kelas${classId.toLowerCase()}`,semester:`Genap ${ACADEMIC_YEAR}`});

@@ -200,6 +200,35 @@ export function getLicenseState({now=Date.now()}={}){
   return {state:'ACTIVE',canUseApp:true,canEditData:true,record};
 }
 
+/* GERBANG LOGIN.
+
+   Dipanggil dari authenticate() sehingga TIDAK ADA jalur masuk yang dapat melewatinya - baik
+   Admin maupun Guru, baik lewat halaman Login maupun pemanggil lain. Yang diputus hanyalah HAK
+   AKSES; tidak satu pun data akademik disentuh, dihapus, atau direset oleh fungsi ini.
+
+   Statusnya dibaca dari catatan lokal yang sudah disegarkan `checkLicense()` sesaat sebelum
+   login, sehingga pencabutan oleh Owner benar-benar terbaca pada percobaan masuk berikutnya. */
+export function assertLicenseAllowsLogin(){
+  const state=getLicenseState();
+  if(state.canUseApp)return state;
+  const pesan=state.message
+    ||(state.state==='UNLICENSED'
+      ? 'Perangkat ini belum memiliki lisensi yang sah. Masukkan License Key untuk mengaktifkan aplikasi.'
+      : 'Lisensi perangkat ini tidak berlaku. Masukkan License Key yang sah untuk melanjutkan.');
+  const error=new Error(pesan);
+  error.code='LICENSE_BLOCKED';
+  error.licenseState=state.state;
+  throw error;
+}
+
+/* Menyegarkan status lisensi ke server sebelum sesi baru dibuat. Kegagalan jaringan sengaja
+   tidak dianggap sebagai pencabutan - `checkLicense` sudah memutuskan itu - sehingga sekolah
+   yang sedang offline tidak terkunci hanya karena internetnya mati. */
+export async function refreshLicenseForLogin(){
+  try{await checkLicense({force:true});}catch{}
+  return getLicenseState();
+}
+
 export function isLicenseActivated(){return Boolean(baca()?.activation_token);}
 export function getLicenseRecord(){return baca();}
 

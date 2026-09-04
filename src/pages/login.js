@@ -4,6 +4,7 @@ import { COPYRIGHT, DEVELOPER_CREDIT_LEAD, DEVELOPER_NAME, DEVELOPER_ROLE } from
 import { getSchoolMaster } from '../services/master.js';
 import { listLoginSemesters } from '../services/references.js';
 import { authenticate, ensureSecurityBootstrap, getSecurityStatus, recoverAdmin, saveSession } from '../services/auth.js';
+import { refreshLicenseForLogin } from '../services/license.js';
 import { icon } from '../ui/icons.js';
 import { el, escapeHtml, qs, toast } from '../ui/dom.js';
 
@@ -13,7 +14,7 @@ import { el, escapeHtml, qs, toast } from '../ui/dom.js';
 
 const LOCK_ICON='<svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
 
-export function renderLogin({onSuccess,onActivate}){
+export function renderLogin({onSuccess,onActivate,onLicenseBlocked}){
   let role='admin';let adminActivated=true;
   const semesters=listLoginSemesters();
   /* Identitas sekolah selalu dibaca dari master. Sebelum Setup Awal selesai, halaman ini
@@ -116,9 +117,19 @@ export function renderLogin({onSuccess,onActivate}){
     const errorBox=qs('#loginError',root),button=root.querySelector('[data-login]');
     errorBox.classList.add('hidden');button.disabled=true;button.textContent='Memverifikasi...';
     try{
+      /* SETIAP percobaan masuk menyegarkan status lisensi ke server lebih dulu.
+
+         Inilah yang membuat pencabutan oleh Owner benar-benar terasa: pengguna yang keluar lalu
+         mencoba masuk lagi akan tertolak, bukan terus memakai status lama yang tersimpan.
+         Kegagalan jaringan tidak dianggap pencabutan, sehingga sekolah yang sedang offline
+         tidak ikut terkunci. */
+      await refreshLicenseForLogin();
       const session=await authenticate({role,username:qs('#username',root).value,password:qs('#password',root).value,semester:qs('#semester',root).value});
       saveSession(session);onSuccess(session);
     }catch(error){
+      /* Lisensi yang tidak berlaku mengembalikan pengguna ke halaman Aktivasi Lisensi, bukan
+         sekadar menampilkan pesan galat di kotak login. */
+      if(error.code==='LICENSE_BLOCKED'){onLicenseBlocked?.(error);return;}
       errorBox.textContent=error.message;errorBox.classList.remove('hidden');
       /* Getaran sekali pada kotak galat saja, panel tetap diam. */
       errorBox.classList.remove('login-shake');void errorBox.offsetWidth;errorBox.classList.add('login-shake');

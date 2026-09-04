@@ -55,6 +55,23 @@ if(!startupError){try{ensureDefaultSubjects();}catch{}}
 let session=startupError?null:getSession();
 let expiryTimer=null;
 
+/* PEMERIKSAAN LISENSI SAAT STARTUP.
+
+   Sebelumnya `checkLicense` diimpor tetapi tidak pernah dipanggil dari mana pun, sehingga
+   catatan lisensi lokal tidak pernah disegarkan: pencabutan oleh Owner tidak pernah sampai ke
+   perangkat, dan aplikasi terus berjalan dengan status lama. Sekarang statusnya disegarkan
+   sekali saat aplikasi dibuka, tanpa menahan tampilan - hasilnya diterapkan begitu tiba.
+
+   Kegagalan jaringan sengaja tidak mengubah apa pun; `checkLicense` sendiri yang memutuskan
+   kapan sebuah status menjadi REVOKED atau SUSPENDED. Tidak ada data yang disentuh. */
+function segarkanLisensiDariServer(){
+  if(startupError)return;
+  Promise.resolve().then(()=>checkLicense({force:true})).then(()=>{
+    const sebelum=licenseState.state;
+    if(refreshLicenseState().state!==sebelum)navigate(getSession()?'dashboard':'login');
+  }).catch(()=>{});
+}
+
 function scheduleSessionExpiry(activeSession){
   clearTimeout(expiryTimer);expiryTimer=null;
   if(!activeSession?.expiresAt)return;
@@ -93,7 +110,12 @@ function mount(requestedRoute){
   document.documentElement.dataset.route=route;
   app.innerHTML='';
   if(route==='login'){
-    app.append(renderLogin({onSuccess:(s)=>{session=s;navigate('dashboard')},onActivate:()=>navigate('activation')}));
+    app.append(renderLogin({onSuccess:(s)=>{session=s;navigate('dashboard')},
+      onActivate:()=>navigate('activation'),
+      /* Lisensi ternyata sudah dicabut ketika pengguna mencoba masuk: aplikasi kembali ke
+         halaman Aktivasi Lisensi. Tidak ada data yang dihapus - hanya hak aksesnya yang
+         diputus sampai lisensi dipulihkan atau License Key baru dimasukkan. */
+      onLicenseBlocked:()=>{refreshLicenseState();navigate('login');}}));
     return;
   }
   if(route==='activation'){
@@ -207,6 +229,8 @@ if(startupError){
 }else{
   onRouteChange(mount);
   initRouter(session?'dashboard':'login');
+  /* Status lisensi disegarkan sekali setelah tampilan pertama berdiri. */
+  segarkanLisensiDariServer();
 }
 
 /* Setelah APK diperbarui, service worker versi baru tidak boleh menunggu tab lama ditutup.

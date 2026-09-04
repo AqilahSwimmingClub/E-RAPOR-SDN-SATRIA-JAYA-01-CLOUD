@@ -1,6 +1,7 @@
 import { CLASSES, SEMESTERS } from '../data/constants.js';
 import { getAdminProfile, getSchoolMaster, getTeacherProfile } from './master.js';
 import { listLoginSemesters, resolveSemesterAcademicYear } from './references.js';
+import { assertLicenseAllowsLogin } from './license.js';
 import { loadDb, updateDb } from './storage.js';
 
 const SESSION_KEY='erapor_satria_session_v2';
@@ -30,7 +31,14 @@ export async function ensureSecurityBootstrap(){
   const current=loadDb();
   if(current.userAccounts.admin&&CLASSES.every(classId=>current.userAccounts[teacherKey(classId)]))return true;
   if(bootstrapPromise)return bootstrapPromise;
-  bootstrapPromise=(async()=>{const db=loadDb();const missing=CLASSES.filter(classId=>!db.userAccounts[teacherKey(classId)]);const hashed=await Promise.all(missing.map(async classId=>[classId,await createPasswordHash(initialTeacherPassword(classId))]));updateDb(next=>{if(!next.userAccounts.admin)next.userAccounts.admin={id:'admin',role:'admin',username:'Admin',active:true,passwordHash:null,recoveryHash:null,requiresActivation:true,mustChangePassword:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};hashed.forEach(([classId,passwordHash])=>{const key=teacherKey(classId);if(!next.userAccounts[key])next.userAccounts[key]={id:key,role:'teacher',classId,username:`Guru${classId}`,active:true,passwordHash,recoveryHash:null,requiresActivation:false,mustChangePassword:false,bootstrapCredential:true,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};});next.security={...next.security,version:1,hashAlgorithm:'PBKDF2-SHA-256',hashIterations:HASH_ITERATIONS,sessionDurationMs:next.security.sessionDurationMs||SESSION_DURATION_MS,initializedAt:next.security.initializedAt||new Date().toISOString()};return next;});return true;})();
+  bootstrapPromise=(async()=>{const db=loadDb();const missing=CLASSES.filter(classId=>!db.userAccounts[teacherKey(classId)]);const hashed=await Promise.all(missing.map(async classId=>[classId,await createPasswordHash(initialTeacherPassword(classId))]));updateDb(next=>{if(!next.userAccounts.admin)next.userAccounts.admin={id:'admin',role:'admin',username:'Admin',active:true,passwordHash:null,recoveryHash:null,requiresActivation:true,mustChangePassword:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};/* Akun Guru dibuat NONAKTIF. Lisensi yang sah membuka aplikasi untuk Admin, bukan untuk
+       seluruh wali kelas sekaligus; Admin yang menentukan rombel mana yang benar-benar dipakai
+       tahun ini lewat Akun Guru & Penugasan.
+
+       Kompatibilitas instalasi lama aman dengan sendirinya: blok ini HANYA membuat akun yang
+       belum ada. Akun Guru yang sudah tersimpan - beserta status aktifnya - tidak pernah
+       disentuh, sehingga sekolah yang sudah berjalan tidak tiba-tiba terkunci. */
+      hashed.forEach(([classId,passwordHash])=>{const key=teacherKey(classId);if(!next.userAccounts[key])next.userAccounts[key]={id:key,role:'teacher',classId,username:`Guru${classId}`,active:false,passwordHash,recoveryHash:null,requiresActivation:false,mustChangePassword:false,bootstrapCredential:true,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};});next.security={...next.security,version:1,hashAlgorithm:'PBKDF2-SHA-256',hashIterations:HASH_ITERATIONS,sessionDurationMs:next.security.sessionDurationMs||SESSION_DURATION_MS,initializedAt:next.security.initializedAt||new Date().toISOString()};return next;});return true;})();
   try{return await bootstrapPromise;}finally{bootstrapPromise=null;}
 }
 
@@ -38,15 +46,40 @@ function randomCredential(length=14){const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZabc
 function recoveryCode(){const value=randomCredential(20).toUpperCase();return value.match(/.{1,5}/g).join('-');}
 
 async function resolveTeacherAccount(username,password){
-  const db=loadDb();const direct=String(username||'').match(/^guru([1-6][a-d])$/i);if(direct)return db.userAccounts[teacherKey(direct[1].toUpperCase())]||null;if(normalizeUsername(username)!=='guru')return null;const initial=String(password||'').match(/^kelas([1-6][a-d])$/i);if(initial)return db.userAccounts[teacherKey(initial[1].toUpperCase())]||null;const accounts=CLASSES.map(classId=>db.userAccounts[teacherKey(classId)]).filter(account=>account?.active);const matches=await Promise.all(accounts.map(async account=>verifyPassword(password,account.passwordHash)));return accounts[matches.findIndex(Boolean)]||null;
+  const db=loadDb();const direct=String(username||'').match(/^guru([1-6][a-d])$/i);if(direct)return db.userAccounts[teacherKey(direct[1].toUpperCase())]||null;if(normalizeUsername(username)!=='guru')return null;const initial=String(password||'').match(/^kelas([1-6][a-d])$/i);if(initial)return db.userAccounts[teacherKey(initial[1].toUpperCase())]||null;/* Akun nonaktif TETAP ikut dicocokkan di sini. Menyaringnya lebih awal membuat guru yang
+     kata sandinya benar menerima pesan "password tidak sesuai" - keliru dan membingungkan.
+     Statusnya diperiksa setelah kata sandinya terbukti benar. */
+  const accounts=CLASSES.map(classId=>db.userAccounts[teacherKey(classId)]).filter(Boolean);const matches=await Promise.all(accounts.map(async account=>verifyPassword(password,account.passwordHash)));return accounts[matches.findIndex(Boolean)]||null;
 }
 
 function sessionFor(account,semester){
   const validSemester=validateSemester(semester);const school=getSchoolMaster();const profile=account.role==='admin'?getAdminProfile():getTeacherProfile(account.classId);const now=Date.now();const duration=loadDb().security.sessionDurationMs||SESSION_DURATION_MS;return {role:account.role,classId:account.classId||null,accountId:account.id,semester:validSemester,academicYear:resolveSemesterAcademicYear(validSemester),school:school.name,userName:account.username,displayName:profile.name,profile,loggedInAt:new Date(now).toISOString(),expiresAt:new Date(now+duration).toISOString(),mustChangePassword:Boolean(account.mustChangePassword)};
 }
 
+/* DUA LAPIS VALIDASI LOGIN.
+
+   1. LISENSI SEKOLAH harus sah. Diperiksa lebih dulu dan berlaku untuk Admin maupun Guru:
+      lisensi yang dicabut memutus akses semua orang, bukan hanya wali kelas.
+   2. AKUN GURU harus aktif. Lisensi yang sah tidak dengan sendirinya mengaktifkan seluruh akun
+      Guru - Admin yang menentukannya.
+
+   Gerbang lisensi diletakkan di sini, bukan hanya di halaman Login, supaya tidak ada jalur
+   masuk yang dapat melewatinya. Tidak satu pun cabang di bawah menghapus atau mengubah data. */
 export async function authenticate({role,username,password,semester}){
-  await ensureSecurityBootstrap();const db=loadDb();let account=null;let passwordToVerify=String(password||'');if(role==='admin'){if(normalizeUsername(username)!=='admin')throw new Error('Username atau password Admin tidak sesuai.');account=db.userAccounts.admin;if(account?.requiresActivation||!db.security?.ownerActivated)throw new Error('Akun Admin belum diaktivasi oleh pemilik aplikasi.');}else if(role==='teacher'){account=await resolveTeacherAccount(username,passwordToVerify);if(account?.bootstrapCredential&&passwordToVerify.toLowerCase()===initialTeacherPassword(account.classId).toLowerCase())passwordToVerify=initialTeacherPassword(account.classId);}else throw new Error('Pilih peran login terlebih dahulu.');if(!account||!account.active||!await verifyPassword(passwordToVerify,account.passwordHash))throw new Error(role==='teacher'?'Username atau password Guru tidak sesuai.':'Username atau password Admin tidak sesuai.');return sessionFor(account,semester);
+  assertLicenseAllowsLogin();
+  await ensureSecurityBootstrap();const db=loadDb();let account=null;let passwordToVerify=String(password||'');if(role==='admin'){if(normalizeUsername(username)!=='admin')throw new Error('Username atau password Admin tidak sesuai.');account=db.userAccounts.admin;if(account?.requiresActivation||!db.security?.ownerActivated)throw new Error('Akun Admin belum diaktivasi oleh pemilik aplikasi.');}else if(role==='teacher'){account=await resolveTeacherAccount(username,passwordToVerify);if(account?.bootstrapCredential&&passwordToVerify.toLowerCase()===initialTeacherPassword(account.classId).toLowerCase())passwordToVerify=initialTeacherPassword(account.classId);}else throw new Error('Pilih peran login terlebih dahulu.');
+  const kataSandiBenar=Boolean(account)&&await verifyPassword(passwordToVerify,account.passwordHash);
+  if(!kataSandiBenar)throw new Error(role==='teacher'?'Username atau password Guru tidak sesuai.':'Username atau password Admin tidak sesuai.');
+  /* Kata sandinya benar, tetapi akunnya belum dibuka Admin. Pesannya menyebutkan itu apa adanya
+     supaya guru tahu harus menghubungi siapa, bukan mengira salah mengetik kata sandi. */
+  if(!account.active){
+    const error=new Error(role==='teacher'
+      ? 'Akun Guru ini belum diaktifkan Admin sekolah. Hubungi Admin untuk mengaktifkannya melalui Akun Guru & Penugasan.'
+      : 'Akun Admin sedang dinonaktifkan.');
+    error.code='ACCOUNT_INACTIVE';
+    throw error;
+  }
+  return sessionFor(account,semester);
 }
 
 export async function changeOwnPassword(session,currentPassword,newPassword){

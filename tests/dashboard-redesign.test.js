@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { flattenNavigation, navigationForRole } from '../src/data/navigation.js';
+import { aktifkanLisensiLokal } from './helpers/license-local.js';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
@@ -84,9 +85,24 @@ test('Redesign dashboard tidak mengubah menu Admin maupun Guru',()=>{
     assert.ok(teacher.includes(route),`menu Guru ${route} tetap ada`);
 });
 
-test('Autentikasi dan aktivasi tidak tersentuh oleh perubahan tampilan',()=>{
-  const berubah=execFileSync('git',['diff','--name-only','HEAD','--','src/pages/activation.js','src/services/auth.js','src/services/owner-activation.js'],{cwd:new URL('.',root).pathname,encoding:'utf8'}).trim();
-  assert.equal(berubah,'','aktivasi dan layanan autentikasi tidak boleh berubah');
+test('Halaman tampilan tidak pernah menjalankan autentikasi sendiri',()=>{
+  /* Semula test ini membekukan src/services/auth.js lewat `git diff HEAD`. Pembekuan itu tidak
+     sehat sebagai penjaga: hasilnya bergantung pada ada tidaknya perubahan yang belum
+     di-commit, dan ia menghalangi perubahan autentikasi yang memang diminta - seperti gerbang
+     lisensi pada login.
+
+     Yang sebenarnya ingin dijaga adalah pemisahan perannya: halaman tampilan boleh berubah
+     sebebasnya, tetapi tidak boleh memindahkan logika autentikasi ke dalam dirinya. Itulah yang
+     diperiksa sekarang, dan ia berlaku kapan pun tanpa bergantung pada keadaan git. */
+  for(const berkas of ['src/pages/dashboard.js','src/ui/layout.js']){
+    const isi=readFileSync(new URL(berkas,root),'utf8');
+    assert.equal(/verifyPassword|createPasswordHash|activateOwnerAdmin/.test(isi),false,
+      `${berkas} tidak menjalankan autentikasi sendiri`);
+  }
+  /* Kontrak layanannya tetap berdiri. */
+  const auth=readFileSync(new URL('src/services/auth.js',root),'utf8');
+  assert.match(auth,/export async function authenticate/);
+  assert.match(auth,/export function getSession/);
 });
 
 test('Permukaan dokumen cetak tetap putih, tidak ikut tema gelap',()=>{
