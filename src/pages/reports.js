@@ -1,6 +1,6 @@
 import { getAssessmentSettings } from '../services/assessment.js';
 import { generateReportDescription, getReportDescription, lockReportDescription, saveReportDescription } from '../services/descriptions.js';
-import { listActiveObjectives } from '../services/learning-objectives.js';
+import { studentCpButirAchievements } from '../services/cp-butir.js';
 import { commitReportImport, previewReportImport, reportTemplateCsv } from '../services/report-import.js';
 import { calculateReportSheet, getCompletionSummary, getReportScore, getStoredReportRows, saveAutomaticReportScores, saveManualReportScore, saveManualReportScoresBulk, visibleStoredReportRows } from '../services/report.js';
 import { saveAllAutomaticReports } from '../services/report-bulk.js';
@@ -102,17 +102,30 @@ export function renderReportInput(session,mode='input'){
     document.body.append(modal);const close=()=>modal.remove();modal.querySelector('[data-close]').onclick=close;modal.querySelector('[data-cancel]').onclick=close;modal.querySelector('[data-commit]').onclick=async()=>{if(!preview.canCommit||!await confirmDialog({title:'Konfirmasi Import Nilai',message:`Simpan ${preview.validCount} nilai sebagai override manual?`,confirmText:'Simpan Import'}))return;try{const saved=commitReportImport(session,preview);close();toast(`${saved.length} nilai berhasil diimport.`);}catch(error){toast(error.message,'error');}};
   }
   function openDescription(studentId){
-    const objectives=listActiveObjectives(session,subjectId);if(!objectives.length){toast('Aktifkan TP pada menu Tujuan Pembelajaran sebelum membuat deskripsi.','warning');return;}
-    /* TP AKTIF dari menu Tujuan Pembelajaran adalah satu-satunya sumber deskripsi. Guru tidak
-       diminta memilih TP lagi di sini; dua pilihan TP di bawah hanya tersisa untuk deskripsi
-       lama yang sudah terlanjur tersimpan dengan cara itu. */
-    const acuanRecords=objectives;
-const current=getReportDescription(session,subjectId,studentId);const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);const bestId=current?.bestObjectiveId||objectives[0].id;const improveId=current?.improvementObjectiveId||objectives[1]?.id||objectives[0].id;const locked=Boolean(current?.locked);
-    const modal=el(`<div class="modal-backdrop"><div class="modal-card modal-wide description-modal"><div class="modal-head"><div><h3>Deskripsi Rapor</h3><p>${escapeHtml(student?.name||'')} · ${escapeHtml(subjects.find(subject=>subject.id===subjectId)?.name||'')}</p></div><button class="btn btn-light btn-icon" data-close aria-label="Tutup">${icon('x',17)}</button></div><div class="description-status">${statusBadge(Boolean(current?.text),current?.status==='LOCKED'?'Terkunci':current?.status==='EDITED'?'Diedit Guru':current?.status==='AUTO'?'Otomatis':'Belum Disimpan')}</div>${acuanRecords.length?`<div class="source-banner">Deskripsi diringkas otomatis dari ${acuanRecords.length} TP aktif pada menu Tujuan Pembelajaran: ${escapeHtml(acuanRecords.map(item=>item.code).join(", "))}. Nilai Akhir tetap dari lima jenis penilaian.</div>`:''}<div class="form-grid"><div class="field"><label>TP Capaian Terbaik</label><select class="input" data-best ${locked?'disabled':''}>${objectives.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===bestId?'selected':''}>${escapeHtml(item.code)} · ${escapeHtml(item.description)}</option>`).join('')}</select></div><div class="field"><label>TP Perlu Ditingkatkan</label><select class="input" data-improve ${locked?'disabled':''}>${objectives.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===improveId?'selected':''}>${escapeHtml(item.code)} · ${escapeHtml(item.description)}</option>`).join('')}</select></div><div class="field form-span-2"><label>Deskripsi</label><textarea class="input" rows="6" maxlength="1500" data-text ${locked?'disabled':''}>${escapeHtml(current?.text||'')}</textarea></div></div><div class="modal-actions"><button class="btn btn-light" data-generate ${locked?'disabled':''}>Generate</button><button class="btn btn-primary" data-save-description ${locked?'disabled':''}>Simpan</button><button class="btn btn-warning" data-lock ${locked?'disabled':''}>Kunci</button></div></div></div>`);
-    document.body.append(modal);const close=()=>modal.remove();modal.querySelector('[data-close]').onclick=close;const values=()=>(acuanRecords.length
-      ? {objectiveIds:acuanRecords.map(item=>item.id),text:modal.querySelector('[data-text]').value}
-      : {bestObjectiveId:modal.querySelector('[data-best]').value,improvementObjectiveId:modal.querySelector('[data-improve]').value,text:modal.querySelector('[data-text]').value});
-    modal.querySelector('[data-generate]').onclick=()=>{try{modal.querySelector('[data-text]').value=generateReportDescription(session,subjectId,studentId,values()).text;toast('Deskripsi otomatis berhasil dibuat.');}catch(error){toast(error.message,'error');}};
+    /* DESKRIPSI RAPOR BERSUMBER BUTIR CP.
+
+       Dulu modal ini menolak terbuka selama belum ada TP aktif, lalu memaksa guru memilih dua
+       TP - "capaian terbaik" dan "perlu ditingkatkan" - yang kemudian dikirim sebagai
+       objectiveIds sehingga penyusun deskripsi selalu mengambil jalur TP. Keduanya tidak lagi
+       benar sejak penilaian kompetensi memakai Butir CP: guru tidak perlu menyiapkan TP untuk
+       dapat menulis deskripsi, dan sumber kalimatnya adalah butir yang benar-benar dinilai.
+
+       Yang ditampilkan sekarang adalah butir mana saja yang menjadi bahan kalimat beserta
+       nilainya, supaya guru tahu persis dari mana deskripsi itu berasal. */
+    let capaian=[];
+    try{capaian=studentCpButirAchievements(session,subjectId,studentId);}catch{capaian=[];}
+    const current=getReportDescription(session,subjectId,studentId);
+    const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);
+    const locked=Boolean(current?.locked);
+    const daftarButir=capaian.map(item=>`${item.name} (${item.nilai})`).join(', ');
+    const banner=capaian.length
+      ? `Deskripsi disusun otomatis dari ${capaian.length} Butir CP yang dinilai: ${escapeHtml(daftarButir)}. Nilai Akhir tetap dari lima jenis penilaian.`
+      : 'Belum ada Butir CP yang dinilai pada mata pelajaran ini. Deskripsi disusun dari lingkup kompetensi CP mata pelajaran; isi nilai Butir CP pada menu Capaian Pembelajaran agar kalimatnya menyebut kemampuan yang benar-benar dinilai.';
+    const modal=el(`<div class="modal-backdrop"><div class="modal-card modal-wide description-modal"><div class="modal-head"><div><h3>Deskripsi Rapor</h3><p>${escapeHtml(student?.name||'')} · ${escapeHtml(subjects.find(subject=>subject.id===subjectId)?.name||'')}</p></div><button class="btn btn-light btn-icon" data-close aria-label="Tutup">${icon('x',17)}</button></div><div class="description-status">${statusBadge(Boolean(current?.text),current?.status==='LOCKED'?'Terkunci':current?.status==='EDITED'?'Diedit Guru':current?.status==='AUTO'?'Otomatis':'Belum Disimpan')}</div><div class="source-banner" data-sumber-cp>${banner}</div><div class="form-grid"><div class="field form-span-2"><label>Deskripsi</label><textarea class="input" rows="6" maxlength="1500" data-text ${locked?'disabled':''}>${escapeHtml(current?.text||'')}</textarea></div></div><div class="modal-actions"><button class="btn btn-light" data-generate ${locked?'disabled':''}>Generate</button><button class="btn btn-primary" data-save-description ${locked?'disabled':''}>Simpan</button><button class="btn btn-warning" data-lock ${locked?'disabled':''}>Kunci</button></div></div></div>`);
+    document.body.append(modal);const close=()=>modal.remove();modal.querySelector('[data-close]').onclick=close;
+    /* Tidak ada objectiveIds yang dikirim: penyusun deskripsi memakai jalur CP/Butir CP. */
+    const values=()=>({text:modal.querySelector('[data-text]').value});
+    modal.querySelector('[data-generate]').onclick=()=>{try{modal.querySelector('[data-text]').value=generateReportDescription(session,subjectId,studentId,{}).text;toast('Deskripsi otomatis berhasil dibuat.');}catch(error){toast(error.message,'error');}};
     modal.querySelector('[data-save-description]').onclick=()=>{try{saveReportDescription(session,subjectId,studentId,values());close();drawAutomatic();toast('Deskripsi rapor berhasil disimpan.');}catch(error){toast(error.message,'error');}};
     modal.querySelector('[data-lock]').onclick=async()=>{if(!await confirmDialog({title:'Kunci Deskripsi',message:'Deskripsi yang terkunci tidak dapat diedit lagi.',confirmText:'Kunci'}))return;try{lockReportDescription(session,subjectId,studentId);close();drawAutomatic();toast('Deskripsi berhasil dikunci.');}catch(error){toast(error.message,'error');}};
   }

@@ -2,6 +2,8 @@ import { CLASSES, SUBJECTS_DEFAULT } from '../data/constants.js';
 import { cpBerlaku } from '../data/curriculum-cp.js';
 import { phaseForClassId } from '../data/learning-objective-defaults.js';
 import { listObjectivesForAssessment } from './learning-objectives.js';
+import { listCpButirForSemester } from './cp-butir.js';
+import { hasCpButir } from '../data/cp-butir-defaults.js';
 import { getSchoolMaster, getTeacherProfile } from './master.js';
 import { listStudents } from './students.js';
 import { getSubjectMapping, loadDb, scopeKey, updateDb } from './storage.js';
@@ -21,13 +23,30 @@ export const READINESS_ITEMS=Object.freeze([
 
 const COLLECTION='teacherUsageActivation';
 
-/* Sebuah mata pelajaran hanya dapat dituntut mempunyai TP bila ia memang mempunyai CP pada
-   fase rombel itu. Koding dan Kecerdasan Artifisial baru berlaku mulai Fase C, sehingga
-   menuntut TP-nya di kelas 1-4 akan menjadi syarat yang mustahil dipenuhi: Admin tidak akan
+/* Sebuah mata pelajaran hanya dapat dituntut mempunyai Capaian Pembelajaran bila ia memang
+   mempunyai CP pada fase rombel itu. Koding dan Kecerdasan Artifisial baru berlaku mulai Fase C,
+   sehingga menuntutnya di kelas 1-4 akan menjadi syarat yang mustahil dipenuhi: Admin tidak akan
    pernah bisa membuka menu Guru selama mapel itu aktif di Mapping rombel tersebut. */
-function wajibPunyaTP(classId,subjectId){
+function wajibPunyaCp(classId,subjectId){
   const phase=phaseForClassId(classId);
-  return Boolean(phase)&&cpBerlaku(subjectId,phase);
+  if(!phase||!cpBerlaku(subjectId,phase))return false;
+  /* Aplikasi tidak boleh menuntut sesuatu yang tidak disediakannya. Seni dan Budaya adalah label
+     payung yang naskah CP resminya memang tidak ada, sehingga Butir CP bawaannya sengaja tidak
+     disediakan; menuntutnya akan menahan Admin selamanya. Guru tetap dapat membuat Butir CP
+     sendiri, dan begitu ia ada, mapel itu ikut terhitung seperti mapel lain. */
+  return hasCpButir(subjectId,phase);
+}
+
+/* Butir kesiapan ini dulu menuntut TP AKTIF hasil ketikan guru. Sejak penilaian kompetensi
+   memakai BUTIR CP, yang dituntut adalah butir CP aktif pada semester berjalan - dan itu sudah
+   tersedia sejak mata pelajaran diaktifkan, sehingga Admin tidak lagi tertahan hanya karena guru
+   belum sempat mengetik TP.
+
+   Catatan TP lama tetap diterima sebagai bukti kesiapan supaya sekolah yang sudah berjalan
+   dengan TP tidak tiba-tiba dinyatakan belum siap. */
+function punyaCapaian(konteks,subjectId){
+  try{if(listCpButirForSemester(konteks,subjectId).length)return true;}catch{}
+  try{return listObjectivesForAssessment(konteks,subjectId,{activeOnly:true}).length>0;}catch{return false;}
 }
 
 export function teacherUsageScopeKey(session){
@@ -105,10 +124,8 @@ export function getAdminReadiness(session){
     const mapping=getSubjectMapping({...scope,role:'teacher',classId,adminContext:true});
     const aktif=(Array.isArray(mapping)?mapping:[]).filter(item=>item.active);
     if(!aktif.length)return false;
-    return aktif.filter(item=>wajibPunyaTP(classId,item.id)).every(item=>{
-      try{return listObjectivesForAssessment({...scope,role:'teacher',classId,adminContext:true},item.id,{activeOnly:true}).length>0;}
-      catch{return false;}
-    });
+    return aktif.filter(item=>wajibPunyaCp(classId,item.id)).every(item=>
+      punyaCapaian({...scope,role:'teacher',classId,adminContext:true},item.id));
   });
   const cekAkun=rombel.filter(classId=>akun[`teacher:${classId}`]?.active);
   const cekPenugasan=rombel.filter(classId=>{
@@ -129,11 +146,8 @@ export function getAdminReadiness(session){
     catch{rincianSiswa.push(`Data siswa ${classId}`);}
     const prefix=`${scopeKey(konteks)}|`;
     for(const mapel of aktif){
-      if(wajibPunyaTP(classId,mapel.id)){
-        let tp=[];
-        try{tp=listObjectivesForAssessment(konteks,mapel.id,{activeOnly:true});}catch{tp=[];}
-        if(!tp.length)rincianTP.push(`TP ${namaMapel(mapel.id)} ${classId}`);
-      }
+      if(wajibPunyaCp(classId,mapel.id)&&!punyaCapaian(konteks,mapel.id))
+        rincianTP.push(`Butir CP ${namaMapel(mapel.id)} ${classId}`);
       const setting=tersimpan[`${prefix}${mapel.id}`];
       const bobot=['formative','daily','practice','scopeSummative','semesterSummative']
         .reduce((total,field)=>total+(Number(setting?.[field])||0),0);
@@ -162,8 +176,8 @@ export function getAdminReadiness(session){
     {id:'students',label:'Data siswa',done:rombel.length>0&&cekSiswa.length===rombel.length,
       reason:`Setiap rombel yang dipakai harus sudah berisi siswa.${sebab(rincianSiswa)}`,
       detail:rincianSiswa},
-    {id:'learning-objectives',label:'CP dan Tujuan Pembelajaran',done:rombel.length>0&&cekTP.length===rombel.length,
-      reason:`Setiap mata pelajaran aktif harus punya TP aktif; CP-nya mengikuti fase rombel.${sebab(rincianTP)}`,
+    {id:'learning-objectives',label:'Capaian Pembelajaran',done:rombel.length>0&&cekTP.length===rombel.length,
+      reason:`Setiap mata pelajaran aktif harus punya Butir CP aktif; CP-nya mengikuti fase rombel.${sebab(rincianTP)}`,
       detail:rincianTP},
     {id:'teacher-accounts',label:'Akun Guru',done:rombel.length>0&&cekAkun.length===rombel.length,
       reason:'Akun Guru untuk rombel yang dipakai harus dalam keadaan aktif pada Akun Guru & Penugasan.'},

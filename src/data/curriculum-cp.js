@@ -16,8 +16,12 @@ import { TP_SOURCES, phaseForClassId } from './learning-objective-defaults.js';
 export const CP_STATUS='rujukan';
 
 const ELEMENTS=Object.freeze({
-  agama:['Al-Qur\'an dan Hadis','Akidah','Akhlak','Fikih','Sejarah Peradaban Islam'],
-  agama_kristen:['Allah Berkarya','Manusia dan Nilai-nilai Kristiani','Gereja dan Masyarakat Majemuk','Alam dan Lingkungan'],
+  /* Nama elemen mengikuti naskah resmi. Slot ketiga adalah ID LAMA yang dipatok: id elemen
+     dulu diturunkan dari namanya, sehingga menyamakan nama tanpa mematok id akan mengubah id
+     dan memutus catatan yang sudah tersimpan - Butir CP, nilai murid, dan tautan TP lama. */
+  agama:[['Al-Qur\u2019an Hadis',null,'al-qur-an-dan-hadis'],'Akidah','Akhlak','Fikih','Sejarah Peradaban Islam'],
+  agama_kristen:['Allah Berkarya','Manusia dan Nilai-nilai Kristiani','Gereja dan Masyarakat Majemuk',
+    ['Alam dan Lingkungan Hidup',null,'alam-dan-lingkungan']],
   pancasila:['Pancasila','Undang-Undang Dasar Negara Republik Indonesia Tahun 1945','Bhinneka Tunggal Ika','Negara Kesatuan Republik Indonesia'],
   bindo:['Menyimak','Membaca dan Memirsa','Berbicara dan Mempresentasikan','Menulis'],
   mtk:['Bilangan','Aljabar','Pengukuran','Geometri','Analisis Data dan Peluang'],
@@ -25,7 +29,9 @@ const ELEMENTS=Object.freeze({
   pjok:['Terampil Bergerak','Belajar Melalui Gerak','Bergaya Hidup Aktif','Memilih Hidup yang Menyehatkan'],
   seni:['Mengalami','Menciptakan','Merefleksikan','Berpikir dan Bekerja Artistik','Berdampak'],
   seni_rupa:['Mengalami','Menciptakan','Merefleksikan','Berpikir dan Bekerja Artistik','Berdampak'],
-  bing:['Menyimak – Berbicara','Membaca – Memirsa','Menulis – Mempresentasikan'],
+  /* Naskah resmi memakai tanda hubung biasa, bukan en dash. Slug keduanya sama, jadi id elemen
+     tidak berubah. */
+  bing:['Menyimak - Berbicara','Membaca - Memirsa','Menulis - Mempresentasikan'],
   /* Fase C SD pada Bab XXVIII memuat empat elemen berikut. */
   koding:['Berpikir Komputasional','Literasi Digital','Literasi dan Etika Kecerdasan Artifisial','Pemanfaatan dan Pengembangan Kecerdasan Artifisial'],
   sunda:[['Menyimak','Ngaregepkeun'],['Membaca dan Memirsa','Maca jeung Miarsa'],
@@ -63,9 +69,10 @@ export function elementIdOf(subjectId,name){
 export function cpElements(subjectId,phase){
   if(phase&&!cpBerlaku(subjectId,phase))return [];
   return (ELEMENTS[subjectId]||[]).map((entry,index)=>{
-    const [name,nameLokal]=Array.isArray(entry)?entry:[entry,null];
+    const [name,nameLokal,idLegacy]=Array.isArray(entry)?entry:[entry,null,null];
     return Object.freeze({
-      id:elementIdOf(subjectId,name),name,nameLokal,order:index+1,subjectId,
+      id:idLegacy?`${subjectId}:${idLegacy}`:elementIdOf(subjectId,name),
+      name,nameLokal,order:index+1,subjectId,
       naskah:phase?naskahElemen(subjectId,phase,name):null,
     });
   });
@@ -125,9 +132,9 @@ export function cpElementById(subjectId,elementId){
 }
 
 const OBJECTIVE_ELEMENTS=Object.freeze({
-  'agama|A':['Al-Qur\'an dan Hadis','Akhlak','Akidah','Fikih'],
-  'agama|B':['Al-Qur\'an dan Hadis','Akhlak','Fikih','Sejarah Peradaban Islam'],
-  'agama|C':['Al-Qur\'an dan Hadis','Akhlak','Fikih','Sejarah Peradaban Islam'],
+  'agama|A':['Al-Qur\u2019an Hadis','Akhlak','Akidah','Fikih'],
+  'agama|B':['Al-Qur\u2019an Hadis','Akhlak','Fikih','Sejarah Peradaban Islam'],
+  'agama|C':['Al-Qur\u2019an Hadis','Akhlak','Fikih','Sejarah Peradaban Islam'],
   'agama_kristen|A':['Allah Berkarya','Manusia dan Nilai-nilai Kristiani','Allah Berkarya'],
   'agama_kristen|B':['Allah Berkarya','Manusia dan Nilai-nilai Kristiani','Manusia dan Nilai-nilai Kristiani'],
   'agama_kristen|C':['Allah Berkarya','Manusia dan Nilai-nilai Kristiani','Gereja dan Masyarakat Majemuk'],
@@ -151,8 +158,8 @@ const OBJECTIVE_ELEMENTS=Object.freeze({
   'seni_rupa|A':['Mengalami','Menciptakan'],
   'seni_rupa|B':['Menciptakan','Merefleksikan'],
   'seni_rupa|C':['Menciptakan','Berdampak'],
-  'bing|B':['Membaca – Memirsa','Menyimak – Berbicara'],
-  'bing|C':['Membaca – Memirsa','Menulis – Mempresentasikan'],
+  'bing|B':['Membaca - Memirsa','Menyimak - Berbicara'],
+  'bing|C':['Membaca - Memirsa','Menulis - Mempresentasikan'],
   'koding|C':['Berpikir Komputasional','Literasi Digital','Literasi dan Etika Kecerdasan Artifisial'],
 });
 

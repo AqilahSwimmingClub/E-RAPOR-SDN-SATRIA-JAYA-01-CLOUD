@@ -269,11 +269,19 @@ test('9. Intrakurikuler memakai TP aktif yang sama',()=>{
 });
 
 test('10. Hanya ada satu sumber TP di seluruh aplikasi',()=>{
-  /* Setiap modul membaca lewat layanan TP bersama, bukan koleksi sendiri. */
+  /* Modul yang MASIH membaca TP membacanya lewat layanan bersama, bukan koleksi sendiri.
+     Halaman Nilai Rapor sudah keluar dari daftar ini: deskripsi rapornya bersumber Butir CP,
+     sehingga ia tidak lagi membaca TP sama sekali. */
   for(const berkas of ['src/services/intracurricular.js','src/services/descriptions.js',
-    'src/services/report-bulk.js','src/pages/assessment.js','src/pages/reports.js'])
+    'src/services/report-bulk.js','src/pages/assessment.js'])
     assert.match(read(berkas),/from '\.\.\/services\/learning-objectives\.js'|from '\.\/learning-objectives\.js'/,
       `${berkas} membaca TP dari layanan bersama`);
+  const halamanRapor=read('src/pages/reports.js');
+  assert.equal(/learning-objectives\.js/.test(halamanRapor),false,
+    'halaman Nilai Rapor tidak lagi membaca TP');
+  assert.match(halamanRapor,/studentCpButirAchievements/,'deskripsi rapor bersumber Butir CP');
+  assert.equal(/data-best|data-improve/.test(halamanRapor),false,
+    'guru tidak lagi diminta memilih dua TP untuk membuat deskripsi');
   for(const berkas of ['src/services/intracurricular.js','src/services/assessment.js'])
     assert.equal(/learningObjectives\s*[:=]/.test(read(berkas)),false,
       `${berkas} tidak membuat koleksi TP sendiri`);
@@ -318,22 +326,27 @@ test('12. Desain rapor tidak berubah dan tidak ada bagian baru berisi daftar TP'
   assert.equal(cetak.includes('Daftar Tujuan Pembelajaran'),false);
 });
 
-test('13. Menu Tujuan Pembelajaran menjadi pusat pengaturan TP',()=>{
+test('13. Menu Capaian Pembelajaran menjadi pusat pengaturan CP dan Butir CP',()=>{
   const halaman=read('src/pages/objectives.js');
-  /* Alurnya: pilih mapel, + Tambah TP, centang, Simpan. Tanpa langkah adopsi katalog. */
-  assert.match(halaman,/Tambah TP/,'tombol Tambah TP tersedia');
-  assert.match(halaman,/Pilih Tujuan Pembelajaran/,'modal pemilihan TP');
-  assert.match(halaman,/Simpan TP Terpilih/,'hanya TP terpilih yang disimpan');
+  /* Menu ini berganti substansi, bukan sekadar berganti label: yang dikelola sekarang adalah
+     CP resmi beserta BUTIR CP PENILAIAN-nya. Alurnya: pilih mapel, lihat CP resmi, kelola
+     butir, tentukan semester dan jenis penilaian, lalu isi nilai per butir. */
+  assert.match(halaman,/Tambah CP/,'tombol Tambah CP tersedia');
+  assert.match(halaman,/Tambah Capaian Pembelajaran/,'modal pemilihan Butir CP');
+  assert.match(halaman,/Aktifkan Butir CP Terpilih/,'hanya butir terpilih yang diaktifkan');
   assert.match(halaman,/data-pilih-semua/,'tersedia Pilih Semua');
-  assert.match(halaman,/Buat TP Manual/,'guru tetap dapat merumuskan TP sendiri');
-  assert.match(halaman,/addReferenceObjectives/,'penambahan lewat layanan TP referensi');
+  assert.match(halaman,/Buat CP Manual/,'guru tetap dapat merumuskan CP sendiri');
+  assert.match(halaman,/createCpButir|updateCpButir/,'pengelolaan lewat layanan Butir CP');
+  assert.match(halaman,/saveCpButirScores/,'nilai siswa diisi per Butir CP');
   assert.equal(/Simpan Katalog sebagai TP Sekolah|adoptCatalogueObjectives|isCatalogueOnly/.test(halaman),false,
     'alur adopsi katalog sudah dihapus dari UI');
   /* Fase read-only dan tabel memuat kolom yang diminta. */
   assert.match(halaman,/id="objectivePhase"[^>]*readonly|readonly/,'fase tidak dipilih manual');
-  for(const kolom of ['<th>No</th>','<th>Tingkat</th>','<th>Fase</th>','<th>Semester</th>',
-    '<th>Tujuan Pembelajaran</th>','<th>Status</th>','<th>Aksi</th>'])
+  for(const kolom of ['<th>No</th>','<th>Elemen CP</th>','<th>Butir CP</th>','<th>Semester</th>',
+    '<th>Jenis Penilaian</th>','<th>Status</th>','<th>Aksi</th>'])
     assert.ok(halaman.includes(kolom),`kolom ${kolom} tersedia`);
+  /* Arsip TP lama tetap dapat dibaca guru, tidak dihapus dari aplikasi. */
+  assert.match(halaman,/Arsip Tujuan Pembelajaran/,'catatan TP lama tetap terbaca');
 
   useMemoryStorage();
   const session=guru();

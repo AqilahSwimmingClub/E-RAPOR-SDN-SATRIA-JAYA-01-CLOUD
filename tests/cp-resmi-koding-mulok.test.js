@@ -10,6 +10,7 @@ import { defaultLearningObjectives, phaseForClassId,
   TP_SOURCES } from '../src/data/learning-objective-defaults.js';
 import { addReferenceObjectives, listActiveObjectives, listReferenceObjectives,
   listSchoolObjectives, setActiveObjective } from '../src/services/learning-objectives.js';
+import { listCpButir, setCpButirActive } from '../src/services/cp-butir.js';
 import { getAdminReadiness } from '../src/services/admin-readiness.js';
 import { listIntracurricularObjectives } from '../src/services/intracurricular.js';
 import { saveTeacherProfile } from '../src/services/master.js';
@@ -341,12 +342,21 @@ test('17. Kesiapan Guru tidak menuntut TP untuk mapel yang belum berlaku pada fa
   assert.equal(butir.detail.some(teks=>/Koding/.test(teks)),false);
   assert.equal(butir.detail.some(teks=>/Bahasa Inggris/.test(teks)),false,
     'Bahasa Inggris Fase A tidak boleh menjadi syarat TP');
-  assert.equal(butir.detail.some(teks=>teks.startsWith('TP Matematika 1A')),false);
+  assert.equal(butir.detail.some(teks=>teks.startsWith('Butir CP Matematika 1A')),false);
+
+  /* Pada Fase C, Koding & KA MEMANG dituntut - dan syaratnya terpenuhi sendiri karena Butir CP
+     dibawa aplikasi. Yang diperiksa di sini adalah bahwa mapel itu benar-benar dievaluasi:
+     begitu seluruh Butir CP-nya dinonaktifkan, penyebabnya muncul menyebut mapel dan rombel. */
   const kelasLima=guru('5B');
   aktifkanMapel(kelasLima,['koding']);
   saveTeacherProfile(admin,'5B',{name:'Wali Kelas Lima',nip:'198501012010011002',phone:'08',email:'c@d.id',photo:''});
   const lima=getAdminReadiness(admin).items.find(item=>item.id==='learning-objectives');
-  assert.ok(lima.detail.some(teks=>/Koding.*5B/.test(teks)));
+  assert.equal(lima.detail.some(teks=>/Koding.*5B/.test(teks)),false,
+    'Butir CP Koding Fase C tersedia sejak awal');
+  for(const item of listCpButir(kelasLima,'koding'))setCpButirActive(kelasLima,'koding',item.id,false);
+  const limaKosong=getAdminReadiness(admin).items.find(item=>item.id==='learning-objectives');
+  assert.ok(limaKosong.detail.some(teks=>/Koding.*5B/.test(teks)),
+    'Koding & KA Fase C tetap dievaluasi sebagai syarat kesiapan');
 });
 
 test('18. Naskah CP hanya berasal dari berkas data dan sumber terverifikasi',()=>{

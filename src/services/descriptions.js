@@ -1,4 +1,5 @@
-import { composeReportCpDescription, cpAcuanFor } from './cp-descriptions.js';
+import { composeReportButirDescription, composeReportCpDescription, cpAcuanFor } from './cp-descriptions.js';
+import { studentCpButirAchievements } from './cp-butir.js';
 import { listActiveObjectives, listObjectivesForAssessment } from './learning-objectives.js';
 import { ringkasObjectives } from './objective-summary.js';
 import { calculateReportScore, getReportScore } from './report.js';
@@ -75,6 +76,16 @@ function cpDescription(session,subjectId,studentId){
   const student=studentOf(session,studentId);
   const {finalScore,kktp}=finalScoreOf(session,subjectId,studentId);
   const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
+  /* SUMBER UTAMA adalah BUTIR CP yang dinilai murid: butir + jenis penilaian + hasil nilai.
+     Kalimatnya menyebut kompetensi yang benar-benar dinilai, bukan menyalin lingkup elemen. */
+  let capaian=[];
+  try{capaian=studentCpButirAchievements(session,subjectId,studentId);}catch{capaian=[];}
+  const dariButir=composeReportButirDescription({studentName:student.name,capaian,finalScore,kktp});
+  if(dariButir)
+    return {text:dariButir,source:'CP_BUTIR',cpPhase:cp.phase,objectiveIds:null,
+      butirIds:capaian.map(item=>item.butirId),
+      bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};
+  /* Belum ada butir yang dinilai: lingkup elemen CP dipakai supaya rapor tidak kosong. */
   const text=composeReportCpDescription({
     studentName:student.name,subjectName:subject?.name||'',cp,finalScore,kktp});
   if(!text)return null;

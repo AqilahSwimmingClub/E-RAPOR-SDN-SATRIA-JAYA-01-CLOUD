@@ -24,7 +24,7 @@ const APP_SHELL=[
   './src/services/mapping.js','./src/services/admin-readiness.js','./src/services/installation.js','./src/services/student-handover.js','./src/services/license.js','./src/services/master.js','./src/services/objectives.js','./src/services/learning-objectives.js','./src/services/updates.js','./src/services/report.js',
   './src/services/owner-activation.js','./src/services/print-settings.js','./src/services/publications.js','./src/services/references.js','./src/services/report-bulk.js',
   './src/services/report-import.js','./src/services/snapshots.js','./src/services/migrations.js','./src/services/seed.js','./src/services/storage.js','./src/services/students.js',
-  './src/services/objective-summary.js','./src/services/cp-descriptions.js','./src/services/subjects.js','./src/services/teacher-assignments.js','./src/services/transcript.js','./src/services/transcript-admin.js','./src/services/excel.js','./src/services/file-io.js','./src/services/print-service.js','./src/data/owner-verifier.js'
+  './src/services/objective-summary.js','./src/services/cp-descriptions.js','./src/services/cp-butir.js','./src/data/cp-butir-defaults.js','./src/services/subjects.js','./src/services/teacher-assignments.js','./src/services/transcript.js','./src/services/transcript-admin.js','./src/services/excel.js','./src/services/file-io.js','./src/services/print-service.js','./src/data/owner-verifier.js'
 ];
 
 const SWAPPABLE_ASSETS=['/assets/login-background.jpg','/assets/logo-tut-wuri-handayani.png','/assets/logo-kabupaten-bekasi.png'];

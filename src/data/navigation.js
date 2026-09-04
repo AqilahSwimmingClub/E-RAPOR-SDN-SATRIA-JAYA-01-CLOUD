@@ -74,7 +74,7 @@ export const NAVIGATION=Object.freeze({
       item('student-handover','Serah Terima Siswa','shuffle','student-handover')
     ]),
     group('teacher-learning','PEMBELAJARAN','target',[
-      item('objectives','Tujuan Pembelajaran','target','objectives'),
+      item('objectives','Capaian Pembelajaran','target','objectives'),
       item('weights','KKTP','sliders','weights'),
       item('assessment','Penilaian','edit','assessment'),
       item('attitudes','Penilaian Sikap','activity','attitudes')

@@ -13,10 +13,12 @@ test('teacher KEGIATAN group holds the three activity inputs',()=>{
   ]);
 });
 
-test('teacher PEMBELAJARAN group holds TP, KKTP, and assessment tools',()=>{
+/* Menu pembelajaran kini bernama Capaian Pembelajaran: yang dikelola guru adalah CP dan Butir
+   CP Penilaian, bukan lagi Tujuan Pembelajaran. */
+test('teacher PEMBELAJARAN group holds CP, KKTP, and assessment tools',()=>{
   const group=navigationForRole('teacher').find(item=>item.id==='teacher-learning');
   assert.deepEqual(group.children.map(item=>[item.route,item.label]),[
-    ['objectives','Tujuan Pembelajaran'],['weights','KKTP'],
+    ['objectives','Capaian Pembelajaran'],['weights','KKTP'],
     ['assessment','Penilaian'],['attitudes','Penilaian Sikap']
   ]);
   const kehadiran=navigationForRole('teacher').find(item=>item.id==='teacher-attendance');

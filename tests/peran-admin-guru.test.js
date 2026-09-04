@@ -5,6 +5,7 @@ import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { canAccessRoute, resolveRoute } from '../src/core/router.js';
 import { cpNaskahGaps } from '../src/data/curriculum-cp.js';
 import { flattenNavigation, navigationForRole } from '../src/data/navigation.js';
+import { listCpButir, setCpButirActive } from '../src/services/cp-butir.js';
 import { getAdminReadiness } from '../src/services/admin-readiness.js';
 import { ensureSecurityBootstrap } from '../src/services/auth.js';
 import { listActiveSubjects, requireActiveSubject } from '../src/services/subjects.js';
@@ -90,7 +91,7 @@ test('3. Guru memegang seluruh pekerjaan kelasnya',()=>{
     'RAPOR','AKUN']);
   /* KKTP dan Penilaian memakai halaman yang sudah ada, bukan halaman baru. */
   assert.ok(label('teacher').includes('KKTP'));
-  assert.ok(label('teacher').includes('Tujuan Pembelajaran'));
+  assert.ok(label('teacher').includes('Capaian Pembelajaran'));
 });
 
 test('4. Guru tidak memiliki fungsi sistem milik Admin',()=>{
@@ -170,14 +171,25 @@ test('8. Kesiapan Guru menyebut penyebab yang konkret, bukan checklist tetap',as
     'penyebab belum siap tersedia sebagai daftar');
   /* Penyebabnya menyebut mata pelajaran dan rombel yang benar-benar kurang. */
   const teks=kesiapan.blockers.join(' | ');
-  assert.ok(kesiapan.blockers.some(item=>/^TP .+ 5B$/.test(item)),
-    'menyebut TP mapel dan rombelnya');
   assert.ok(kesiapan.blockers.some(item=>/^KKTP .+ 5B$/.test(item)),
     'menyebut KKTP mapel dan rombelnya');
   assert.ok(teks.length>0);
-  /* Alasannya ikut pada butir checklist, bukan kalimat tetap. */
-  const butirTP=kesiapan.items.find(item=>item.id==='learning-objectives');
-  assert.ok(butirTP.detail.length>0&&butirTP.reason.includes('Belum siap:'));
+
+  /* Butir Capaian Pembelajaran sudah terpenuhi sejak mata pelajaran diaktifkan: Butir CP
+     dibawa aplikasi, bukan diketik guru. Admin tidak lagi tertahan hanya karena TP belum
+     sempat disusun. */
+  const butirCp=kesiapan.items.find(item=>item.id==='learning-objectives');
+  assert.equal(butirCp.label,'Capaian Pembelajaran');
+  assert.equal(butirCp.done,true,'Butir CP bawaan memenuhi kesiapan Capaian Pembelajaran');
+
+  /* Tetapi bila seluruh Butir CP satu mapel dinonaktifkan guru, penyebabnya disebut konkret -
+     menyebut mata pelajaran dan rombelnya, bukan kalimat tetap. */
+  for(const item of listCpButir(kelas,'mtk'))setCpButirActive(kelas,'mtk',item.id,false);
+  const sesudah=getAdminReadiness(sesi).items.find(item=>item.id==='learning-objectives');
+  assert.equal(sesudah.done,false,'mapel tanpa Butir CP aktif menahan kesiapan');
+  assert.ok(sesudah.detail.some(item=>/^Butir CP .+ 5B$/.test(item)),
+    'menyebut Butir CP mapel dan rombelnya');
+  assert.ok(sesudah.reason.includes('Belum siap:'));
   const halaman=read('src/pages/users.js');
   assert.match(halaman,/BELUM SIAP/,'status BELUM SIAP tampil di layar');
   assert.match(halaman,/kesiapan\.blockers/,'penyebabnya ikut ditampilkan');
