@@ -39,6 +39,58 @@ export const LICENSE_TYPES=Object.freeze(['CUSTOMER','DEVELOPER']);
    adalah lisensi resmi milik pemilik aplikasi untuk QA dan demo, jadi ia tidak memerlukan
    identitas sekolah pembeli — tetapi tetap record nyata dengan kunci, aktivasi server, ikatan
    perangkat, dan audit yang sama persis. */
+/* ------------------------------------------------- SEKOLAH/PEMBELI SEBAGAI SATU IDENTITAS
+
+   Data sekolah sudah dimasukkan Owner ketika membuat lisensi. Meminta Owner mengetiknya lagi
+   pada menu Sekolah/Pembeli hanya melahirkan dua basis data yang mudah berbeda. Karena itu
+   pembuatan lisensi sekaligus MEMBUAT ATAU MENGHUBUNGKAN customer-nya.
+
+   NPSN adalah identitas utamanya. Dua lisensi dengan NPSN sama selalu menunjuk SATU sekolah,
+   berapa pun lisensi yang dimilikinya - yang digabung customer-nya, bukan lisensinya. Setiap
+   lisensi tetap berdiri sendiri beserta aktivasi dan ikatan perangkatnya.
+
+   Perbedaan kapitalisasi, spasi berlebih, dan variasi penulisan nama tidak boleh melahirkan
+   sekolah baru; keduanya dinormalkan lebih dulu sebelum dibandingkan. */
+function npsnKunci(value){return bersih(value,40).replace(/\D/g,'');}
+function namaKunci(value){return bersih(value,150).toLowerCase().replace(/\s+/g,' ').trim();}
+
+/* Mencari customer yang sudah ada berdasarkan NPSN, lalu nama sebagai cadangan. */
+async function cariCustomer(store,{npsn='',name=''}){
+  const kunci=npsnKunci(npsn);
+  if(kunci){
+    const lewatNpsn=await store.query("SELECT * FROM customers WHERE REPLACE(REPLACE(COALESCE(npsn,''),' ',''),'-','')=$1 LIMIT 1",[kunci]);
+    if(lewatNpsn.rows.length)return lewatNpsn.rows[0];
+  }
+  const nama=namaKunci(name);
+  if(!nama)return null;
+  /* Tanpa NPSN, nama yang dinormalkan menjadi cadangan terakhir. Perbandingannya dilakukan di
+     sisi aplikasi supaya aturan normalisasinya sama persis dengan di atas. */
+  const semua=await store.query('SELECT * FROM customers');
+  return semua.rows.find(row=>namaKunci(row.name)===nama&&!npsnKunci(row.npsn))||null;
+}
+
+/* Membuat customer bila belum ada, atau melengkapi yang sudah ada tanpa menimpa isi lama
+   dengan kekosongan. Mengembalikan record customer-nya. */
+export async function ensureCustomer(store,{name,npsn='',contact='',notes='',actor}){
+  const nama=bersih(name,150);
+  const npsnBersih=bersih(npsn,40);
+  if(!nama&&!npsnBersih)return null;
+  const ada=await cariCustomer(store,{npsn:npsnBersih,name:nama});
+  if(ada){
+    /* Sinkronisasi: isian baru melengkapi yang kosong dan memperbarui yang memang berubah,
+       tetapi tidak pernah mengosongkan data yang sudah terisi. */
+    await store.run(`UPDATE customers SET name=COALESCE(NULLIF($1,''),name),
+      npsn=COALESCE(NULLIF($2,''),npsn),contact=COALESCE(NULLIF($3,''),contact) WHERE id=$4`,
+      [nama,npsnBersih,bersih(contact,150),ada.id]);
+    return store.one('SELECT * FROM customers WHERE id=$1',[ada.id]);
+  }
+  const id=newId('cus');
+  await store.run('INSERT INTO customers(id,name,npsn,contact,notes,created_at) VALUES($1,$2,$3,$4,$5,$6)',
+    [id,nama||`Sekolah ${npsnBersih}`,npsnBersih,bersih(contact,150),bersih(notes,500),nowIso()]);
+  await catat(store,{type:'CUSTOMER_CREATED',actor,detail:{id,name:nama,npsn:npsnBersih,source:'LICENSE'}});
+  return store.one('SELECT * FROM customers WHERE id=$1',[id]);
+}
+
 export async function createLicenses(store,{count=1,customerId=null,buyerName='',schoolName='',npsn='',notes='',licenseType='CUSTOMER',actor,recoverySecret}){
   const jumlah=Number.parseInt(count,10);
   if(!Number.isInteger(jumlah)||jumlah<1||jumlah>500)throw new LicenseError('INVALID_COUNT','Jumlah lisensi harus 1 sampai 500.');
@@ -56,6 +108,13 @@ export async function createLicenses(store,{count=1,customerId=null,buyerName=''
       throw new LicenseError('IDENTITAS_WAJIB',`Lengkapi identitas lisensi: ${kurang.join(', ')}.`,400);
     if(!/^\d{8}$/.test(npsnBersih))throw new LicenseError('INVALID_NPSN','NPSN wajib 8 digit angka.',400);
   }
+  /* Identitas pembeli yang baru saja diisi Owner langsung menjadi/menyambung ke customer,
+     sehingga menu Sekolah/Pembeli tidak perlu diisi untuk kedua kalinya. */
+  let customerAktif=bersih(customerId,60)||null;
+  if(!customerAktif&&tipe==='CUSTOMER'){
+    const customer=await ensureCustomer(store,{name:sekolah||pembeli,npsn:npsnBersih,contact:'',actor});
+    if(customer)customerAktif=customer.id;
+  }
   const hasil=[];
   for(let i=0;i<jumlah;i++){
     /* Tabrakan kunci praktis mustahil, tetapi UNIQUE pada license_hash tetap menjadi
@@ -68,13 +127,13 @@ export async function createLicenses(store,{count=1,customerId=null,buyerName=''
         await store.run(`INSERT INTO licenses(id,license_hash,license_hint,encrypted_recovery,status,customer_id,buyer_name,school_name,npsn,license_type,created_at,notes)
           VALUES($1,$2,$3,$4,'UNUSED',$5,$6,$7,$8,$9,$10,$11)`,
           [id,licenseHash(key,recoverySecret.pepper),licenseHint(key),encryptRecovery(key,recoverySecret.recoveryKey),
-           customerId||null,pembeli||null,sekolah||null,npsnBersih||null,tipe,nowIso(),bersih(notes,500)]);
+           customerAktif||null,pembeli||null,sekolah||null,npsnBersih||null,tipe,nowIso(),bersih(notes,500)]);
         simpan={id,key,hint:licenseHint(key)};
       }catch(error){if(!isUniqueViolation(error))throw error;}
     }
     if(!simpan)throw new LicenseError('GENERATE_FAILED','Gagal membuat License Key unik.',500);
     await catat(store,{licenseId:simpan.id,type:'LICENSE_CREATED',actor,
-      detail:{hint:simpan.hint,customerId,licenseType:tipe,buyerName:pembeli,schoolName:sekolah,npsn:npsnBersih}});
+      detail:{hint:simpan.hint,customerId:customerAktif,licenseType:tipe,buyerName:pembeli,schoolName:sekolah,npsn:npsnBersih}});
     hasil.push(simpan);
   }
   return hasil;
@@ -288,18 +347,51 @@ export async function listEvents(store,{limit=200}={}){
   return hasil.rows.map(row=>({...row,created_at:iso(row.created_at)}));
 }
 
+/* Form manual Tambah Sekolah/Pembeli tetap ada untuk kasus khusus, tetapi bukan jalur utama
+   pembelian lisensi - dan ia memakai penjaga duplikasi yang sama. NPSN yang sudah terdaftar
+   memperbarui sekolah yang ada, bukan melahirkan record kedua. */
 export async function upsertCustomer(store,{name,npsn='',contact='',notes='',actor}){
   const nama=bersih(name,150);
   if(!nama)throw new LicenseError('INVALID_CUSTOMER','Nama sekolah/pembeli wajib diisi.');
-  const id=newId('cus');
-  await store.run('INSERT INTO customers(id,name,npsn,contact,notes,created_at) VALUES($1,$2,$3,$4,$5,$6)',
-    [id,nama,bersih(npsn,40),bersih(contact,150),bersih(notes,500),nowIso()]);
-  await catat(store,{type:'CUSTOMER_CREATED',actor,detail:{id,name:nama}});
-  return store.one('SELECT * FROM customers WHERE id=$1',[id]);
+  const npsnBersih=bersih(npsn,40);
+  if(npsnBersih&&!/^\d{8}$/.test(npsnKunci(npsnBersih)))
+    throw new LicenseError('INVALID_NPSN','NPSN wajib 8 digit angka.',400);
+  return ensureCustomer(store,{name:nama,npsn:npsnBersih,contact,notes,actor});
 }
 
+/* Satu baris per sekolah - tidak pernah digandakan per lisensi. Jumlah dan status lisensinya
+   dirangkum pada baris yang sama. */
 export async function listCustomers(store){
   const hasil=await store.query(`SELECT c.*,(SELECT COUNT(*) FROM licenses l WHERE l.customer_id=c.id) AS license_count
     FROM customers c ORDER BY c.created_at DESC`);
-  return hasil.rows.map(row=>({...row,license_count:Number(row.license_count),created_at:iso(row.created_at)}));
+  const lisensi=await store.query("SELECT customer_id,status,COUNT(*) AS jumlah FROM licenses WHERE customer_id IS NOT NULL GROUP BY customer_id,status");
+  const ringkas=new Map();
+  for(const row of lisensi.rows){
+    const isi=ringkas.get(row.customer_id)||{};
+    isi[row.status]=Number(row.jumlah);
+    ringkas.set(row.customer_id,isi);
+  }
+  return hasil.rows.map(row=>({...row,license_count:Number(row.license_count),
+    license_status:ringkas.get(row.id)||{},created_at:iso(row.created_at)}));
+}
+
+/* --------------------------------------------------------------- MIGRASI BACKWARD-COMPATIBLE
+
+   Lisensi lama dibuat sebelum penyambungan otomatis ada, sehingga banyak yang menyimpan nama
+   sekolah dan NPSN tetapi belum menunjuk customer mana pun. Normalisasi ini menyambungkannya.
+
+   Yang disentuh HANYA kolom customer_id pada lisensi yang nilainya masih kosong. Tidak satu pun
+   kunci, status, aktivasi, maupun ikatan perangkat yang diubah, dan tidak ada lisensi yang
+   dibuat ulang atau dihapus. Aman dijalankan berulang. */
+export async function normalizeCustomerLinks(store,{actor='system'}={}){
+  const yatim=await store.query("SELECT id,school_name,buyer_name,npsn FROM licenses WHERE customer_id IS NULL AND (COALESCE(school_name,'')<>'' OR COALESCE(npsn,'')<>'')");
+  let terhubung=0;const sekolahBaru=new Set();
+  for(const lisensi of yatim.rows){
+    const customer=await ensureCustomer(store,
+      {name:lisensi.school_name||lisensi.buyer_name||'',npsn:lisensi.npsn||'',actor});
+    if(!customer)continue;
+    await store.run('UPDATE licenses SET customer_id=$1 WHERE id=$2 AND customer_id IS NULL',[customer.id,lisensi.id]);
+    sekolahBaru.add(customer.id);terhubung+=1;
+  }
+  return {terhubung,sekolah:sekolahBaru.size};
 }
