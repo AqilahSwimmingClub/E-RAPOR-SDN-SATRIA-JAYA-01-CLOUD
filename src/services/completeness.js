@@ -258,6 +258,18 @@ function normalizeIntracurricular(input){
   if(!record.description)throw new Error('Deskripsi intrakurikuler wajib diisi.');
   const subjectId=clean(input?.subjectId,40);
   if(subjectId)record.subjectId=subjectId;
+  /* TAMPIL DI RAPOR adalah keadaan tersendiri, bukan turunan dari "ada catatannya".
+
+     Dulu setiap mata pelajaran yang pernah disimpan otomatis menjadi satu baris Intrakurikuler
+     pada rapor. Akibatnya guru yang mengisi tiga mapel lalu memutuskan hanya satu yang layak
+     dilaporkan tetap melihat ketiganya tercetak - tidak ada satu pun tempat untuk menyatakan
+     kehendaknya.
+
+     Sekarang kehendak itu punya tempatnya sendiri. Yang absen - catatan yang tersimpan sebelum
+     penanda ini ada - dibaca sebagai TAMPIL, sebab guru memang sengaja menyimpannya dahulu;
+     menganggapnya tersembunyi akan mengosongkan rapor yang selama ini benar. Melepas centang
+     hanya mengubah penanda ini dan tidak menghapus satu pun catatan. */
+  if(input?.includeInReport!==undefined)record.includeInReport=input.includeInReport!==false;
   const objectiveIds=Array.isArray(input?.objectiveIds)
     ? [...new Set(input.objectiveIds.map(id=>clean(id,80)).filter(Boolean))].slice(0,20)
     : [];
@@ -322,6 +334,32 @@ export function listStudentIntracurricular(session,studentId){
     .filter(([key])=>key.startsWith(awalan)&&key.endsWith(akhiran))
     .map(([,record])=>clone(record));
   return hasil.sort((a,b)=>String(a.activity||'').localeCompare(String(b.activity||''),'id'));
+}
+
+/* SATU-SATUNYA TEMPAT penanda "tampil di rapor" dibaca, supaya aturan lamanya tidak pernah
+   ditafsirkan dua kali di tempat berbeda. Catatan lama yang tidak punya penanda dianggap
+   tampil: ia disimpan guru sebelum penanda ini ada, dan menyembunyikannya diam-diam akan
+   mengubah rapor yang selama ini sudah benar. */
+export function intracurricularIncludedInReport(record){
+  return record?.includeInReport!==false;
+}
+
+/* Mengubah HANYA penanda tampil-di-rapor satu mata pelajaran, tanpa menyentuh deskripsi,
+   predikat, butir CP, maupun stempel waktu pembuatannya. Melepas centang BUKAN menghapus. */
+export function setIntracurricularReportInclusion(session,studentId,subjectId,include){
+  requireStudent(session,studentId);
+  const kunci=String(subjectId||'');
+  let saved=null;
+  updateDb(db=>{
+    const key=intracurricularKey(session,studentId,kunci);
+    const existing=db.intracurricularScores?.[key];
+    if(!existing)return db;
+    saved={...existing,includeInReport:include!==false,updatedAt:new Date().toISOString()};
+    db.intracurricularScores[key]=saved;
+    return db;
+  });
+  if(!saved)throw new Error('Catatan intrakurikuler mata pelajaran ini belum ada.');
+  return clone(saved);
 }
 
 export function saveStudentIntracurricular(session,studentId,input){

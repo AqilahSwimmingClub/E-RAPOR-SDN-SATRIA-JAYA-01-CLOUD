@@ -4,7 +4,8 @@ import { composeIntracurricularDescriptionFromCp, DEFAULT_JENIS_INTRAKURIKULER,
   getIntracurricularCp, getStudentIntracurricularSelection,
   INTRACURRICULAR_PREDICATES, JENIS_INTRAKURIKULER, jenisIntrakurikulerValid,
   listAssignedIntracurricularActivities, listIntracurricularButir, listIntracurricularSubjects,
-  PESAN_BUTIR_WAJIB, previewAllIntracurricular, saveAllIntracurricular } from '../services/intracurricular.js';
+  PESAN_BUTIR_WAJIB, previewAllIntracurricular, saveAllIntracurricular,
+  setIntracurricularVisibility } from '../services/intracurricular.js';
 import { listStudents } from '../services/students.js';
 import { el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
@@ -122,7 +123,7 @@ export function renderIntracurricularInput(session){
         const status=draft?'<span class="badge badge-inactive">Draf · belum disimpan</span>'
           :simpan?'<span class="badge badge-active">Tersimpan</span>'
           :'<span class="badge badge-inactive">Belum diisi</span>';
-        return `<tr${item.id===selectedStudentId?' class="is-selected"':''}><td>${index+1}</td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(sumber?.predicate||'-')}</td><td>${status}</td><td>${escapeHtml(sumber?.description||'')}</td></tr>`;
+        return `<tr${item.id===selectedStudentId?' class="is-selected"':''}><td>${index+1}</td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(sumber?.predicate||'-')}</td><td>${status}</td><td>${simpan?`<label class="intra-tampil"><input type="checkbox" data-tampil="${escapeHtml(item.id)}" ${simpan.includeInReport===false?'':'checked'}/><span>${simpan.includeInReport===false?'Disembunyikan':'Tampil'}</span></label>`:'<span class="muted">-</span>'}</td><td>${escapeHtml(sumber?.description||'')}</td></tr>`;
       }).join('');
       const jumlahDraf=draf.size;
 
@@ -134,7 +135,7 @@ export function renderIntracurricularInput(session){
         <div class="field form-span-2"><label>Butir CP yang Dinilai *</label>${pilihanButir}<div class="objective-reference-foot">${butirTerpilih.size?'':`<strong>${escapeHtml(PESAN_BUTIR_WAJIB)}</strong> `}Hanya Butir CP aktif yang dapat dipilih. Semester penilaian mengikuti ${escapeHtml(session.semester)} dan tidak perlu diatur.</div></div>
         <div class="field form-span-2"><label>Deskripsi *</label><textarea class="input" rows="4" data-description placeholder="Kosongkan untuk memakai deskripsi otomatis...">${escapeHtml(isiDeskripsi)}</textarea><div class="actions" style="margin-top:8px"><button class="btn btn-light" type="button" data-generate-description>${icon('activity',16)} Generate Deskripsi Otomatis</button></div></div></div>
         <div class="actions"><button class="btn btn-light" type="button" data-fill-all ${butirTerpilih.size?'':'disabled'}>${icon('activity',16)} Isi Otomatis Semua Siswa</button><button class="btn btn-primary" type="button" data-save-all ${jumlahDraf?'':'disabled'}>${icon('save',16)} Simpan Semua</button></div></section>
-        <section class="card"><div class="section-head"><div><h3>Hasil Semua Siswa</h3><p>${jumlahDraf?`${jumlahDraf} siswa berstatus draf dan belum tersimpan. Tekan Simpan Semua untuk menyimpannya.`:'Belum ada hasil baru. Tekan Isi Otomatis Semua Siswa untuk menyusunnya.'}</p></div></div><div class="table-scroll"><table class="data-table" data-preview><thead><tr><th>No</th><th>Siswa</th><th>Predikat</th><th>Status</th><th>Deskripsi</th></tr></thead><tbody>${baris}</tbody></table></div></section>`;
+        <section class="card"><div class="section-head"><div><h3>Hasil Semua Siswa</h3><p>${jumlahDraf?`${jumlahDraf} siswa berstatus draf dan belum tersimpan. Tekan Simpan Semua untuk menyimpannya.`:'Belum ada hasil baru. Tekan Isi Otomatis Semua Siswa untuk menyusunnya.'}</p><p>Lepas centang <strong>Tampil di Rapor</strong> untuk mata pelajaran yang tidak ingin dicetak pada rapor siswa itu. Catatannya tetap tersimpan dan kembali dipakai begitu dicentang lagi.</p></div></div><div class="table-scroll"><table class="data-table" data-preview><thead><tr><th>No</th><th>Siswa</th><th>Predikat</th><th>Status</th><th>Tampil di Rapor</th><th>Deskripsi</th></tr></thead><tbody>${baris}</tbody></table></div></section>`;
 
       const idTerpilih=()=>[...butirTerpilih];
       /* Nama murid ikut ke dalam kalimat, jadi penyusunannya per murid.
@@ -201,6 +202,18 @@ export function renderIntracurricularInput(session){
         toast('Deskripsi intrakurikuler dibuat otomatis dan menunggu Simpan Semua.');
       };
       /* ISI OTOMATIS SEMUA SISWA: menyusun saja. Tidak ada satu pun tulisan ke penyimpanan. */
+      /* TAMPIL DI RAPOR. Perubahannya langsung tersimpan karena ia memang bukan draf: guru
+         sedang menyatakan kehendak atas catatan yang sudah ada, bukan menyusun yang baru.
+         Melepas centang tidak menghapus apa pun. */
+      view.querySelectorAll('[data-tampil]').forEach(kotak=>kotak.onchange=()=>{
+        try{
+          setIntracurricularVisibility(session,kotak.dataset.tampil,subjectId,kotak.checked);
+          draw();
+          toast(kotak.checked
+            ?'Mata pelajaran ini akan tampil pada rapor siswa tersebut.'
+            :'Mata pelajaran ini disembunyikan dari rapor. Catatannya tetap tersimpan.');
+        }catch(error){toast(error.message,'error');draw();}
+      });
       view.querySelector('[data-fill-all]').onclick=()=>{
         if(!adaButirTerpilih()){toast(PESAN_BUTIR_WAJIB,'warning');return;}
         try{

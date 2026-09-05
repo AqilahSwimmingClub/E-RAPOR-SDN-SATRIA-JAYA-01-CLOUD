@@ -1,5 +1,5 @@
 import { semesterAttendanceRecap } from './attendance.js';
-import { getGraduationStatus, getHomeroomNote, getPromotionStatus, getStudentCocurricular, listExtracurriculars, listStudentIntracurricular } from './completeness.js';
+import { getGraduationStatus, getHomeroomNote, getPromotionStatus, getStudentCocurricular, listExtracurriculars, listStudentIntracurricular, intracurricularIncludedInReport } from './completeness.js';
 import { listStudentAttitudes } from './attitudes.js';
 import { getPrintSettings } from './print-settings.js';
 import { getStoredReportRows } from './report.js';
@@ -108,6 +108,9 @@ function studentIntracurricularRows(session,studentId,subjectIds){
   const posisi=id=>{const index=urutan.indexOf(id);return index<0?urutan.length:index;};
   return listStudentIntracurricular(session,studentId)
     .filter(record=>!record.subjectId||subjectIds.has(record.subjectId))
+    /* YANG TIDAK DICENTANG TIDAK TAMPIL. Catatannya tetap tersimpan utuh - yang dibaca di sini
+       hanyalah kehendak guru tentang apa yang layak dilaporkan. */
+    .filter(record=>intracurricularIncludedInReport(record))
     .sort((a,b)=>posisi(a.subjectId||'')-posisi(b.subjectId||'')
       ||String(a.activity||'').localeCompare(String(b.activity||''),'id'))
     .map(record=>clone(record));

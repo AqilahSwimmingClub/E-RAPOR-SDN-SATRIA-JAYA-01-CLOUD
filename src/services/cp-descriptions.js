@@ -169,50 +169,81 @@ function predikatBersih(nilai){
 }
 
 /* Redaksi Teori: berorientasi pemahaman dan pengetahuan. */
+/* DUA KLAUSA, BUKAN SATU.
+
+   Bentuk final Deskripsi Intrakurikuler adalah kalimat berklausa dua: klausa PEMBUKA yang
+   menyebut tingkat penguasaan beserta kompetensinya, lalu klausa PENUTUP yang menegaskan
+   tindak lanjutnya. Sebelumnya hanya klausa pembuka yang ada, sehingga kalimatnya berhenti
+   tepat setelah menyebut kompetensi dan terbaca seperti catatan setengah jadi.
+
+   VARIASI HANYA PADA PEMBUKA, dan hanya pada susunan katanya. Bentuk yang tertulis paling
+   atas pada setiap predikat adalah bentuk baku yang disepakati; sisanya adalah cara lain
+   menyampaikan hal yang sama, supaya satu rombel tidak berbunyi seragam kata demi kata.
+   Substansi kompetensinya tidak pernah ikut berubah - yang dimasukkan ke dalam kalimat selalu
+   rumusan Butir CP itu sendiri.
+
+   Klausa penutup TIDAK bervariasi: ia menyatakan tindak lanjut, dan tindak lanjut untuk satu
+   predikat memang hanya satu. */
 const REDAKSI_TEORI=Object.freeze({
   'Sangat Baik':[
+    f=>`menunjukkan penguasaan yang sangat baik dalam ${frasaKerja(f)}`,
     f=>`menunjukkan pemahaman yang sangat baik mengenai ${frasaBenda(f)}`,
-    f=>`menunjukkan kemampuan yang sangat baik dalam ${frasaKerja(f)}`,
     f=>`menunjukkan penguasaan yang sangat baik terhadap ${frasaBenda(f)}`,
   ],
   'Baik':[
+    f=>`menunjukkan penguasaan yang baik dalam ${frasaKerja(f)}`,
     f=>`menunjukkan pemahaman yang baik mengenai ${frasaBenda(f)}`,
-    f=>`mampu ${frasaKerja(f)} dengan baik`,
     f=>`menunjukkan penguasaan yang baik terhadap ${frasaBenda(f)}`,
-    f=>`telah ${frasaKerja(f)} dengan baik`,
   ],
   'Cukup':[
-    f=>`cukup mampu ${frasaKerja(f)}`,
+    f=>`menunjukkan pemahaman yang cukup dalam ${frasaKerja(f)}`,
     f=>`menunjukkan pemahaman yang cukup mengenai ${frasaBenda(f)}`,
   ],
   'Perlu Bimbingan':[
     f=>`masih memerlukan bimbingan dalam ${frasaKerja(f)}`,
-    f=>`perlu bimbingan untuk ${frasaKerja(f)}`,
+    f=>`masih memerlukan bimbingan untuk ${frasaKerja(f)}`,
   ],
 });
-/* Redaksi Praktik: berorientasi keterampilan dan penerapan. Frasanya SUDAH berupa frasa kerja
-   pada katalog Butir CP, jadi tidak ada kata kerja yang ditambahkan di depannya. */
+
 const REDAKSI_PRAKTIK=Object.freeze({
   'Sangat Baik':[
-    f=>`menunjukkan keterampilan yang sangat baik dalam ${frasaKerja(f)}`,
-    f=>`sangat terampil dalam ${frasaKerja(f)}`,
+    f=>`menunjukkan keterampilan yang sangat baik dalam ${frasaKerja(f,'melaksanakan')}`,
+    f=>`sangat terampil dalam ${frasaKerja(f,'melaksanakan')}`,
   ],
   'Baik':[
-    f=>`menunjukkan keterampilan yang baik dalam ${frasaKerja(f)}`,
-    f=>`terampil dalam ${frasaKerja(f)}`,
-    f=>`mampu ${frasaKerja(f)} dengan baik`,
+    f=>`menunjukkan keterampilan yang baik dalam ${frasaKerja(f,'melaksanakan')}`,
+    f=>`terampil dalam ${frasaKerja(f,'melaksanakan')}`,
   ],
   'Cukup':[
-    f=>`cukup terampil dalam ${frasaKerja(f)}`,
-    f=>`cukup mampu ${frasaKerja(f)}`,
+    f=>`menunjukkan keterampilan yang cukup dalam ${frasaKerja(f,'melaksanakan')}`,
+    f=>`cukup terampil dalam ${frasaKerja(f,'melaksanakan')}`,
   ],
   'Perlu Bimbingan':[
-    f=>`masih memerlukan bimbingan dalam ${frasaKerja(f)}`,
+    f=>`masih memerlukan bimbingan dalam ${frasaKerja(f,'melaksanakan')}`,
+    f=>`masih memerlukan bimbingan untuk ${frasaKerja(f,'melaksanakan')}`,
   ],
 });
-/* Tambahan untuk butir yang TIDAK punya rumusan keterampilan ketika penilaiannya Praktik.
-   Kompetensinya tetap dilaporkan, tetapi sebagai pemahaman - bukan sebagai keterampilan yang
-   tidak pernah tertulis pada butirnya. */
+
+/* Klausa penutup. Yang menentukan penutup mana yang dipakai BUKAN jenis yang diminta guru,
+   melainkan register yang benar-benar terpakai pada klausa pembukanya. Butir CP yang hanya
+   memuat rumusan pengetahuan tetap ditutup dengan bahasa pemahaman meskipun guru memilih
+   Praktik - sebab menutupnya dengan "melaksanakan kegiatan" akan mengarang keterampilan yang
+   tidak ada di dalam CP-nya. */
+const PENUTUP_TEORI=Object.freeze({
+  'Sangat Baik':'serta mampu menunjukkan pemahaman yang kuat terhadap kompetensi tersebut',
+  'Baik':'dan telah memahami kompetensi tersebut dengan baik',
+  'Cukup':'namun masih memerlukan penguatan agar penguasaannya semakin mantap',
+  'Perlu Bimbingan':'dan perlu penguatan secara bertahap untuk meningkatkan pemahamannya',
+});
+const PENUTUP_PRAKTIK=Object.freeze({
+  'Sangat Baik':'serta mampu melaksanakan kegiatan dengan tepat dan mandiri',
+  'Baik':'serta mampu melaksanakan kegiatan dengan cukup mandiri',
+  'Cukup':'namun masih memerlukan arahan pada beberapa tahapan kegiatan',
+  'Perlu Bimbingan':'dan perlu latihan bertahap untuk mengembangkan keterampilannya',
+});
+/* "namun" memulai pertentangan sehingga didahului koma; penghubung lain tidak. */
+const PENUTUP_BERKOMA=new Set(['Cukup']);
+
 const LANJUTAN_PEMAHAMAN=Object.freeze({
   'Sangat Baik':f=>`serta menunjukkan pemahaman yang sangat baik mengenai ${frasaBenda(f)}`,
   'Baik':f=>`serta memahami ${frasaBenda(f)} dengan baik`,
@@ -243,19 +274,27 @@ export function composeIntracurricularButirDescription({studentName='',butir=[],
   if(!berketerampilan.length&&!berpengetahuan.length)return null;
 
   const utama=praktik&&berketerampilan.length?berketerampilan:berpengetahuan.length?berpengetahuan:berketerampilan;
-  const pilihan=(praktik&&utama===berketerampilan?REDAKSI_PRAKTIK:REDAKSI_TEORI)[predikat];
+  /* Register yang BENAR-BENAR terpakai. Guru boleh memilih Praktik, tetapi bila butir yang
+     dicentangnya hanya memuat rumusan pengetahuan, kalimatnya tetap berbahasa pemahaman -
+     baik pembukanya maupun penutupnya. CP tetap sumber kebenaran kompetensi. */
+  const registerPraktik=praktik&&utama===berketerampilan;
+  const pilihan=(registerPraktik?REDAKSI_PRAKTIK:REDAKSI_TEORI)[predikat];
   const kunci=`${nama}|${jenis}|${predikat}|${utama.join('|')}`;
   const bagian=[pilihan[indeksVariasi(kunci,pilihan.length)](rangkai(utama))];
 
   /* Sisa butir yang hanya punya rumusan pengetahuan pada penilaian Praktik. */
-  const sisa=praktik&&utama===berketerampilan?berpengetahuan:[];
+  const sisa=registerPraktik?berpengetahuan:[];
   if(sisa.length)bagian.push(LANJUTAN_PEMAHAMAN[predikat](rangkai(sisa)));
+
+  /* Klausa penutup menutup kalimat dengan tindak lanjutnya. */
+  const penutup=(registerPraktik?PENUTUP_PRAKTIK:PENUTUP_TEORI)[predikat];
+  if(penutup)bagian.push(PENUTUP_BERKOMA.has(predikat)?`, ${penutup}`:penutup);
 
   /* TANPA NAMA MURID TIDAK ADA KALIMAT. Deskripsi Intrakurikuler dibaca orang tua dan selalu
      dibuka "Ananda ..."; bentuk tanpa nama hanya akan menjadi kalimat setengah jadi yang lolos
      ke rapor. Sama seperti penyusun rapor, lebih baik tidak menghasilkan apa-apa. */
   if(!nama)return null;
-  return `Ananda ${nama} ${bagian.join(' ')}.`;
+  return `Ananda ${nama} ${bagian.join(' ').replace(/\s+,/g,',')}.`;
 }
 
 /* ------------------------------------------- 2. GENERATOR CAPAIAN KOMPETENSI RAPOR

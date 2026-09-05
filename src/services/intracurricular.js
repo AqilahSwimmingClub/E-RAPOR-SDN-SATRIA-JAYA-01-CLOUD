@@ -4,7 +4,7 @@ import { composeIntracurricularButirDescription, cpAcuanFor,
   cpAlasanTidakTersedia, JENIS_INTRAKURIKULER, jenisIntrakurikuler,
   jenisIntrakurikulerValid } from './cp-descriptions.js';
 import { cpButirAvailable, listCpButirForSemester, semesterNumberOf } from './cp-butir.js';
-import { ACTIVITY_PREDICATES, getStudentIntracurricular, saveStudentIntracurricular } from './completeness.js';
+import { ACTIVITY_PREDICATES, getStudentIntracurricular, saveStudentIntracurricular, intracurricularIncludedInReport, setIntracurricularReportInclusion } from './completeness.js';
 import { listObjectivesForAssessment, resolveObjective } from './learning-objectives.js';
 import { ringkasObjectives } from './objective-summary.js';
 import { listReferenceAcademicYears, listReferenceSemesters } from './references.js';
@@ -233,6 +233,7 @@ export function getStudentIntracurricularSelection(session,studentId,subjectId='
   if(!record)return null;
   return {...record,
     subjectId:record.subjectId||null,
+    includeInReport:intracurricularIncludedInReport(record),
     butirIds:Array.isArray(record.butirIds)?[...record.butirIds]:[],
     jenis:jenisIntrakurikulerValid(record.jenis)?record.jenis:DEFAULT_JENIS_INTRAKURIKULER,
     objectiveIds:Array.isArray(record.objectiveIds)?[...record.objectiveIds]:[]};
@@ -244,7 +245,8 @@ export function getStudentIntracurricularSelection(session,studentId,subjectId='
    murid yang sama. Semester tidak pernah diminta: ia sudah terbawa scopeKey dari semester
    aplikasi yang sedang aktif. */
 export function saveStudentIntracurricularSelection(session,studentId,{subjectId,butirIds=[],
-  jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate,description='',objectiveIds=[]}={}){
+  jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate,description='',objectiveIds=[],
+  includeInReport=true}={}){
   assertTeacherScope(session);
   const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
   if(!subject)throw new Error('Pilih mata pelajaran intrakurikuler yang aktif pada rombel ini.');
@@ -267,10 +269,27 @@ export function saveStudentIntracurricularSelection(session,studentId,{subjectId
     objectiveIds:rujukanTp,
     cpPhase:cp.phase,source:'CP',cpButir:cpButirAvailable(session,subject.id),
     status:teks===otomatis?'AUTO':'EDITED',
+    /* Menyimpan adalah tindakan mencentang: guru baru saja menyatakan mapel ini dinilai.
+       Melepasnya dilakukan terpisah lewat penanda tampil-di-rapor, bukan dengan menghapus. */
+    includeInReport:includeInReport!==false,
   });
   return {...saved,subjectId:subject.id,butirIds:butir.map(item=>item.id),jenis:pilihanJenis,
     objectiveIds:rujukanTp,cpPhase:cp.phase,source:'CP',
+    includeInReport:intracurricularIncludedInReport(saved),
     semesterNumber:semesterNumberOf(session)};
+}
+
+/* Mengubah kehendak guru tentang apa yang tampil pada rapor, tanpa menyentuh datanya.
+
+   Dipisahkan dari penyimpanan supaya perbedaannya tegas: DATA INTRAKURIKULER dan STATUS
+   DITAMPILKAN DI RAPOR adalah dua hal berbeda. Melepas centang hanya menutup barisnya di
+   rapor; deskripsi, predikat, dan butir CP-nya tetap ada dan langsung terpakai lagi begitu
+   dicentang kembali. */
+export function setIntracurricularVisibility(session,studentId,subjectId,include){
+  assertTeacherScope(session);
+  const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
+  if(!subject)throw new Error('Pilih mata pelajaran intrakurikuler yang aktif pada rombel ini.');
+  return setIntracurricularReportInclusion(session,studentId,subject.id,include);
 }
 
 /* ------------------------------------------------------- ISI OTOMATIS SEMUA SISWA
