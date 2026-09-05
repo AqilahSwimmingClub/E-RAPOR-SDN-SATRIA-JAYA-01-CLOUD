@@ -34,18 +34,24 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.2.3 uses versionCode 15 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.2.3');
-  assert.equal(VERSION_CODE,15);
-  /* SCHEMA TETAP 5. Rilis ini hanya membawa perubahan perilaku dan tata letak - penugasan
-     Guru sebagai sumber otorisasi, dan perbaikan responsive - tanpa satu pun perubahan bentuk
-     data. Menaikkan schema hanya karena versinya naik akan memicu migration yang tidak
-     mengerjakan apa pun, dan itu risiko tanpa manfaat. */
+test('release v1.2.4 uses versionCode 16 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.2.4');
+  assert.equal(VERSION_CODE,16);
+  /* SCHEMA TETAP 5, walaupun rilis ini menambah koleksi `cpEvidenceScores`.
+
+     Koleksi baru itu lahir dari bentuk bawaan database yang selalu digabungkan saat membaca,
+     jadi database lama langsung memilikinya dalam keadaan kosong tanpa satu pun catatan lama
+     disentuh. Bukti Butir CP yang sudah tersimpan pada rilis sebelumnya dipindahkan secara
+     non-destruktif dan idempotent oleh layanan Penilaian sendiri, tepat sebelum ia dapat
+     tertimpa.
+
+     Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
+     tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.2.3-PENUGASAN-ADMIN-RESPONSIVE');
-  /* Rilis sebelumnya bergeser ke 1.2.2 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.2.4-BUKTI-BUTIR-CP-GANDA');
+  /* Rilis sebelumnya bergeser ke 1.2.3 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.2',versionCode:14});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.3',versionCode:15});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{

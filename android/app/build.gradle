@@ -16,8 +16,8 @@ android {
         applicationId "id.sch.sdn.satriajaya01.erapor"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode = (project.findProperty('ERAPOR_VERSION_CODE') ?: '15').toInteger()
-        versionName = project.findProperty('ERAPOR_VERSION_NAME') ?: '1.2.3'
+        versionCode = (project.findProperty('ERAPOR_VERSION_CODE') ?: '16').toInteger()
+        versionName = project.findProperty('ERAPOR_VERSION_NAME') ?: '1.2.4'
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
