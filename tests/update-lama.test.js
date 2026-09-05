@@ -192,7 +192,7 @@ test('Seni Rupa siap dipakai seluruh modul setelah update instalasi lama',async(
   assert.equal(seni.active,false,'belum aktif supaya rombel berjalan tidak terganggu');
   assert.equal(listActiveSubjects(sesi).some(item=>item.id==='seni_rupa'),false);
   /* Setelah guru mengaktifkannya lewat Mapping, Seni Rupa langsung dipakai seluruh modul. */
-  const { saveSubjectMapping }=await import('../src/services/storage.js');
+  const { saveSubjectMapping }=await import('./helpers/penugasan.js');
   saveSubjectMapping(sesi,mapping.map(item=>item.id==='seni_rupa'?{...item,active:true}:item));
   assert.equal(listActiveSubjects(sesi).some(item=>item.id==='seni_rupa'),true,'ikut pada daftar mapel aktif yang dipakai Penilaian, TP, Bobot, Rapor, Transkrip, dan Leger');
   const { getLeger }=await import('../src/services/documents.js');

@@ -11,7 +11,8 @@ import { getLeger, getReportCompleteness, getReportDocument } from '../src/servi
 import { getTranscriptRows, saveTranscriptScores } from '../src/services/transcript.js';
 import { createStudent, listStudents } from '../src/services/students.js';
 import { listSubjectsForStudent } from '../src/services/subjects.js';
-import { saveSubjectMapping, loadDb, storageKey } from '../src/services/storage.js';
+import { loadDb, storageKey } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { runAppMigrations } from '../src/services/migrations.js';
 
 const root=new URL('../',import.meta.url);

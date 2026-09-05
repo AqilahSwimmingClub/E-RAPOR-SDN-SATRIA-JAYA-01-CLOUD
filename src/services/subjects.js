@@ -1,6 +1,7 @@
 import { RELIGION_SUBJECTS, SUBJECTS_DEFAULT, isReligionSubject, religionMatches, religionOfSubject } from '../data/constants.js';
 import { getSubjectMapping } from './storage.js';
-import { assignedSubjectIds } from './teacher-assignments.js';
+import { assignedSubjectIds, PESAN_BELUM_DITUGASKAN, PESAN_DI_LUAR_PENUGASAN,
+  teacherAssignmentState } from './teacher-assignments.js';
 
 function assertTeacherSession(session){
   if(!session || session.role!=='teacher' || !session.classId) throw new Error('Session Guru tidak valid.');
@@ -8,10 +9,13 @@ function assertTeacherSession(session){
 
 function bySubjectOrder(a,b){return (a.group==='A'?0:1)-(b.group==='A'?0:1)||a.order-b.order;}
 
-/* Satu-satunya pintu masuk daftar mapel milik Guru, sehingga penugasan Admin ikut berlaku
-   pada penilaian, deskripsi, rapor, dan leger sekaligus — bukan sekadar menyembunyikan menu.
-   Rombel yang belum pernah ditugaskan Admin tidak dibatasi, supaya pemasangan lama tetap
-   dapat membuka datanya sendiri. */
+/* SATU-SATUNYA PINTU MASUK daftar mapel milik Guru, sehingga penugasan Admin ikut berlaku pada
+   penilaian, deskripsi, rapor, dan leger sekaligus — bukan sekadar menyembunyikan menu. Guru
+   yang mengetik subjectId sendiri, memanggil layanan langsung, atau mengubah rute tetap
+   melewati gerbang yang sama.
+
+   BELUM DITUGASKAN BERARTI DAFTARNYA KOSONG. Tidak ada hak akses bawaan bagi rombel yang belum
+   diatur Admin: Admin adalah sumber otorisasi, dan diamnya Admin bukan izin. */
 export function listActiveSubjects(session){
   assertTeacherSession(session);
   const izin=assignedSubjectIds(session);
@@ -25,9 +29,12 @@ export function listActiveSubjects(session){
 export function requireActiveSubject(session,subjectId){
   const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
   if(!subject){
+    /* Alasannya dibedakan supaya guru tahu harus berbuat apa: belum ditugaskan sama sekali,
+       ditugaskan tetapi bukan mapel ini, atau mapelnya memang tidak aktif pada Mapping. */
+    const keadaan=teacherAssignmentState(session);
+    if(keadaan.applies&&!keadaan.allowed)throw new Error(PESAN_BELUM_DITUGASKAN);
     const izin=assignedSubjectIds(session);
-    if(izin!==null&&!izin.includes(String(subjectId)))
-      throw new Error('Mata pelajaran ini tidak termasuk penugasan Anda. Hubungi Admin sekolah.');
+    if(izin!==null&&!izin.includes(String(subjectId)))throw new Error(PESAN_DI_LUAR_PENUGASAN);
     throw new Error('Mata pelajaran tidak aktif pada Mapping Mata Pelajaran scope ini.');
   }
   return subject;

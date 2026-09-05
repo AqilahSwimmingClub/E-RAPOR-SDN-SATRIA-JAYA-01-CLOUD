@@ -6,7 +6,8 @@ import { ensureDefaultSubjects } from '../src/services/seed.js';
 import { commitStudentImport, formatBirthPlaceDate, listStudents, parseBirthPlaceDate, previewStudentWorkbookImport, STUDENT_CSV_HEADERS, studentRow, studentTemplateWorkbook, studentWorkbookBytes } from '../src/services/students.js';
 import { createWorkbookBytes, readWorkbookRows } from '../src/services/excel.js';
 import { getLeger, legerWorkbookRows } from '../src/services/documents.js';
-import { loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { loadDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { moveSubjectToGroup } from '../src/services/mapping.js';
 import { listActiveSubjects } from '../src/services/subjects.js';
 import { fillAllAssessmentScores } from '../src/services/assessment-bulk.js';
@@ -195,7 +196,7 @@ test('Catatan wali kelas massal tidak menimpa catatan individual tanpa diminta',
 });
 
 test('Ekstrakurikuler dan kokurikuler memakai preset kelas serta dua predikat',()=>{
-  assert.deepEqual(ACTIVITY_PREDICATES,['Cukup','Baik','Sangat Baik']);
+  assert.deepEqual(ACTIVITY_PREDICATES,['Sangat Baik','Baik','Cukup','Perlu Bimbingan']);
   assert.equal(pramukaPresetForClass('2A'),'Pramuka Siaga');
   assert.equal(pramukaPresetForClass('5B'),'Pramuka Penggalang');
   assert.equal(pramukaDescriptionsForClass('2A').length,5);

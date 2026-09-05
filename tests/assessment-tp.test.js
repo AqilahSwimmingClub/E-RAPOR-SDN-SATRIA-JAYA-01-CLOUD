@@ -16,7 +16,10 @@ function aktifkanHanya(session,subjectId,ids){
 import { createLearningObjective } from '../src/services/objectives.js';
 import { calculateReportScore, calculateReportSheet } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
+import { assignableSubjects } from '../src/services/teacher-assignments.js';
+import { listCpButir, setCpButirActive } from '../src/services/cp-butir.js';
 
 /* Sepadan dengan alur nyata: buka + Tambah TP, centang semua, lalu Simpan. */
 function masukkanSemuaTp(session,subjectId){
@@ -130,9 +133,13 @@ test('CP mengalahkan TP: objectiveIds yang dikirim tidak lagi menyetir deskripsi
   const siswa=siapkanKelas();
   const daftar=tpLokal(3);
   aktifkanHanya(guru,'mtk',[daftar[0].id]);
-  const hasil=generateReportDescription(guru,'mtk',siswa.id,{objectiveIds:[daftar[0].id]});
+  const hasil=generateReportDescription(guru,'mtk',siswa.id);
   assert.equal(hasil.source,'CP_BUTIR','deskripsi bersumber Butir CP, bukan TP');
-  assert.equal(hasil.objectiveIds,null,'tidak ada TP yang menjadi acuan');
+  /* `objectiveIds` tidak lagi menjadi kolom hasil sama sekali - bukan pula null. Rujukan TP
+     dibuang seluruhnya dari catatan yang dihasilkan, dan parameter keempat generator pun sudah
+     tidak ada: tidak ada satu pun jalan bagi pemanggil untuk menyetir deskripsi dengan TP. */
+  assert.equal(Object.hasOwn(hasil,'objectiveIds'),false,'tidak ada kolom TP pada hasil');
+  assert.equal(generateReportDescription.length,3,'generator tidak lagi menerima input TP');
   for(const tp of daftar)
     assert.equal(hasil.text.includes(tp.description),false,`isi TP "${tp.description}" tidak masuk deskripsi`);
 });
@@ -144,11 +151,11 @@ test('Deskripsi rapor tetap memakai Nilai Akhir existing untuk menentukan tingka
     'tingkat capaian dibaca dari Nilai Akhir yang sudah ada');
   /* Bentuk kalimat rapor diubah atas permintaan resmi: empat kategori dinyatakan relatif
      terhadap KKTP mata pelajaran, dengan kalimat baku "Mencapai kompetensi dengan ...". */
-  assert.match(tinggi.text,/^Mencapai kompetensi dengan (sangat )?baik dalam hal /);
+  assert.match(tinggi.text,/^Ananda .+ menunjukkan capaian (penguasaan yang sangat baik|yang baik) dalam /);
   isiLimaKomponen(guru,'mtk',siswa.id,{formative:50,daily:55,practice:60,scopeSummative:50,semesterSummative:45});
   const rendah=generateReportDescription(guru,'mtk',siswa.id,{});
   assert.ok(rendah.finalScore<75);
-  assert.match(rendah.text,/^Perlu meningkatkan kompetensi dalam hal /,'nilai jauh di bawah KKTP dinyatakan apa adanya');
+  assert.match(rendah.text,/^Ananda .+ perlu meningkatkan pemahaman mengenai /,'nilai jauh di bawah KKTP dinyatakan apa adanya');
 });
 
 test('Deskripsi rapor dapat disimpan dan berstatus AUTO bila tidak diedit',()=>{
@@ -160,42 +167,47 @@ test('Deskripsi rapor dapat disimpan dan berstatus AUTO bila tidak diedit',()=>{
   assert.equal(diedit.status,'EDITED');
 });
 
-test('Jalur TP tetap menjadi cadangan bagi mapel yang belum berlaku pada fase rombel',()=>{
-  /* Bahasa Inggris belum berlaku pada Fase A, jadi CP-nya memang tidak ada. Di sinilah - dan
-     hanya di sini - TP masih dipakai, supaya sekolah yang sudah mengisinya tidak kehilangan
-     deskripsi rapornya. */
+test('TP TIDAK LAGI menjadi cadangan, bahkan setelah seluruh Butir CP dinonaktifkan',()=>{
+  /* HARAPAN DIBALIK DUA KALI, KEDUANYA ATAS PERMINTAAN RESMI.
+
+     (1) Dulu mata pelajaran tanpa Butir CP masih mendapat deskripsi rapor dari TP aktif.
+         Rantai cadangan itu dibuang seluruhnya: satu-satunya dasar penilaian sekarang adalah
+         Butir CP AKTIF mata pelajaran itu. Mapel tanpa Butir CP aktif tidak mendapat kalimat
+         yang tampak benar tetapi tidak dapat ditelusuri asalnya; aplikasi mengatakan apa yang
+         harus dilakukan guru.
+
+     (2) Contoh yang dulu dipakai - Bahasa Inggris pada Fase A - kini tidak dapat lagi
+         dijalankan sama sekali: mata pelajaran yang belum berlaku pada fase rombel tidak boleh
+         ditugaskan kepada wali kelasnya, sehingga penolakannya terjadi satu langkah lebih awal
+         dan berbunyi lain. Klaim aslinya tetap diuji utuh di bawah ini, dengan mata pelajaran
+         yang memang berlaku pada fase rombelnya lalu seluruh Butir CP-nya dinonaktifkan.
+
+     DATA TP-nya sendiri TIDAK dihapus - hanya tidak pernah lagi dibaca. */
   useMemoryStorage();
   const kelas1={role:'teacher',classId:'1A',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
+  /* (2) Mapel di luar fase rombel tidak muncul sebagai pilihan penugasan. */
   aktifkanMapel(kelas1,['bing']);
-  const siswa=createStudent(kelas1,{classId:'1A',nis:'1A-1',nisn:'995500001',
+  const adminSekolah={role:'admin',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`,userName:'Admin'};
+  assert.equal(assignableSubjects(adminSekolah,'1A').some(item=>item.id==='bing'),false,
+    'Bahasa Inggris belum berlaku pada Fase A sehingga tidak dapat ditugaskan');
+
+  /* (1) Klaim asli: TP aktif tidak menjadi cadangan Butir CP. */
+  useMemoryStorage();
+  const mapel='mtk';
+  aktifkanMapel(guru,[mapel]);
+  const siswa=createStudent(guru,{classId:'5B',nis:'5B-CAD',nisn:'995500001',
     name:'Siswa Cadangan',gender:'P',photo:''});
-  saveAssessmentSettings(kelas1,'bing',{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
-  isiLimaKomponen(kelas1,'bing',siswa.id,{formative:80,daily:70,practice:90,scopeSummative:85,semesterSummative:75});
-  const tp=createLearningObjective(kelas1,'bing',{description:'menyebutkan salam sederhana',active:true});
-  const hasil=generateReportDescription(kelas1,'bing',siswa.id,{});
-  assert.ok(hasil.text.includes(tp.description),'TP dipakai ketika CP memang belum tersedia');
-  assert.deepEqual(hasil.objectiveIds,[tp.id]);
-  /* Guru tetap tidak diminta MEMILIH TP: TP aktif dipakai apa adanya. */
-  assert.equal(hasil.bestObjectiveId,null);
-  assert.equal(hasil.improvementObjectiveId,null);
+  saveAssessmentSettings(guru,mapel,{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
+  isiLimaKomponen(guru,mapel,siswa.id,{formative:80,daily:70,practice:90,scopeSummative:85,semesterSummative:75});
+  for(const butir of listCpButir(guru,mapel,{activeOnly:true}))setCpButirActive(guru,mapel,butir.id,false);
+  const tp=createLearningObjective(guru,mapel,{description:'menyebutkan salam sederhana',active:true});
+  assert.throws(()=>generateReportDescription(guru,mapel,siswa.id),
+    /Belum ada Butir CP aktif untuk mata pelajaran ini/,
+    'TP aktif tidak lagi menjadi cadangan');
+  /* Catatan TP-nya tetap ada di penyimpanan. */
+  assert.ok(listSchoolObjectives(guru,mapel).some(item=>item.id===tp.id),
+    'data TP lama tidak dihapus, hanya tidak dipakai');
 });
-
-test('Cara lama TP terbaik dan TP perlu ditingkatkan tetap tersedia bagi mapel tanpa CP',()=>{
-  useMemoryStorage();
-  const kelas1={role:'teacher',classId:'1A',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
-  aktifkanMapel(kelas1,['bing']);
-  const siswa=createStudent(kelas1,{classId:'1A',nis:'1A-2',nisn:'995500002',
-    name:'Siswa Lama',gender:'L',photo:''});
-  saveAssessmentSettings(kelas1,'bing',{formative:30,daily:20,practice:20,scopeSummative:15,semesterSummative:15,kktp:75});
-  const satu=createLearningObjective(kelas1,'bing',{description:'menyebutkan warna dasar',active:true});
-  const dua=createLearningObjective(kelas1,'bing',{description:'menyebutkan angka satu sampai sepuluh',active:true});
-  const lama=generateReportDescription(kelas1,'bing',siswa.id,
-    {bestObjectiveId:satu.id,improvementObjectiveId:dua.id,objectiveIds:[satu.id,dua.id]});
-  assert.ok(lama.text.includes(satu.description));
-  assert.ok(lama.text.includes(dua.description));
-});
-
-/* ------------------------------------------------------------------ Halaman Penilaian Umum */
 
 test('Halaman Penilaian menampilkan acuan TP tanpa input angka per TP',()=>{
   const sumber=read('src/pages/assessment.js');

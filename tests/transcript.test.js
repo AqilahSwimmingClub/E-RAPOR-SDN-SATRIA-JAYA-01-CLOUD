@@ -4,7 +4,7 @@ import { ACADEMIC_YEAR, SUBJECTS_DEFAULT, availableAcademicYears } from '../src/
 import { buildBackup } from '../src/services/backup.js';
 import { createStudent } from '../src/services/students.js';
 import { commitTranscriptImport, getTranscriptRows, previewTranscriptImport, saveTranscriptScores, transcriptTemplateCsv } from '../src/services/transcript.js';
-import { saveSubjectMapping } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 /* Tahun pelajaran untuk menguji isolasi antar tahun. Dipilih otomatis dari tahun yang BELUM
    disediakan aplikasi, karena aplikasi kini selalu menyediakan tahun dasar, tahun berjalan, dan

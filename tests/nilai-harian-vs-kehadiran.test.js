@@ -10,7 +10,8 @@ import { attendanceDerivedSheet, calculateReportScore, getAttendanceConversion,
   getDailyAttendanceMode, saveAttendanceConversion,
   saveDailyAttendanceMode } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 /* NILAI HARIAN vs NILAI KEHADIRAN.
 

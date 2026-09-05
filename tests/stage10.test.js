@@ -8,7 +8,8 @@ import { createLearningObjective } from '../src/services/objectives.js';
 import { createAcademicYear, getReferenceOverview, listReferenceSemesters, updateReferenceSubject } from '../src/services/references.js';
 import { saveManualReportScore } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
-import { getSubjectMapping, saveSubjectMapping } from '../src/services/storage.js';
+import { getSubjectMapping } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 /* Tahun pelajaran untuk menguji isolasi antar tahun. Dipilih otomatis dari tahun yang BELUM
    disediakan aplikasi, karena aplikasi kini selalu menyediakan tahun dasar, tahun berjalan, dan

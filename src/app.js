@@ -7,6 +7,7 @@ import { renderLicenseActivation } from './pages/license-activation.js';
 import { checkLicense, getLicenseState, noteClockObservation } from './services/license.js';
 import { ensureInstallationId } from './services/installation.js';
 import { getAdminReadiness, isTeacherUsageActive } from './services/admin-readiness.js';
+import { hasTeacherAssignment, PESAN_BELUM_DITUGASKAN } from './services/teacher-assignments.js';
 import { isSchoolIdentityReady } from './services/master.js';
 import { renderDashboard } from './pages/dashboard.js';
 import { renderProfile } from './pages/profile.js';
@@ -139,7 +140,14 @@ function mount(requestedRoute){
   const terkunciLisensi=!licenseState.canEditData&&!READ_ONLY_SAFE_ROUTES.has(route);
   const terkunciAdmin=!terkunciLisensi&&session?.role==='teacher'
     &&!TEACHER_ALWAYS_OPEN_ROUTES.has(route)&&!isTeacherUsageActive(session);
-  const content=terkunciLisensi?limitedNotice():terkunciAdmin?readinessNotice(session):pageFor(route,session);
+  /* GERBANG KETIGA: penugasan. Akun yang AKTIF tetapi BELUM DITUGASKAN tetap boleh masuk dan
+     melihat halaman yang tidak bergantung penugasan, tetapi tidak boleh menjalankan satu pun
+     fungsi akademik. Status akun dan status penugasan adalah dua hal yang berbeda. */
+  const terkunciPenugasan=!terkunciLisensi&&!terkunciAdmin&&session?.role==='teacher'
+    &&!TEACHER_ROUTES_TANPA_PENUGASAN.has(route)&&!hasTeacherAssignment(session);
+  const content=terkunciLisensi?limitedNotice()
+    :terkunciAdmin?readinessNotice(session)
+    :terkunciPenugasan?assignmentNotice():pageFor(route,session);
   app.append(renderLayout({session,route,onNavigate:navigate,onLogout:()=>navigate('login'),content,
     /* Masa tenggang offline yang sedang berjalan diberi tahu secara ringan lewat baris status
        yang sama, tanpa menutup satu pun halaman: aplikasi masih berjalan penuh. */
@@ -152,6 +160,25 @@ function mount(requestedRoute){
    melihat halaman yang tidak bergantung pada konfigurasi. Menu operasional ditahan dengan
    alasan yang jelas, dan tidak ada satu pun data yang dihapus atau disembunyikan permanen. */
 const TEACHER_ALWAYS_OPEN_ROUTES=new Set(['dashboard','profile','account-settings','backup','objectives','about-updates']);
+
+/* Gerbang penugasan memakai daftar yang LEBIH SEMPIT. Capaian Pembelajaran dibiarkan terbuka
+   pada gerbang kesiapan karena Butir CP-nya justru harus diisi lebih dulu agar Admin dapat
+   menyatakan sekolah siap - menutupnya di sana akan mengunci Admin selamanya. Gerbang
+   penugasan tidak punya lingkaran seperti itu: menugaskan mapel adalah tindakan Admin yang
+   tidak bergantung pada CP, sehingga guru yang belum ditugaskan memang belum punya urusan
+   dengan menu CP. Membiarkannya terbuka di situ hanya akan menampilkan halaman kosong tanpa
+   penjelasan, persis keluhan "CP seolah semua mapel aktif padahal penugasan belum ada". */
+const TEACHER_ROUTES_TANPA_PENUGASAN=new Set(
+  [...TEACHER_ALWAYS_OPEN_ROUTES].filter(route=>route!=='objectives'));
+
+/* Pesannya sama persis dengan alasan penolakan di layanan, sehingga guru tidak pernah membaca
+   dua penjelasan berbeda untuk satu keadaan yang sama. */
+function assignmentNotice(){
+  return el(`<section class="card empty-state"><div class="placeholder-icon">${icon('settings',26)}</div>
+    <h3>Belum Ada Penugasan Mengajar</h3><p>${escapeHtml(PESAN_BELUM_DITUGASKAN)}</p>
+    <p>Akun Anda aktif dan tetap dapat membuka Dashboard, Profil, serta Backup. Seluruh data yang sudah ada tetap tersimpan dan akan terbuka kembali setelah Admin menugaskan mata pelajaran.</p>
+    </section>`);
+}
 
 function readinessNotice(session){
   const kesiapan=getAdminReadiness(session);

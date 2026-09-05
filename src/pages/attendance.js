@@ -51,14 +51,18 @@ export function renderAttendance(session){
      angka manual itulah yang berlaku; sisanya tetap dihitung dari absensi hariannya. */
   function manualTable(students){
     if(!students.length)return '<p class="muted">Belum ada siswa pada rombel ini.</p>';
-    return `<div class="table-wrap"><table class="table attendance-manual"><thead><tr><th>No</th><th>Siswa</th><th>Sakit</th><th>Izin</th><th>Alpa</th><th>Sumber</th><th>Aksi</th></tr></thead><tbody>${students.map((student,index)=>{
+    /* Tabel ini dulu memakai kelas `table-wrap`/`table` yang tidak punya satu pun aturan CSS di
+       aplikasi, sehingga ia melebar apa adanya dan kolom Aksi-nya terdorong ke luar layar pada
+       HP. Sekarang ia memakai pembungkus penggulir dan gaya tabel yang sama dengan tabel lain,
+       dengan kolom aksi yang dipakukan ke tepi kanan agar tombol Simpan selalu terlihat. */
+    return `<div class="table-scroll"><table class="data-table attendance-manual"><thead><tr><th>No</th><th>Siswa</th><th>Sakit</th><th>Izin</th><th>Alpa</th><th>Sumber</th><th class="cell-actions">Aksi</th></tr></thead><tbody>${students.map((student,index)=>{
       const manual=getManualAttendance(session,student.id,{classId:session.classId});
       return `<tr data-manual-row="${escapeHtml(student.id)}"><td>${index+1}</td><td><strong>${escapeHtml(student.name)}</strong><br/><span class="muted">${escapeHtml(student.nis)}</span></td>
         <td><input class="input" type="number" min="0" max="250" step="1" data-manual="Sakit" value="${manual?manual.Sakit:''}" placeholder="0"/></td>
         <td><input class="input" type="number" min="0" max="250" step="1" data-manual="Izin" value="${manual?manual.Izin:''}" placeholder="0"/></td>
         <td><input class="input" type="number" min="0" max="250" step="1" data-manual="Alpa" value="${manual?manual.Alpa:''}" placeholder="0"/></td>
         <td>${manual?'<span class="badge badge-c">Manual</span>':'<span class="muted">Absensi harian</span>'}</td>
-        <td><button class="btn btn-light" type="button" data-manual-save>Simpan</button>${manual?'<button class="btn btn-light" type="button" data-manual-clear>Hapus</button>':''}</td></tr>`;
+        <td class="cell-actions"><div class="row-actions"><button class="btn btn-light btn-small" type="button" data-manual-save>Simpan</button>${manual?'<button class="btn btn-light btn-small" type="button" data-manual-clear>Hapus</button>':''}</div></td></tr>`;
     }).join('')}</tbody></table></div>`;
   }
 

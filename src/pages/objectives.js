@@ -1,4 +1,4 @@
-import { capaianPembelajaranFor, listSchoolObjectives } from '../services/learning-objectives.js';
+import { capaianPembelajaranFor } from '../services/learning-objectives.js';
 import { deactivateAllCpButir } from '../services/cp-butir.js';
 import { createCpButir, deleteCpButir, listCpButir, setCpButirActive,
   updateCpButir } from '../services/cp-butir.js';
@@ -37,9 +37,8 @@ export function renderObjectives(session){
   const root=el(`<div><div class="page-head"><div><h1>Capaian Pembelajaran</h1><p>Kelola Butir CP per mata pelajaran. Fase ditentukan otomatis dari rombel aktif.</p></div></div>
     <section class="card module-filter"><div class="field compact-field"><label for="objectiveSubject">Mata Pelajaran Aktif</label><select class="input" id="objectiveSubject" data-subject>${subjects.map(subject=>`<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></div>
     <div class="scope-note">Kelas ${escapeHtml(session.classId)}<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section>
-    <div data-list></div><div data-legacy></div></div>`);
+    <div data-list></div></div>`);
   const listHost=root.querySelector('[data-list]');
-  const legacyHost=root.querySelector('[data-legacy]');
   if(!subjects.length){
     root.querySelector('[data-subject]').disabled=true;
     listHost.innerHTML='<section class="card empty-state"><h3>Tidak ada mata pelajaran aktif</h3><p>Aktifkan mata pelajaran melalui Mapping Mata Pelajaran.</p></section>';
@@ -126,18 +125,21 @@ export function renderObjectives(session){
     };
   }
 
-  /* --------------------------------------------------------------- Riwayat TP lama (baca) */
-  function drawLegacy(){
-    let lama=[];
-    try{lama=listSchoolObjectives(session,subjectId);}catch{lama=[];}
-    if(!lama.length){legacyHost.innerHTML='';return;}
-    /* Data TP yang pernah dibuat sekolah TIDAK dihapus dan tetap dapat dibaca di sini. Ia tidak
-       lagi menjadi dasar penilaian maupun sumber deskripsi mana pun. */
-    legacyHost.innerHTML=`<section class="card"><div class="section-head"><div><h3>Arsip Tujuan Pembelajaran</h3>
-      <p>${lama.length} catatan TP lama pada mata pelajaran ini tetap tersimpan dan dapat dibaca. Penilaian kompetensi kini memakai Butir CP di atas.</p></div></div>
-      <div class="table-scroll"><table class="data-table"><thead><tr><th>No</th><th>Tujuan Pembelajaran</th><th>Status</th></tr></thead>
-      <tbody>${lama.map((item,index)=>`<tr><td>${index+1}</td><td class="objective-text">${escapeHtml(item.description)}</td><td><span class="badge ${item.active?'badge-active':'badge-inactive'}">${item.active?'Aktif':'Nonaktif'}</span></td></tr>`).join('')}</tbody></table></div></section>`;
-  }
+  /* ARSIP TUJUAN PEMBELAJARAN TIDAK ADA LAGI DI HALAMAN INI.
+
+     Dulu halaman menutup dengan kartu "Arsip Tujuan Pembelajaran" berisi seluruh TP lama
+     sekolah. Kartu itu dibuang seluruhnya: judulnya, daftarnya, jumlahnya, dan statusnya.
+     Alasannya sama dengan alasan naskah CP resmi dibuang lebih dulu - tidak satu pun dapat
+     ditindaklanjuti guru dari sini, dan ia hanya mendorong daftar Butir CP jauh ke bawah pada
+     layar HP.
+
+     Yang lebih penting: menampilkannya berdampingan dengan Butir CP membuat TP lama tampak
+     masih menjadi dasar penilaian. Ia tidak. Penilaian, Intrakurikuler, dan Deskripsi Rapor
+     seluruhnya membaca Butir CP aktif, dan tidak ada satu pun jalur yang jatuh kembali ke TP.
+
+     DATANYA TIDAK DIHAPUS. Koleksi `learningObjectives` di penyimpanan tetap utuh apa adanya;
+     yang hilang hanyalah tampilannya di sini. Halaman ini tidak lagi membaca koleksi itu sama
+     sekali, sehingga tidak ada jalan bagi TP lama untuk kembali ke layar. */
 
   /* ------------------------------------------------------------------ Daftar Butir CP
 
@@ -146,7 +148,6 @@ export function renderObjectives(session){
      aksi Aktif/Nonaktif dan Edit selalu berada di tempat yang dapat disentuh - tidak pernah
      tersembunyi jauh di kanan tabel yang harus digeser dulu. */
   function draw(){
-    drawLegacy();
     let daftar=[];
     try{daftar=listCpButir(session,subjectId);}
     catch{daftar=[];}

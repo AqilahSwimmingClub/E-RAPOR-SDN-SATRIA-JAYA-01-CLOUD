@@ -5,7 +5,10 @@ import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { ensureSecurityBootstrap, listUserAccounts, resetTeacherPassword,
   setTeacherActive } from '../src/services/auth.js';
 import { saveTeacherProfile } from '../src/services/master.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+/* Suite ini justru MENGUJI mekanisme penugasan, jadi ia memakai penyimpan Mapping yang asli:
+   tidak boleh ada penugasan yang dibuat diam-diam oleh pembantu test. */
+import { saveSubjectMapping } from '../src/services/storage.js';
 import { listActiveSubjects, requireActiveSubject } from '../src/services/subjects.js';
 import { assignedSubjectIds, assignableSubjects, assignmentScopeKey, currentTeacherScope,
   getTeacherAssignment, isSubjectAssigned, listTeacherAssignments,
@@ -125,7 +128,11 @@ test('4. Guru hanya dapat membuka mata pelajaran yang ditugaskan Admin',()=>{
   const sesi=admin();
   const kelas=guru();
   aktifkanMapel(kelas);
-  assert.equal(listActiveSubjects(kelas).length,MAPEL.length,'sebelum ditugaskan tidak dibatasi');
+  /* HARAPAN DIBALIK ATAS PERMINTAAN RESMI. Sebelum ditugaskan, Guru tidak punya satu mapel
+     pun: diamnya Admin bukan izin. Dulu rombel yang belum pernah ditugaskan dibiarkan tanpa
+     batas, sehingga akun AKTIF tetapi BELUM DITUGASKAN masih dapat bekerja penuh. */
+  assert.equal(listActiveSubjects(kelas).length,0,'sebelum ditugaskan tidak ada akses akademik');
+  assert.throws(()=>requireActiveSubject(kelas,MAPEL[0]),/belum mendapatkan penugasan/i);
 
   setTeacherAssignment(sesi,'5B',{subjectIds:[MAPEL[0],MAPEL[1]],active:true});
   const boleh=listActiveSubjects(kelas).map(item=>item.id);

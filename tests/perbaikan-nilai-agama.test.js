@@ -10,7 +10,8 @@ import { saveAllAutomaticReports } from '../src/services/report-bulk.js';
 import { getLeger, getReportDocument } from '../src/services/documents.js';
 import { createStudent } from '../src/services/students.js';
 import { listSubjectsForStudent } from '../src/services/subjects.js';
-import { saveSubjectMapping, loadDb, invalidateDbCache, storageKey } from '../src/services/storage.js';
+import { loadDb, invalidateDbCache, storageKey } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');

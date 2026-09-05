@@ -38,8 +38,11 @@ test('Halaman kelengkapan menerima initialSection dan membatasi bagian yang sah'
 
 test('Setiap halaman input kegiatan memakai pola dan layanan yang sama',()=>{
   for(const [label,path,layanan] of [
-    ['Ekstrakurikuler','src/pages/extracurricular-input.js',['getStudentExtracurricular','saveStudentExtracurricular','saveExtracurricularBulk']],
-    ['Kokurikuler','src/pages/cocurricular-input.js',['getStudentCocurricular','saveStudentCocurricular','saveCocurricularBulk']],
+    /* Layanan halamannya berganti mengikuti pola Intrakurikuler yang berlaku sekarang:
+       previewAll* menyusun draf tanpa menyimpan, saveAll* menyimpannya. Fungsi per siswa
+       tetap ada di layanan dan tetap diuji di suite kegiatan; halaman tidak memakainya lagi. */
+    ['Ekstrakurikuler','src/pages/extracurricular-input.js',['previewAllExtracurricular','saveAllExtracurricular','listExtracurriculars']],
+    ['Kokurikuler','src/pages/cocurricular-input.js',['previewAllCocurricular','saveAllCocurricular','getStudentCocurricular']],
   ]){
     const page=read(path);
     for(const fungsi of layanan)assert.match(page,new RegExp(fungsi),`${label} memakai ${fungsi}`);

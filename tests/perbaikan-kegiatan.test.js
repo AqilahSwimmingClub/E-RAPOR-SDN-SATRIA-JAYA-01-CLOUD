@@ -12,7 +12,8 @@ import { fillAllAssessmentScores } from '../src/services/assessment-bulk.js';
 import { getLeger, getReportCompleteness, getReportDocument } from '../src/services/documents.js';
 import { createStudent } from '../src/services/students.js';
 import { listSubjectsForStudent } from '../src/services/subjects.js';
-import { saveSubjectMapping, loadDb, storageKey } from '../src/services/storage.js';
+import { loadDb, storageKey } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { runAppMigrations } from '../src/services/migrations.js';
 import { APP_SCHEMA_VERSION, PREVIOUS_RELEASE } from '../src/data/version.js';
 
@@ -82,7 +83,12 @@ test('5. Ekstrakurikuler dapat diterapkan ke semua siswa sekaligus',()=>{
   const ulang=saveExtracurricularBulk(session,{name:'Pramuka Penggalang',predicate:'Baik',description:pramukaDescriptionsForClass('5B')[0]},{overwrite:false});
   assert.equal(ulang.skipped,daftar.length,'seluruh data individual dilewati');
   assert.equal(listExtracurriculars(session,daftar[0].id)[0].predicate,'Sangat Baik','predikat lama tidak berubah');
-  assert.match(read('src/pages/extracurricular-input.js'),/data-bulk/,'tersedia tombol massal pada halaman input');
+  /* Tombol massalnya berganti nama mengikuti pola Intrakurikuler: data-fill-all menyusun draf,
+     data-save-all menyimpannya. Layanan saveExtracurricularBulk di atas tetap ada dan tetap
+     diuji, sehingga data lama yang dibuatnya tidak kehilangan penjaganya. */
+  const halamanEkstra=read('src/pages/extracurricular-input.js');
+  assert.match(halamanEkstra,/data-fill-all/,'tersedia tombol massal pada halaman input');
+  assert.match(halamanEkstra,/data-save-all/,'tersedia tombol Simpan Semua pada halaman input');
 });
 
 /* ------------------------------------------------------------- 6-9. Kokurikuler preset */
@@ -135,7 +141,7 @@ test('9. Kokurikuler dapat diterapkan ke semua siswa dan tetap dapat diedit satu
   saveStudentCocurricular(session,daftar[0].id,{activity:'Pelatihan Literasi',predicate:'Sangat Baik',description:cocurricularDescriptionsForClass('5B','Pelatihan Literasi')[0]});
   assert.equal(getStudentCocurricular(session,daftar[0].id).activity,'Pelatihan Literasi');
   assert.equal(getStudentCocurricular(session,daftar[1].id).activity,kegiatan,'siswa lain tidak ikut berubah');
-  assert.deepEqual(ACTIVITY_PREDICATES,['Cukup','Baik','Sangat Baik']);
+  assert.deepEqual(ACTIVITY_PREDICATES,['Sangat Baik','Baik','Cukup','Perlu Bimbingan']);
 });
 
 test('Kokurikuler tetap tidak diwajibkan untuk mencetak rapor',()=>{

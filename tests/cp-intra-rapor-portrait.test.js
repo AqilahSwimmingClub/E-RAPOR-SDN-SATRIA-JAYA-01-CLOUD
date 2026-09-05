@@ -19,7 +19,8 @@ import { saveAttendance } from '../src/services/attendance.js';
 import { saveClassAttitudeBulk } from '../src/services/attitudes.js';
 import { calculateReportScore } from '../src/services/report.js';
 import { createStudent, listStudents } from '../src/services/students.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 /* REVISI CP + INTRAKURIKULER + RAPOR + PORTRAIT.
 
@@ -195,8 +196,12 @@ test('16-17. Teori dan Praktik memakai bahasa sesuai substansi CP',()=>{
   const praktik=saveStudentIntracurricularSelection(session,murid[0].id,{subjectId:'ipas',
     butirIds:ids,jenis:'praktik',predicate:'Baik'});
   assert.notEqual(teori.description,praktik.description);
-  assert.match(teori.description,/^(Memahami|Menguasai|Mulai memahami) /,'16. bahasa pemahaman');
-  assert.match(praktik.description,/^(Terampil|Sangat terampil|Mampu|Mulai mampu) /,'17. bahasa keterampilan');
+  /* Bentuk kalimat Intrakurikuler diubah atas permintaan resmi: dibuka dengan nama murid.
+     Yang dijaga tetap sama - Teori berbahasa pemahaman, Praktik berbahasa keterampilan. */
+  assert.match(teori.description,/^Ananda Siswa 1 /,'16. Intrakurikuler menyapa murid');
+  assert.match(praktik.description,/^Ananda Siswa 1 /);
+  assert.match(teori.description,/pemahaman|memahami|penguasaan/,'16. bahasa pemahaman');
+  assert.match(praktik.description,/keterampilan|terampil|mampu/,'17. bahasa keterampilan');
   /* Substansinya diambil dari sisi yang benar - bukan hasil menukar kata. */
   const butir=listCpButirForSemester(session,'ipas').slice(0,2);
   for(const item of butir){
@@ -246,9 +251,16 @@ test('21. Tidak ada TP sebagai basis generator baru',()=>{
     assert.equal(halaman.includes(dilarang),false,`Rapor tidak meminta ${dilarang}`);
   /* Dan pada praktiknya: CP menang walau objectiveIds dikirim. */
   const {session,murid}=siapkanKelas(1);
-  const hasil=generateReportDescription(session,'ipas',murid[0].id,{objectiveIds:['tp-palsu']});
+  const hasil=generateReportDescription(session,'ipas',murid[0].id);
   assert.equal(hasil.source,'CP_BUTIR');
-  assert.equal(hasil.objectiveIds,null);
+  /* `objectiveIds` tidak lagi menjadi kolom hasil sama sekali - bukan pula null. Rujukan TP
+     dibuang seluruhnya dari catatan yang dihasilkan, dan parameter keempat generator pun sudah
+     tidak ada: tidak ada satu pun jalan bagi pemanggil untuk menyetir deskripsi dengan TP. */
+  assert.equal(Object.hasOwn(hasil,'objectiveIds'),false);
+  /* Dan layanan deskripsi rapor pun sudah tidak menyebut TP sama sekali. */
+  const layanan=read('src/services/descriptions.js').replace(/\/\*[\s\S]*?\*\//g,'');
+  for(const sisa of ['learning-objectives','listActiveObjectives','objectiveIds'])
+    assert.equal(layanan.includes(sisa),false,`layanan deskripsi tidak lagi memakai ${sisa}`);
 });
 
 test('22-23. Deskripsi bebas Fase, kode CP, TP, dan pengulangan nama mapel',()=>{
@@ -276,7 +288,7 @@ test('24. Deskripsi Rapor berbeda dari Deskripsi Intrakurikuler',()=>{
   const {session,murid}=siapkanKelas(1);
   const butir=listCpButirForSemester(session,'ipas');
   for(const jenis of ['teori','praktik'])
-    for(const predikat of ['Cukup','Baik','Sangat Baik']){
+    for(const predikat of ['Sangat Baik','Baik','Cukup','Perlu Bimbingan']){
       const intra=saveStudentIntracurricularSelection(session,murid[0].id,{subjectId:'ipas',
         butirIds:butir.slice(0,3).map(item=>item.id),jenis,predicate:predikat});
       const rapor=generateReportDescription(session,'ipas',murid[0].id,{});
@@ -417,7 +429,9 @@ test('37-40. Empat generator terpisah, masing-masing memakai sumber datanya send
   /* 38. Rapor bukan salinan Intrakurikuler. */
   const rapor=generateReportDescription(session,'ipas',murid[0].id,{});
   assert.notEqual(rapor.text,intra.description,'38. Rapor tidak menyalin Intrakurikuler');
-  assert.match(rapor.text,/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /,
+  /* Bentuk kalimat diubah atas permintaan resmi: Deskripsi Rapor memakai empat rujukan final
+     yang seluruhnya dibuka dengan nama murid. */
+  assert.match(rapor.text,/^Ananda .+ (menunjukkan capaian|telah menunjukkan capaian|perlu meningkatkan pemahaman|menempuh pembelajaran) /,
     'Rapor memakai bingkai capaian semester');
 
   /* 39. Kokurikuler dari data kokurikuler. */
@@ -558,7 +572,11 @@ test('Portrait: sidebar menjadi drawer pada HP dan tablet portrait',()=>{
 
 test('Portrait: sasaran sentuh dan tabel kompleks',()=>{
   const gaya=css();
-  assert.match(gaya,/@media \(max-width:1000px\)\{[\s\S]{0,400}min-height:44px/,
+  /* Ambangnya sengaja dinaikkan dari 1000px menjadi 1024px atas permintaan resmi: tablet
+     10-11 inci melaporkan lebar 1024 tepat - portrait 1024x1366 maupun landscape 1024x768 -
+     sehingga ambang lama justru melewatkan kelas perangkat yang paling banyak disentuh.
+     Klaimnya tidak berubah: tombol pada layar kecil tetap minimal 44px. */
+  assert.match(gaya,/@media \(max-width:1024px\)\{[\s\S]{0,400}min-height:44px/,
     'tombol pada layar kecil minimal 44px');
   assert.match(gaya,/@media \(pointer:coarse\)/,'perangkat sentuh mendapat sasaran yang lebih besar');
   /* Tabel Rapor yang lebih lebar diganti kartu lebih awal. */

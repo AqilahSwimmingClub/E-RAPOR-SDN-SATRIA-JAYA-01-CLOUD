@@ -13,7 +13,8 @@ import { generateCocurricularDescription } from '../src/data/cocurricular.js';
 import { generateIntracurricularDescription } from '../src/data/intracurricular-defaults.js';
 import { getReportDocument } from '../src/services/documents.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping, scopeKey, updateDb } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb, scopeKey, updateDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { cocurricularTable, extracurricularTable, intracurricularTable } from '../src/pages/print.js';
 
 const root=new URL('../',import.meta.url);
@@ -58,8 +59,8 @@ test('2. Kokurikuler dapat langsung diisi tanpa konfigurasi tambahan',()=>{
   assert.equal(getStudentCocurricular(session,student.id).predicate,'Cukup');
 });
 
-test('3. Predikat menyediakan Cukup, Baik, dan Sangat Baik',()=>{
-  assert.deepEqual(ACTIVITY_PREDICATES,['Cukup','Baik','Sangat Baik']);
+test('3. Predikat menyediakan empat pilihan, urut dari yang tertinggi',()=>{
+  assert.deepEqual(ACTIVITY_PREDICATES,['Sangat Baik','Baik','Cukup','Perlu Bimbingan']);
   assert.equal(DEFAULT_ACTIVITY_PREDICATE,'Baik','Baik tetap menjadi pilihan awal, bukan Cukup');
   const session=siapkan();const student=siswa(session,'c');
   for(const predikat of ACTIVITY_PREDICATES){
@@ -67,7 +68,8 @@ test('3. Predikat menyediakan Cukup, Baik, dan Sangat Baik',()=>{
     saveStudentCocurricular(session,student.id,{activity:'Kunjungan Edukasi (Field Trip)',predicate:predikat,description:'Deskripsi.'});
     saveStudentIntracurricular(session,student.id,{activity:'Literasi Kritis dan Presentasi',predicate:predikat,description:'Deskripsi.'});
   }
-  assert.equal(getStudentExtracurricular(session,student.id).predicate,'Sangat Baik');
+  /* Predikat terakhir pada daftar kini "Perlu Bimbingan", karena daftarnya urut menurun. */
+  assert.equal(getStudentExtracurricular(session,student.id).predicate,ACTIVITY_PREDICATES.at(-1));
 });
 
 /* --------------------------------------------------------- 3. Generate deskripsi otomatis */
@@ -210,8 +212,16 @@ test('15. Halaman Ekstrakurikuler dan Kokurikuler memakai pola Intrakurikuler ya
   const intra=read('src/pages/intracurricular-input.js');
   for(const [label,path] of [['Ekstrakurikuler','src/pages/extracurricular-input.js'],['Kokurikuler','src/pages/cocurricular-input.js']]){
     const source=read(path);
-    for(const teks of ['Generate Deskripsi Otomatis','Terapkan ke Siswa Kosong','Simpan Siswa Ini'])
+    /* ALUR KEDUANYA DIUBAH ATAS PERMINTAAN RESMI mengikuti pola Intrakurikuler yang berlaku
+       sekarang: dua tombol massal, bukan "Terapkan ke Siswa Kosong" dan "Simpan Siswa Ini".
+       Deskripsi hasil Generate menjadi DRAF sampai guru menekan Simpan Semua. */
+    for(const teks of ['Generate Deskripsi Otomatis','Isi Otomatis Semua Siswa','Simpan Semua'])
       assert.ok(source.includes(teks),`${label}: tombol ${teks} tersedia`);
+    for(const teks of ['Terapkan ke Siswa Kosong','Simpan Siswa Ini'])
+      assert.equal(source.includes(teks),false,`${label}: tombol lama ${teks} sudah dibuang`);
+    /* Draf dipisah per kegiatan supaya deskripsi kegiatan A tidak pernah menjadi milik B. */
+    assert.match(source,/drafPerKegiatan/,`${label}: draf terisolasi per kegiatan`);
+    assert.match(source,/\[data-activity\]'\)\.onchange/,`${label}: perubahan kegiatan ditangani`);
     for(const kontrol of ['data-student','data-activity','data-predicate','data-description'])
       assert.match(source,new RegExp(kontrol),`${label}: kontrol ${kontrol} mengikuti pola Intrakurikuler`);
     assert.match(source,/class="card module-filter"/,`${label}: memakai kartu filter siswa yang sama`);
@@ -220,7 +230,9 @@ test('15. Halaman Ekstrakurikuler dan Kokurikuler memakai pola Intrakurikuler ya
       assert.equal(source.includes(larangan),false,`${label}: alur ${larangan} sudah dibuang`);
     assert.equal(source.includes('Terapkan ke Semua Siswa'),false,`${label}: tombol massal lama sudah diganti`);
   }
-  assert.ok(intra.includes('Terapkan ke Siswa Kosong'),'halaman Intrakurikuler dipertahankan apa adanya');
+  /* Halaman Intrakurikuler adalah asal polanya, dan sekarang ketiganya seragam. */
+  assert.ok(intra.includes('Isi Otomatis Semua Siswa')&&intra.includes('Simpan Semua'),
+    'halaman Intrakurikuler memakai pola yang sama');
 });
 
 test('16. Route input kegiatan menunjuk halaman sederhana yang baru',()=>{

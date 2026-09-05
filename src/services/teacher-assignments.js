@@ -1,6 +1,8 @@
 import { CLASSES } from '../data/constants.js';
 import { getTeacherProfile } from './master.js';
 import { getSubjectMapping, loadDb, updateDb } from './storage.js';
+import { cpBerlaku } from '../data/curriculum-cp.js';
+import { phaseForClassId } from '../data/learning-objective-defaults.js';
 
 /* Penugasan Guru oleh Admin.
 
@@ -14,10 +16,19 @@ import { getSubjectMapping, loadDb, updateDb } from './storage.js';
       tidak pernah menyentuh catatan tahun sebelumnya, sehingga arsip 5B 2026/2027 tetap utuh
       ketika guru yang sama dipindah ke 6B pada 2027/2028.
 
-   2. Rombel yang BELUM PERNAH ditugaskan Admin tidak dibatasi. Pemasangan lama sudah berisi
-      nilai jauh sebelum fitur ini ada; memperlakukan "belum ada penugasan" sebagai "tidak
-      boleh apa-apa" akan mengunci mereka dari datanya sendiri. Pembatasan baru berlaku setelah
-      Admin benar-benar membuat penugasan untuk rombel itu. */
+   2. BELUM DITUGASKAN BERARTI BELUM BOLEH BEKERJA. Tidak ada hak akses bawaan yang diberikan
+      diam-diam kepada rombel yang belum diatur Admin.
+
+      Sebelumnya rombel tanpa penugasan dibiarkan tanpa batas, dengan alasan pemasangan lama
+      sudah berisi nilai sebelum fitur ini ada. Akibatnya akun Guru yang berstatus AKTIF tetapi
+      BELUM DITUGASKAN tetap dapat menjalankan seluruh fungsi akademik - status akun dan status
+      penugasan menjadi satu hal yang sama, padahal keduanya berbeda. Sekarang keduanya
+      dipisah: akun menentukan boleh tidaknya MASUK, penugasan menentukan boleh tidaknya
+      BEKERJA.
+
+      DATANYA TIDAK KE MANA-MANA. Mencabut atau belum memberi penugasan hanya menutup hak
+      akses; nilai, absensi, dan seluruh catatan rombel itu tetap tersimpan utuh dan kembali
+      terbuka begitu Admin menugaskannya. */
 
 const COLLECTION='teacherAssignments';
 
@@ -37,13 +48,24 @@ function assertPeriod(session){
     throw new Error('Tahun pelajaran dan semester belum ditentukan.');
 }
 
-/* Mata pelajaran yang tersedia untuk ditugaskan pada satu rombel: seluruh mapel aktif pada
-   Mapping Mata Pelajaran rombel tersebut. */
+/* Mata pelajaran yang tersedia untuk ditugaskan pada satu rombel.
+
+   Dasarnya adalah MAPPING MATA PELAJARAN rombel itu sendiri - bukan daftar tetap "sekian mapel
+   untuk semua rombel". Karena Mapping disimpan per rombel, kelas rendah (1A-3D) dan kelas
+   tinggi (4A-6D) memang boleh berbeda isi, dan perbedaan itulah yang diikuti di sini.
+
+   Di atas Mapping masih ada satu saringan yang tidak boleh dilanggar: mata pelajaran yang
+   secara resmi BELUM BERLAKU pada fase rombel tersebut tidak dapat ditugaskan. Contohnya
+   Koding dan Kecerdasan Artifisial yang pada jenjang SD baru dimulai Fase C. Saringan ini
+   tidak menyebut nama mapel satu per satu: ia membaca katalog fase CP, sehingga bertambahnya
+   mapel baru tidak menuntut perubahan kode di sini. */
 export function assignableSubjects(session,classId){
   assertClass(classId);
   const mapping=getSubjectMapping({role:'teacher',classId,
     academicYear:session?.academicYear,semester:session?.semester});
+  const phase=phaseForClassId(classId);
   return (Array.isArray(mapping)?mapping:[]).filter(item=>item.active)
+    .filter(item=>!phase||cpBerlaku(item.id,phase))
     .map(item=>({id:item.id,name:item.name,group:item.group,order:item.order}));
 }
 
@@ -112,8 +134,11 @@ export function clearTeacherAssignment(session,classId,{reason=''}={}){
 
 /* ------------------------------------------------------------------ Penegakan hak akses */
 
-/* null berarti rombel ini belum pernah ditugaskan Admin sehingga tidak dibatasi.
-   Array berarti Admin sudah menentukan, dan hanya mapel di dalamnya yang boleh dikerjakan. */
+export const PESAN_BELUM_DITUGASKAN='Anda belum mendapatkan penugasan mengajar. Hubungi Admin untuk menentukan rombel dan mata pelajaran.';
+export const PESAN_DI_LUAR_PENUGASAN='Mata pelajaran ini tidak termasuk penugasan Anda. Hubungi Admin sekolah.';
+
+/* null HANYA untuk pandangan Admin. Untuk sesi Guru yang sesungguhnya nilainya selalu berupa
+   daftar - kosong bila Admin belum menugaskan apa pun. */
 export function assignedSubjectIds(session){
   if(session?.role!=='teacher'||!session.classId)return null;
   /* Halaman Admin (Kesiapan Guru, Monitoring) menyusun sesi guru sintetis hanya untuk MEMBACA
@@ -122,10 +147,32 @@ export function assignedSubjectIds(session){
      sebagai "belum tersedia", dan Monitoring akan melihat sebagian sekolah saja. */
   if(session.adminContext===true)return null;
   const record=getTeacherAssignment(session,session.classId);
-  if(!record)return null;
-  if(!record.active)return [];
+  /* Belum ditugaskan, atau penugasannya dinonaktifkan: tidak ada satu mapel pun yang boleh
+     dikerjakan. Tidak ada hak akses bawaan. */
+  if(!record||!record.active)return [];
   return Array.isArray(record.subjectIds)?[...record.subjectIds]:[];
 }
+
+/* Keadaan penugasan sesi Guru yang sedang berjalan, lengkap dengan alasannya. Halaman memakai
+   ini agar pesan yang dilihat guru sama persis dengan alasan penolakan di layanan. */
+export function teacherAssignmentState(session){
+  if(session?.role!=='teacher'||!session.classId)
+    return {applies:false,assigned:true,active:true,subjectIds:null,message:''};
+  if(session.adminContext===true)
+    return {applies:false,assigned:true,active:true,subjectIds:null,message:''};
+  const record=getTeacherAssignment(session,session.classId);
+  const subjectIds=record?.active&&Array.isArray(record.subjectIds)?[...record.subjectIds]:[];
+  return {
+    applies:true,
+    assigned:Boolean(record),
+    active:Boolean(record?.active),
+    subjectIds,
+    /* Satu-satunya keadaan yang boleh bekerja: penugasan ada, aktif, dan berisi mapel. */
+    allowed:subjectIds.length>0,
+    message:subjectIds.length?'':PESAN_BELUM_DITUGASKAN,
+  };
+}
+export function hasTeacherAssignment(session){return teacherAssignmentState(session).allowed;}
 
 export function isSubjectAssigned(session,subjectId){
   const izin=assignedSubjectIds(session);
@@ -134,7 +181,8 @@ export function isSubjectAssigned(session,subjectId){
 
 export function assertSubjectAssigned(session,subjectId){
   if(isSubjectAssigned(session,subjectId))return true;
-  throw new Error('Mata pelajaran ini tidak termasuk penugasan Anda. Hubungi Admin sekolah.');
+  const keadaan=teacherAssignmentState(session);
+  throw new Error(keadaan.applies&&!keadaan.allowed?PESAN_BELUM_DITUGASKAN:PESAN_DI_LUAR_PENUGASAN);
 }
 
 /* Ringkasan penugasan untuk sesi Guru yang sedang berjalan; dipakai halaman Guru agar tahu

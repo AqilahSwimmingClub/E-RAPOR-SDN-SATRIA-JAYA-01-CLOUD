@@ -12,7 +12,8 @@ import { getLeger, getReportDocument } from '../src/services/documents.js';
 import { getStoredReportRows, saveAutomaticReportScores, visibleStoredReportRows } from '../src/services/report.js';
 import { createStudent, listStudents } from '../src/services/students.js';
 import { createExtracurricular } from '../src/services/completeness.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping, storageKey } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb, storageKey } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 let simpanan=new Map();
 function pasangStorage(){globalThis.localStorage={getItem:key=>simpanan.has(key)?simpanan.get(key):null,setItem:(key,value)=>simpanan.set(key,String(value)),removeItem:key=>simpanan.delete(key),clear:()=>simpanan.clear()};invalidateDbCache();}

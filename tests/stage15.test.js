@@ -12,7 +12,7 @@ import { getSchoolMaster, saveSchoolMaster } from '../src/services/master.js';
 import { savePrintSettings } from '../src/services/print-settings.js';
 import { saveManualReportScore } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
-import { saveSubjectMapping } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { saveStudentAttitude } from '../src/services/attitudes.js';
 
 const root=new URL('../',import.meta.url);

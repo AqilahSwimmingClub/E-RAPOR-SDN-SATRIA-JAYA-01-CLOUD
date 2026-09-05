@@ -1,6 +1,6 @@
 import { composeActivityDescription } from '../data/activity-description.js';
 import { CLASSES } from '../data/constants.js';
-import { composeIntracurricularButirDescription, composeIntracurricularCpDescription, cpAcuanFor,
+import { composeIntracurricularButirDescription, cpAcuanFor,
   cpAlasanTidakTersedia, JENIS_INTRAKURIKULER, jenisIntrakurikuler,
   jenisIntrakurikulerValid } from './cp-descriptions.js';
 import { cpButirAvailable, listCpButirForSemester, semesterNumberOf } from './cp-butir.js';
@@ -71,6 +71,12 @@ export function deleteIntracurricularActivity(session,id){
    isi kolom Kegiatan dan Keterangan pada tabel rapor yang bentuknya tetap. */
 
 export const INTRACURRICULAR_PREDICATES=Object.freeze([...ACTIVITY_PREDICATES]);
+export const PESAN_TANPA_BUTIR_INTRA='Belum ada Butir CP aktif untuk mata pelajaran ini. Aktifkan atau tambahkan Butir CP terlebih dahulu.';
+export const PESAN_BUTIR_WAJIB='Pilih minimal 1 Butir CP aktif yang akan dinilai.';
+function predikatSah(nilai){
+  const teks=String(nilai||'').trim();
+  return INTRACURRICULAR_PREDICATES.find(item=>item.toLowerCase()===teks.toLowerCase())||null;
+}
 
 function assertTeacherScope(session){
   if(session?.role!=='teacher'||!session?.classId)throw new Error('Sesi Guru tidak valid untuk Intrakurikuler.');
@@ -149,12 +155,30 @@ function butirAktif(session,subjectId){
 
 /* Menyaring pilihan guru terhadap butir yang benar-benar aktif. Id yang tidak dikenal atau
    sudah nonaktif dibuang di sini - bukan dilaporkan sebagai kompetensi yang dikuasai anak. */
+/* BUTIR CP WAJIB DIPILIH GURU. Tidak ada satu pun keadaan yang membuat penyusun memilihkan
+   butir sendiri.
+
+   Sebelumnya, guru yang belum mencentang apa pun mendapat SELURUH butir aktif mata pelajaran
+   itu. Sumbernya memang tetap benar, tetapi hasilnya bukan penilaian: satu kalimat yang
+   memuat tiga belas kompetensi sekaligus tidak menyatakan apa yang benar-benar dinilai guru
+   pada satu kegiatan penilaian. Sekarang pilihan itu wajib, dan tidak dipilihnya butir
+   dinyatakan apa adanya - bukan ditutup dengan tebakan yang terdengar lengkap.
+
+   Yang tetap dijaga: butir NONAKTIF tidak pernah lolos walau id-nya dikirim paksa, dan tidak
+   ada cadangan ke TP, arsip, objectiveIds, maupun mata pelajaran lain. */
 function butirTerpilih(session,subjectId,butirIds){
   const aktif=butirAktif(session,subjectId);
   const diminta=[...new Set((Array.isArray(butirIds)?butirIds:[]).map(id=>String(id)))];
   if(!diminta.length)return [];
   const peta=new Map(aktif.map(item=>[item.id,item]));
   return diminta.map(id=>peta.get(id)).filter(Boolean);
+}
+/* Memastikan guru benar-benar memilih butir yang AKTIF. Dipakai setiap jalur yang menyusun
+   deskripsi Intrakurikuler, sehingga pesannya satu dan tidak mungkin berbeda antar-halaman. */
+function wajibkanButirTerpilih(session,subjectId,butirIds){
+  const butir=butirTerpilih(session,subjectId,butirIds);
+  if(!butir.length)throw new Error(PESAN_BUTIR_WAJIB);
+  return butir;
 }
 
 function jenisBersih(nilai){
@@ -165,21 +189,23 @@ function jenisBersih(nilai){
 /* Deskripsi Intrakurikuler. Sumbernya PERSIS butir yang dipilih guru, jenis penilaian, dan
    predikat - tidak ada yang lain. Penyusun deskripsi Nilai Rapor tidak pernah dipanggil dari
    sini: keduanya boleh membaca kompetensi yang sama, tetapi kalimatnya harus berbeda. */
-export function composeIntracurricularDescriptionFromCp(session,{subjectId='',butirIds=[],
-  jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate='Baik'}={}){
-  return susunDeskripsiIntra(session,{subjectId,butirIds,jenis,predicate});
+export function composeIntracurricularDescriptionFromCp(session,{studentName='',subjectId='',
+  butirIds=[],jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate='Baik'}={}){
+  return susunDeskripsiIntra(session,{studentName,subjectId,butirIds,jenis,predicate});
 }
 
-function susunDeskripsiIntra(session,{subjectId='',butirIds=[],jenis=DEFAULT_JENIS_INTRAKURIKULER,
-  predicate='Baik'}={}){
-  const pilihan=jenisBersih(jenis);
-  const butir=butirTerpilih(session,subjectId,butirIds);
-  const dariButir=composeIntracurricularButirDescription({butir,jenis:pilihan,predicate});
-  if(dariButir)return dariButir;
-  /* Guru belum memilih satu butir pun - atau mata pelajaran ini memang belum punya butir.
-     Lingkup kompetensi elemen CP dipakai supaya kalimatnya tetap benar, bukan kolom kosong. */
-  const cp=cpAcuanFor(session,subjectId);
-  return composeIntracurricularCpDescription({cp,jenis:pilihan,predicate});
+/* TIDAK ADA CADANGAN. Dulu, ketika guru belum mencentang satu butir pun, penyusun jatuh ke
+   nama-nama Elemen CP supaya kolomnya tidak kosong. Kalimat yang lahir dari situ terdengar
+   benar tetapi tidak menyatakan kompetensi yang benar-benar dinilai guru - dan tidak ada
+   satu pun butir yang dapat ditunjuk sebagai asalnya.
+
+   Sekarang: tidak ada butir aktif yang dipilih berarti tidak ada deskripsi. Halaman
+   menyampaikan apa yang harus dilakukan guru, bukan menutupi keadaannya. */
+function susunDeskripsiIntra(session,{studentName='',subjectId='',butirIds=[],
+  jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate='Baik'}={}){
+  const butir=wajibkanButirTerpilih(session,subjectId,butirIds);
+  return composeIntracurricularButirDescription({studentName,butir,
+    jenis:jenisBersih(jenis),predicate});
 }
 
 /* Bentuk lama berbasis TP dipertahankan supaya catatan dan pemanggil lama tetap berjalan.
@@ -226,11 +252,13 @@ export function saveStudentIntracurricularSelection(session,studentId,{subjectId
   if(!cp)throw new Error(cpAlasanTidakTersedia(session,subject.id)||'CP mata pelajaran ini belum tersedia pada fase rombel aktif.');
   if(!INTRACURRICULAR_PREDICATES.includes(predicate))throw new Error('Predikat intrakurikuler tidak valid.');
   const pilihanJenis=jenisBersih(jenis);
-  const butir=butirTerpilih(session,subject.id,butirIds);
-  const otomatis=susunDeskripsiIntra(session,{subjectId:subject.id,
+  const butir=wajibkanButirTerpilih(session,subject.id,butirIds);
+  const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);
+  if(!student)throw new Error('Siswa tidak ditemukan pada scope aktif.');
+  const otomatis=susunDeskripsiIntra(session,{studentName:student.name,subjectId:subject.id,
     butirIds:butir.map(item=>item.id),jenis:pilihanJenis,predicate});
   const teks=String(description||'').trim()||otomatis;
-  if(!teks)throw new Error('Deskripsi intrakurikuler tidak dapat disusun karena CP belum tersedia.');
+  if(!teks)throw new Error(PESAN_TANPA_BUTIR_INTRA);
   /* Rujukan TP lama dipertahankan apa adanya supaya riwayat catatan tidak putus. */
   const rujukanTp=[...new Set((Array.isArray(objectiveIds)?objectiveIds:[]).map(id=>String(id)))];
   const saved=saveStudentIntracurricular(session,studentId,{
@@ -273,11 +301,13 @@ function konteksIsiSemua(session,{subjectId,butirIds=[],jenis=DEFAULT_JENIS_INTR
   if(!cp)throw new Error(cpAlasanTidakTersedia(session,subject.id)||'CP mata pelajaran ini belum tersedia pada fase rombel aktif.');
   if(!INTRACURRICULAR_PREDICATES.includes(predicate))throw new Error('Predikat intrakurikuler tidak valid.');
   const pilihanJenis=jenisBersih(jenis);
-  const idButir=butirTerpilih(session,subject.id,butirIds).map(item=>item.id);
-  const otomatis=susunDeskripsiIntra(session,{subjectId:subject.id,butirIds:idButir,
-    jenis:pilihanJenis,predicate});
-  return {subject,cp,pilihanJenis,idButir,otomatis,
-    students:listStudents(session,{classId:session.classId})};
+  const idButir=wajibkanButirTerpilih(session,subject.id,butirIds).map(item=>item.id);
+  const students=listStudents(session,{classId:session.classId});
+  /* Kalimat disusun PER MURID karena namanya ikut ke dalam kalimat. */
+  const deskripsiUntuk=(student,predikatMurid=predicate)=>susunDeskripsiIntra(session,
+    {studentName:student.name,subjectId:subject.id,butirIds:idButir,
+      jenis:pilihanJenis,predicate:predikatMurid});
+  return {subject,cp,pilihanJenis,idButir,deskripsiUntuk,students};
 }
 
 /* Deskripsi yang diketik sendiri oleh guru tidak boleh hilang hanya karena tombol batch
@@ -292,20 +322,28 @@ function deskripsiManual(lama,otomatis){
 /* HASIL TANPA MENYIMPAN. Fungsi ini tidak menulis apa pun; ia hanya menyusun apa yang AKAN
    disimpan bila guru menekan Simpan Semua. */
 export function previewAllIntracurricular(session,{subjectId,butirIds=[],
-  jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate='Baik',overwriteManual=false}={}){
-  const {subject,cp,pilihanJenis,idButir,otomatis,students}=
+  jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate='Baik',overwriteManual=false,predicates={}}={}){
+  const {subject,cp,pilihanJenis,idButir,deskripsiUntuk,students}=
     konteksIsiSemua(session,{subjectId,butirIds,jenis,predicate});
   const hasil={subjectId:subject.id,subjectName:subject.name,phase:cp.phase,predicate,
     jenis:pilihanJenis,butirIds:idButir,semesterNumber:semesterNumberOf(session),
     total:students.length,rows:[],dilewati:[]};
   for(const student of students){
+    /* PREDIKAT MILIK MURID MASING-MASING. Predikat pada formulir hanyalah nilai awal; bila
+       guru sudah menentukan predikat sendiri untuk seorang murid - lewat draf yang sedang
+       disunting atau lewat catatan yang tersimpan - predikat itulah yang dipakai. Menyamakan
+       seluruh rombel menjadi "Baik" berarti menghapus penilaian yang sudah dilakukan guru. */
     const lama=getStudentIntracurricularSelection(session,student.id,subject.id);
+    const predikatMurid=predikatSah(predicates?.[student.id])
+      ||predikatSah(lama?.predicate)
+      ||predicate;
+    const otomatis=deskripsiUntuk(student,predikatMurid);
     if(!overwriteManual&&deskripsiManual(lama,otomatis)){
       hasil.dilewati.push({studentId:student.id,name:student.name,alasan:'deskripsi manual dipertahankan'});
       continue;
     }
     hasil.rows.push({studentId:student.id,name:student.name,subjectId:subject.id,
-      butirIds:[...idButir],jenis:pilihanJenis,predicate,description:otomatis});
+      butirIds:[...idButir],jenis:pilihanJenis,predicate:predikatMurid,description:otomatis});
   }
   return hasil;
 }
@@ -337,8 +375,9 @@ export function saveAllIntracurricular(session,{subjectId,rows=[]}={}){
 /* Bentuk gabungan: susun lalu langsung simpan. Dipakai pemanggil lama dan Simpan Otomatis
    Semua Mapel yang memang tidak menampilkan pratinjau. */
 export function fillAllIntracurricular(session,{subjectId,butirIds=[],
-  jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate='Baik',overwriteManual=false}={}){
-  const pratinjau=previewAllIntracurricular(session,{subjectId,butirIds,jenis,predicate,overwriteManual});
+  jenis=DEFAULT_JENIS_INTRAKURIKULER,predicate='Baik',overwriteManual=false,predicates={}}={}){
+  const pratinjau=previewAllIntracurricular(session,{subjectId,butirIds,jenis,predicate,
+    overwriteManual,predicates});
   const hasil={subjectId:pratinjau.subjectId,subjectName:pratinjau.subjectName,phase:pratinjau.phase,
     predicate:pratinjau.predicate,jenis:pratinjau.jenis,butirIds:pratinjau.butirIds,
     semesterNumber:pratinjau.semesterNumber,total:pratinjau.total,terisi:0,

@@ -12,7 +12,10 @@ import { listActiveSubjects, requireActiveSubject } from '../src/services/subjec
 import { assignedSubjectIds, setTeacherAssignment } from '../src/services/teacher-assignments.js';
 import { addReferenceObjectives, listReferenceObjectives } from '../src/services/learning-objectives.js';
 import { saveTeacherProfile } from '../src/services/master.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+/* Suite ini justru MENGUJI mekanisme penugasan, jadi ia memakai penyimpan Mapping yang asli:
+   tidak boleh ada penugasan yang dibuat diam-diam oleh pembantu test. */
+import { saveSubjectMapping } from '../src/services/storage.js';
 
 /* SATU fungsi, SATU pemilik.
 
@@ -184,6 +187,8 @@ test('8. Kesiapan Guru menyebut penyebab yang konkret, bukan checklist tetap',as
 
   /* Tetapi bila seluruh Butir CP satu mapel dinonaktifkan guru, penyebabnya disebut konkret -
      menyebut mata pelajaran dan rombelnya, bukan kalimat tetap. */
+  /* Guru perlu ditugaskan lebih dulu untuk dapat menyentuh Butir CP mapelnya. */
+  setTeacherAssignment(sesi,kelas.classId,{subjectIds:['mtk'],active:true});
   for(const item of listCpButir(kelas,'mtk'))setCpButirActive(kelas,'mtk',item.id,false);
   const sesudah=getAdminReadiness(sesi).items.find(item=>item.id==='learning-objectives');
   assert.equal(sesudah.done,false,'mapel tanpa Butir CP aktif menahan kesiapan');

@@ -1,6 +1,7 @@
 import { getSchoolMaster, getTeacherProfile, saveSchoolMaster } from '../services/master.js';
 import { formatIndonesianPrintDate } from '../services/print-settings.js';
 import { getSubjectMapping } from '../services/storage.js';
+import { getTeacherAssignment } from '../services/teacher-assignments.js';
 import { copyAcademicYearData, createAcademicYear, getReferenceOverview, setSemesterReferenceActive, updateReferenceSubject } from '../services/references.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
@@ -66,16 +67,30 @@ export function renderReferences(session,section='school'){
     };
   }
   /* Pembelajaran hanya menampilkan penugasan yang sudah ada. Perubahannya tetap dilakukan
-     lewat Data Pengguna dan Mapping Mata Pelajaran, bukan lewat store kedua di sini. */
+     lewat Data Pengguna dan Mapping Mata Pelajaran, bukan lewat store kedua di sini.
+
+     DUA KOLOM YANG SENGAJA DIPISAH.
+
+     MAPEL BERLAKU datang dari Mapping Mata Pelajaran: mata pelajaran apa saja yang memang ada
+     pada rombel itu. MAPEL DITUGASKAN datang dari Penugasan Guru: mana di antaranya yang
+     benar-benar menjadi hak kerja wali kelasnya.
+
+     Sebelumnya hanya kolom pertama yang ditampilkan, sehingga rombel yang belum ditugaskan
+     tetap terbaca "12 dari 13" - keadaan yang tampak siap padahal gurunya belum boleh bekerja
+     sama sekali. Dua kolom yang berdiri sendiri membuat perbedaan itu terlihat apa adanya. */
   function drawLearning(){
     const data=getReferenceOverview();
     const baris=data.classes.map(classId=>{
       const teacher=getTeacherProfile(classId);
       const mapping=getSubjectMapping({role:'teacher',classId,academicYear:session.academicYear,semester:session.semester});
       const aktif=mapping.filter(item=>item.active!==false);
-      return {classId,teacher,aktif,total:mapping.length};
+      const penugasan=getTeacherAssignment(session,classId);
+      const idDitugaskan=penugasan?.active&&Array.isArray(penugasan.subjectIds)?penugasan.subjectIds:[];
+      const ditugaskan=aktif.filter(item=>idDitugaskan.includes(item.id));
+      return {classId,teacher,aktif,total:mapping.length,ditugaskan,
+        adaPenugasan:Boolean(penugasan?.active&&idDitugaskan.length)};
     });
-    view.innerHTML=`<section class="card saved-table-card"><div class="section-head"><div><h3>Pembelajaran per Rombel</h3><p>Wali kelas dan mata pelajaran aktif pada ${escapeHtml(session.semester)}. Ubah melalui Data Pengguna dan Mapping Mata Pelajaran.</p></div><span class="badge badge-active">${baris.length} rombel</span></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Rombel</th><th>Wali Kelas</th><th>Mapel Aktif</th><th>Daftar Mata Pelajaran</th></tr></thead><tbody>${baris.map(item=>`<tr><td><strong>Kelas ${escapeHtml(item.classId)}</strong></td><td>${escapeHtml(item.teacher.name)}<span>${escapeHtml(item.teacher.nip||'NIP belum diisi')}</span></td><td><strong>${item.aktif.length}</strong> dari ${item.total}</td><td>${item.aktif.length?escapeHtml(item.aktif.map(mapel=>mapel.name).join(', ')):'<span class="muted">Belum ada mapel aktif</span>'}</td></tr>`).join('')}</tbody></table></div></section>`;
+    view.innerHTML=`<section class="card wide-table-card"><div class="section-head"><div><h3>Pembelajaran per Rombel</h3><p>Mapel Berlaku berasal dari Mapping Mata Pelajaran; Mapel Ditugaskan berasal dari Penugasan Guru. Keduanya berbeda: rombel boleh punya mapel berlaku tanpa satu pun mapel ditugaskan. Ubah melalui Data Pengguna dan Mapping Mata Pelajaran.</p></div><span class="badge badge-active">${baris.length} rombel</span></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Rombel</th><th>Wali Kelas</th><th>Mapel Berlaku</th><th>Mapel Ditugaskan</th><th>Daftar Mata Pelajaran Ditugaskan</th></tr></thead><tbody>${baris.map(item=>`<tr><td><strong>Kelas ${escapeHtml(item.classId)}</strong></td><td>${escapeHtml(item.teacher.name)}<span>${escapeHtml(item.teacher.nip||'NIP belum diisi')}</span></td><td><strong>${item.aktif.length}</strong> dari ${item.total}<span>Mapping Mata Pelajaran</span></td><td>${item.adaPenugasan?`<strong>${item.ditugaskan.length}</strong> dari ${item.aktif.length}<span>Penugasan Guru</span>`:'<span class="badge badge-inactive">Belum ditugaskan</span>'}</td><td>${item.ditugaskan.length?escapeHtml(item.ditugaskan.map(mapel=>mapel.name).join(', ')):'<span class="muted">Guru rombel ini belum dapat membuka mata pelajaran apa pun</span>'}</td></tr>`).join('')}</tbody></table></div></section>`;
   }
   function draw(){
     if(bagian==='classes'){

@@ -7,7 +7,8 @@ import { authenticate, ensureSecurityBootstrap, getSession, listUserAccounts, sa
 import { assertLicenseAllowsLogin, getLicenseState } from '../src/services/license.js';
 import { saveAssessmentScores, saveAssessmentSettings, ASSESSMENT_TYPES } from '../src/services/assessment.js';
 import { createStudent, listStudents } from '../src/services/students.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { aktifkanLisensiLokal, cabutLisensiLokal, hapusLisensiLokal } from './helpers/license-local.js';
 

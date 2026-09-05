@@ -10,16 +10,21 @@ export const GRADUATION_STATUSES=[
   {id:'GRADUATED',label:'Lulus'},
   {id:'NOT_GRADUATED',label:'Tidak Lulus'},
 ];
-export const ACTIVITY_PREDICATES=['Cukup','Baik','Sangat Baik'];
+/* EMPAT PREDIKAT, urut dari yang tertinggi - sama untuk Intrakurikuler, Kokurikuler, dan
+   Ekstrakurikuler. "Perlu Bimbingan" dulu hanya dikenali saat MEMBACA catatan lama dan tidak
+   pernah dapat dipilih guru, sehingga murid yang memang memerlukan bimbingan terpaksa dicatat
+   "Cukup". Sekarang ia menjadi pilihan yang sah seperti tiga lainnya. */
+export const ACTIVITY_PREDICATES=['Sangat Baik','Baik','Cukup','Perlu Bimbingan'];
 /* Baik tetap menjadi pilihan awal setiap form, bukan predikat pertama pada daftar. */
 export const DEFAULT_ACTIVITY_PREDICATE='Baik';
-/* Predikat di luar daftar yang pernah dipakai versi lama tetap dapat dibaca. */
-export const LEGACY_ACTIVITY_PREDICATES=['Perlu Bimbingan'];
+/* Tidak ada lagi predikat lama di luar daftar: keempatnya sudah tercakup di atas. */
+export const LEGACY_ACTIVITY_PREDICATES=[];
 function knownPredicate(value){return ACTIVITY_PREDICATES.includes(value)||LEGACY_ACTIVITY_PREDICATES.includes(value);}
 export const ACTIVITY_DESCRIPTIONS={
   'Sangat Baik':'Menunjukkan partisipasi, kedisiplinan, dan tanggung jawab yang sangat baik dalam kegiatan.',
   'Baik':'Menunjukkan partisipasi dan tanggung jawab yang baik dalam kegiatan.',
   'Cukup':'Cukup berpartisipasi dan perlu meningkatkan konsistensi dalam kegiatan.',
+  'Perlu Bimbingan':'Masih memerlukan bimbingan untuk berpartisipasi secara konsisten dalam kegiatan.',
 };
 export const PRAMUKA_DESCRIPTIONS={siaga:['Aktif mengikuti latihan dasar kepramukaan dan mampu mengikuti aturan kelompok dengan baik.','Menunjukkan kemandirian, kedisiplinan, dan tanggung jawab dalam kegiatan Pramuka Siaga.','Mampu bekerja sama dengan teman dalam permainan dan kegiatan kelompok.','Menunjukkan kepedulian terhadap lingkungan, kebersihan, dan sesama.','Aktif mengembangkan keberanian, keterampilan, dan rasa percaya diri.'],penggalang:['Aktif mengikuti kegiatan kepramukaan serta menunjukkan disiplin dan tanggung jawab.','Mampu bekerja sama, memimpin, dan menyelesaikan tugas kelompok.','Menunjukkan keterampilan kepramukaan, kemandirian, dan kepedulian lingkungan.','Mampu menerapkan gotong royong dan tanggung jawab dalam kegiatan.','Menunjukkan percaya diri, kepemimpinan, dan kemampuan bekerja sama.']};
 export const COCURRICULAR_DESCRIPTIONS={lower:['Aktif mengikuti kegiatan bersama dan mampu bekerja sama.','Menunjukkan rasa ingin tahu dan semangat belajar.','Mampu menyelesaikan tugas sederhana dengan tanggung jawab.','Menunjukkan kepedulian terhadap kebersihan dan lingkungan.','Mampu menyampaikan ide dan berpartisipasi dalam kelompok.'],upper:['Aktif berkolaborasi dan menyelesaikan tugas dengan tanggung jawab.','Mampu mengembangkan ide dan memecahkan masalah.','Menunjukkan kemandirian, disiplin, dan kemampuan berkomunikasi.','Menunjukkan kepedulian lingkungan dan gotong royong.','Mampu mengembangkan kreativitas, bernalar kritis, dan bekerja sama.']};
@@ -32,7 +37,7 @@ export function cocurricularDescriptionsForClass(classId,activity){
 }
 export function listCocurricularActivities(){return cocurricularActivityNames();}
 export function cocurricularPresets(){return COCURRICULAR_ACTIVITY_PRESETS;}
-function predicatePrefix(predicate){return {'Cukup':'Cukup','Baik':'Baik','Sangat Baik':'Sangat baik'}[predicate]||'Baik';}
+function predicatePrefix(predicate){return {'Cukup':'Cukup','Baik':'Baik','Sangat Baik':'Sangat baik','Perlu Bimbingan':'Masih memerlukan bimbingan'}[predicate]||'Baik';}
 export function pramukaDescriptionTemplates(classId,predicate){if(!knownPredicate(predicate))throw new Error('Predikat ekstrakurikuler tidak valid.');return pramukaDescriptionsForClass(classId).map(text=>`${predicatePrefix(predicate)} dalam ${text.charAt(0).toLowerCase()}${text.slice(1)}`);}
 export function cocurricularDescriptionTemplates(classId,predicate,activity){if(!knownPredicate(predicate))throw new Error('Predikat kokurikuler tidak valid.');return cocurricularDescriptionsForClass(classId,activity);}
 
@@ -122,6 +127,107 @@ function normalizeCocurricular(input){const record={activity:clean(input?.activi
 export function getStudentCocurricular(session,studentId){requireStudent(session,studentId);const record=loadDb().cocurricularScores?.[cocurricularKey(session,studentId)];return record?clone(record):null;}
 
 export function saveStudentCocurricular(session,studentId,input){requireStudent(session,studentId);const value=normalizeCocurricular(input);let saved;updateDb(db=>{const key=cocurricularKey(session,studentId);const existing=db.cocurricularScores[key];const now=new Date().toISOString();saved=scopedRecord(session,studentId,{...value,createdAt:existing?.createdAt||now,updatedAt:now});db.cocurricularScores[key]=saved;return db;});return clone(saved);}
+
+/* ============================ ISI OTOMATIS SEMUA SISWA UNTUK KEGIATAN (KOKURIKULER/EKSTRA)
+
+   POLA YANG SAMA PERSIS DENGAN INTRAKURIKULER, dan untuk alasan yang sama:
+
+     [Isi Otomatis Semua Siswa]  menyusun hasil untuk seluruh murid dan MENAMPILKANNYA saja.
+     [Simpan Semua]              menyimpan apa yang sedang ditampilkan itu.
+
+   AKAR MASALAH YANG DIPERBAIKI DI SINI. Halaman Kokurikuler dan Ekstrakurikuler dulu menyusun
+   kalimat untuk kegiatan yang sedang dipilih, lalu menaruhnya di kotak deskripsi. Ketika guru
+   mengganti kegiatan, kotak itu TIDAK ikut berganti - tidak ada satu pun penanganan untuk
+   perubahan pilihan kegiatan - sehingga deskripsi kegiatan A tersimpan sebagai deskripsi
+   kegiatan B. Baris hasil di bawah karena itu SELALU membawa nama kegiatannya sendiri, dan
+   penyimpanan menolak baris yang kegiatannya tidak sama dengan kegiatan yang sedang diproses.
+
+   Tidak ada satu pun tulisan ke penyimpanan pada tahap pratinjau. */
+
+function predikatKegiatan(nilai,bawaan){
+  const teks=clean(nilai,50);
+  return ACTIVITY_PREDICATES.find(item=>item.toLowerCase()===teks.toLowerCase())||bawaan;
+}
+
+/* Menyusun hasil Kokurikuler seluruh murid untuk SATU kegiatan. Tidak menyimpan apa pun. */
+export function previewAllCocurricular(session,{activity,predicate=DEFAULT_ACTIVITY_PREDICATE,
+  predicates={},describe}={}){
+  assertTeacher(session);
+  const kegiatan=clean(activity,180);
+  if(!kegiatan)throw new Error('Pilih kegiatan kokurikuler terlebih dahulu.');
+  if(!knownPredicate(predicate))throw new Error('Predikat kokurikuler tidak valid.');
+  if(typeof describe!=='function')throw new Error('Penyusun deskripsi kokurikuler tidak tersedia.');
+  const students=listStudents(session,{classId:session.classId});
+  const rows=students.map(student=>{
+    const tersimpan=loadDb().cocurricularScores?.[cocurricularKey(session,student.id)];
+    /* Predikat milik murid masing-masing: yang sudah ditentukan guru tidak diseragamkan. */
+    const predikat=predikatKegiatan(predicates?.[student.id],null)
+      ||(String(tersimpan?.activity||'')===kegiatan?predikatKegiatan(tersimpan?.predicate,null):null)
+      ||predicate;
+    return {studentId:student.id,name:student.name,activity:kegiatan,predicate:predikat,
+      description:clean(describe({student,activity:kegiatan,predicate:predikat}),1200)};
+  });
+  return {activity:kegiatan,predicate,total:students.length,rows};
+}
+
+/* Menyimpan hasil Kokurikuler yang sedang ditampilkan. */
+export function saveAllCocurricular(session,{activity,rows=[]}={}){
+  assertTeacher(session);
+  const kegiatan=clean(activity,180);
+  if(!kegiatan)throw new Error('Pilih kegiatan kokurikuler terlebih dahulu.');
+  const daftar=Array.isArray(rows)?rows:[];
+  if(!daftar.length)throw new Error('Belum ada hasil yang dapat disimpan. Tekan Isi Otomatis Semua Siswa terlebih dahulu.');
+  const hasil={activity:kegiatan,total:daftar.length,tersimpan:0,gagal:[]};
+  for(const row of daftar){
+    try{
+      /* Kegiatan baris dipaksa ke kegiatan yang sedang diproses, sehingga tidak ada baris
+         yang dapat menyimpan deskripsi kegiatan lain. */
+      saveStudentCocurricular(session,row.studentId,{activity:kegiatan,
+        predicate:row.predicate,description:row.description});
+      hasil.tersimpan+=1;
+    }catch(error){hasil.gagal.push({studentId:row.studentId,name:row.name,alasan:error.message});}
+  }
+  return hasil;
+}
+
+/* Menyusun hasil Ekstrakurikuler seluruh murid untuk SATU kegiatan. Tidak menyimpan apa pun. */
+export function previewAllExtracurricular(session,{name,predicate=DEFAULT_ACTIVITY_PREDICATE,
+  predicates={},describe}={}){
+  assertTeacher(session);
+  const kegiatan=clean(name,120);
+  if(!kegiatan)throw new Error('Pilih kegiatan ekstrakurikuler terlebih dahulu.');
+  if(!knownPredicate(predicate))throw new Error('Predikat ekstrakurikuler tidak valid.');
+  if(typeof describe!=='function')throw new Error('Penyusun deskripsi ekstrakurikuler tidak tersedia.');
+  const students=listStudents(session,{classId:session.classId});
+  const rows=students.map(student=>{
+    const tersimpan=listExtracurriculars(session,student.id)
+      .find(item=>String(item.name||'').toLowerCase()===kegiatan.toLowerCase());
+    const predikat=predikatKegiatan(predicates?.[student.id],null)
+      ||predikatKegiatan(tersimpan?.predicate,null)
+      ||predicate;
+    return {studentId:student.id,name:student.name,activity:kegiatan,predicate:predikat,
+      description:clean(describe({student,activity:kegiatan,predicate:predikat}),1000)};
+  });
+  return {activity:kegiatan,predicate,total:students.length,rows};
+}
+
+/* Menyimpan hasil Ekstrakurikuler yang sedang ditampilkan. */
+export function saveAllExtracurricular(session,{name,rows=[]}={}){
+  assertTeacher(session);
+  const kegiatan=clean(name,120);
+  if(!kegiatan)throw new Error('Pilih kegiatan ekstrakurikuler terlebih dahulu.');
+  const daftar=Array.isArray(rows)?rows:[];
+  if(!daftar.length)throw new Error('Belum ada hasil yang dapat disimpan. Tekan Isi Otomatis Semua Siswa terlebih dahulu.');
+  const hasil={activity:kegiatan,total:daftar.length,tersimpan:0,gagal:[]};
+  for(const row of daftar){
+    try{
+      saveStudentExtracurricular(session,row.studentId,{name:kegiatan,
+        predicate:row.predicate,description:row.description});
+      hasil.tersimpan+=1;
+    }catch(error){hasil.gagal.push({studentId:row.studentId,name:row.name,alasan:error.message});}
+  }
+  return hasil;
+}
 
 /* Intrakurikuler memakai koleksi intracurricularScores sendiri. Kunci, validasi, dan
    bentuk record sengaja sejajar dengan kokurikuler supaya perilaku keduanya konsisten,

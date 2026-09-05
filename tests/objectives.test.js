@@ -1,4 +1,6 @@
 import test from 'node:test';
+import { SUBJECTS_DEFAULT } from '../src/data/constants.js';
+import { tugaskan } from './helpers/penugasan.js';
 import assert from 'node:assert/strict';
 import { ACADEMIC_YEAR } from '../src/data/constants.js';
 import { createLearningObjective, deleteLearningObjective, listLearningObjectives, reorderLearningObjective, setLearningObjectiveActive, updateLearningObjective } from '../src/services/objectives.js';
@@ -7,12 +9,19 @@ function useMemoryStorage(){
   const values=new Map();
   globalThis.localStorage={getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};
 }
+/* Sejak penugasan menjadi satu-satunya sumber otorisasi, sekolah pada test ini ditempatkan
+   pada keadaan yang sama dengan sekolah yang sudah dikonfigurasi Admin: seluruh mapel Mapping
+   ditugaskan kepada wali kelasnya. Tanpa itu, akun Guru memang tidak boleh bekerja. */
+function siapkanPenugasan(...sesi){
+  for(const item of sesi)
+    if(item?.classId)tugaskan(item,SUBJECTS_DEFAULT.map(subject=>subject.id));
+}
 const base={role:'teacher',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
 const teacher5b={...base,classId:'5B'};const teacher5c={...base,classId:'5C'};
 const teacher5bGenap={...teacher5b,semester:`Genap ${ACADEMIC_YEAR}`};
 
 test('Learning Objective CRUD, active status, and order are persisted',()=>{
-  useMemoryStorage();
+  useMemoryStorage();siapkanPenugasan(teacher5b,teacher5c,teacher5bGenap);
   const first=createLearningObjective(teacher5b,'bindo',{code:'TP-1',description:'Memahami teks informatif',active:true});
   const second=createLearningObjective(teacher5b,'bindo',{code:'TP-2',description:'Menulis teks singkat',active:true});
   updateLearningObjective(teacher5b,'bindo',first.id,{code:'TP-1A',description:'Memahami dan menjelaskan teks informatif',active:true});
@@ -28,7 +37,7 @@ test('Learning Objective CRUD, active status, and order are persisted',()=>{
 });
 
 test('Learning Objectives stay isolated by class, subject, and semester',()=>{
-  useMemoryStorage();
+  useMemoryStorage();siapkanPenugasan(teacher5b,teacher5c,teacher5bGenap);
   createLearningObjective(teacher5b,'agama',{code:'TP-SCOPE',description:'TP Agama Kelas 5B'});
   createLearningObjective(teacher5c,'agama',{code:'TP-SCOPE',description:'TP Agama Kelas 5C'});
   createLearningObjective(teacher5b,'mtk',{code:'TP-SCOPE',description:'TP Matematika Kelas 5B'});

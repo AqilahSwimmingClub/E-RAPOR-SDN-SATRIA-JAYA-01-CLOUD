@@ -8,8 +8,10 @@ import { composeIntracurricularDescription, listIntracurricularObjectives,
   listIntracurricularSubjects, saveStudentIntracurricularSelection } from '../src/services/intracurricular.js';
 import { addReferenceObjectives, listObjectivesForAssessment,
   listReferenceObjectives } from '../src/services/learning-objectives.js';
+import { listCpButirForSemester } from '../src/services/cp-butir.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { activityTable, cocurricularTable, extracurricularTable, intracurricularTable } from '../src/pages/print.js';
 import { extractReportLayout } from './helpers/report-layout.js';
 import { extractFunctionSource } from './helpers/report-markup.js';
@@ -238,8 +240,10 @@ test('8. Deskripsi TP Intrakurikuler juga teks biasa dan mengisi sel yang sama',
   const siswa=siapkan();
   const subject=listIntracurricularSubjects(guru)[0];
   const tp=listIntracurricularObjectives(guru,subject.id).slice(0,2);
+  /* Butir CP kini WAJIB dipilih guru; rujukan TP lama tetap boleh menyertainya. */
   const record=saveStudentIntracurricularSelection(guru,siswa.id,
-    {subjectId:subject.id,objectiveIds:tp.map(item=>item.id),predicate:'Baik'});
+    {subjectId:subject.id,butirIds:listCpButirForSemester(guru,subject.id).slice(0,1).map(item=>item.id),
+      objectiveIds:tp.map(item=>item.id),predicate:'Baik'});
   assert.equal(/[<>\r\n\t]/.test(record.description),false);
   const html=activityTable('Intrakurikuler',
     [{name:record.activity,predicate:record.predicate,description:record.description}],

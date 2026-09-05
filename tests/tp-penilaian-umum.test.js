@@ -5,7 +5,10 @@ import { readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { ASSESSMENT_TYPES, getAssessmentSheet, saveAssessmentScores,
   saveAssessmentSettings } from '../src/services/assessment.js';
-import { generateReportDescription, ringkasObjectives } from '../src/services/descriptions.js';
+import { generateReportDescription } from '../src/services/descriptions.js';
+/* `ringkasObjectives` tidak lagi diekspor ulang oleh layanan deskripsi: jalur TP dibuang dari
+   sana. Peringkas frasanya sendiri tetap ada dan tetap diuji, hanya diimpor dari modulnya. */
+import { ringkasObjectives } from '../src/services/objective-summary.js';
 import { INTRACURRICULAR_PREDICATES, composeIntracurricularDescription,
   listIntracurricularObjectives } from '../src/services/intracurricular.js';
 import { addReferenceObjectives, listActiveObjectives, listObjectivesForAssessment,
@@ -13,7 +16,8 @@ import { addReferenceObjectives, listActiveObjectives, listObjectivesForAssessme
   setActiveObjective } from '../src/services/learning-objectives.js';
 import { createLearningObjective } from '../src/services/objectives.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 /* Sepadan dengan alur nyata: buka + Tambah TP, centang semua, lalu Simpan. */
 function masukkanSemuaTp(session,subjectId){
@@ -242,9 +246,9 @@ test('8. Tingkat capaian memakai Nilai Akhir dan KKTP existing',()=>{
      karena bersumber CP, bukan TP. */
   /* Bentuk kalimatnya diubah atas permintaan resmi. Dengan KKTP 75: 95 >= 90 SANGAT BAIK,
      80 berada pada 75-89 BAIK, dan 60 di bawah 65 PERLU BIMBINGAN. */
-  assert.match(deskripsi(95),/^Mencapai kompetensi dengan sangat baik dalam hal /);
-  assert.match(deskripsi(80),/^Mencapai kompetensi dengan baik dalam hal /);
-  assert.match(deskripsi(60),/^Perlu meningkatkan kompetensi dalam hal /);
+  assert.match(deskripsi(95),/^Ananda .+ menunjukkan capaian penguasaan yang sangat baik dalam /);
+  assert.match(deskripsi(80),/^Ananda .+ menunjukkan capaian yang baik dalam /);
+  assert.match(deskripsi(60),/^Ananda .+ perlu meningkatkan pemahaman mengenai /);
   assert.equal(new Set([deskripsi(95),deskripsi(80),deskripsi(60)]).size,3,
     'tiga tingkat nilai menghasilkan tiga kalimat berbeda');
 });
@@ -263,7 +267,7 @@ test('9. Intrakurikuler memakai TP aktif yang sama',()=>{
     'Intrakurikuler membaca daftar TP aktif yang sama persis');
 
   /* Alur Intrakurikuler tetap: TP → Predikat → Deskripsi. */
-  for(const predikat of ['Cukup','Baik','Sangat Baik'])
+  for(const predikat of ['Sangat Baik','Baik','Cukup','Perlu Bimbingan'])
     assert.ok(INTRACURRICULAR_PREDICATES.includes(predikat),`predikat ${predikat} tetap ada`);
   const deskripsi=composeIntracurricularDescription({studentName:'Siswa 1',subjectName:'Matematika',
     objectives:listActiveObjectives(session,'mtk').slice(0,2),predicate:'Sangat Baik'});
@@ -271,12 +275,19 @@ test('9. Intrakurikuler memakai TP aktif yang sama',()=>{
 });
 
 test('10. Hanya ada satu sumber TP di seluruh aplikasi',()=>{
-  /* Modul yang MASIH membaca TP membacanya lewat layanan bersama, bukan koleksi sendiri.
-     Halaman Nilai Rapor sudah keluar dari daftar ini: deskripsi rapornya bersumber Butir CP,
-     sehingga ia tidak lagi membaca TP sama sekali. */
-  for(const berkas of ['src/services/descriptions.js','src/pages/assessment.js'])
+  /* Modul yang MASIH membaca TP membacanya lewat layanan bersama, bukan koleksi sendiri. */
+  for(const berkas of ['src/pages/assessment.js'])
     assert.match(read(berkas),/from '\.\.\/services\/learning-objectives\.js'|from '\.\/learning-objectives\.js'/,
       `${berkas} membaca TP dari layanan bersama`);
+  /* descriptions.js KELUAR SEPENUHNYA dari daftar ini atas permintaan resmi. Ia dulu masih
+     memegang rantai cadangan TP - elemen CP, lalu TP aktif, lalu sepasang TP terbaik dan
+     perlu ditingkatkan. Seluruh rantai itu dibuang: satu-satunya dasar Deskripsi Rapor
+     sekarang adalah Butir CP AKTIF mata pelajaran yang bersangkutan. */
+  const deskripsi=read('src/services/descriptions.js').replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
+  assert.equal(/learning-objectives\.js/.test(deskripsi),false,
+    'descriptions.js tidak lagi membaca TP sama sekali');
+  assert.equal(/objectiveIds/.test(deskripsi),false,
+    'tidak ada satu pun rujukan objectiveIds yang menyetir deskripsi');
   /* report-bulk.js KELUAR SEPENUHNYA dari daftar ini. Ia dulu MEWAJIBKAN TP aktif sebelum
      membuat deskripsi, sehingga "Simpan Otomatis Semua Mapel" gagal total pada mapel tanpa TP.
      Sekarang tidak ada satu pun rujukan TP di dalamnya. */
@@ -293,7 +304,8 @@ test('10. Hanya ada satu sumber TP di seluruh aplikasi',()=>{
   for(const sisa of ['Objective','objectiveIds','learning-objectives'])
     assert.equal(penyusun.includes(sisa),false,
       `penyusun deskripsi Intrakurikuler tidak lagi menyentuh ${sisa}`);
-  assert.match(penyusun,/butirTerpilih/,'penyusunnya memakai Butir CP yang dipilih guru');
+  assert.match(penyusun,/wajibkanButirTerpilih/,
+    'penyusunnya memakai Butir CP yang WAJIB dipilih guru');
   const halamanRapor=read('src/pages/reports.js');
   assert.equal(/learning-objectives\.js/.test(halamanRapor),false,
     'halaman Nilai Rapor tidak lagi membaca TP');

@@ -7,7 +7,8 @@ import { getReportDocument } from '../src/services/documents.js';
 import { getStoredReportRows, saveAutomaticReportScores, visibleStoredReportRows } from '../src/services/report.js';
 import { createStudent, updateStudent } from '../src/services/students.js';
 import { listSubjectsForStudent } from '../src/services/subjects.js';
-import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { resolveRoute } from '../src/core/router.js';
 import { BUILD_TAG } from '../src/data/version.js';
 

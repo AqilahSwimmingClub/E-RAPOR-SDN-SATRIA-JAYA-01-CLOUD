@@ -118,3 +118,76 @@ export function categoryForScore(finalScore,rubric){
 export function rubricRangeLabel(item){
   return `${item.min} - ${item.max}`;
 }
+
+/* ================================================== SINKRONISASI RUBRIK DENGAN KKTP
+
+   KKTP dan rubrik menjawab dua pertanyaan yang berbeda, tetapi keduanya membaca angka yang
+   sama - Nilai Akhir - dan karena itu tidak boleh saling bertentangan:
+
+     KKTP    "sudah tuntas atau belum?"
+     RUBRIK  "bagaimana capaian itu dinyatakan pada kalimat rapor?"
+
+   Pertentangannya nyata dan mudah terjadi. Guru menaikkan KKTP dari 70 menjadi 80 tanpa
+   menyentuh rubrik; sejak itu murid bernilai 75 dinyatakan BELUM TUNTAS oleh KKTP, sementara
+   rapornya berbunyi "menunjukkan capaian yang baik". Dua pernyataan itu berdiri pada dokumen
+   yang sama dan saling meniadakan.
+
+   ATURANNYA SATU KALIMAT: batas antara PERLU BIMBINGAN dan CUKUP adalah KKTP itu sendiri.
+   Nilai yang sudah mencapai KKTP tidak pernah dinyatakan "perlu meningkatkan pemahaman", dan
+   nilai yang belum mencapai KKTP tidak pernah dinyatakan "cukup", "baik", atau "sangat baik".
+
+   INI PERINGATAN, BUKAN PENOLAKAN. Rubrik yang belum selaras tetap dapat disimpan - sekolah
+   berhak menetapkan ambangnya sendiri, dan menolak simpan akan mengunci guru di tengah
+   penyuntingan. Yang aplikasi lakukan adalah MENGATAKANNYA dengan jelas dan menyediakan
+   penyesuaian sekali tekan yang tetap harus dikonfirmasi guru. Tidak ada satu pun angka yang
+   berubah diam-diam. */
+
+export function rubricConsistency(rubric,kktp){
+  const daftar=readReportRubric(rubric);
+  const batas=Number(kktp);
+  const hasil={consistent:true,kktp:Number.isFinite(batas)?batas:null,issues:[],message:''};
+  if(!Number.isFinite(batas))return hasil;
+  const bimbingan=daftar.find(item=>item.category==='PERLU BIMBINGAN');
+  const cukup=daftar.find(item=>item.category==='CUKUP');
+  if(!bimbingan||!cukup)return hasil;
+  if(cukup.min===batas)return hasil;
+  hasil.consistent=false;
+  if(bimbingan.max>=batas)
+    hasil.issues.push(`Nilai ${batas} sampai ${bimbingan.max} sudah mencapai KKTP ${batas}, tetapi rubrik menyatakannya PERLU BIMBINGAN.`);
+  if(cukup.min<batas&&cukup.min>bimbingan.max)
+    hasil.issues.push(`Nilai ${cukup.min} sampai ${batas-1} belum mencapai KKTP ${batas}, tetapi rubrik menyatakannya CUKUP atau lebih.`);
+  if(!hasil.issues.length)
+    hasil.issues.push(`Batas bawah CUKUP (${cukup.min}) tidak sama dengan KKTP ${batas}.`);
+  hasil.message=`Rubrik belum selaras dengan KKTP ${batas}. ${hasil.issues.join(' ')}`;
+  return hasil;
+}
+
+/* Usulan rubrik yang selaras dengan KKTP. Batas bawah CUKUP disamakan dengan KKTP, dan batas
+   BAIK serta SANGAT BAIK dipertahankan selama masih berurutan di atasnya; bila tidak lagi
+   muat, ruang di atas KKTP dibagi rata menjadi tiga.
+
+   Mengembalikan null bila penyelarasan memang tidak mungkin - KKTP 0 tidak menyisakan satu
+   nilai pun untuk PERLU BIMBINGAN, dan KKTP yang terlalu tinggi tidak menyisakan ruang untuk
+   tiga kategori di atasnya. Lebih baik mengatakannya daripada mengusulkan rubrik yang salah. */
+export function suggestReportRubricForKktp(rubric,kktp){
+  const batas=Number(kktp);
+  if(!Number.isFinite(batas)||!Number.isInteger(batas))return null;
+  if(batas<1||batas>NILAI_MAKSIMUM-2)return null;
+  const daftar=readReportRubric(rubric);
+  const minLama=Object.fromEntries(daftar.map(item=>[item.category,item.min]));
+  let minBaik=minLama.BAIK,minSangat=minLama['SANGAT BAIK'];
+  const muat=Number.isInteger(minBaik)&&Number.isInteger(minSangat)
+    &&minBaik>batas&&minSangat>minBaik&&minSangat<=NILAI_MAKSIMUM;
+  if(!muat){
+    const lebar=Math.floor((NILAI_MAKSIMUM+1-batas)/3);
+    minBaik=batas+lebar;
+    minSangat=batas+lebar*2;
+  }
+  const usul=[
+    {category:'SANGAT BAIK',min:minSangat,max:NILAI_MAKSIMUM},
+    {category:'BAIK',min:minBaik,max:minSangat-1},
+    {category:'CUKUP',min:batas,max:minBaik-1},
+    {category:'PERLU BIMBINGAN',min:NILAI_MINIMUM,max:batas-1},
+  ];
+  try{return normalizeReportRubric(usul);}catch{return null;}
+}

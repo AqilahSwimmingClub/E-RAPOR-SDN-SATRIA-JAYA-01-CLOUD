@@ -6,7 +6,8 @@ import { phaseForClassId } from '../src/data/learning-objective-defaults.js';
 import { addReferenceObjectives, capaianPembelajaranFor, listActiveObjectives,
   listReferenceObjectives, listSchoolObjectives } from '../src/services/learning-objectives.js';
 import { phaseForClass } from '../src/services/objectives.js';
-import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 function useMemoryStorage(){
   const nilai=new Map();

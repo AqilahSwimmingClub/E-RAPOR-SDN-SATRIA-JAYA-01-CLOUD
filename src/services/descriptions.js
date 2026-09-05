@@ -1,32 +1,14 @@
-import { composeReportButirDescription, composeReportCpDescription, cpAcuanFor,
-  kategoriRapor } from './cp-descriptions.js';
+import { composeReportButirDescription, cpAcuanFor } from './cp-descriptions.js';
 import { getAssessmentSettings } from './assessment.js';
 import { listCpButirForSemester } from './cp-butir.js';
-import { listActiveObjectives, listObjectivesForAssessment } from './learning-objectives.js';
-import { ringkasObjectives } from './objective-summary.js';
 import { calculateReportScore, getReportScore } from './report.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
 import { requireActiveSubject } from './subjects.js';
 
-export { ringkasObjectives };
 
 function clone(value){return JSON.parse(JSON.stringify(value));}
 function key(session,subjectId,studentId){return `${scopeKey(session)}|${subjectId}|${studentId}`;}
-function phrase(value){return String(value||'').trim().replace(/[.!?]+$/,'');}
-function context(session,subjectId,studentId,bestObjectiveId,improvementObjectiveId){
-  requireActiveSubject(session,subjectId);const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);if(!student)throw new Error('Siswa tidak ditemukan pada scope aktif.');
-  const objectives=listObjectivesForAssessment(session,subjectId,{activeOnly:true});if(!objectives.length)throw new Error('Belum ada TP aktif untuk membuat deskripsi.');
-  const best=objectives.find(item=>item.id===bestObjectiveId);const improvement=objectives.find(item=>item.id===improvementObjectiveId);
-  if(!best||!improvement)throw new Error('Pilih TP aktif untuk capaian terbaik dan yang perlu ditingkatkan.');return {student,best,improvement};
-}
-
-/* --------------------------------------------------- Deskripsi bersumber dari TP acuan penilaian
-
-   TP hanya menjadi ACUAN. Nilai Akhir tetap satu angka dari pipeline penilaian lama, dan angka
-   itulah yang menentukan tingkat capaian pada kalimat deskripsi. Tidak ada nilai per TP, dan
-   tidak ada kompetensi yang ditambahkan di luar TP yang dipilih guru. */
-
 function studentOf(session,studentId){
   const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);
   if(!student)throw new Error('Siswa tidak ditemukan pada scope aktif.');
@@ -51,42 +33,32 @@ function finalScoreOf(session,subjectId,studentId){
   const dihitung=calculateReportScore(session,subjectId,studentId);
   return {finalScore:dihitung.finalScore,kktp:dihitung.kktp??pengaturan?.kktp??null,rubric};
 }
-/* Jalur TP lama memakai rubrik yang sama persis dengan jalur CP, sehingga tidak ada dua
-   standar capaian yang saling bertentangan di dalam satu aplikasi. */
-function levelCapaian(finalScore,rubric){
-  const kategori=kategoriRapor(finalScore,rubric);
-  return kategori===null?null:kategori.toLowerCase();
-}
-function objectiveDescription(session,subjectId,studentId,objectiveIds){
-  requireActiveSubject(session,subjectId);
-  const student=studentOf(session,studentId);
-  const tersedia=listObjectivesForAssessment(session,subjectId);
-  const dipilih=[...new Set(objectiveIds.map(id=>String(id)))]
-    .map(id=>tersedia.find(item=>item.id===id)||null);
-  if(dipilih.some(item=>!item))throw new Error('Tujuan Pembelajaran acuan tidak ditemukan pada mata pelajaran ini.');
-  const {finalScore,kktp,rubric}=finalScoreOf(session,subjectId,studentId);
-  const level=levelCapaian(finalScore,rubric);
-  const isi=ringkasObjectives(dipilih);
-  /* Tingkat capaian tetap berasal dari Nilai Akhir dan KKTP yang sudah ada; tidak ada standar
-     interval baru yang diperkenalkan di sini. */
-  const text=level===null
-    ? `Ananda ${student.name} mampu ${isi}.`
-    : finalScore>=kktp
-      ? `Ananda ${student.name} mampu ${isi} dengan ${level}.`
-      : `Ananda ${student.name} mampu ${isi} dengan bimbingan, dan perlu penguatan agar tercapai secara utuh.`;
-  return {text,objectiveIds:dipilih.map(item=>item.id),bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};
-}
+
+/* ------------------------------------------------------------- SUMBER TUNGGAL: BUTIR CP AKTIF
+
+   JALUR TUJUAN PEMBELAJARAN DIBUANG SELURUHNYA DARI BERKAS INI.
+
+   Sebelumnya ada rantai cadangan: bila Butir CP tidak menghasilkan kalimat, penyusun jatuh ke
+   Elemen CP; bila itu pun tidak ada, ia jatuh ke TP aktif; dan bila tidak ada TP aktif, ia
+   jatuh lagi ke sepasang TP "terbaik" dan "perlu ditingkatkan". Rantai itu terlihat aman -
+   selalu ada kalimat yang keluar - dan justru itulah bahayanya: rapor terisi oleh kompetensi
+   yang bukan dasar penilaian yang berlaku, tanpa seorang pun tahu dari mana asalnya.
+
+   Sekarang hanya ada SATU sumber: Butir CP yang AKTIF pada mata pelajaran itu. Bila tidak ada,
+   tidak ada kalimat yang disusun dan alasannya dikatakan apa adanya. Data TP lama tetap utuh di
+   penyimpanan; ia hanya tidak pernah lagi dibaca dari sini. */
+export const PESAN_TANPA_BUTIR_AKTIF='Belum ada Butir CP aktif untuk mata pelajaran ini. Aktifkan atau tambahkan Butir CP terlebih dahulu.';
 
 /* DESKRIPSI CAPAIAN KOMPETENSI NILAI RAPOR.
 
    SUMBERNYA: Butir CP AKTIF mata pelajaran itu, dinyatakan menurut NILAI AKHIR murid terhadap
-   KKTP. Nilai Akhir tetap satu angka dari lima komponen penilaian yang sudah berjalan - tidak
-   ada nilai Teori, tidak ada nilai Praktik, dan tidak ada angka baru yang lahir dari CP.
+   RUBRIK mata pelajaran itu. Nilai Akhir tetap satu angka dari lima komponen penilaian yang
+   sudah berjalan - tidak ada nilai Teori, tidak ada nilai Praktik, dan tidak ada angka baru
+   yang lahir dari CP.
 
-   TIDAK ADA TP di jalur ini. Guru tidak pernah diminta memilih Tujuan Pembelajaran untuk
-   menghasilkan deskripsi rapor. Jalur TP hanya tersisa sebagai CADANGAN untuk mata pelajaran
-   yang memang belum punya CP pada fase rombel, dan hanya bila pemanggil menyebut objectiveIds
-   secara eksplisit - itu pun agar catatan lama tetap dapat diproses, bukan sebagai alur baru.
+   TIDAK ADA TP di jalur ini, dan tidak ada cadangan apa pun. Guru tidak pernah diminta memilih
+   Tujuan Pembelajaran, dan tidak ada keadaan yang membuat penyusun jatuh kembali ke TP lama,
+   ke Butir CP nonaktif, maupun ke kompetensi mata pelajaran lain.
 
    Penyusunnya SENGAJA berbeda dari penyusun Intrakurikuler meskipun kompetensinya sama: yang
    satu merangkum capaian satu semester dari Nilai Akhir, yang lain menceritakan satu kegiatan
@@ -94,44 +66,27 @@ function objectiveDescription(session,subjectId,studentId,objectiveIds){
    sama. */
 function cpDescription(session,subjectId,studentId){
   requireActiveSubject(session,subjectId);
-  const cp=cpAcuanFor(session,subjectId);
-  if(!cp)return null;
   const student=studentOf(session,studentId);
   const {finalScore,kktp,rubric}=finalScoreOf(session,subjectId,studentId);
-  /* SUMBER UTAMA adalah BUTIR CP AKTIF mata pelajaran ini - kompetensi yang memang diajarkan
-     dan dinilai pada semester berjalan. */
+  /* SATU-SATUNYA SUMBER: Butir CP AKTIF mata pelajaran ini pada semester berjalan. */
   let butir=[];
   try{butir=listCpButirForSemester(session,subjectId);}catch{butir=[];}
-  const dariButir=composeReportButirDescription({butir,finalScore,rubric});
-  if(dariButir)
-    return {text:dariButir,source:'CP_BUTIR',cpPhase:cp.phase,objectiveIds:null,
-      butirIds:butir.map(item=>item.id),studentId:student.id,
-      bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};
-  /* Mata pelajaran ini belum punya Butir CP: lingkup elemen CP dipakai supaya rapor tidak
-     kosong. Nama mata pelajaran tetap tidak pernah disebut di dalam kalimat. */
-  const text=composeReportCpDescription({cp,finalScore,rubric});
+  if(!butir.length)return null;
+  const text=composeReportButirDescription({studentName:student.name,butir,finalScore,rubric});
   if(!text)return null;
-  return {text,source:'CP',cpPhase:cp.phase,objectiveIds:null,studentId:student.id,
+  /* Catatan yang dihasilkan tidak lagi membawa rujukan TP sama sekali - bukan pula
+     `objectiveIds:null`. Yang ditunjuk hanyalah Butir CP yang benar-benar menjadi dasarnya. */
+  return {text,source:'CP_BUTIR',cpPhase:cpAcuanFor(session,subjectId)?.phase||null,
+    butirIds:butir.map(item=>item.id),studentId:student.id,
     bestObjectiveId:null,improvementObjectiveId:null,finalScore,kktp};
 }
 
-export function generateReportDescription(session,subjectId,studentId,input){
-  /* CP adalah sumber utama dan didahulukan tanpa syarat. */
+export function generateReportDescription(session,subjectId,studentId){
   const dariCp=cpDescription(session,subjectId,studentId);
   if(dariCp)return dariCp;
-  /* CADANGAN UNTUK MAPEL TANPA CP. Hanya sampai di sini bila mata pelajaran itu memang belum
-     berlaku pada fase rombel atau elemennya belum diketahui. TP aktif dipakai apa adanya
-     sehingga guru tetap tidak diminta memilih TP. */
-  const objectiveIds=Array.isArray(input?.objectiveIds)&&input.objectiveIds.length
-    ? input.objectiveIds
-    : listActiveObjectives(session,subjectId).map(item=>item.id);
-  if(objectiveIds.length)return objectiveDescription(session,subjectId,studentId,objectiveIds);
-  const {bestObjectiveId,improvementObjectiveId}=input||{};
-  const {student,best,improvement}=context(session,subjectId,studentId,bestObjectiveId,improvementObjectiveId);
-  const text=best.id===improvement.id
-    ? `Ananda ${student.name} menunjukkan capaian pada ${phrase(best.description)}.`
-    : `Ananda ${student.name} sangat baik dalam ${phrase(best.description)}, serta perlu meningkatkan kemampuan dalam ${phrase(improvement.description)}.`;
-  return {text,bestObjectiveId:best.id,improvementObjectiveId:improvement.id};
+  /* Tidak ada cadangan. Mata pelajaran tanpa Butir CP aktif tidak menghasilkan deskripsi, dan
+     guru diberi tahu apa yang harus dilakukan - bukan diberi kalimat yang tampak benar. */
+  throw new Error(PESAN_TANPA_BUTIR_AKTIF);
 }
 
 /* ------------------------------------------------------ GENERATE SEMUA SISWA SATU MAPEL
@@ -170,7 +125,7 @@ export function generateAllReportDescriptions(session,subjectId,{overwriteEdited
         hasil.dilewati.push({studentId:student.id,name:student.name,alasan:'deskripsi diedit guru'});
         continue;
       }
-      const dibuat=generateReportDescription(session,subjectId,student.id,{});
+      const dibuat=generateReportDescription(session,subjectId,student.id);
       saveReportDescription(session,subjectId,student.id,{text:dibuat.text});
       hasil.terisi+=1;
     }catch(error){
@@ -195,8 +150,8 @@ export function getReportDescription(session,subjectId,studentId){
 
 export function saveReportDescription(session,subjectId,studentId,input){
   const current=getReportDescription(session,subjectId,studentId);if(current?.locked)throw new Error('Deskripsi sudah terkunci dan tidak dapat diubah.');
-  const generated=generateReportDescription(session,subjectId,studentId,input);const text=String(input?.text||'').trim().slice(0,1500);if(!text)throw new Error('Deskripsi rapor wajib diisi.');let saved;
-  updateDb(db=>{const now=new Date().toISOString();saved={studentId,classId:session.classId,subjectId,semester:session.semester,academicYear:session.academicYear,text,bestObjectiveId:generated.bestObjectiveId,improvementObjectiveId:generated.improvementObjectiveId,...(generated.objectiveIds?{objectiveIds:generated.objectiveIds}:{}),status:text===generated.text?'AUTO':'EDITED',locked:false,createdAt:current?.createdAt||now,updatedAt:now};db.reportDescriptions[key(session,subjectId,studentId)]=saved;return db;});return clone(saved);
+  const generated=generateReportDescription(session,subjectId,studentId);const text=String(input?.text||'').trim().slice(0,1500);if(!text)throw new Error('Deskripsi rapor wajib diisi.');let saved;
+  updateDb(db=>{const now=new Date().toISOString();saved={studentId,classId:session.classId,subjectId,semester:session.semester,academicYear:session.academicYear,text,bestObjectiveId:generated.bestObjectiveId,improvementObjectiveId:generated.improvementObjectiveId,status:text===generated.text?'AUTO':'EDITED',locked:false,createdAt:current?.createdAt||now,updatedAt:now};db.reportDescriptions[key(session,subjectId,studentId)]=saved;return db;});return clone(saved);
 }
 
 export function lockReportDescription(session,subjectId,studentId){

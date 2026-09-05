@@ -9,8 +9,10 @@ import { composeIntracurricularDescription, getStudentIntracurricularSelection,
 import { addReferenceObjectives, listActiveObjectives, listReferenceObjectives,
   listSchoolObjectives, setActiveObjective } from '../src/services/learning-objectives.js';
 import { ringkasObjectives } from '../src/services/objective-summary.js';
+import { listCpButirForSemester } from '../src/services/cp-butir.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 /* Sepadan dengan alur nyata: buka + Tambah TP, centang semua, lalu Simpan. */
 function masukkanSemuaTp(session,subjectId){
@@ -112,17 +114,25 @@ test('3. Intrakurikuler tidak lagi meminta pemilihan TP; deskripsinya dari CP',(
 
   /* Tanpa satu pun objectiveIds, penyimpanan tetap berhasil. Inilah inti perubahannya:
      guru tidak perlu mencentang TP, apalagi mencentang ulang TP yang sudah aktif. */
+  /* Butir CP kini WAJIB dipilih: penilaian Intrakurikuler menyatakan kompetensi yang
+     benar-benar dinilai guru, bukan seluruh butir mata pelajaran. */
   const saved=saveStudentIntracurricularSelection(session,siswa.id,
-    {subjectId:'ipas',predicate:'Sangat Baik'});
+    {subjectId:'ipas',butirIds:listCpButirForSemester(session,'ipas').slice(0,1).map(item=>item.id),
+      predicate:'Sangat Baik'});
   assert.equal(saved.predicate,'Sangat Baik');
   assert.equal(saved.source,'CP');
   assert.equal(saved.cpPhase,'C');
   assert.ok(saved.description,'deskripsi tersusun tanpa TP');
 
-  /* Isinya bersumber elemen CP, bukan kalimat TP mana pun. */
+  /* Isinya bersumber BUTIR CP AKTIF, bukan nama elemen dan bukan kalimat TP mana pun.
+     Harapan lama - nama elemen CP ikut ke dalam kalimat - diubah dengan sengaja: nama elemen
+     adalah label administratif kurikulum, sedangkan yang dinilai guru adalah butirnya. */
   const kalimat=saved.description.toLowerCase();
-  for(const elemen of cpElements('ipas','C').map(item=>item.name))
-    assert.ok(kalimat.includes(elemen.toLowerCase()),`elemen CP ${elemen} terbawa`);
+  assert.match(saved.description,/^Ananda /,'kalimat menyapa murid');
+  const butirAktif=listCpButirForSemester(session,'ipas');
+  assert.ok(butirAktif.length,'IPAS Fase C punya Butir CP aktif');
+  assert.ok(butirAktif.some(item=>kalimat.includes(String(item.teori||'').toLowerCase())),
+    'substansi Butir CP aktif terbawa ke dalam kalimat');
 });
 
 /* ------------------------------------------------------ Deskripsi Intrakurikuler (§6) */
@@ -144,9 +154,12 @@ test('4. Deskripsi Intrakurikuler dibuat dari TP terpilih dan diringkas',()=>{
   assert.equal(banyak.split('perubahan wujud benda').length-1,1,'frasa berulang hanya sekali');
   assert.match(banyak,/\.$/);
 
-  /* Aturan meringkas ditulis satu kali dan dipakai bersama dengan deskripsi rapor. */
+  /* Aturan meringkas tetap ditulis satu kali pada modulnya sendiri. Layanan deskripsi rapor
+     tidak lagi mengimpornya: jalur TP dibuang dari sana atas permintaan resmi, dan peringkas
+     ini kini hanya melayani bentuk lama Intrakurikuler yang masih diuji di atas. */
   assert.match(read('src/services/intracurricular.js'),/from '\.\/objective-summary\.js'/);
-  assert.match(read('src/services/descriptions.js'),/from '\.\/objective-summary\.js'/);
+  assert.equal(/from '\.\/objective-summary\.js'/.test(read('src/services/descriptions.js')),false,
+    'deskripsi rapor tidak lagi memakai peringkas TP');
 });
 
 /* ----------------------------------------- TP dinonaktifkan setelah dipilih (§5) */
@@ -159,7 +172,7 @@ test('5. TP yang dinonaktifkan tidak dapat dipakai untuk input baru',()=>{
   const siswa=tambahSiswa(session);
   const dipilih=aktif.slice(0,2);
   saveStudentIntracurricularSelection(session,siswa.id,
-    {subjectId:'ipas',objectiveIds:dipilih.map(item=>item.id),predicate:'Baik'});
+    {subjectId:'ipas',butirIds:listCpButirForSemester(session,'ipas').slice(0,1).map(item=>item.id),objectiveIds:dipilih.map(item=>item.id),predicate:'Baik'});
 
   /* Guru menonaktifkan salah satu TP yang sudah terlanjur dipilih. */
   setActiveObjective(session,'ipas',dipilih[0].id,false);
@@ -168,7 +181,8 @@ test('5. TP yang dinonaktifkan tidak dapat dipakai untuk input baru',()=>{
   /* Input baru tidak lagi bergantung pada TP sama sekali, sehingga menonaktifkan TP tidak
      memblokir Intrakurikuler. Yang tetap dijaga adalah riwayatnya. */
   const sesudah=saveStudentIntracurricularSelection(session,siswa.id,
-    {subjectId:'ipas',objectiveIds:dipilih.map(item=>item.id),predicate:'Baik'});
+    {subjectId:'ipas',butirIds:listCpButirForSemester(session,'ipas').slice(0,1).map(item=>item.id),
+      objectiveIds:dipilih.map(item=>item.id),predicate:'Baik'});
   assert.ok(sesudah.description,'input baru tetap berhasil walau TP dinonaktifkan');
 
   /* Catatan lama tidak dihapus. */
@@ -198,7 +212,7 @@ test('6. TP aktif kembali dapat dipilih lagi tanpa kehilangan catatan',()=>{
   const {aktif}=siapkanEmpatTp(session);
   const siswa=tambahSiswa(session);
   saveStudentIntracurricularSelection(session,siswa.id,
-    {subjectId:'ipas',objectiveIds:[aktif[0].id],predicate:'Baik'});
+    {subjectId:'ipas',butirIds:listCpButirForSemester(session,'ipas').slice(0,1).map(item=>item.id),objectiveIds:[aktif[0].id],predicate:'Baik'});
 
   setActiveObjective(session,'ipas',aktif[0].id,false);
   assert.equal(listInactiveReferencedObjectives(session,'ipas',[aktif[0].id]).length,1);
@@ -207,7 +221,7 @@ test('6. TP aktif kembali dapat dipilih lagi tanpa kehilangan catatan',()=>{
   assert.equal(listInactiveReferencedObjectives(session,'ipas',[aktif[0].id]).length,0,
     'tidak lagi ditandai nonaktif');
   const ulang=saveStudentIntracurricularSelection(session,siswa.id,
-    {subjectId:'ipas',objectiveIds:[aktif[0].id],predicate:'Sangat Baik'});
+    {subjectId:'ipas',butirIds:listCpButirForSemester(session,'ipas').slice(0,1).map(item=>item.id),objectiveIds:[aktif[0].id],predicate:'Sangat Baik'});
   assert.deepEqual(ulang.objectiveIds,[aktif[0].id]);
 });
 
@@ -222,7 +236,7 @@ test('7. Intrakurikuler tidak menyentuh nilai maupun TP aktif',()=>{
   const sebelum=listActiveObjectives(session,'ipas').map(item=>item.id);
 
   saveStudentIntracurricularSelection(session,siswa.id,
-    {subjectId:'ipas',objectiveIds:[aktif[1].id],predicate:'Cukup'});
+    {subjectId:'ipas',butirIds:listCpButirForSemester(session,'ipas').slice(0,1).map(item=>item.id),objectiveIds:[aktif[1].id],predicate:'Cukup'});
 
   assert.deepEqual(listActiveObjectives(session,'ipas').map(item=>item.id),sebelum,
     'memilih TP di Intrakurikuler tidak mengubah TP aktif');

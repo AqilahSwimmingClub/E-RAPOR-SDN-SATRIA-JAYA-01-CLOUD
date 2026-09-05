@@ -5,7 +5,8 @@ import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { createExtracurricular, pramukaDescriptionsForClass, pramukaPresetForClass, saveStudentCocurricular } from '../src/services/completeness.js';
 import { getReportDocument } from '../src/services/documents.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { activityDescription, activityTable, cocurricularTable, extracurricularTable } from '../src/pages/print.js';
 
 const root=new URL('../',import.meta.url);

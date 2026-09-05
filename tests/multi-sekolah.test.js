@@ -8,7 +8,8 @@ import { SCHOOL_STATUSES, getAdminProfile, getSchoolMaster, isSchoolIdentityRead
 import { buildBackup, backupFilename, validateBackupPayload, restoreBackup } from '../src/services/backup.js';
 import { getDocumentIdentity, getLeger } from '../src/services/documents.js';
 import { createStudent, listStudents } from '../src/services/students.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping, storageKey } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb, storageKey } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { ensureDefaultSubjects } from '../src/services/seed.js';
 

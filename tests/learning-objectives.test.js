@@ -8,7 +8,8 @@ import { addReferenceObjectives, getSelectedObjectiveRecords, listActiveObjectiv
   listObjectivesForAssessment, listReferenceObjectives, listSchoolObjectives,
   setActiveObjective } from '../src/services/learning-objectives.js';
 import { createLearningObjective } from '../src/services/objectives.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 /* Sepadan dengan alur nyata: buka + Tambah TP, centang semua, lalu Simpan. */
 function masukkanSemuaTp(session,subjectId){

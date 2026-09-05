@@ -117,8 +117,31 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.icon{display:bl
 @media print{@page{size:A4 portrait;margin:10mm}html,body{background:#fff!important}.sidebar,.topbar,.footer,.no-print,.toast-host{display:none!important}.main,.content,.app-shell{display:block!important;width:auto!important;padding:0!important;margin:0!important;background:#fff!important}.document-a4{display:block!important;width:auto!important;max-width:none!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;overflow:visible!important}.document-school{margin-top:0}.report-a4{page-break-after:auto}.document-table tr{break-inside:avoid}.card{box-shadow:none}}
 .recovery-section{margin-top:16px}.snapshot-list{display:flex;flex-direction:column}.snapshot-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}.snapshot-item:last-child{border-bottom:0}.snapshot-item strong,.snapshot-item span{display:block}.snapshot-item strong{font-size:12.5px}.snapshot-item span{font-size:10.5px;color:var(--muted);margin-top:4px}.account-password-form{margin-top:16px;max-width:520px}.recovery-code{font:800 18px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;text-align:center;overflow-wrap:anywhere;background:var(--soft);border:1px dashed #c9bdb4;border-radius:11px;padding:16px;margin:14px 0;color:var(--maroon)}
 .master-profile-card{display:grid;grid-template-columns:120px minmax(0,1fr);gap:22px;align-items:center}.profile-master-photo{width:120px;height:120px;border-radius:20px;object-fit:cover;background:#f2e3e6;display:grid;place-items:center;color:var(--maroon);font-size:28px;font-weight:850}.master-profile-card h2{margin:0 0 5px}.master-profile-card p{margin:0;color:var(--muted);font-size:12px}.profile-master-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:18px}.profile-master-grid span{background:var(--soft);padding:10px;border-radius:9px;font-size:12px}.profile-master-grid b{display:block;color:var(--muted);font-size:9.5px;margin-bottom:4px}
-.user-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}.user-summary>div{background:var(--soft);border-radius:11px;padding:13px}.user-summary strong,.user-summary span{display:block}.user-summary strong{font-size:23px;color:var(--maroon)}.user-summary span{font-size:10.5px;color:var(--muted);margin-top:3px}.users-table-card{padding:0}.users-table{min-width:1050px}.user-profile-cell{display:flex;align-items:center;gap:10px}.user-profile-cell>span{min-width:0}.user-profile-cell strong,.user-profile-cell small{display:block}.user-profile-cell small{font-size:10px;color:var(--muted);margin-top:3px}.teacher-account-cards{display:none}.master-data-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px}.master-class-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:15px}.master-class-grid span{background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:10px;text-align:center;font-size:12px;font-weight:800;color:var(--maroon)}.document-signatures small{display:block;font-size:9px;margin-top:4px}
-@media(max-width:1050px){.profile-master-grid{grid-template-columns:1fr 1fr}.master-data-layout{grid-template-columns:1fr}.users-table-card{display:none}.teacher-account-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}.teacher-account-cards .badge{margin-left:auto}.teacher-account-cards .row-actions{margin-top:12px}}
+.user-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}.user-summary>div{background:var(--soft);border-radius:11px;padding:13px}.user-summary strong,.user-summary span{display:block}.user-summary strong{font-size:23px;color:var(--maroon)}.user-summary span{font-size:10.5px;color:var(--muted);margin-top:3px}.users-table-card{padding:0}
+/* TABEL LEBAR TANPA VERSI KARTU.
+
+   Beberapa tabel Admin memang tidak punya padanan kartu - isinya laporan yang hanya masuk akal
+   dibaca sebagai tabel. Menyembunyikannya pada layar sempit, seperti yang dilakukan aturan
+   `display:none` untuk tabel yang PUNYA kartu, membuat seluruh isinya hilang tanpa pengganti.
+   Karena itu tabel bertanda ini tidak pernah disembunyikan; ia digulir mendatar di dalam
+   pembungkus `.table-scroll` miliknya sendiri, sehingga badan halaman tetap tidak bergeser. */
+.wide-table-card{padding:0}
+.wide-table-card .data-table{min-width:640px}.users-table{min-width:1050px}.user-profile-cell{display:flex;align-items:center;gap:10px}.user-profile-cell>span{min-width:0}.user-profile-cell strong,.user-profile-cell small{display:block}.user-profile-cell small{font-size:10px;color:var(--muted);margin-top:3px}.teacher-account-cards{display:none}/* KARTU AKUN GURU. Versi kartu ini dipakai ketika tabel Penugasan Guru disembunyikan pada
+   layar sempit, jadi ia WAJIB memuat seluruh aksi yang ada di tabel desktop - Ubah Penugasan,
+   Edit Identitas, Reset Password, dan Aktifkan/Nonaktifkan - beserta status akun dan daftar
+   mapel. Tidak ada tombol penting yang disembunyikan pada portrait. */
+.teacher-account-card{display:flex;flex-direction:column;gap:12px}
+.teacher-account-card .user-profile-cell .badge{margin-left:auto;flex:none}
+.teacher-account-facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0}
+.teacher-account-facts>div{background:var(--soft);border-radius:9px;padding:9px;min-width:0}
+.teacher-account-facts .teacher-account-subjects{grid-column:1/-1}
+.teacher-account-facts dt{font-size:9.5px;color:var(--muted);margin-bottom:3px}
+.teacher-account-facts dd{margin:0;font-size:11.5px;overflow-wrap:anywhere}
+.teacher-account-facts dd small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.teacher-account-card .row-actions{margin-top:auto}
+.teacher-account-card .row-actions .btn{flex:1 1 auto}
+.master-data-layout{display:grid;grid-template-columns:1fr 1fr;gap:16px}.master-class-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:15px}.master-class-grid span{background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:10px;text-align:center;font-size:12px;font-weight:800;color:var(--maroon)}.document-signatures small{display:block;font-size:9px;margin-top:4px}
+@media(max-width:1050px){.profile-master-grid{grid-template-columns:1fr 1fr}.master-data-layout{grid-template-columns:1fr}.users-table-card{display:none}.teacher-account-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;align-items:stretch}.teacher-account-cards .badge{margin-left:auto}.teacher-account-cards .row-actions{margin-top:12px}}
 @media(max-width:767px){.snapshot-item{align-items:stretch;flex-direction:column}.snapshot-item .actions .btn{flex:1}.master-profile-card{grid-template-columns:1fr;text-align:center}.profile-master-photo{margin:auto}.profile-master-grid{grid-template-columns:1fr 1fr;text-align:left}.user-summary{grid-template-columns:1fr 1fr}.user-summary>div:first-child{grid-column:1/-1}.teacher-account-cards{grid-template-columns:1fr}.master-class-grid{grid-template-columns:repeat(4,1fr)}}
 
 /* Final responsive and native safe-area hardening. */
@@ -196,6 +219,7 @@ html,body{max-width:100%;overflow-x:hidden}button,input,select,textarea{max-widt
 .rubric-status{margin-top:12px;padding:9px 12px;border-radius:9px;font-size:12px;line-height:1.45}
 .rubric-status.rubric-valid{background:#eef7ee;color:#2f6b34;border:1px solid #cbe3cb}
 .rubric-status.rubric-invalid{background:#fdeeee;color:#8c2b2b;border:1px solid #eccbcb}
+.rubric-status.rubric-warning{background:#fdf6e6;color:#8a5a12;border:1px solid #ecdcb8}
 @media(max-width:700px){.rubric-row{grid-template-columns:1fr;gap:6px}
   .rubric-row .rubric-name{margin-top:4px}}
 .leger-heading{max-width:none;text-align:center}.leger-heading strong{font-size:14px}.leger-heading span{font-size:11px;margin-top:3px}.leger-table thead th{vertical-align:middle;white-space:normal}.leger-table thead tr+tr th{min-width:62px;max-width:104px;font-size:9.5px;line-height:1.35}.leger-table .leger-name{text-align:left}.leger-table tfoot th{background:#f6f1ec;border-top:2px solid var(--line);padding:9px;font-size:10px}.leger-table tfoot th:nth-child(n+2){text-align:center}.leger-table tfoot th:first-child{text-align:right;padding-right:11px}
@@ -759,12 +783,51 @@ textarea.input{color:var(--light-ink)}
   .cocurricular-table-card,.intracurricular-table-card,.users-table-card{display:none}
   .student-card-list,.assessment-card-list,.report-card-list,.saved-card-list,
   .cocurricular-card-list,.intracurricular-card-list{display:flex;flex-direction:column;gap:10px}
-  .teacher-account-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .teacher-account-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;align-items:stretch}
   .module-filter{align-items:stretch;flex-direction:column}
   .scope-note{text-align:left}
   .report-result-grid,.completion-numbers{grid-template-columns:1fr 1fr}
   .completion-grid,.report-completeness-list{grid-template-columns:1fr}
 }
+
+/* HP DALAM POSISI MENDATAR.
+
+   Lebarnya 800-932px sehingga aturan mobile 767px tidak menyala, sementara aturan drawer
+   tablet hanya berlaku pada orientasi portrait. Akibatnya HP yang dimiringkan tetap memakai
+   tata letak desktop: sidebar tetap memakan layar yang tingginya hanya sekitar 360px, dan
+   kolom aksi tabel terdorong keluar viewport.
+
+   Yang dipakai sebagai penanda adalah TINGGI layar, bukan lebar: hanya perangkat genggam yang
+   punya tinggi sependek ini dalam posisi mendatar. Tablet landscape tidak tersentuh. */
+@media (max-height:540px) and (orientation:landscape) and (max-width:1024px){
+  .app-shell{display:block}
+  .sidebar{position:fixed;left:0;top:0;width:min(60vw,300px);transform:translateX(-105%);
+    transition:transform .2s ease;box-shadow:none;z-index:26}
+  .sidebar.open{transform:translateX(0);box-shadow:14px 0 40px rgba(0,0,0,.2)}
+  .drawer-backdrop{display:block;position:fixed;inset:0;background:rgba(20,10,12,.42);z-index:25}
+  .mobile-menu{display:grid;place-items:center}
+  .topbar{min-height:56px}
+  .page-sub,.semester-chip,.profile-text{display:none}
+  /* Tabel yang punya versi kartu memakainya, sehingga tidak ada kolom aksi yang terpotong. */
+  .student-table-card,.assessment-table-card,.report-table-card,.saved-table-card,
+  .cocurricular-table-card,.intracurricular-table-card,.users-table-card{display:none}
+  .student-card-list,.assessment-card-list,.report-card-list,.saved-card-list,
+  .cocurricular-card-list,.intracurricular-card-list{display:flex;flex-direction:column;gap:10px}
+  .teacher-account-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}
+}
+
+
+/* KOLOM AKSI YANG TIDAK PERNAH TERPOTONG.
+
+   Tabel lebar digulir mendatar di dalam `.table-scroll`. Kolom terakhirnya - tempat tombol
+   Detail, Edit, Hapus, atau Simpan berada - karena itu bisa berada di luar layar sampai
+   pengguna menggulir, dan pada layar sempit hal itu terbaca sebagai tombol yang hilang.
+   Kolom yang ditandai `cell-actions` dipakukan ke tepi kanan sehingga selalu terlihat,
+   sementara kolom lain tetap dapat digulir seperti biasa. */
+.data-table .cell-actions{position:sticky;right:0;z-index:1;background:var(--card,#fff);
+  box-shadow:-8px 0 12px -10px rgba(0,0,0,.35)}
+.data-table thead .cell-actions{background:var(--soft)}
+@media print{.data-table .cell-actions{position:static;box-shadow:none}}
 
 /* SENTUHAN. Berlaku pada perangkat berpenunjuk kasar - jari - berapa pun lebarnya, sehingga
    tablet landscape ikut mendapatkannya. Angka 44px adalah ukuran sasaran sentuh yang lazim;
@@ -791,7 +854,10 @@ textarea.input{color:var(--light-ink)}
    tombol pada HP dan tablet portrait tetap nyaman disentuh apa pun yang dilaporkan browser.
 
    Layar lebar tidak tersentuh: tombol kecil pada tabel desktop tetap seperti semula. */
-@media (max-width:1000px){
+/* Ambangnya 1024px, bukan 1000px: tablet 10-11 inci melaporkan lebar 1024 tepat - baik
+   portrait 1024x1366 maupun landscape 1024x768 - sehingga ambang 1000px justru melewatkan
+   kelas perangkat yang paling banyak dipakai menyentuh layar. */
+@media (max-width:1024px){
   .content .btn,.content .tab,.mobile-menu{min-height:44px}
   .content .btn-small{min-height:40px;padding:8px 14px;font-size:11.5px}
   .content .input,.content select.input{min-height:44px}

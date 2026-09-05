@@ -6,7 +6,8 @@ import { fillAllAssessmentScores } from '../src/services/assessment-bulk.js';
 import { getReportDocument } from '../src/services/documents.js';
 import { saveAutomaticReportScores } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');

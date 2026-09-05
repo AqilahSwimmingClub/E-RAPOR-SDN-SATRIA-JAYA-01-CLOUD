@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { ASSESSMENT_TYPES, getAssessmentSettings, saveAllAssessmentSettings, saveAssessmentScores,
   saveAssessmentSettings } from '../src/services/assessment.js';
-import { DEFAULT_REPORT_RUBRIC, normalizeReportRubric,
-  REPORT_CATEGORIES } from '../src/services/report-rubric.js';
+import { DEFAULT_REPORT_RUBRIC, normalizeReportRubric, REPORT_CATEGORIES,
+  suggestReportRubricForKktp } from '../src/services/report-rubric.js';
 import { ATTITUDE_DIMENSIONS, ATTITUDE_LEVELS, clearStudentAttitude, listStudentAttitudes,
   saveClassAttitudeBulk, saveStudentAttitude } from '../src/services/attitudes.js';
 import { listCpButirForSemester } from '../src/services/cp-butir.js';
@@ -22,7 +22,8 @@ import { intracurricularTable } from '../src/pages/print.js';
 import { saveAllAutomaticReports } from '../src/services/report-bulk.js';
 import { createStudent } from '../src/services/students.js';
 import { listSubjectsForStudent } from '../src/services/subjects.js';
-import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 /* INTRAKURIKULER PER MAPEL, NILAI SIKAP PERSIS PILIHAN GURU, DAN KATEGORI RAPOR TERHADAP KKTP.
 
@@ -69,6 +70,12 @@ function nilaiPenuh(session,subjectId,studentId,nilai,kktp=75){
     scopeSummative:15,semesterSummative:15,kktp});
   for(const jenis of ASSESSMENT_TYPES)saveAssessmentScores(session,subjectId,jenis.id,{[studentId]:nilai});
 }
+/* Butir CP aktif satu mata pelajaran. Sejak Intrakurikuler mewajibkan pilihan, setiap
+   pemanggilan menyebut butir yang dinilai - tidak ada lagi "seluruh butir" yang tersirat. */
+function butirMapel(session,subjectId,jumlah=1){
+  return listCpButirForSemester(session,subjectId).slice(0,jumlah).map(item=>item.id);
+}
+
 /* Menetapkan rubrik satu mata pelajaran dari empat pasang batas, urut dari kategori tertinggi.
    Bobot dan KKTP yang sudah tersimpan tidak diubah. */
 function aturRubrik(session,subjectId,batas){
@@ -78,6 +85,11 @@ function aturRubrik(session,subjectId,batas){
       ({category,min:batas[index][0],max:batas[index][1]}))});
 }
 /* Daftar mapel Intrakurikuler rombel - DIAMBIL DARI APLIKASI, bukan ditulis tangan.
+
+   CATATAN PENTING setelah TP legacy dibuang: Intrakurikuler dan Deskripsi Rapor kini HANYA
+   dapat disusun dari Butir CP aktif. Mata pelajaran yang katalog butirnya memang belum ada
+   tidak lagi mendapat kalimat cadangan dari nama Elemen CP, sehingga test yang menyimpan
+   Intrakurikuler memakai mapelBerButir - bukan seluruh mapel ber-CP.
 
    Dibatasi pada mapel yang benar-benar diampu murid itu (mapel agama mengikuti agama siswa),
    karena mapel itulah yang muncul pada rapornya. */
@@ -100,7 +112,7 @@ test('1. Setiap mata pelajaran menyimpan Intrakurikulernya sendiri, dan dibaca k
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const siswa=tambahSiswa(session,1);
-  const subjects=mapelIntra(session,siswa);
+  const subjects=mapelBerButir(session,siswa);
 
   /* Satu murid, data BERBEDA untuk setiap subjectId. */
   const rencana=new Map();
@@ -136,9 +148,9 @@ test('2. Kunci catatan memuat tahun, semester, kelas, mapel, dan siswa',()=>{
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const siswa=tambahSiswa(session,1);
-  const subjects=mapelIntra(session,siswa);
+  const subjects=mapelBerButir(session,siswa);
   for(const subject of subjects)
-    saveStudentIntracurricularSelection(session,siswa.id,{subjectId:subject.id,predicate:'Baik'});
+    saveStudentIntracurricularSelection(session,siswa.id,{subjectId:subject.id,butirIds:butirMapel(session,subject.id),predicate:'Baik'});
   const db=JSON.parse(globalThis.localStorage.getItem('erapor_satria_jaya_01_v1'));
   const kunci=Object.keys(db.intracurricularScores);
   assert.equal(kunci.length,subjects.length);
@@ -158,16 +170,17 @@ test('3. Menyunting satu mapel tidak mengubah mapel lain',()=>{
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const siswa=tambahSiswa(session,1);
-  const subjects=mapelIntra(session,siswa);
+  const subjects=mapelBerButir(session,siswa);
   for(const subject of subjects)
-    saveStudentIntracurricularSelection(session,siswa.id,{subjectId:subject.id,predicate:'Baik'});
+    saveStudentIntracurricularSelection(session,siswa.id,{subjectId:subject.id,butirIds:butirMapel(session,subject.id),predicate:'Baik'});
 
   /* Setiap mapel disunting satu per satu; setiap kali, SELURUH mapel lain diperiksa utuh. */
   for(const subject of subjects){
     const sebelum=new Map(subjects.filter(item=>item.id!==subject.id)
       .map(item=>[item.id,JSON.stringify(getStudentIntracurricularSelection(session,siswa.id,item.id))]));
     saveStudentIntracurricularSelection(session,siswa.id,
-      {subjectId:subject.id,predicate:'Sangat Baik',description:`Sunting khusus ${subject.name}.`});
+      {subjectId:subject.id,butirIds:butirMapel(session,subject.id),
+        predicate:'Sangat Baik',description:`Sunting khusus ${subject.name}.`});
     assert.equal(getStudentIntracurricularSelection(session,siswa.id,subject.id).description,
       `Sunting khusus ${subject.name}.`);
     for(const [id,isi] of sebelum)
@@ -181,9 +194,9 @@ test('4. Berpindah mapel bolak-balik tidak pernah menukar datanya',()=>{
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const siswa=tambahSiswa(session,1);
-  const subjects=mapelIntra(session,siswa);
+  const subjects=mapelBerButir(session,siswa);
   subjects.forEach((subject,index)=>{
-    saveStudentIntracurricularSelection(session,siswa.id,{subjectId:subject.id,
+    saveStudentIntracurricularSelection(session,siswa.id,{subjectId:subject.id,butirIds:butirMapel(session,subject.id),
       predicate:'Baik',description:`Deskripsi khas ${index}.`});
   });
   /* Menelusuri seluruh mapel maju lalu mundur, seperti guru yang mengganti pilihan mapel. */
@@ -200,9 +213,9 @@ test('5. Pembacaan tanpa subjectId tidak pernah menebak mata pelajaran',()=>{
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const siswa=tambahSiswa(session,1);
-  const subjects=mapelIntra(session,siswa);
+  const subjects=mapelBerButir(session,siswa);
   for(const subject of subjects)
-    saveStudentIntracurricularSelection(session,siswa.id,{subjectId:subject.id,predicate:'Baik'});
+    saveStudentIntracurricularSelection(session,siswa.id,{subjectId:subject.id,butirIds:butirMapel(session,subject.id),predicate:'Baik'});
   assert.equal(getStudentIntracurricular(session,siswa.id),null,
     'tanpa mapel tidak ada catatan per mapel yang dikembalikan');
   /* Dan sumbernya memang tidak lagi memuat penelusuran "catatan terakhir". */
@@ -218,7 +231,7 @@ test('6. Catatan lama tanpa mapel tidak pernah dijadikan milik mapel mana pun',(
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const siswa=tambahSiswa(session,1);
-  const subjects=mapelIntra(session,siswa);
+  const subjects=mapelBerButir(session,siswa);
   /* Bentuk lama: kegiatan bebas, tanpa subjectId sama sekali. */
   saveStudentIntracurricular(session,siswa.id,
     {activity:'Literasi Numerasi',predicate:'Baik',description:'Catatan versi lama.'});
@@ -234,10 +247,10 @@ test('7. Rapor mencetak baris Intrakurikuler untuk SETIAP mapel yang dinilai, ti
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const siswa=tambahSiswa(session,1);
-  const subjects=mapelIntra(session,siswa);
+  const subjects=mapelBerButir(session,siswa);
   for(const subject of subjects){
     nilaiPenuh(session,subject.id,siswa.id,85);
-    saveStudentIntracurricularSelection(session,siswa.id,{subjectId:subject.id,
+    saveStudentIntracurricularSelection(session,siswa.id,{subjectId:subject.id,butirIds:butirMapel(session,subject.id),
       predicate:'Baik',description:`Deskripsi intrakurikuler ${subject.name}.`});
   }
   const doc=getReportDocument(session,siswa.id);
@@ -263,14 +276,14 @@ test('8. Menyimpan satu mapel saja tidak memunculkan mapel lain di rapor',()=>{
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const siswa=tambahSiswa(session,1);
-  const subjects=mapelIntra(session,siswa);
+  const subjects=mapelBerButir(session,siswa);
   /* Diuji untuk SETIAP mapel, satu per satu, dari keadaan kosong. */
   for(const subject of subjects){
     useMemoryStorage();
     const sesi=guru('5B');
     aktifkanSemuaMapel(sesi);
     const anak=tambahSiswa(sesi,1);
-    saveStudentIntracurricularSelection(sesi,anak.id,{subjectId:subject.id,predicate:'Sangat Baik'});
+    saveStudentIntracurricularSelection(sesi,anak.id,{subjectId:subject.id,butirIds:butirMapel(sesi,subject.id),predicate:'Sangat Baik'});
     const doc=getReportDocument(sesi,anak.id);
     assert.equal(doc.intracurricular.length,1,`hanya ${subject.name} yang tercetak`);
     assert.equal(doc.intracurricular[0].subjectId,subject.id);
@@ -288,15 +301,15 @@ test('9. Ganjil dan Genap, serta rombel lain, tidak pernah saling membaca',()=>{
   const anakGanjil=tambahSiswa(ganjil,1);
   const anakGenap=tambahSiswa(genap,2);
   const anakLain=tambahSiswa(lain,3);
-  const subject=mapelIntra(ganjil,anakGanjil)[0];
+  const subject=mapelBerButir(ganjil,anakGanjil)[0];
   saveStudentIntracurricularSelection(ganjil,anakGanjil.id,
-    {subjectId:subject.id,predicate:'Sangat Baik',description:'Ganjil.'});
+    {subjectId:subject.id,butirIds:butirMapel(ganjil,subject.id),predicate:'Sangat Baik',description:'Ganjil.'});
   assert.equal(getStudentIntracurricularSelection(genap,anakGenap.id,subject.id),null,
     'Genap tidak membaca catatan Ganjil');
   assert.equal(getStudentIntracurricularSelection(lain,anakLain.id,subject.id),null,
     'rombel lain tidak membaca catatan rombel ini');
   saveStudentIntracurricularSelection(genap,anakGenap.id,
-    {subjectId:subject.id,predicate:'Cukup',description:'Genap.'});
+    {subjectId:subject.id,butirIds:butirMapel(genap,subject.id),predicate:'Cukup',description:'Genap.'});
   assert.equal(getStudentIntracurricularSelection(ganjil,anakGanjil.id,subject.id).description,'Ganjil.');
   assert.equal(getStudentIntracurricularSelection(genap,anakGenap.id,subject.id).description,'Genap.');
 });
@@ -308,7 +321,7 @@ test('10. Isi Otomatis Semua Siswa menyusun hasil tanpa menyimpan apa pun',()=>{
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const murid=[1,2,3].map(index=>tambahSiswa(session,index));
-  const subject=mapelIntra(session,murid[0])[0];
+  const subject=mapelBerButir(session,murid[0])[0];
   const butir=listIntracurricularButir(session,subject.id).map(item=>item.id);
 
   const pratinjau=previewAllIntracurricular(session,
@@ -331,7 +344,7 @@ test('11. Simpan Semua menyimpan hasilnya, dan hasilnya bertahan setelah muat ul
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const murid=[1,2,3].map(index=>tambahSiswa(session,index));
-  const subject=mapelIntra(session,murid[0])[0];
+  const subject=mapelBerButir(session,murid[0])[0];
   const butir=listIntracurricularButir(session,subject.id).map(item=>item.id);
   const pratinjau=previewAllIntracurricular(session,
     {subjectId:subject.id,butirIds:butir,jenis:'praktik',predicate:'Baik'});
@@ -353,10 +366,10 @@ test('12. Simpan Semua satu mapel tidak menyentuh catatan mapel lain',()=>{
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const murid=[1,2].map(index=>tambahSiswa(session,index));
-  const subjects=mapelIntra(session,murid[0]);
+  const subjects=mapelBerButir(session,murid[0]);
   /* Seluruh mapel diisi lebih dulu. */
   for(const subject of subjects){
-    const pratinjau=previewAllIntracurricular(session,{subjectId:subject.id,predicate:'Cukup'});
+    const pratinjau=previewAllIntracurricular(session,{subjectId:subject.id,butirIds:butirMapel(session,subject.id),predicate:'Cukup'});
     saveAllIntracurricular(session,{subjectId:subject.id,rows:pratinjau.rows});
   }
   /* Lalu satu mapel diisi ulang, dan seluruh mapel lain diperiksa utuh - untuk SETIAP mapel. */
@@ -368,8 +381,11 @@ test('12. Simpan Semua satu mapel tidak menyentuh catatan mapel lain',()=>{
         sebelum.set(`${lain.id}|${anak.id}`,
           JSON.stringify(getStudentIntracurricularSelection(session,anak.id,lain.id)));
     }
+    /* Predikat murid yang sudah tercatat kini dipertahankan, jadi perubahan predikat massal
+       dinyatakan lewat `predicates` - bukan diam-diam menimpa penilaian guru. */
     const pratinjau=previewAllIntracurricular(session,
-      {subjectId:subject.id,predicate:'Sangat Baik',overwriteManual:true});
+      {subjectId:subject.id,butirIds:butirMapel(session,subject.id),predicate:'Sangat Baik',overwriteManual:true,
+        predicates:Object.fromEntries(murid.map(anak=>[anak.id,'Sangat Baik']))});
     saveAllIntracurricular(session,{subjectId:subject.id,rows:pratinjau.rows});
     for(const anak of murid)
       assert.equal(getStudentIntracurricularSelection(session,anak.id,subject.id).predicate,'Sangat Baik');
@@ -595,16 +611,42 @@ test('20c. Rubrik yang tidak sah ditolak beserta alasannya',()=>{
   assert.deepEqual(sah.map(item=>item.category),[...REPORT_CATEGORIES]);
 });
 
-test('21. Kalimat rapor memakai empat bentuk baku dan menyebut kompetensinya',()=>{
+test('21. Kalimat rapor memakai empat rujukan final dan menyapa murid',()=>{
   const fokus='menganalisis pelaksanaan kewajiban, hak, dan tanggung jawab sebagai warga negara';
-  assert.equal(kalimatRapor('SANGAT BAIK',fokus),
-    `Mencapai kompetensi dengan sangat baik dalam hal ${fokus}.`);
-  assert.equal(kalimatRapor('BAIK',fokus),`Mencapai kompetensi dengan baik dalam hal ${fokus}.`);
-  assert.equal(kalimatRapor('CUKUP',fokus),`Cukup mencapai kompetensi dalam hal ${fokus}.`);
-  assert.equal(kalimatRapor('PERLU BIMBINGAN',fokus),
-    `Perlu meningkatkan kompetensi dalam hal ${fokus}.`);
-  assert.equal(kalimatRapor(null,fokus),`Menempuh pembelajaran pada kompetensi ${fokus}.`);
-  assert.equal(kalimatRapor('BAIK',''),null,'tanpa kompetensi tidak ada kalimat');
+  const nama='Adwa Habibi Rizky';
+  /* EMPAT RUJUKAN FINAL, seluruhnya dibuka dengan nama murid. */
+  assert.equal(kalimatRapor('SANGAT BAIK',fokus,nama),
+    `Ananda ${nama} menunjukkan capaian penguasaan yang sangat baik dalam ${fokus}.`);
+  assert.equal(kalimatRapor('BAIK',fokus,nama),
+    `Ananda ${nama} menunjukkan capaian yang baik dalam ${fokus}.`);
+  assert.equal(kalimatRapor('CUKUP',fokus,nama),
+    `Ananda ${nama} telah menunjukkan capaian pemahaman yang cukup mengenai ${fokus}.`);
+  assert.equal(kalimatRapor('PERLU BIMBINGAN',fokus,nama),
+    `Ananda ${nama} perlu meningkatkan pemahaman mengenai ${fokus} melalui pendampingan dan latihan lebih lanjut.`);
+  assert.equal(kalimatRapor(null,fokus,nama),
+    `Ananda ${nama} menempuh pembelajaran pada kompetensi ${fokus}.`);
+  assert.equal(kalimatRapor('BAIK','',nama),null,'tanpa kompetensi tidak ada kalimat');
+  assert.equal(kalimatRapor('BAIK',fokus,''),null,'tanpa nama murid tidak ada kalimat');
+
+  /* TRANSFORMASI GRAMATIKAL: frasa benda diberi kata kerja setelah "dalam", dan frasa yang
+     SUDAH dibuka kata kerja tidak diberi kata kerja kedua. */
+  const benda='bilangan cacah sampai 1.000.000 beserta nilai tempatnya';
+  assert.equal(kalimatRapor('BAIK',benda,nama),
+    `Ananda ${nama} menunjukkan capaian yang baik dalam memahami ${benda}.`);
+  assert.equal(kalimatRapor('CUKUP',benda,nama),
+    `Ananda ${nama} telah menunjukkan capaian pemahaman yang cukup mengenai ${benda}.`,
+    'setelah "mengenai" tidak pernah disisipkan kata kerja');
+  const kerja='menganalisis hubungan antarmakhluk hidup';
+  assert.equal(kalimatRapor('BAIK',kerja,nama),
+    `Ananda ${nama} menunjukkan capaian yang baik dalam ${kerja}.`,
+    'frasa yang sudah berkata kerja tidak diberi kata kerja kedua');
+  for(const kategori of ['SANGAT BAIK','BAIK','CUKUP','PERLU BIMBINGAN']){
+    for(const teks of [benda,kerja]){
+      const kalimat=kalimatRapor(kategori,teks,nama);
+      assert.equal(/memahami memahami|mengenai memahami|dalam memahami memahami/.test(kalimat),false,
+        `${kategori}: tidak ada pengulangan kata kerja`);
+    }
+  }
 });
 
 test('22. Tidak ada ambang apa pun yang ditulis di jalur kategori rapor',()=>{
@@ -640,9 +682,9 @@ test('23. Deskripsi rapor mengikuti rubrik mata pelajarannya sendiri',()=>{
   aturRubrik(session,longgar.id,[[75,100],[60,74],[45,59],[0,44]]);
   aturRubrik(session,ketat.id,[[95,100],[85,94],[75,84],[0,74]]);
   assert.match(generateReportDescription(session,longgar.id,anak.id,{}).text,
-    /^Mencapai kompetensi dengan sangat baik dalam hal /,'80 pada rubrik longgar');
+    /^Ananda .+ menunjukkan capaian penguasaan yang sangat baik dalam /,'80 pada rubrik longgar');
   assert.match(generateReportDescription(session,ketat.id,anak.id,{}).text,
-    /^Cukup mencapai kompetensi dalam hal /,'80 pada rubrik ketat');
+    /^Ananda .+ telah menunjukkan capaian pemahaman yang cukup mengenai /,'80 pada rubrik ketat');
   /* KKTP kedua mapel tidak tersentuh oleh perubahan rubrik. */
   assert.equal(getAssessmentSettings(session,longgar.id).kktp,75);
   assert.equal(getAssessmentSettings(session,ketat.id).kktp,75);
@@ -655,14 +697,13 @@ test('24. Empat kategori benar-benar muncul pada deskripsi rapor yang tersusun',
   const anak=tambahSiswa(session,1);
   const subject=mapelBerButir(session,anak)[0];
   aturRubrik(session,subject.id,[[88,100],[72,87],[56,71],[0,55]]);
-  const harapan=[[100,AWALAN_KATEGORI['SANGAT BAIK']],[88,AWALAN_KATEGORI['SANGAT BAIK']],
-    [87,AWALAN_KATEGORI['BAIK']],[72,AWALAN_KATEGORI['BAIK']],
-    [71,AWALAN_KATEGORI['CUKUP']],[56,AWALAN_KATEGORI['CUKUP']],
-    [55,AWALAN_KATEGORI['PERLU BIMBINGAN']],[0,AWALAN_KATEGORI['PERLU BIMBINGAN']]];
-  for(const [nilai,awalan] of harapan){
+  const harapan=[[100,'SANGAT BAIK'],[88,'SANGAT BAIK'],[87,'BAIK'],[72,'BAIK'],
+    [71,'CUKUP'],[56,'CUKUP'],[55,'PERLU BIMBINGAN'],[0,'PERLU BIMBINGAN']];
+  for(const [nilai,kategori] of harapan){
     nilaiPenuh(session,subject.id,anak.id,nilai,75);
-    assert.equal(generateReportDescription(session,subject.id,anak.id,{}).text.startsWith(awalan),true,
-      `nilai ${nilai} pada rubrik 88/72/56`);
+    const teks=generateReportDescription(session,subject.id,anak.id).text;
+    assert.equal(teks.startsWith(AWALAN_KATEGORI[kategori](anak.name)),true,
+      `nilai ${nilai} pada rubrik 88/72/56 -> ${kategori}: ${teks}`);
   }
 });
 
@@ -696,45 +737,50 @@ test('26. Deskripsi rapor tidak pernah sama dengan deskripsi Intrakurikuler',()=
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const anak=tambahSiswa(session,1);
-  for(const subject of mapelIntra(session,anak)){
+  for(const subject of mapelBerButir(session,anak)){
     nilaiPenuh(session,subject.id,anak.id,92,75);
     const butir=listIntracurricularButir(session,subject.id).map(item=>item.id);
     const intra=saveStudentIntracurricularSelection(session,anak.id,
       {subjectId:subject.id,butirIds:butir,jenis:'teori',predicate:'Sangat Baik'});
     const rapor=generateReportDescription(session,subject.id,anak.id,{});
     assert.notEqual(intra.description,rapor.text,`${subject.name}: dua konteks, dua kalimat`);
-    assert.match(rapor.text,/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /);
-    assert.equal(/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /.test(intra.description),
+    assert.match(rapor.text,/^Ananda .+ (menunjukkan capaian|telah menunjukkan capaian|perlu meningkatkan pemahaman|menempuh pembelajaran) /);
+    assert.equal(/menunjukkan capaian|telah menunjukkan capaian pemahaman/.test(intra.description),
       false,`${subject.name}: Intrakurikuler tidak memakai bingkai rapor`);
   }
 });
 
 test('27. composeReportButirDescription memakai rubrik yang dikirim, bukan ambang bawaan',()=>{
   const butir=[{teori:'menganalisis pelaksanaan kewajiban warga negara'}];
+  const nama='Siswa 1';
   const rubrik=nilai=>normalizeReportRubric([{category:'SANGAT BAIK',min:nilai,max:100},
     {category:'BAIK',min:nilai-10,max:nilai-1},{category:'CUKUP',min:nilai-20,max:nilai-11},
     {category:'PERLU BIMBINGAN',min:0,max:nilai-21}]);
-  assert.equal(composeReportButirDescription({butir,finalScore:80,rubric:rubrik(75)}),
-    'Mencapai kompetensi dengan sangat baik dalam hal menganalisis pelaksanaan kewajiban warga negara.');
-  assert.equal(composeReportButirDescription({butir,finalScore:80,rubric:rubrik(85)}),
-    'Mencapai kompetensi dengan baik dalam hal menganalisis pelaksanaan kewajiban warga negara.');
-  assert.equal(composeReportButirDescription({butir,finalScore:80,rubric:rubrik(95)}),
-    'Cukup mencapai kompetensi dalam hal menganalisis pelaksanaan kewajiban warga negara.');
-  assert.equal(composeReportButirDescription({butir,finalScore:60,rubric:rubrik(95)}),
-    'Perlu meningkatkan kompetensi dalam hal menganalisis pelaksanaan kewajiban warga negara.');
+  const susun=(finalScore,kktp)=>composeReportButirDescription({studentName:nama,butir,finalScore,rubric:rubrik(kktp)});
+  assert.equal(susun(80,75),
+    `Ananda ${nama} menunjukkan capaian penguasaan yang sangat baik dalam menganalisis pelaksanaan kewajiban warga negara.`);
+  assert.equal(susun(80,85),
+    `Ananda ${nama} menunjukkan capaian yang baik dalam menganalisis pelaksanaan kewajiban warga negara.`);
+  assert.equal(susun(80,95),
+    `Ananda ${nama} telah menunjukkan capaian pemahaman yang cukup mengenai menganalisis pelaksanaan kewajiban warga negara.`);
+  assert.equal(susun(60,95),
+    `Ananda ${nama} perlu meningkatkan pemahaman mengenai menganalisis pelaksanaan kewajiban warga negara melalui pendampingan dan latihan lebih lanjut.`);
   /* Tanpa Nilai Akhir, kategori tidak dikarang. */
-  assert.match(composeReportButirDescription({butir,finalScore:null,rubric:DEFAULT_REPORT_RUBRIC}),
-    /^Menempuh pembelajaran /);
-  assert.equal(composeReportButirDescription({butir:[],finalScore:80,rubric:DEFAULT_REPORT_RUBRIC}),null);
+  assert.match(composeReportButirDescription({studentName:nama,butir,finalScore:null,rubric:DEFAULT_REPORT_RUBRIC}),
+    /^Ananda .+ menempuh pembelajaran /);
+  assert.equal(composeReportButirDescription({studentName:nama,butir:[],finalScore:80,rubric:DEFAULT_REPORT_RUBRIC}),null);
+  assert.equal(composeReportButirDescription({studentName:'',butir,finalScore:80,rubric:DEFAULT_REPORT_RUBRIC}),null,
+    'tanpa nama murid tidak ada kalimat');
 });
 
 /* ============================== §8 GENERATE SEMUA SISWA DAN SIMPAN OTOMATIS SEMUA MAPEL */
 
+/* Empat rujukan final, dinyatakan sebagai awalan kalimat lengkap beserta nama murid. */
 const AWALAN_KATEGORI=Object.freeze({
-  'SANGAT BAIK':'Mencapai kompetensi dengan sangat baik dalam hal ',
-  'BAIK':'Mencapai kompetensi dengan baik dalam hal ',
-  'CUKUP':'Cukup mencapai kompetensi dalam hal ',
-  'PERLU BIMBINGAN':'Perlu meningkatkan kompetensi dalam hal ',
+  'SANGAT BAIK':nama=>`Ananda ${nama} menunjukkan capaian penguasaan yang sangat baik dalam `,
+  'BAIK':nama=>`Ananda ${nama} menunjukkan capaian yang baik dalam `,
+  'CUKUP':nama=>`Ananda ${nama} telah menunjukkan capaian pemahaman yang cukup mengenai `,
+  'PERLU BIMBINGAN':nama=>`Ananda ${nama} perlu meningkatkan pemahaman mengenai `,
 });
 
 test('28. Simpan Otomatis Semua Mapel memakai rubrik dan Butir CP masing-masing mapel',()=>{
@@ -765,7 +811,7 @@ test('28. Simpan Otomatis Semua Mapel memakai rubrik dan Butir CP masing-masing 
     for(const anak of murid){
       const catatan=getReportDescription(session,subject.id,anak.id);
       assert.ok(catatan,`${subject.name} punya deskripsi tersimpan`);
-      assert.equal(catatan.text.startsWith(AWALAN_KATEGORI[harapan]),true,
+      assert.equal(catatan.text.startsWith(AWALAN_KATEGORI[harapan](anak.name)),true,
         `${subject.name} memakai kategori ${harapan} menurut rubriknya sendiri: ${catatan.text}`);
       assert.ok(catatan.text.includes(substansiButir(butir[0],'teori')),
         `${subject.name} memakai kompetensinya sendiri`);
@@ -792,14 +838,14 @@ test('28b. Generate Deskripsi berikutnya memakai rubrik terbaru',()=>{
   aturRubrik(session,subject.id,[[90,100],[80,89],[70,79],[0,69]]);
   saveAllAutomaticReports(session,{overwriteEdited:true});
   assert.match(getReportDescription(session,subject.id,anak.id).text,
-    /^Mencapai kompetensi dengan baik dalam hal /);
+    /^Ananda .+ menunjukkan capaian yang baik dalam /);
   /* Rubrik diubah guru; deskripsi LAMA tidak dihapus, dan Generate berikutnya memakai yang baru. */
   aturRubrik(session,subject.id,[[75,100],[60,74],[45,59],[0,44]]);
   assert.match(getReportDescription(session,subject.id,anak.id).text,
-    /^Mencapai kompetensi dengan baik dalam hal /,'deskripsi tersimpan tidak berubah sendiri');
+    /^Ananda .+ menunjukkan capaian yang baik dalam /,'deskripsi tersimpan tidak berubah sendiri');
   saveAllAutomaticReports(session,{overwriteEdited:true});
   assert.match(getReportDescription(session,subject.id,anak.id).text,
-    /^Mencapai kompetensi dengan sangat baik dalam hal /,'Generate berikutnya memakai rubrik terbaru');
+    /^Ananda .+ menunjukkan capaian penguasaan yang sangat baik dalam /,'Generate berikutnya memakai rubrik terbaru');
 });
 
 test('28c. Menyimpan bobot atau KKTP tidak pernah membuang rubrik yang sudah disusun',()=>{
@@ -807,7 +853,7 @@ test('28c. Menyimpan bobot atau KKTP tidak pernah membuang rubrik yang sudah dis
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const anak=tambahSiswa(session,1);
-  const subjects=mapelIntra(session,anak);
+  const subjects=mapelBerButir(session,anak);
   const subject=subjects[0];
   aturRubrik(session,subject.id,[[88,100],[72,87],[56,71],[0,55]]);
   const rubrik=getAssessmentSettings(session,subject.id).rubric;
@@ -830,7 +876,7 @@ test('28d. Pengaturan lama tanpa rubrik dibaca sebagai default tanpa diubah',()=
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const anak=tambahSiswa(session,1);
-  const subject=mapelIntra(session,anak)[0];
+  const subject=mapelBerButir(session,anak)[0];
   nilaiPenuh(session,subject.id,anak.id,95,75);
   /* Catatan versi lama: tidak punya kolom rubric sama sekali. */
   const kunci=`${ACADEMIC_YEAR}|${session.semester}|5B|${subject.id}`;
@@ -838,8 +884,9 @@ test('28d. Pengaturan lama tanpa rubrik dibaca sebagai default tanpa diubah',()=
   delete db.assessmentSettings[kunci].rubric;
   globalThis.localStorage.setItem('erapor_satria_jaya_01_v1',JSON.stringify(db));
   muatUlang();
+  /* Rubrik bawaan diselaraskan dengan KKTP catatan itu: batas CUKUP berimpit dengan KKTP 75. */
   assert.deepEqual(getAssessmentSettings(session,subject.id).rubric,
-    DEFAULT_REPORT_RUBRIC.map(item=>({...item})),'dibaca sebagai default');
+    suggestReportRubricForKktp(DEFAULT_REPORT_RUBRIC,75),'dibaca sebagai bawaan yang selaras KKTP');
   /* Membacanya tidak menulis apa pun ke penyimpanan. */
   const sebelum=globalThis.localStorage.getItem('erapor_satria_jaya_01_v1');
   getAssessmentSettings(session,subject.id);
@@ -848,7 +895,7 @@ test('28d. Pengaturan lama tanpa rubrik dibaca sebagai default tanpa diubah',()=
     'pembacaan tidak mengubah catatan lama');
   /* Dan deskripsinya tetap tersusun memakai default. */
   assert.match(generateReportDescription(session,subject.id,anak.id,{}).text,
-    /^Mencapai kompetensi dengan sangat baik dalam hal /);
+    /^Ananda .+ menunjukkan capaian penguasaan yang sangat baik dalam /);
 });
 
 /* =================================================================== §9 TANDA TANGAN RAPOR */
@@ -913,8 +960,10 @@ test('29c. Rubrik tersimpan pada scope tahun | semester | kelas | subjectId',()=
   const [pertama,kedua]=subjects;
   aturRubrik(ganjil,pertama.id,[[85,100],[70,84],[55,69],[0,54]]);
   /* Mapel lain, semester lain, dan rombel lain tetap memakai default. */
-  const bawaan=DEFAULT_REPORT_RUBRIC.map(item=>({...item}));
-  assert.deepEqual(getAssessmentSettings(ganjil,kedua.id).rubric,bawaan,'mapel lain tidak ikut');
+  /* Bawaan kini selaras dengan KKTP mapel itu; yang diperiksa tetap sama: rubrik khusus satu
+     mapel tidak menular ke mapel, semester, maupun rombel lain. */
+  const bawaan=getAssessmentSettings(ganjil,kedua.id).rubric;
+  assert.equal(bawaan[2].min,75,'bawaan berimpit dengan KKTP 75');
   assert.deepEqual(getAssessmentSettings(genap,pertama.id).rubric,bawaan,'semester lain tidak ikut');
   assert.deepEqual(getAssessmentSettings(lain,pertama.id).rubric,bawaan,'rombel lain tidak ikut');
   assert.equal(getAssessmentSettings(ganjil,pertama.id).rubric[0].min,85);
@@ -929,7 +978,7 @@ test('29d. Rubrik berlaku untuk SELURUH mapel aktif tanpa satu pun nama mapel di
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const anak=tambahSiswa(session,1);
-  const subjects=mapelIntra(session,anak);
+  const subjects=mapelBerButir(session,anak);
   for(const subject of subjects){
     /* Setiap mapel dapat menyimpan rubriknya sendiri, apa pun subjectId-nya. */
     aturRubrik(session,subject.id,[[81,100],[61,80],[41,60],[0,40]]);
@@ -951,10 +1000,10 @@ test('30. Perubahan ini tidak menghapus data yang sudah ada',()=>{
   const session=guru('5B');
   aktifkanSemuaMapel(session);
   const anak=tambahSiswa(session,1);
-  const subjects=mapelIntra(session,anak);
+  const subjects=mapelBerButir(session,anak);
   for(const subject of subjects){
     nilaiPenuh(session,subject.id,anak.id,84,75);
-    saveStudentIntracurricularSelection(session,anak.id,{subjectId:subject.id,predicate:'Baik'});
+    saveStudentIntracurricularSelection(session,anak.id,{subjectId:subject.id,butirIds:butirMapel(session,subject.id),predicate:'Baik'});
   }
   saveClassAttitudeBulk(session,ATTITUDE_DIMENSIONS.slice(0,3).map(item=>item.id),ATTITUDE_LEVELS[0]);
   saveAllAutomaticReports(session,{overwriteEdited:true});

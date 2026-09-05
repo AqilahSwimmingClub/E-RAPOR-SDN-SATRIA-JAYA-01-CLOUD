@@ -16,7 +16,8 @@ import { saveStudentIntracurricularSelection } from '../src/services/intracurric
 import { saveAssessmentScores, saveAssessmentSettings, ASSESSMENT_TYPES } from '../src/services/assessment.js';
 import { getReportScore, saveAutomaticReportScores } from '../src/services/report.js';
 import { createStudent, listStudents } from '../src/services/students.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 /* MENU CP YANG RINGKAS, NONAKTIFKAN SEMUA, DAN DESKRIPSI RAPOR OTOMATIS.
 
@@ -299,8 +300,8 @@ test('20-21. Tidak ada data silang antar-mapel maupun antar-siswa',()=>{
   const rendah=getReportDescription(session,'ipas',murid[1].id).text;
   assert.notEqual(tinggi,rendah,'21. dua siswa dengan nilai berbeda, dua kalimat berbeda');
   /* Bentuk kalimat rapor diubah atas permintaan resmi menjadi empat kategori terhadap KKTP. */
-  assert.match(tinggi,/^Mencapai kompetensi dengan sangat baik dalam hal /);
-  assert.match(rendah,/^(Cukup mencapai|Perlu meningkatkan) kompetensi/);
+  assert.match(tinggi,/^Ananda .+ menunjukkan capaian penguasaan yang sangat baik dalam /);
+  assert.match(rendah,/^Ananda .+ (telah menunjukkan capaian pemahaman yang cukup|perlu meningkatkan pemahaman) mengenai /);
 });
 
 test('22. Deskripsi otomatis bertahan setelah database dibaca ulang',()=>{
@@ -364,7 +365,9 @@ test('Deskripsi otomatis tunduk pada aturan deskripsi yang sudah berlaku',()=>{
     assert.equal(deskripsiBocorFase(teks),false,`${mapel}: bebas Fase, kode CP, dan TP`);
     assert.equal(deskripsiMengulangMapel(teks,nama[mapel]),false,`${mapel}: nama mapel tidak diulang`);
     assert.equal(/mata pelajaran/i.test(teks),false);
-    assert.match(teks,/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /,
+  /* Bentuk kalimat diubah atas permintaan resmi: Deskripsi Rapor memakai empat rujukan final
+     yang seluruhnya dibuka dengan nama murid. */
+    assert.match(teks,/^Ananda .+ (menunjukkan capaian|telah menunjukkan capaian|perlu meningkatkan pemahaman|menempuh pembelajaran) /,
       'memakai bingkai capaian rapor');
   }
   /* Dan tetap berbeda dari deskripsi Intrakurikuler. */

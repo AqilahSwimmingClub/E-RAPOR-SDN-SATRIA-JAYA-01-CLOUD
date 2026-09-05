@@ -8,7 +8,8 @@ import { getReportCompleteness, getReportDocument } from '../src/services/docume
 import { getStoredReportRows, saveManualReportScoresBulk } from '../src/services/report.js';
 import { getTranscriptRows, transcriptTemplateCsv } from '../src/services/transcript.js';
 import { createStudent, updateStudent } from '../src/services/students.js';
-import { saveSubjectMapping, loadDb, storageKey } from '../src/services/storage.js';
+import { loadDb, storageKey } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { getTeacherProfile, saveTeacherProfile } from '../src/services/master.js';
 import { runAppMigrations } from '../src/services/migrations.js';
 

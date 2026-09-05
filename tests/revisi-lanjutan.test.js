@@ -9,7 +9,7 @@ import { calculateReportSheet, getStoredReportRows, saveManualReportScore, saveM
 import { saveAssessmentScores } from '../src/services/assessment.js';
 import { createStudent, listStudents, updateStudent } from '../src/services/students.js';
 import { listActiveSubjects, listSubjectsForStudent } from '../src/services/subjects.js';
-import { saveSubjectMapping } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { createLearningObjective } from '../src/services/objectives.js';
 import { generateReportDescription, saveReportDescription } from '../src/services/descriptions.js';
 import { saveAttendance } from '../src/services/attendance.js';
@@ -105,7 +105,7 @@ test('Ekstrakurikuler Pramuka mengikuti tingkat kelas secara otomatis',()=>{
   ['4A','5B','6D'].forEach(kelas=>assert.equal(pramukaPresetForClass(kelas),'Pramuka Penggalang',`${kelas} memakai Penggalang`));
   assert.equal(pramukaDescriptionsForClass('2A').length,5);
   assert.equal(pramukaDescriptionsForClass('5B').length,5);
-  assert.deepEqual(ACTIVITY_PREDICATES,['Cukup','Baik','Sangat Baik']);
+  assert.deepEqual(ACTIVITY_PREDICATES,['Sangat Baik','Baik','Cukup','Perlu Bimbingan']);
 });
 
 /* ------------------------------------------- 4. Kenaikan kelas / kelulusan */

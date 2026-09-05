@@ -2,7 +2,8 @@ import { ASSESSMENT_DEFAULT } from '../data/constants.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
 import { requireActiveSubject } from './subjects.js';
-import { defaultReportRubric, normalizeReportRubric, readReportRubric } from './report-rubric.js';
+import { defaultReportRubric, normalizeReportRubric, readReportRubric, rubricConsistency,
+  suggestReportRubricForKktp } from './report-rubric.js';
 
 export const ASSESSMENT_TYPES=[
   {id:'formative',label:'Formatif'},
@@ -82,13 +83,37 @@ export function scopeSummativeAverage(parts){
 
    Guru yang menghendaki rubrik seragam cukup menyimpan angka yang sama; halaman Bobot
    Penilaian menyediakan tabel semua mapel sekaligus untuk itu. */
+/* RUBRIK BAWAAN MENGIKUTI KKTP MATA PELAJARAN ITU.
+
+   Rentang bawaan aplikasi adalah 90-100 / 80-89 / 70-79 / 0-69, tetapi batas antara PERLU
+   BIMBINGAN dan CUKUP wajib berimpit dengan KKTP - jika tidak, satu murid dapat dinyatakan
+   BELUM TUNTAS oleh KKTP sekaligus "cukup mencapai kompetensi" oleh rapornya. Karena itu
+   rubrik bawaan diselaraskan dengan KKTP yang berlaku: dengan KKTP 75 ia menjadi
+   90-100 / 80-89 / 75-79 / 0-74.
+
+   Angka-angka ini nilai bawaan aplikasi, BUKAN ketentuan resmi, dan guru dapat menggantinya
+   seluruhnya melalui halaman Bobot Penilaian. */
+function rubrikBawaan(kktp){
+  return suggestReportRubricForKktp(defaultReportRubric(),kktp)||defaultReportRubric();
+}
 export function defaultAssessmentSettings(){
-  return {...ASSESSMENT_DEFAULT,kktp:DEFAULT_KKTP,rubric:defaultReportRubric()};
+  return {...ASSESSMENT_DEFAULT,kktp:DEFAULT_KKTP,rubric:rubrikBawaan(DEFAULT_KKTP)};
 }
 
 /* Rubrik yang dipakai satu catatan pengaturan. Catatan lama yang belum punya kolom ini dibaca
-   sebagai default - dibaca saja, tidak ditulis ulang dan tidak diubah. */
-function rubrikCatatan(record){return readReportRubric(record?.rubric);}
+   sebagai bawaan yang selaras dengan KKTP-nya sendiri - dibaca saja, tidak ditulis ulang dan
+   tidak diubah. */
+function rubrikCatatan(record){
+  if(record?.rubric)return readReportRubric(record.rubric);
+  return rubrikBawaan(record?.kktp??DEFAULT_KKTP);
+}
+
+/* Apakah rubrik satu mata pelajaran selaras dengan KKTP-nya. Dipakai halaman Bobot Penilaian
+   untuk memperingatkan guru, dan oleh test. Tidak pernah mengubah apa pun. */
+export function assessmentRubricConsistency(session,subjectId){
+  const pengaturan=getAssessmentSettings(session,subjectId);
+  return rubricConsistency(pengaturan.rubric,pengaturan.kktp);
+}
 
 export function getAssessmentSettings(session,subjectId){
   requireActiveSubject(session,subjectId);

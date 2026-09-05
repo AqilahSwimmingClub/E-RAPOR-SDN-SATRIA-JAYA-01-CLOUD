@@ -7,7 +7,8 @@ import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { getSchoolMaster, saveSchoolIdentitySetup } from '../src/services/master.js';
 import { buildBackup, restoreBackup, validateBackupPayload } from '../src/services/backup.js';
 import { createStudent, listStudents } from '../src/services/students.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping, storageKey } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb, storageKey } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { getInstallationId, isInstallationId, resetInstallationId } from '../src/services/installation.js';
 import { INSTALLATION_STORAGE_KEY, LICENSE_STORAGE_KEY } from '../src/data/license-config.js';
 

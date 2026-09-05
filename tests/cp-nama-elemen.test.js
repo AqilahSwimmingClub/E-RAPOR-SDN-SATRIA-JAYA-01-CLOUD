@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { capaianPembelajaran, cpElementById, cpElements, CP_SUBJECTS } from '../src/data/curriculum-cp.js';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
-import { getCpButir, getCpButirScoreSheet, listCpButir } from '../src/services/cp-butir.js';
+import { getCpButir, getCpButirScoreSheet, listCpButir,
+  listCpButirForSemester } from '../src/services/cp-butir.js';
 import { generateReportDescription } from '../src/services/descriptions.js';
 import { saveStudentIntracurricularSelection } from '../src/services/intracurricular.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, saveSubjectMapping, updateDb } from '../src/services/storage.js';
+import { invalidateDbCache, updateDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { defaultCpButir } from '../src/data/cp-butir-defaults.js';
 
 /* NAMA ELEMEN CP HARUS SAMA DENGAN NASKAH RESMI.
@@ -208,7 +210,7 @@ test('N5. Butir CP, nilai murid, dan tautan TP lama tetap terbaca setelah nama e
     assert.ok(cpElementById('agama',item.elementId),`${item.id}: elemen induk tetap ada`);
 
   /* 5. Deskripsi Intrakurikuler dan rapor tetap tersusun, dan tetap berbeda satu sama lain. */
-  const intra=saveStudentIntracurricularSelection(sesi,siswa.id,{subjectId:'agama',predicate:'Baik'});
+  const intra=saveStudentIntracurricularSelection(sesi,siswa.id,{subjectId:'agama',butirIds:listCpButirForSemester(sesi,'agama').slice(0,1).map(item=>item.id),predicate:'Baik'});
   const rapor=generateReportDescription(sesi,'agama',siswa.id,{});
   assert.ok(intra.description&&rapor.text,'kedua deskripsi tersusun');
   assert.notEqual(intra.description,rapor.text,'keduanya tetap berbeda');

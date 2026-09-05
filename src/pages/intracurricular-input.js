@@ -4,7 +4,7 @@ import { composeIntracurricularDescriptionFromCp, DEFAULT_JENIS_INTRAKURIKULER,
   getIntracurricularCp, getStudentIntracurricularSelection,
   INTRACURRICULAR_PREDICATES, JENIS_INTRAKURIKULER, jenisIntrakurikulerValid,
   listAssignedIntracurricularActivities, listIntracurricularButir, listIntracurricularSubjects,
-  previewAllIntracurricular, saveAllIntracurricular } from '../services/intracurricular.js';
+  PESAN_BUTIR_WAJIB, previewAllIntracurricular, saveAllIntracurricular } from '../services/intracurricular.js';
 import { listStudents } from '../services/students.js';
 import { el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
@@ -131,14 +131,24 @@ export function renderIntracurricularInput(session){
         <div class="form-grid"><div class="field"><label>Mata Pelajaran *</label><select class="input" data-subject>${subjects.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===subjectId?'selected':''}>${escapeHtml(item.name)}</option>`).join('')}</select></div>
         <div class="field"><label>Jenis Penilaian *</label><select class="input" data-jenis>${JENIS_INTRAKURIKULER.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===jenis?'selected':''}>${escapeHtml(item.label)}</option>`).join('')}</select></div>
         <div class="field"><label>Predikat *</label><select class="input" data-predicate>${predicateOptions(predicate)}</select></div>
-        <div class="field form-span-2"><label>Butir CP yang Dinilai *</label>${pilihanButir}<div class="objective-reference-foot">Hanya Butir CP aktif yang dapat dipilih. Semester penilaian mengikuti ${escapeHtml(session.semester)} dan tidak perlu diatur.</div></div>
+        <div class="field form-span-2"><label>Butir CP yang Dinilai *</label>${pilihanButir}<div class="objective-reference-foot">${butirTerpilih.size?'':`<strong>${escapeHtml(PESAN_BUTIR_WAJIB)}</strong> `}Hanya Butir CP aktif yang dapat dipilih. Semester penilaian mengikuti ${escapeHtml(session.semester)} dan tidak perlu diatur.</div></div>
         <div class="field form-span-2"><label>Deskripsi *</label><textarea class="input" rows="4" data-description placeholder="Kosongkan untuk memakai deskripsi otomatis...">${escapeHtml(isiDeskripsi)}</textarea><div class="actions" style="margin-top:8px"><button class="btn btn-light" type="button" data-generate-description>${icon('activity',16)} Generate Deskripsi Otomatis</button></div></div></div>
-        <div class="actions"><button class="btn btn-light" type="button" data-fill-all>${icon('activity',16)} Isi Otomatis Semua Siswa</button><button class="btn btn-primary" type="button" data-save-all ${jumlahDraf?'':'disabled'}>${icon('save',16)} Simpan Semua</button></div></section>
+        <div class="actions"><button class="btn btn-light" type="button" data-fill-all ${butirTerpilih.size?'':'disabled'}>${icon('activity',16)} Isi Otomatis Semua Siswa</button><button class="btn btn-primary" type="button" data-save-all ${jumlahDraf?'':'disabled'}>${icon('save',16)} Simpan Semua</button></div></section>
         <section class="card"><div class="section-head"><div><h3>Hasil Semua Siswa</h3><p>${jumlahDraf?`${jumlahDraf} siswa berstatus draf dan belum tersimpan. Tekan Simpan Semua untuk menyimpannya.`:'Belum ada hasil baru. Tekan Isi Otomatis Semua Siswa untuk menyusunnya.'}</p></div></div><div class="table-scroll"><table class="data-table" data-preview><thead><tr><th>No</th><th>Siswa</th><th>Predikat</th><th>Status</th><th>Deskripsi</th></tr></thead><tbody>${baris}</tbody></table></div></section>`;
 
       const idTerpilih=()=>[...butirTerpilih];
-      const susun=()=>composeIntracurricularDescriptionFromCp(session,{
-        subjectId,butirIds:idTerpilih(),jenis,predicate});
+      /* Nama murid ikut ke dalam kalimat, jadi penyusunannya per murid.
+
+         BUTIR CP WAJIB DIPILIH. Selama guru belum mencentang satu butir pun, penyusun menolak
+         dan kotak deskripsi dibiarkan kosong - tidak diisi kalimat yang mencakup seluruh butir
+         mata pelajaran, karena itu bukan penilaian yang dilakukan guru. */
+      const adaButirTerpilih=()=>butirTerpilih.size>0;
+      const susun=(murid=student,predikat=predicate)=>{
+        try{
+          return composeIntracurricularDescriptionFromCp(session,{
+            studentName:murid.name,subjectId,butirIds:idTerpilih(),jenis,predicate:predikat});
+        }catch{return '';}
+      };
       const kotakDeskripsi=()=>view.querySelector('[data-description]');
       /* Menuliskan keadaan formulir murid yang sedang dibuka ke dalam draf. Draf inilah yang
          nanti disimpan oleh Simpan Semua - tidak ada tulisan ke penyimpanan sebelum itu. */
@@ -181,8 +191,9 @@ export function renderIntracurricularInput(session){
       view.querySelector('[data-predicate]').onchange=event=>{predicate=event.target.value;segarkanDeskripsi();};
       kotakDeskripsi().oninput=event=>{catatDraf(event.target.value);};
       view.querySelector('[data-generate-description]').onclick=()=>{
+        if(!adaButirTerpilih()){toast(PESAN_BUTIR_WAJIB,'warning');return;}
         const teks=susun();
-        if(!teks){toast(cp.reason||'Pilih minimal satu Butir CP atau aktifkan Butir CP pada menu Capaian Pembelajaran.','warning');return;}
+        if(!teks){toast(cp.reason||PESAN_BUTIR_WAJIB,'warning');return;}
         terakhirOtomatis=teks;
         kotakDeskripsi().value=teks;
         catatDraf(teks);
@@ -191,8 +202,13 @@ export function renderIntracurricularInput(session){
       };
       /* ISI OTOMATIS SEMUA SISWA: menyusun saja. Tidak ada satu pun tulisan ke penyimpanan. */
       view.querySelector('[data-fill-all]').onclick=()=>{
+        if(!adaButirTerpilih()){toast(PESAN_BUTIR_WAJIB,'warning');return;}
         try{
-          const hasil=previewAllIntracurricular(session,{subjectId,butirIds:idTerpilih(),jenis,predicate});
+          /* PREDIKAT MASING-MASING SISWA dipertahankan: predikat yang sudah tercatat pada
+             draf dikirim apa adanya, dan predikat pada formulir hanya menjadi nilai awal bagi
+             murid yang belum punya. Tanpa ini seluruh rombel akan diseragamkan. */
+          const hasil=previewAllIntracurricular(session,{subjectId,butirIds:idTerpilih(),jenis,predicate,
+            predicates:Object.fromEntries([...draf].map(([id,row])=>[id,row.predicate]))});
           for(const row of hasil.rows)draf.set(row.studentId,{...row});
           render();
           const catatan=[`${hasil.rows.length} dari ${hasil.total} siswa tersusun`];

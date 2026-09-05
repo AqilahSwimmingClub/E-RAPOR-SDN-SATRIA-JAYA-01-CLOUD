@@ -18,7 +18,8 @@ import { saveAssessmentScores, saveAssessmentSettings, ASSESSMENT_TYPES } from '
 import { saveAttendance } from '../src/services/attendance.js';
 import { saveClassAttitudeBulk } from '../src/services/attitudes.js';
 import { createStudent, listStudents } from '../src/services/students.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+import { saveSubjectMapping , tugaskan} from './helpers/penugasan.js';
 
 /* MODEL CP YANG SUDAH DISEDERHANAKAN.
 
@@ -174,6 +175,7 @@ test('9. Seluruh Butir CP aktif tersedia pada semester aktif mana pun',()=>{
   /* Semester GENAP melihat daftar butir yang SAMA PERSIS. Dulu daftarnya terbelah dua dan guru
      harus memindahkan butir antar semester secara manual. */
   const genap=guru('5B',`Genap ${ACADEMIC_YEAR}`);
+  tugaskan(genap,SUBJECTS_DEFAULT.map(subject=>subject.id));
   const daftarGenap=listCpButirForSemester(genap,'mtk');
   assert.deepEqual(daftarGenap.map(item=>item.id),ganjil.map(item=>item.id),
     '9. butir yang sama tersedia pada Ganjil maupun Genap');
@@ -257,8 +259,13 @@ test('14. Teori dan Praktik menghasilkan bahasa yang berbeda dan sesuai substans
   const praktik=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
     butirIds:ids,jenis:'praktik',predicate:'Baik'});
   assert.notEqual(teori.description,praktik.description,'14. dua jenis, dua kalimat');
-  assert.match(teori.description,/^Memahami /,'Teori memakai bahasa pemahaman');
-  assert.match(praktik.description,/^Terampil /,'Praktik memakai bahasa keterampilan');
+  /* Bentuk kalimat Intrakurikuler diubah atas permintaan resmi: dibuka dengan nama murid,
+     dan redaksinya bervariasi tetapi tetap tetap untuk masukan yang sama. Yang dijaga di sini
+     tetap sama - Teori berbicara pemahaman, Praktik berbicara keterampilan. */
+  assert.match(teori.description,/^Ananda Siswa 1 /,'Intrakurikuler menyapa murid');
+  assert.match(praktik.description,/^Ananda Siswa 1 /);
+  assert.match(teori.description,/pemahaman|memahami|penguasaan/,'Teori memakai bahasa pemahaman');
+  assert.match(praktik.description,/keterampilan|terampil|mampu/,'Praktik memakai bahasa keterampilan');
   /* Substansinya memang diambil dari sisi yang benar - bukan hasil menukar kata. */
   for(const item of butir.slice(0,2)){
     assert.ok(teori.description.includes(substansiButir(item,'teori')));
@@ -299,10 +306,13 @@ test('16. Rapor tidak punya nilai maupun pilihan Teori/Praktik',()=>{
 test('17. Generator Rapor tidak lagi memakai TP sebagai basis',()=>{
   const {session,siswa}=siapkanIntra();
   const tp=createLearningObjective(session,'mtk',{description:'TP lama sekolah',active:true});
-  const rapor=generateReportDescription(session,'mtk',siswa.id,{});
+  const rapor=generateReportDescription(session,'mtk',siswa.id);
   assert.equal(rapor.source,'CP_BUTIR','17. deskripsi rapor bersumber Butir CP');
   assert.equal(rapor.text.includes('TP lama sekolah'),false,'isi TP tidak masuk deskripsi');
-  assert.equal(rapor.objectiveIds,null,'tidak ada TP yang dijadikan acuan');
+  /* `objectiveIds` tidak lagi menjadi kolom hasil sama sekali - bukan pula null. Rujukan TP
+     dibuang seluruhnya dari catatan yang dihasilkan, dan parameter keempat generator pun sudah
+     tidak ada: tidak ada satu pun jalan bagi pemanggil untuk menyetir deskripsi dengan TP. */
+  assert.equal(Object.hasOwn(rapor,'objectiveIds'),false,'tidak ada kolom TP pada hasil');
   /* Catatan TP-nya sendiri TIDAK dihapus. */
   assert.equal(listLearningObjectives(session,'mtk').some(item=>item.id===tp.id),true,
     'catatan TP lama tetap tersimpan dan dapat dibaca');
@@ -320,13 +330,14 @@ test('18. Deskripsi Rapor berbeda dari deskripsi Intrakurikuler',()=>{
   const rapor=generateReportDescription(session,'mtk',siswa.id,{});
   assert.notEqual(intra.description,rapor.text,'18. dua konteks, dua kalimat');
   /* Bedanya struktural: rapor menyatakan tingkat capaian dari Nilai Akhir. */
-  assert.match(rapor.text,/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /,
+  /* Empat rujukan final Deskripsi Rapor, seluruhnya dibuka dengan nama murid. */
+  assert.match(rapor.text,/^Ananda Siswa 1 (menunjukkan capaian|telah menunjukkan capaian|perlu meningkatkan pemahaman|menempuh pembelajaran) /,
     'rapor memakai bingkai capaian');
-  assert.equal(/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /.test(intra.description),false,
+  assert.equal(/menunjukkan capaian|telah menunjukkan capaian pemahaman/.test(intra.description),false,
     'Intrakurikuler tidak memakai bingkai capaian rapor');
   /* Keduanya memakai penyusun yang berbeda, bukan satu template yang dipakai bergantian. */
-  const generatorIntra=composeIntracurricularButirDescription({butir,jenis:'teori',predicate:'Baik'});
-  const generatorRapor=composeReportButirDescription({butir,finalScore:82,kktp:75});
+  const generatorIntra=composeIntracurricularButirDescription({studentName:'Siswa 1',butir,jenis:'teori',predicate:'Baik'});
+  const generatorRapor=composeReportButirDescription({studentName:'Siswa 1',butir,finalScore:82});
   assert.notEqual(generatorIntra,generatorRapor,'penyusunnya memang berbeda');
 });
 
@@ -520,14 +531,17 @@ test('26. Isi Otomatis Semua Siswa memproses seluruh murid pada mapel yang dipil
 
 test('27. Tombol Generate pada halaman memakai penyusun yang sama dengan Simpan',()=>{
   const halaman=read('src/pages/intracurricular-input.js');
-  assert.match(halaman,/const susun=\(\)=>composeIntracurricularDescriptionFromCp/,
+  assert.match(halaman,/composeIntracurricularDescriptionFromCp\(session,\{/,
     'halaman memakai penyusun layanan, bukan template sendiri');
+  /* Butir CP wajib dipilih: tombol massal tertutup selama guru belum mencentang satu pun. */
+  assert.match(halaman,/adaButirTerpilih\(\)/,'halaman memeriksa ada tidaknya butir terpilih');
+  assert.match(halaman,/PESAN_BUTIR_WAJIB/,'pesannya diambil dari layanan, bukan ditulis ulang');
   assert.match(halaman,/butirIds:idTerpilih\(\)/,'penyusun menerima butir yang dicentang guru');
 
   const {session,siswa,butir}=siapkanIntra();
   const ids=butir.slice(0,2).map(item=>item.id);
-  const dariHalaman=composeIntracurricularDescriptionFromCp(session,{subjectId:'mtk',
-    butirIds:ids,jenis:'teori',predicate:'Baik'});
+  const dariHalaman=composeIntracurricularDescriptionFromCp(session,{studentName:siswa.name,
+    subjectId:'mtk',butirIds:ids,jenis:'teori',predicate:'Baik'});
   const tersimpan=saveStudentIntracurricularSelection(session,siswa.id,{subjectId:'mtk',
     butirIds:ids,jenis:'teori',predicate:'Baik'});
   assert.equal(dariHalaman,tersimpan.description,

@@ -112,11 +112,20 @@ export function findCocurricularPreset(activity){
    preset tingkat kelasnya, dan predikat. Tidak ada capaian yang dikarang untuk kegiatan yang
    presetnya tidak dikenal - kalimatnya cukup berhenti pada keikutsertaan dan predikat. */
 const NADA_KOKURIKULER=Object.freeze({
-  'Sangat Baik':'terlibat aktif dan konsisten',
-  'Baik':'terlibat dengan baik',
-  'Cukup':'terlibat dengan cukup baik',
-  'Perlu Bimbingan':'terlibat dan masih memerlukan bimbingan',
+  'Sangat Baik':['terlibat aktif dan konsisten','menunjukkan keterlibatan yang sangat baik','berpartisipasi aktif dan konsisten'],
+  'Baik':['terlibat dengan baik','menunjukkan keterlibatan yang baik','berpartisipasi dengan baik'],
+  'Cukup':['terlibat dengan cukup baik','menunjukkan keterlibatan yang cukup'],
+  'Perlu Bimbingan':['terlibat dan masih memerlukan bimbingan','masih memerlukan bimbingan untuk terlibat secara konsisten'],
 });
+/* Redaksi berganti-ganti supaya satu rombel tidak berbunyi seragam, tetapi TETAP untuk masukan
+   yang sama: kalimat yang sama harus lahir lagi ketika guru menekan Generate untuk kedua
+   kalinya. Indeksnya karena itu diturunkan dari isi masukannya, bukan dari Math.random. */
+function pilihNada(daftar,kunci){
+  if(!Array.isArray(daftar)||!daftar.length)return '';
+  let angka=0;const teks=String(kunci||'');
+  for(let i=0;i<teks.length;i+=1)angka=(angka*31+teks.charCodeAt(i))>>>0;
+  return daftar[angka%daftar.length];
+}
 function tanpaTitik(teks){return String(teks||'').trim().replace(/[.!?]+$/,'');}
 function hurufKecilAwal(teks){return `${String(teks||'').charAt(0).toLowerCase()}${String(teks||'').slice(1)}`;}
 
@@ -125,10 +134,15 @@ export function generateCocurricularDescription({studentName='',activity,predica
   const preset=findCocurricularPreset(activityName);
   const grade=Number.parseInt(String(classId||'').trim(),10);
   const daftar=preset?(grade&&grade<=3?preset.lower:preset.upper):[];
-  const nada=NADA_KOKURIKULER[predicate]||NADA_KOKURIKULER.Baik;
   const nama=String(studentName||'Siswa').trim()||'Siswa';
   const kegiatan=activityName||'kegiatan kokurikuler';
-  const capaian=tanpaTitik(daftar[0]||'');
-  const inti=`${nama} ${nada} pada kegiatan kokurikuler ${kegiatan}.`;
-  return capaian?`${inti} ${capaian[0].toUpperCase()}${hurufKecilAwal(capaian).slice(1)}.`:inti;
+  const nada=pilihNada(NADA_KOKURIKULER[predicate]||NADA_KOKURIKULER.Baik,`${nama}|${kegiatan}|${predicate}`);
+  /* KALIMATNYA TERIKAT PADA KEGIATAN YANG SEDANG DIPILIH. Nama kegiatan selalu ikut, sehingga
+     deskripsi yang lahir untuk satu kegiatan tidak pernah dapat dibaca sebagai deskripsi
+     kegiatan lain. */
+  const inti=`Ananda ${nama} ${nada} pada kegiatan kokurikuler ${kegiatan}.`;
+  /* Keterangan preset menerangkan KEGIATANNYA, bukan capaian anak. Ia disebut sebagai fokus
+     kegiatan - bukan sebagai prestasi yang tidak pernah dinilai guru. */
+  const fokus=tanpaTitik(daftar[0]||'');
+  return fokus?`${inti} Kegiatan ini mencakup ${hurufKecilAwal(fokus)}.`:inti;
 }

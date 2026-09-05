@@ -14,7 +14,8 @@ import { listCpButir, setCpButirActive } from '../src/services/cp-butir.js';
 import { getAdminReadiness } from '../src/services/admin-readiness.js';
 import { listIntracurricularObjectives } from '../src/services/intracurricular.js';
 import { saveTeacherProfile } from '../src/services/master.js';
-import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 /* CP RESMI SD — sumber resmi, fase benar, dan tidak ada CP karangan.
 

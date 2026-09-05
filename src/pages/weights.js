@@ -1,6 +1,6 @@
 import { ASSESSMENT_TYPES, getAssessmentSettings, resetAssessmentSettings, saveAllAssessmentSettings, saveAssessmentSettings } from '../services/assessment.js';
 import { defaultReportRubric, NILAI_MAKSIMUM, NILAI_MINIMUM, normalizeReportRubric,
-  REPORT_CATEGORIES } from '../services/report-rubric.js';
+  REPORT_CATEGORIES, rubricConsistency, suggestReportRubricForKktp } from '../services/report-rubric.js';
 import { ATTENDANCE_CONVERSION_DEFAULT, getAttendanceConversion, getDailyAttendanceMode, resetAttendanceConversion, saveAttendanceConversion, saveDailyAttendanceMode } from '../services/report.js';
 import { listActiveSubjects } from '../services/subjects.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
@@ -43,20 +43,27 @@ export function renderWeights(session){
   });
 function draw(){
     const settings=getAssessmentSettings(session,subjectId);const conversion=getAttendanceConversion(session);const dailyMode=getDailyAttendanceMode(session,subjectId);
-    editor.innerHTML=`<section class="card weights-card"><div class="section-head"><div><h3>${escapeHtml(subjects.find(subject=>subject.id===subjectId)?.name||'')}</h3><p>Seluruh bobot harus berjumlah tepat 100%.</p></div><div class="weight-total" data-total><span>Total Bobot</span><strong>100%</strong></div></div><div class="weight-grid">${ASSESSMENT_TYPES.map(type=>`<div class="weight-item"><label for="weight-${type.id}">${escapeHtml(type.label)}</label><div class="number-suffix"><input class="input" type="number" min="0" max="100" step="0.01" id="weight-${type.id}" data-weight="${type.id}" value="${settings[type.id]}"/><span>%</span></div></div>`).join('')}</div><div class="kktp-panel"><div><h3>KKTP Mata Pelajaran</h3><p>Kriteria Ketercapaian Tujuan Pembelajaran untuk mapel terpilih.</p></div><div class="number-suffix kktp-input"><input class="input" type="number" min="0" max="100" step="0.01" data-kktp value="${settings.kktp}"/><span>nilai</span></div></div><div class="rubric-panel"><div class="section-head"><div><h3>Rubrik Kategori Deskripsi Rapor</h3><p>Rentang nilai yang menentukan kategori pada kalimat Deskripsi Rapor mata pelajaran ini. Nilai bawaan aplikasi, bukan ketentuan resmi - silakan sesuaikan. KKTP di atas tidak terpengaruh.</p></div><button class="btn btn-light btn-small" type="button" data-reset-rubric>${icon('rotate',15)} Reset Rubrik</button></div><div class="rubric-grid">${settings.rubric.map(item=>`<div class="rubric-row" data-rubric="${escapeHtml(item.category)}"><span class="rubric-name">${escapeHtml(item.category)}</span><div class="number-suffix"><input class="input" type="number" min="${NILAI_MINIMUM}" max="${NILAI_MAKSIMUM}" step="1" data-rubric-min value="${Number(item.min)}"/><span>s.d.</span></div><div class="number-suffix"><input class="input" type="number" min="${NILAI_MINIMUM}" max="${NILAI_MAKSIMUM}" step="1" data-rubric-max value="${Number(item.max)}"/><span>nilai</span></div></div>`).join('')}</div><div class="rubric-status" data-rubric-status></div></div><div class="daily-source-panel"><div><h3>Penilaian Harian dari Absensi</h3><p>ON menggunakan hasil konversi kehadiran. Nilai manual dan data absensi asli tidak diubah.</p></div><label class="switch"><input type="checkbox" data-daily-mode ${dailyMode?'checked':''}/> ${dailyMode?'ON':'OFF'}</label></div><div class="attendance-conversion"><div class="section-head"><div><h3>Konversi Kehadiran Terpusat</h3><p>Berlaku untuk semua mapel yang mengaktifkan opsi di atas pada scope ini.</p></div><button class="btn btn-light btn-small" data-reset-conversion>${icon('rotate',15)} Reset Konversi</button></div><div class="conversion-grid">${Object.keys(ATTENDANCE_CONVERSION_DEFAULT).map(status=>`<div class="weight-item"><label>${status}</label><div class="number-suffix"><input class="input" type="number" min="0" max="100" step="0.01" data-conversion="${status}" value="${conversion[status]}"/><span>nilai</span></div></div>`).join('')}</div></div><div class="login-error hidden" data-error></div></section>`;
+    editor.innerHTML=`<section class="card weights-card"><div class="section-head"><div><h3>${escapeHtml(subjects.find(subject=>subject.id===subjectId)?.name||'')}</h3><p>Seluruh bobot harus berjumlah tepat 100%.</p></div><div class="weight-total" data-total><span>Total Bobot</span><strong>100%</strong></div></div><div class="weight-grid">${ASSESSMENT_TYPES.map(type=>`<div class="weight-item"><label for="weight-${type.id}">${escapeHtml(type.label)}</label><div class="number-suffix"><input class="input" type="number" min="0" max="100" step="0.01" id="weight-${type.id}" data-weight="${type.id}" value="${settings[type.id]}"/><span>%</span></div></div>`).join('')}</div><div class="kktp-panel"><div><h3>KKTP Mata Pelajaran</h3><p>Kriteria Ketercapaian Tujuan Pembelajaran untuk mapel terpilih.</p></div><div class="number-suffix kktp-input"><input class="input" type="number" min="0" max="100" step="0.01" data-kktp value="${settings.kktp}"/><span>nilai</span></div></div><div class="rubric-panel"><div class="section-head"><div><h3>Rubrik Kategori Deskripsi Rapor</h3><p>Rentang nilai yang menentukan kategori pada kalimat Deskripsi Rapor mata pelajaran ini. Nilai bawaan aplikasi, bukan ketentuan resmi - silakan sesuaikan. KKTP di atas tidak terpengaruh.</p></div><div class="row-actions"><button class="btn btn-light btn-small" type="button" data-align-rubric>${icon('target',15)} Sesuaikan dengan KKTP</button><button class="btn btn-light btn-small" type="button" data-reset-rubric>${icon('rotate',15)} Reset Rubrik</button></div></div><div class="rubric-grid">${settings.rubric.map(item=>`<div class="rubric-row" data-rubric="${escapeHtml(item.category)}"><span class="rubric-name">${escapeHtml(item.category)}</span><div class="number-suffix"><input class="input" type="number" min="${NILAI_MINIMUM}" max="${NILAI_MAKSIMUM}" step="1" data-rubric-min value="${Number(item.min)}"/><span>s.d.</span></div><div class="number-suffix"><input class="input" type="number" min="${NILAI_MINIMUM}" max="${NILAI_MAKSIMUM}" step="1" data-rubric-max value="${Number(item.max)}"/><span>nilai</span></div></div>`).join('')}</div><div class="rubric-status" data-rubric-status></div></div><div class="daily-source-panel"><div><h3>Penilaian Harian dari Absensi</h3><p>ON menggunakan hasil konversi kehadiran. Nilai manual dan data absensi asli tidak diubah.</p></div><label class="switch"><input type="checkbox" data-daily-mode ${dailyMode?'checked':''}/> ${dailyMode?'ON':'OFF'}</label></div><div class="attendance-conversion"><div class="section-head"><div><h3>Konversi Kehadiran Terpusat</h3><p>Berlaku untuk semua mapel yang mengaktifkan opsi di atas pada scope ini.</p></div><button class="btn btn-light btn-small" data-reset-conversion>${icon('rotate',15)} Reset Konversi</button></div><div class="conversion-grid">${Object.keys(ATTENDANCE_CONVERSION_DEFAULT).map(status=>`<div class="weight-item"><label>${status}</label><div class="number-suffix"><input class="input" type="number" min="0" max="100" step="0.01" data-conversion="${status}" value="${conversion[status]}"/><span>nilai</span></div></div>`).join('')}</div></div><div class="login-error hidden" data-error></div></section>`;
     editor.querySelectorAll('[data-weight]').forEach(input=>input.oninput=updateTotal);updateTotal();
     editor.querySelectorAll('[data-rubric] input').forEach(input=>input.oninput=updateTotal);
+    /* KKTP ikut memicu pemeriksaan: mengubah KKTP dapat membuat rubrik yang tadinya selaras
+       menjadi bertentangan, dan guru harus melihatnya seketika - bukan setelah rapor tercetak. */
+    editor.querySelector('[data-kktp]').oninput=updateTotal;
+    editor.querySelector('[data-align-rubric]').onclick=async()=>{
+      const kktp=Number(editor.querySelector('[data-kktp]').value);
+      const usul=suggestReportRubricForKktp(rubricValue(),kktp);
+      if(!usul){toast(`Rubrik tidak dapat diselaraskan dengan KKTP ${editor.querySelector('[data-kktp]').value}. Periksa kembali KKTP mata pelajaran ini.`,'error');return;}
+      if(!await confirmDialog({title:'Sesuaikan Rubrik dengan KKTP',
+        message:`Ubah rentang menjadi ${usul.map(item=>`${item.category} ${item.min}-${item.max}`).join(', ')}? Perubahan baru tersimpan setelah Anda menekan Simpan.`,
+        confirmText:'Sesuaikan'}))return;
+      isiRubrik(usul);
+      toast('Rubrik diselaraskan dengan KKTP. Tekan Simpan untuk menyimpannya.','warning');
+    };
     editor.querySelector('[data-reset-rubric]').onclick=async()=>{
       if(!await confirmDialog({title:'Reset Rubrik Deskripsi Rapor',
         message:`Kembalikan rentang menjadi ${defaultReportRubric().map(item=>`${item.category} ${item.min}-${item.max}`).join(', ')}?`,
         confirmText:'Reset'}))return;
-      defaultReportRubric().forEach(item=>{
-        const row=editor.querySelector(`[data-rubric="${item.category}"]`);
-        if(!row)return;
-        row.querySelector('[data-rubric-min]').value=item.min;
-        row.querySelector('[data-rubric-max]').value=item.max;
-      });
-      updateTotal();
+      isiRubrik(defaultReportRubric());
       toast('Rubrik dikembalikan ke nilai bawaan. Tekan Simpan untuk menyimpannya.','warning');
     };
     editor.querySelector('[data-daily-mode]').onchange=event=>{event.target.parentElement.lastChild.textContent=event.target.checked?' ON':' OFF';};
@@ -77,16 +84,36 @@ function draw(){
   function updateRubricStatus(){
     const kotak=editor.querySelector('[data-rubric-status]');
     if(!kotak)return true;
+    let rubrik;
     try{
-      normalizeReportRubric(rubricValue());
-      kotak.className='rubric-status rubric-valid';
-      kotak.textContent=`Rubrik sah: setiap nilai ${NILAI_MINIMUM} sampai ${NILAI_MAKSIMUM} masuk tepat satu kategori.`;
-      return true;
+      rubrik=normalizeReportRubric(rubricValue());
     }catch(error){
       kotak.className='rubric-status rubric-invalid';
       kotak.textContent=error.message;
       return false;
     }
+    /* Struktur rubrik sah. Sekarang keselarasannya dengan KKTP - PERINGATAN, bukan penolakan:
+       sekolah tetap boleh menyimpannya, tetapi tidak boleh tanpa diberi tahu. */
+    const selaras=rubricConsistency(rubrik,Number(editor.querySelector('[data-kktp]').value));
+    if(!selaras.consistent){
+      kotak.className='rubric-status rubric-warning';
+      kotak.textContent=`${selaras.message} Tekan Sesuaikan dengan KKTP untuk memperbaikinya.`;
+      return true;
+    }
+    kotak.className='rubric-status rubric-valid';
+    kotak.textContent=`Rubrik sah dan selaras dengan KKTP ${selaras.kktp}: setiap nilai ${NILAI_MINIMUM} sampai ${NILAI_MAKSIMUM} masuk tepat satu kategori.`;
+    return true;
+  }
+  /* Mengisi kotak rubrik dengan usulan; guru tetap harus menekan Simpan sendiri. Tidak ada
+     satu angka pun yang berubah di penyimpanan sebelum itu. */
+  function isiRubrik(daftar){
+    daftar.forEach(item=>{
+      const row=editor.querySelector(`[data-rubric="${item.category}"]`);
+      if(!row)return;
+      row.querySelector('[data-rubric-min]').value=item.min;
+      row.querySelector('[data-rubric-max]').value=item.max;
+    });
+    updateTotal();
   }
   function updateTotal(){
     const total=[...editor.querySelectorAll('[data-weight]')].reduce((sum,input)=>sum+(Number(input.value)||0),0);

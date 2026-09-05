@@ -47,20 +47,29 @@ export function findExtracurricularDefault(classId,name){
    tersimpan atau bawaannya, dan predikat. Kegiatan yang tidak punya keterangan tidak dikarangkan
    capaian - kalimatnya berhenti pada keikutsertaan dan predikat. */
 const NADA_EKSTRA=Object.freeze({
-  'Sangat Baik':'mengikuti dengan sangat baik, aktif, dan konsisten',
-  'Baik':'mengikuti dengan baik dan tertib',
-  'Cukup':'mengikuti dengan cukup baik',
-  'Perlu Bimbingan':'mengikuti dan masih memerlukan bimbingan',
+  'Sangat Baik':['mengikuti dengan sangat baik, aktif, dan konsisten','menunjukkan keaktifan yang sangat baik dalam mengikuti'],
+  'Baik':['mengikuti dengan baik dan tertib','menunjukkan keaktifan yang baik dalam mengikuti'],
+  'Cukup':['mengikuti dengan cukup baik','cukup aktif mengikuti'],
+  'Perlu Bimbingan':['mengikuti dan masih memerlukan bimbingan','masih memerlukan bimbingan untuk mengikuti secara konsisten'],
 });
+/* Sama seperti Kokurikuler: bervariasi, tetapi tetap untuk masukan yang sama. */
+function pilihNadaEkstra(daftar,kunci){
+  if(!Array.isArray(daftar)||!daftar.length)return '';
+  let angka=0;const teks=String(kunci||'');
+  for(let i=0;i<teks.length;i+=1)angka=(angka*31+teks.charCodeAt(i))>>>0;
+  return daftar[angka%daftar.length];
+}
 function tanpaTitikEkstra(teks){return String(teks||'').trim().replace(/[.!?]+$/,'');}
 
 export function generateExtracurricularDescription({studentName='',activity,predicate='Baik',classId=''}={}){
   const activityName=String(activity?.name||activity||'').trim();
   const detail=tanpaTitikEkstra(activity?.description
     ||findExtracurricularDefault(classId,activityName)?.description||'');
-  const nada=NADA_EKSTRA[predicate]||NADA_EKSTRA.Baik;
   const nama=String(studentName||'Siswa').trim()||'Siswa';
   const kegiatan=activityName||'kegiatan ekstrakurikuler';
-  const inti=`${nama} ${nada} pada kegiatan ekstrakurikuler ${kegiatan}.`;
+  const nada=pilihNadaEkstra(NADA_EKSTRA[predicate]||NADA_EKSTRA.Baik,`${nama}|${kegiatan}|${predicate}`);
+  /* Nama kegiatan selalu ikut ke dalam kalimat, sehingga deskripsi satu kegiatan tidak pernah
+     dapat terbaca sebagai deskripsi kegiatan lain. */
+  const inti=`Ananda ${nama} ${nada} pada kegiatan ekstrakurikuler ${kegiatan}.`;
   return detail?`${inti} Kegiatan ini ${detail}.`:inti;
 }

@@ -8,7 +8,8 @@ import { createWorkbookBytes, readWorkbookRows } from '../src/services/excel.js'
 import { getLeger, getReportDocument } from '../src/services/documents.js';
 import { getStoredReportRows, saveAutomaticReportScores, visibleStoredReportRows } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping, storageKey } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb, storageKey } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');

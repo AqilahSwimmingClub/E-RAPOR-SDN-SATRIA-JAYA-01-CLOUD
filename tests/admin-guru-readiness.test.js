@@ -6,7 +6,8 @@ import { getAdminReadiness, activateTeacherUsage, deactivateTeacherUsage, isTeac
   READINESS_ITEMS, teacherUsageScopeKey } from '../src/services/admin-readiness.js';
 import { saveSchoolIdentitySetup, saveTeacherProfile } from '../src/services/master.js';
 import { setTeacherActive } from '../src/services/auth.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 import { saveAssessmentScores, saveAssessmentSettings } from '../src/services/assessment.js';
 import { createStudent } from '../src/services/students.js';
 import { setTeacherAssignment } from '../src/services/teacher-assignments.js';

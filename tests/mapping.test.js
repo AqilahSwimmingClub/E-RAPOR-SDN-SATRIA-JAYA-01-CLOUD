@@ -2,7 +2,8 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { canReorderWithinGroup, moveSubjectToGroup, normalizeMappingGroups, reorderWithinGroup } from '../src/services/mapping.js';
 import { ensureDefaultSubjects } from '../src/services/seed.js';
-import { getSubjectMapping, mappingKey, saveSubjectMapping } from '../src/services/storage.js';
+import { getSubjectMapping, mappingKey } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 function useMemoryStorage(){
   const values=new Map();

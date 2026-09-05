@@ -8,7 +8,7 @@ import { assertReportPrintable, getLeger, getReportCompleteness, getReportDocume
 import { createLearningObjective } from '../src/services/objectives.js';
 import { saveManualReportScore } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
-import { saveSubjectMapping } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 function useMemoryStorage(){const values=new Map();globalThis.localStorage={getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};}
 const teacher={role:'teacher',classId:'5B',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
@@ -37,7 +37,7 @@ test('Stored attendance and descriptions are included in the report document',()
   useMemoryStorage();saveSubjectMapping(teacher,mapping());const student=addStudent(1);completeStudent(student,1);const document=getReportDocument(teacher,student.id);assert.equal(document.attendance.Sakit,1);assert.equal(document.attendance.Izin,0);/* Deskripsi rapor kini bersumber Butir CP mata pelajaran, bukan TP: yang diperiksa adalah
      kolomnya benar-benar terisi kalimat capaian, dan tidak mengulang nama mata pelajaran. */
   for(const baris of document.subjects.slice(0,2)){
-    assert.match(baris.description,/^(Mencapai|Cukup mencapai|Perlu meningkatkan|Menempuh) /,
+    assert.match(baris.description,/^Ananda .+ (menunjukkan capaian|telah menunjukkan capaian|perlu meningkatkan pemahaman|menempuh pembelajaran) /,
       'deskripsi rapor memakai bingkai capaian');
     assert.equal(/mata pelajaran/i.test(baris.description),false,'nama mapel tidak diulang');
   }assert.equal(document.finalStatusLabel,'Naik ke Kelas 6B','status kenaikan tersedia tanpa menunggu semester Genap');

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, CLASSES, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { cpElements } from '../src/data/curriculum-cp.js';
 import { phaseForClassId } from '../src/data/learning-objective-defaults.js';
-import { composeIntracurricularCpDescription, composeReportCpDescription,
+import { composeIntracurricularButirDescription, composeReportButirDescription,
   cpAcuanFor } from '../src/services/cp-descriptions.js';
 import { clearManualAttendance, getManualAttendance, saveAttendance, saveManualAttendance,
   semesterAttendanceRecap, studentAbsenceTotals } from '../src/services/attendance.js';
@@ -18,7 +18,8 @@ import { saveAssessmentScores, saveAssessmentSettings, ASSESSMENT_TYPES } from '
 import { attendanceDerivedSheet, calculateReportScore,
   saveDailyAttendanceMode } from '../src/services/report.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 /* SATU CP, DUA KONTEKS DESKRIPSI - beserta kehadiran manual dan Nilai Sikap.
 
@@ -62,7 +63,7 @@ test('1. Intrakurikuler tidak membutuhkan pilihan TP sama sekali',()=>{
   aktifkanMapel(sesi,['mtk']);
   const siswa=tambahSiswa(sesi);
   /* Tanpa TP apa pun disiapkan, Intrakurikuler tetap dapat diisi. */
-  const saved=saveStudentIntracurricularSelection(sesi,siswa.id,{subjectId:'mtk',predicate:'Baik'});
+  const saved=saveStudentIntracurricularSelection(sesi,siswa.id,{subjectId:'mtk',butirIds:listCpButirForSemester(sesi,'mtk').slice(0,1).map(item=>item.id),predicate:'Baik'});
   assert.ok(saved.description);
   assert.equal(saved.source,'CP');
   /* Dan halamannya memang tidak lagi memuat satu pun checkbox TP. */
@@ -100,9 +101,12 @@ test('6. CP yang belum tersedia dinyatakan apa adanya, tidak dikarang',()=>{
   assert.equal(cp.available,false,'Koding & KA belum berlaku pada Fase A');
   assert.deepEqual(cp.elements,[]);
   assert.ok(cp.reason&&cp.reason.length>20,'alasannya dinyatakan');
-  assert.equal(composeIntracurricularCpDescription({cp:null,jenis:'teori',predicate:'Baik'}),null,
-    'tanpa CP tidak ada kalimat pengganti');
-  assert.equal(composeReportCpDescription({cp:null,finalScore:90}),null);
+  /* Penyusun cadangan berbasis nama Elemen CP DIBUANG atas permintaan resmi: satu-satunya
+     dasar penilaian sekarang adalah Butir CP aktif. Tanpa butir, tidak ada kalimat sama
+     sekali - bukan kalimat pengganti yang terdengar benar. */
+  assert.equal(composeIntracurricularButirDescription({studentName:'Siswa 1',butir:[],jenis:'teori',predicate:'Baik'}),null,
+    'tanpa Butir CP tidak ada kalimat pengganti');
+  assert.equal(composeReportButirDescription({studentName:'Siswa 1',butir:[],finalScore:90}),null);
 });
 
 /* ------------------------------------------------- §V.7-8 DUA GENERATOR YANG BERBEDA */
@@ -111,30 +115,32 @@ test('7-8. Generator Intrakurikuler dan Nilai Rapor terpisah dan hasilnya berbed
   useMemoryStorage();
   const sesi=guru('5B');
   aktifkanMapel(sesi,['mtk']);
-  const cp=cpAcuanFor(sesi,'mtk');
-
-  /* CP yang SAMA persis dimasukkan ke kedua penyusun kalimat. Nama murid dan nama mata
-     pelajaran TIDAK lagi ikut: keduanya sudah tercetak pada rapor dan pada layar aplikasi. */
-  const intra=composeIntracurricularCpDescription({cp,jenis:'teori',predicate:'Sangat Baik'});
-  const rapor=composeReportCpDescription({cp,finalScore:95,kktp:75});
+  /* BUTIR CP yang SAMA persis dimasukkan ke kedua penyusun kalimat. Nama mata pelajaran TIDAK
+     ikut - ia sudah tercetak pada rapor dan pada layar aplikasi - tetapi nama MURID ikut pada
+     keduanya, karena kalimatnya dibaca orang tua. */
+  const butir=listCpButirForSemester(sesi,'mtk');
+  assert.ok(butir.length,'Matematika Fase C punya Butir CP aktif');
+  const intra=composeIntracurricularButirDescription({studentName:'Siswa 1',butir,
+    jenis:'teori',predicate:'Sangat Baik'});
+  const rapor=composeReportButirDescription({studentName:'Siswa 1',butir,finalScore:95});
   assert.ok(intra&&rapor);
-  assert.notEqual(intra,rapor,'satu CP tidak boleh melahirkan dua kalimat yang sama');
+  assert.notEqual(intra,rapor,'satu Butir CP tidak boleh melahirkan dua kalimat yang sama');
   /* Masing-masing berbicara sesuai fungsinya: Intrakurikuler menyatakan kompetensi yang
-     ditunjukkan pada kegiatan penilaian, Rapor menyatakan tingkat penguasaan satu semester. */
-  assert.match(intra,/^Menguasai /,'Intrakurikuler memakai bahasa kegiatan penilaian');
-  assert.match(rapor,/kompetensi/i,'Nilai Rapor bicara pencapaian kompetensi');
-  assert.equal(/^Menguasai /.test(rapor),false,'Nilai Rapor tidak memakai bingkai Intrakurikuler');
+     ditunjukkan pada kegiatan penilaian, Rapor menyatakan tingkat capaian satu semester. */
+  for(const teks of [intra,rapor])assert.match(teks,/^Ananda Siswa 1 /,'keduanya menyapa murid');
+  assert.match(rapor,/menunjukkan capaian/,'Nilai Rapor bicara capaian semester');
+  assert.equal(/menunjukkan capaian/.test(intra),false,
+    'Intrakurikuler tidak memakai bingkai capaian rapor');
   for(const teks of [intra,rapor])
     assert.equal(/mata pelajaran/i.test(teks),false,'nama mata pelajaran tidak diulang di kalimat');
-  /* Keduanya tetap berpijak pada elemen CP yang sama. */
-  for(const elemen of cp.elements){
-    assert.ok(intra.toLowerCase().includes(elemen.toLowerCase()));
-    assert.ok(rapor.toLowerCase().includes(elemen.toLowerCase()));
-  }
+  /* Keduanya tetap berpijak pada substansi Butir CP yang sama. */
+  const substansi=String(butir[0].teori||'').toLowerCase();
+  assert.ok(intra.toLowerCase().includes(substansi));
+  assert.ok(rapor.toLowerCase().includes(substansi));
   /* Dan keduanya memang dua fungsi berbeda pada berkas yang sama. */
   const sumber=read('src/services/cp-descriptions.js');
-  assert.match(sumber,/export function composeIntracurricularCpDescription/);
-  assert.match(sumber,/export function composeReportCpDescription/);
+  assert.match(sumber,/export function composeIntracurricularButirDescription/);
+  assert.match(sumber,/export function composeReportButirDescription/);
 });
 
 test('8b. Deskripsi tersimpan Intrakurikuler berbeda dari deskripsi Nilai Rapor tersimpan',()=>{
@@ -161,9 +167,9 @@ test('9-11. Isi Otomatis Semua Siswa bekerja, tanpa duplikasi, tanpa menimpa tul
   const anak=[1,2,3].map(index=>tambahSiswa(sesi,index));
   /* Satu murid sudah punya deskripsi tulisan tangan guru. */
   saveStudentIntracurricularSelection(sesi,anak[2].id,
-    {subjectId:'mtk',predicate:'Baik',description:'Catatan khusus wali kelas untuk murid ini.'});
+    {subjectId:'mtk',butirIds:listCpButirForSemester(sesi,'mtk').slice(0,1).map(item=>item.id),predicate:'Baik',description:'Catatan khusus wali kelas untuk murid ini.'});
 
-  const hasil=fillAllIntracurricular(sesi,{subjectId:'mtk',predicate:'Sangat Baik'});
+  const hasil=fillAllIntracurricular(sesi,{subjectId:'mtk',butirIds:listCpButirForSemester(sesi,'mtk').slice(0,1).map(item=>item.id),predicate:'Sangat Baik'});
   assert.equal(hasil.total,3);
   assert.equal(hasil.terisi,2,'dua murid terisi otomatis');
   assert.equal(hasil.dilewati.length,1,'tulisan guru dilewati, bukan ditimpa');
@@ -183,7 +189,7 @@ test('9-11. Isi Otomatis Semua Siswa bekerja, tanpa duplikasi, tanpa menimpa tul
     'tanpa subjectId tidak ada catatan per mapel yang dikembalikan');
 
   /* Dijalankan dua kali tidak menggandakan catatan: satu murid tetap satu record. */
-  const ulang=fillAllIntracurricular(sesi,{subjectId:'mtk',predicate:'Sangat Baik'});
+  const ulang=fillAllIntracurricular(sesi,{subjectId:'mtk',butirIds:listCpButirForSemester(sesi,'mtk').slice(0,1).map(item=>item.id),predicate:'Sangat Baik'});
   assert.equal(ulang.terisi,2);
   assert.equal(getStudentIntracurricularSelection(sesi,anak[0].id,'mtk').description,
     getStudentIntracurricularSelection(sesi,anak[0].id,'mtk').description);
@@ -200,8 +206,8 @@ test('12-13. Deskripsi Nilai Rapor memakai CP sesuai fase dan mengikuti Nilai Ak
   const tinggi=teks(95),sedang=teks(80),rendah=teks(60);
   assert.equal(new Set([tinggi,sedang,rendah]).size,3,'Nilai Akhir mengubah konteks kalimat');
   /* Bentuk kalimat rapor diubah atas permintaan resmi menjadi empat kategori terhadap KKTP. */
-  assert.match(tinggi,/^Mencapai kompetensi dengan sangat baik dalam hal /);
-  assert.match(rendah,/^(Cukup mencapai|Perlu meningkatkan) kompetensi/);
+  assert.match(tinggi,/^Ananda .+ menunjukkan capaian penguasaan yang sangat baik dalam /);
+  assert.match(rendah,/^Ananda .+ (telah menunjukkan capaian pemahaman yang cukup|perlu meningkatkan pemahaman) mengenai /);
   const hasil=generateReportDescription(sesi,'mtk',siswa.id,{});
   assert.equal(hasil.cpPhase,'C','CP mengikuti fase rombel');
   /* Yang masuk kalimat adalah SUBSTANSI Butir CP - kompetensi yang benar-benar diajarkan -
