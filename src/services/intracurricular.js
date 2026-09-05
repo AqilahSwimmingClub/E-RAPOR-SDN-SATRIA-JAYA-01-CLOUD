@@ -5,6 +5,7 @@ import { composeIntracurricularButirDescription, cpAcuanFor,
   jenisIntrakurikulerValid } from './cp-descriptions.js';
 import { cpButirAvailable, listCpButirForSemester, semesterNumberOf } from './cp-butir.js';
 import { ACTIVITY_PREDICATES, getStudentIntracurricular, saveStudentIntracurricular, intracurricularIncludedInReport, setIntracurricularReportInclusion } from './completeness.js';
+import { predikatIntraDariCapaian } from './cp-attainment.js';
 import { listObjectivesForAssessment, resolveObjective } from './learning-objectives.js';
 import { ringkasObjectives } from './objective-summary.js';
 import { listReferenceAcademicYears, listReferenceSemesters } from './references.js';
@@ -285,6 +286,22 @@ export function saveStudentIntracurricularSelection(session,studentId,{subjectId
    DITAMPILKAN DI RAPOR adalah dua hal berbeda. Melepas centang hanya menutup barisnya di
    rapor; deskripsi, predikat, dan butir CP-nya tetap ada dan langsung terpakai lagi begitu
    dicentang kembali. */
+/* PREDIKAT DARI BUKTI NILAI.
+
+   Guru sudah memasukkan nilai lewat menu Penilaian, dan nilai itu sudah membawa keterangan
+   Butir CP yang diukurnya. Meminta guru menilai kompetensi yang sama sekali lagi di sini
+   hanya membuka satu pintu: dua sumber kebenaran yang bisa saling bertentangan.
+
+   Karena itu, bila bukti nilainya ada, predikatnya DIBACA dari capaian kompetensi murid
+   terhadap KKTP dan Rubrik sekolah. Bila belum ada bukti, hasilnya null dan guru tetap
+   memilih sendiri seperti sebelumnya - aplikasi tidak menebak. */
+export function predikatOtomatisIntra(session,studentId,subjectId){
+  assertTeacherScope(session);
+  const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
+  if(!subject)throw new Error('Pilih mata pelajaran intrakurikuler yang aktif pada rombel ini.');
+  return predikatIntraDariCapaian(session,subject.id,studentId);
+}
+
 export function setIntracurricularVisibility(session,studentId,subjectId,include){
   assertTeacherScope(session);
   const subject=listActiveSubjects(session).find(item=>item.id===subjectId);
@@ -353,7 +370,19 @@ export function previewAllIntracurricular(session,{subjectId,butirIds=[],
        disunting atau lewat catatan yang tersimpan - predikat itulah yang dipakai. Menyamakan
        seluruh rombel menjadi "Baik" berarti menghapus penilaian yang sudah dilakukan guru. */
     const lama=getStudentIntracurricularSelection(session,student.id,subject.id);
+    /* URUTAN SUMBER PREDIKAT, dari yang paling berhak menentukan:
+
+         1. pilihan yang dikirim halaman untuk murid ini - guru sedang menyatakannya sekarang;
+         2. BUKTI NILAI yang sudah terhubung Butir CP - capaian murid itu sendiri;
+         3. catatan lamanya;
+         4. predikat umum yang dipilih guru untuk seluruh kelas.
+
+       Bukti nilai berada di atas catatan lama supaya nilai yang baru dimasukkan guru langsung
+       terbaca, dan supaya tidak ada murid yang capaiannya di bawah KKTP tetapi tercatat
+       "Sangat Baik" hanya karena catatan lamanya begitu. */
+    const dariCapaian=predikatIntraDariCapaian(session,subject.id,student.id);
     const predikatMurid=predikatSah(predicates?.[student.id])
+      ||predikatSah(dariCapaian?.predicate)
       ||predikatSah(lama?.predicate)
       ||predicate;
     const otomatis=deskripsiUntuk(student,predikatMurid);

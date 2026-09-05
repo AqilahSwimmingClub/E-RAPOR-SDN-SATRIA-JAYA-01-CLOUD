@@ -66,7 +66,7 @@ test('3. Predikat menyediakan empat pilihan, urut dari yang tertinggi',()=>{
   for(const predikat of ACTIVITY_PREDICATES){
     saveStudentExtracurricular(session,student.id,{name:'Pramuka Penggalang',predicate:predikat,description:'Deskripsi.'});
     saveStudentCocurricular(session,student.id,{activity:'Kunjungan Edukasi (Field Trip)',predicate:predikat,description:'Deskripsi.'});
-    saveStudentIntracurricular(session,student.id,{activity:'Literasi Kritis dan Presentasi',predicate:predikat,description:'Deskripsi.'});
+    saveStudentIntracurricular(session,student.id,{activity:'Literasi Kritis dan Presentasi',predicate:predikat,description:'Deskripsi.',includeInReport:true});
   }
   /* Predikat terakhir pada daftar kini "Perlu Bimbingan", karena daftarnya urut menurun. */
   assert.equal(getStudentExtracurricular(session,student.id).predicate,ACTIVITY_PREDICATES.at(-1));
@@ -120,7 +120,7 @@ test('6. Predikat lama Cukup dan data kokurikuler lama tetap valid',()=>{
 
 test('7. Intrakurikuler yang sudah tersimpan tetap terbaca',()=>{
   const session=siapkan();const student=siswa(session,'intra');
-  saveStudentIntracurricular(session,student.id,{activity:'Numerasi Kontekstual dan Data',predicate:'Baik',description:'Deskripsi intrakurikuler tersimpan.'});
+  saveStudentIntracurricular(session,student.id,{activity:'Numerasi Kontekstual dan Data',predicate:'Baik',description:'Deskripsi intrakurikuler tersimpan.',includeInReport:true});
   invalidateDbCache();
   assert.equal(getStudentIntracurricular(session,student.id).activity,'Numerasi Kontekstual dan Data');
   assert.match(bagianRapor(session,student.id).intra,/intrakurikuler tersimpan\./);
@@ -131,7 +131,7 @@ test('7. Intrakurikuler yang sudah tersimpan tetap terbaca',()=>{
 function isi(session,studentId,bagian){
   if(bagian.includes('ekstra'))saveStudentExtracurricular(session,studentId,{name:'Pramuka Penggalang',predicate:'Baik',description:'Deskripsi ekstrakurikuler.'});
   if(bagian.includes('koku'))saveStudentCocurricular(session,studentId,{activity:'Proyek Peduli Lingkungan',predicate:'Baik',description:'Deskripsi kokurikuler.'});
-  if(bagian.includes('intra'))saveStudentIntracurricular(session,studentId,{activity:'Literasi Kritis dan Presentasi',predicate:'Baik',description:'Deskripsi intrakurikuler.'});
+  if(bagian.includes('intra'))saveStudentIntracurricular(session,studentId,{activity:'Literasi Kritis dan Presentasi',predicate:'Baik',description:'Deskripsi intrakurikuler.',includeInReport:true});
 }
 
 test('8. Ketiga bagian kosong sehingga tidak ada satu pun tabel kegiatan',()=>{

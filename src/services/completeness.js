@@ -269,7 +269,11 @@ function normalizeIntracurricular(input){
      penanda ini ada - dibaca sebagai TAMPIL, sebab guru memang sengaja menyimpannya dahulu;
      menganggapnya tersembunyi akan mengosongkan rapor yang selama ini benar. Melepas centang
      hanya mengubah penanda ini dan tidak menghapus satu pun catatan. */
-  if(input?.includeInReport!==undefined)record.includeInReport=input.includeInReport!==false;
+  /* HANYA true YANG BERARTI TAMPIL. false, null, undefined, dan penanda yang memang tidak ada
+     sama-sama berarti tidak tampil. Bila pemanggil tidak menyebut penanda sama sekali, ia
+     dibiarkan kosong di sini supaya penyimpanan dapat mewarisi penanda yang sudah ada -
+     mengubah deskripsi tidak boleh diam-diam melepas centang yang sudah diberikan guru. */
+  if(Object.hasOwn(input||{},'includeInReport'))record.includeInReport=input.includeInReport===true;
   const objectiveIds=Array.isArray(input?.objectiveIds)
     ? [...new Set(input.objectiveIds.map(id=>clean(id,80)).filter(Boolean))].slice(0,20)
     : [];
@@ -336,12 +340,22 @@ export function listStudentIntracurricular(session,studentId){
   return hasil.sort((a,b)=>String(a.activity||'').localeCompare(String(b.activity||''),'id'));
 }
 
-/* SATU-SATUNYA TEMPAT penanda "tampil di rapor" dibaca, supaya aturan lamanya tidak pernah
-   ditafsirkan dua kali di tempat berbeda. Catatan lama yang tidak punya penanda dianggap
-   tampil: ia disimpan guru sebelum penanda ini ada, dan menyembunyikannya diam-diam akan
-   mengubah rapor yang selama ini sudah benar. */
+/* SATU-SATUNYA TEMPAT penanda "tampil di rapor" dibaca, supaya aturannya tidak pernah
+   ditafsirkan dua kali di tempat berbeda.
+
+   HANYA YANG DINYATAKAN TAMPIL YANG TAMPIL. Penanda yang bernilai false, tidak ada, null,
+   atau undefined sama-sama berarti TIDAK TAMPIL.
+
+   Aturan ini sengaja diperketat dari bentuk sebelumnya, yang membaca catatan tanpa penanda
+   sebagai "tampil". Alasannya: keberadaan sebuah catatan bukan persetujuan untuk
+   mencetaknya. Guru menyimpan catatan Intrakurikuler untuk banyak keperluan - mencoba
+   redaksi, menilai lebih dulu, menyiapkan bahan - dan tidak satu pun di antaranya sama
+   dengan menyatakan "cetak ini pada rapor".
+
+   Catatan lamanya TIDAK dihapus dan tidak diubah. Ia tetap tersimpan utuh, tinggal dicentang
+   sekali oleh guru untuk kembali tampil. */
 export function intracurricularIncludedInReport(record){
-  return record?.includeInReport!==false;
+  return record?.includeInReport===true;
 }
 
 /* Mengubah HANYA penanda tampil-di-rapor satu mata pelajaran, tanpa menyentuh deskripsi,
@@ -370,7 +384,9 @@ export function saveStudentIntracurricular(session,studentId,input){
     const key=intracurricularKey(session,studentId,value.subjectId||'');
     const existing=db.intracurricularScores?.[key];
     const now=new Date().toISOString();
-    saved=scopedRecord(session,studentId,{...value,createdAt:existing?.createdAt||now,updatedAt:now});
+    saved=scopedRecord(session,studentId,{...value,
+      includeInReport:value.includeInReport??existing?.includeInReport===true,
+      createdAt:existing?.createdAt||now,updatedAt:now});
     if(!db.intracurricularScores)db.intracurricularScores={};
     db.intracurricularScores[key]=saved;
     /* Catatan lama tanpa mapel milik MAPEL YANG SAMA dibereskan ke kunci barunya supaya tidak

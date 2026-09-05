@@ -2,6 +2,7 @@ import { ASSESSMENT_DEFAULT } from '../data/constants.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
 import { requireActiveSubject } from './subjects.js';
+import { listCpButir } from './cp-butir.js';
 import { defaultReportRubric, normalizeReportRubric, readReportRubric, rubricConsistency,
   suggestReportRubricForKktp } from './report-rubric.js';
 
@@ -198,8 +199,38 @@ export function getAssessmentSheet(session,subjectId,assessmentType){
   };
 }
 
-export function saveAssessmentScores(session,subjectId,assessmentType,values){
+export const PESAN_TANPA_BUTIR_AKTIF_NILAI='Belum ada Butir CP aktif untuk mata pelajaran ini. Aktifkan atau tambahkan Butir CP terlebih dahulu.';
+export const PESAN_BUTIR_NILAI_WAJIB='Pilih Butir CP aktif yang sedang dinilai.';
+
+/* BUTIR CP YANG SEDANG DINILAI.
+
+   Angka nilai tanpa keterangan kompetensi hanyalah angka: ia tidak dapat dipakai menyimpulkan
+   apa pun tentang penguasaan murid. Karena itu setiap nilai BARU membawa satu Butir CP yang
+   menjadi kompetensi yang sedang diukur.
+
+   Validasinya berada di sini, bukan di halaman, sehingga memanggil layanan secara langsung -
+   lewat konsol, state halaman, atau id yang diketik sendiri - tetap tertolak. Butir yang
+   diterima hanyalah butir AKTIF milik mata pelajaran itu pada fase rombel yang sedang dibuka,
+   dan mata pelajarannya sendiri sudah lebih dulu disaring `requireActiveSubject` menurut
+   Penugasan Guru dari Admin. */
+export function assertCpButirDinilai(session,subjectId,cpButirId){
+  const id=String(cpButirId||'').trim();
+  const aktif=listCpButir(session,subjectId,{activeOnly:true});
+  if(!aktif.length)throw new Error(PESAN_TANPA_BUTIR_AKTIF_NILAI);
+  if(!id)throw new Error(PESAN_BUTIR_NILAI_WAJIB);
+  const butir=aktif.find(item=>item.id===id);
+  if(!butir)throw new Error(PESAN_BUTIR_NILAI_WAJIB);
+  return butir;
+}
+
+export function saveAssessmentScores(session,subjectId,assessmentType,values,{cpButirId=null}={}){
   requireActiveSubject(session,subjectId);assertAssessmentType(assessmentType);
+  /* Butir CP hanya diperiksa bila pemanggil memang menyebutkannya. Pemanggil lama - termasuk
+     import nilai dan test yang menguji perhitungan - tetap berjalan apa adanya, dan nilainya
+     tersimpan tanpa keterangan kompetensi seperti sebelumnya. */
+  const butir=cpButirId===null||cpButirId===undefined
+    ? null
+    : assertCpButirDinilai(session,subjectId,cpButirId);
   if(!values || typeof values!=='object' || Array.isArray(values)) throw new Error('Data nilai tidak valid.');
   const students=listStudents(session,{classId:session.classId});
   const studentById=new Map(students.map(student=>[student.id,student]));
@@ -223,6 +254,10 @@ export function saveAssessmentScores(session,subjectId,assessmentType,values){
         studentId,classId:session.classId,subjectId,semester:session.semester,academicYear:session.academicYear,
         assessmentType,score,createdAt:previous?.createdAt||now,updatedAt:now,
         ...(parts&&Object.keys(parts).length?{parts}:{}),
+        /* Keterangan kompetensi ikut tersimpan bersama angkanya. Bila pemanggil tidak
+           menyebutkan butir, keterangan yang sudah ada dipertahankan - menimpanya dengan
+           kosong akan memutus hubungan yang sudah benar. */
+        ...(butir?{cpButirId:butir.id}:previous?.cpButirId?{cpButirId:previous.cpButirId}:{}),
       };
     });
     return db;

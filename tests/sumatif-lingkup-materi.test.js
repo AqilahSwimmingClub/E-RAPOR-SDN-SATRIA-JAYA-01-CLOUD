@@ -193,6 +193,11 @@ test('12. Halaman Penilaian menampilkan kolom tiap bab beserta rata-ratanya',()=
   assert.match(halaman,/const modeLingkup=\(\)=>assessmentType===SCOPE_SUMMATIVE_TYPE/);
   assert.match(halaman,/SCOPE_SUMMATIVE_PARTS\.map\(part=>`<th>\$\{escapeHtml\(part\.label\)\}<\/th>`\)/,'satu kolom untuk tiap Lingkup Materi');
   assert.match(halaman,/data-average-cell/,'kolom rata-rata ditampilkan');
-  assert.match(halaman,/saveAssessmentScores\(session,subjectId,assessmentType,values\)/,'disimpan lewat layanan penilaian yang sama');
+  /* Panggilannya kini membawa satu argumen tambahan: Butir CP yang sedang dinilai, sehingga
+     angka yang tersimpan punya keterangan kompetensi. Yang dijaga test ini tidak berubah -
+     Sumatif Lingkup Materi tetap disimpan lewat layanan penilaian yang sama, bukan lewat jalur
+     tersendiri. */
+  assert.match(halaman,/saveAssessmentScores\(session,subjectId,assessmentType,values,\{cpButirId/,
+    'disimpan lewat layanan penilaian yang sama, kini beserta Butir CP-nya');
   assert.match(read('src/styles/app.css'),/\.lm-table th,\.lm-table td\{text-align:center\}/);
 });

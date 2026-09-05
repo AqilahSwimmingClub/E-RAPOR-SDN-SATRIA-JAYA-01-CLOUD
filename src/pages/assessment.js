@@ -1,4 +1,5 @@
-import { ASSESSMENT_TYPES, SCOPE_SUMMATIVE_PARTS, SCOPE_SUMMATIVE_TYPE, getAssessmentSheet, saveAssessmentScores, scopeSummativeAverage } from '../services/assessment.js';
+import { ASSESSMENT_TYPES, PESAN_TANPA_BUTIR_AKTIF_NILAI, SCOPE_SUMMATIVE_PARTS, SCOPE_SUMMATIVE_TYPE, getAssessmentSheet, saveAssessmentScores, scopeSummativeAverage } from '../services/assessment.js';
+import { listCpButir } from '../services/cp-butir.js';
 import { fillAllAssessmentScores } from '../services/assessment-bulk.js';
 import { listActiveObjectives, phaseForClassId } from '../services/learning-objectives.js';
 import { assessmentTemplateFilename, assessmentTemplateWorkbook, commitAssessmentImport, previewAssessmentImport } from '../services/assessment-import.js';
@@ -34,7 +35,7 @@ function askScore({title,message,defaultValue='80'}){
 
 export function renderAssessment(session){
   const subjects=listActiveSubjects(session);let subjectId=subjects[0]?.id||'';let assessmentType=ASSESSMENT_TYPES[0].id;
-  const root=el(`<div><div class="page-head"><div><h1>Penilaian</h1><p>Input nilai 0–100 untuk siswa Kelas ${escapeHtml(session.classId)} pada scope aktif.</p></div><div class="actions"><button class="btn btn-primary" data-save>${icon('save',17)} Simpan Nilai</button></div></div><section class="card assessment-filter"><div class="field compact-field"><label for="assessmentSubject">Mata Pelajaran Aktif</label><select class="input" id="assessmentSubject" data-subject>${subjects.map(subject=>`<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></div><div class="field compact-field"><label for="assessmentType">Jenis Penilaian</label><select class="input" id="assessmentType" data-type>${ASSESSMENT_TYPES.map(type=>`<option value="${type.id}">${escapeHtml(type.label)}</option>`).join('')}</select></div><div class="field compact-field"><label for="assessmentFillTarget">Tampilkan Siswa</label><select class="input" id="assessmentFillTarget" data-fill-target><option value="">Semua Siswa</option></select></div><div class="scope-note">Kelas ${escapeHtml(session.classId)}<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section><section data-objectives></section><section data-summary></section><div data-list></div></div>`);
+  const root=el(`<div><div class="page-head"><div><h1>Penilaian</h1><p>Input nilai 0–100 untuk siswa Kelas ${escapeHtml(session.classId)} pada scope aktif.</p></div><div class="actions"><button class="btn btn-primary" data-save>${icon('save',17)} Simpan Nilai</button></div></div><section class="card assessment-filter"><div class="field compact-field"><label for="assessmentSubject">Mata Pelajaran Aktif</label><select class="input" id="assessmentSubject" data-subject>${subjects.map(subject=>`<option value="${escapeHtml(subject.id)}">${escapeHtml(subject.name)}</option>`).join('')}</select></div><div class="field compact-field"><label for="assessmentType">Jenis Penilaian</label><select class="input" id="assessmentType" data-type>${ASSESSMENT_TYPES.map(type=>`<option value="${type.id}">${escapeHtml(type.label)}</option>`).join('')}</select></div><div class="field compact-field form-span-2" data-butir-field><label for="assessmentButir">Butir CP yang Dinilai</label><select class="input" id="assessmentButir" data-butir></select><p class="muted" data-butir-note></p></div><div class="field compact-field"><label for="assessmentFillTarget">Tampilkan Siswa</label><select class="input" id="assessmentFillTarget" data-fill-target><option value="">Semua Siswa</option></select></div><div class="scope-note">Kelas ${escapeHtml(session.classId)}<span>${escapeHtml(session.semester)} · ${escapeHtml(session.academicYear)}</span></div></section><section data-objectives></section><section data-summary></section><div data-list></div></div>`);
   root.querySelector('.page-head .actions').insertAdjacentHTML('afterbegin','<button class="btn btn-light" data-template>Download Template Nilai</button><button class="btn btn-light" data-import>Import Nilai</button><button class="btn btn-light" data-fill-all>Isi Semua Nilai</button>');
   const listHost=root.querySelector('[data-list]');const objectiveHost=root.querySelector('[data-objectives]');const summaryHost=root.querySelector('[data-summary]');const saveButton=root.querySelector('[data-save]');
   if(!subjects.length){root.querySelector('[data-subject]').disabled=true;root.querySelector('[data-type]').disabled=true;saveButton.disabled=true;root.querySelector('[data-template]').disabled=true;root.querySelector('[data-import]').disabled=true;listHost.innerHTML='<section class="card empty-state"><h3>Tidak ada mata pelajaran aktif</h3><p>Aktifkan mata pelajaran melalui Mapping Mata Pelajaran.</p></section>';return root;}
@@ -125,7 +126,44 @@ export function renderAssessment(session){
     objectiveHost.querySelector('[data-view-tp]').onclick=()=>openObjectiveViewer(objectives);
   }
 
+  /* BUTIR CP YANG SEDANG DINILAI.
+
+     Guru memilihnya SEKALI untuk satu kegiatan penilaian - satu mata pelajaran, satu komponen -
+     lalu mengisi nilai seluruh kelas. Tidak ada permintaan memilih CP berulang per murid,
+     sebab yang sedang diukur memang kompetensi yang sama untuk semuanya.
+
+     Yang muncul di sini hanyalah Butir CP AKTIF milik mata pelajaran itu pada fase rombel yang
+     sedang dibuka. Layanan memeriksa ulang hal yang sama saat menyimpan, sehingga daftar ini
+     adalah kemudahan bagi guru - bukan satu-satunya penjaga. */
+  let cpButirId='';
+  function butirTersedia(){
+    if(!subjectId)return [];
+    try{return listCpButir(session,subjectId,{activeOnly:true});}catch{return [];}
+  }
+  function drawButir(){
+    const field=root.querySelector('[data-butir-field]');
+    const pilih=root.querySelector('[data-butir]');
+    const catatan=root.querySelector('[data-butir-note]');
+    const daftar=butirTersedia();
+    if(!daftar.some(item=>item.id===cpButirId))cpButirId=daftar[0]?.id||'';
+    pilih.innerHTML=daftar.length
+      ? daftar.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===cpButirId?'selected':''}>${escapeHtml(ringkasButir(item))}</option>`).join('')
+      : '<option value="">—</option>';
+    pilih.disabled=!daftar.length;
+    catatan.textContent=daftar.length
+      ? 'Nilai yang disimpan menjadi bukti ketercapaian Butir CP ini. Pilih satu Butir CP untuk satu kegiatan penilaian.'
+      : PESAN_TANPA_BUTIR_AKTIF_NILAI;
+    catatan.classList.toggle('status-error',!daftar.length);
+    field.hidden=false;
+  }
+  /* Kalimat panjang Butir CP dipendekkan untuk dropdown saja; yang tersimpan tetap id-nya. */
+  function ringkasButir(item){
+    const teks=String(item?.teori||item?.praktik||item?.description||item?.id||'').trim();
+    return teks.length>90?`${teks.slice(0,88)}…`:teks;
+  }
+
   function draw(){
+    drawButir();
     drawObjectives();
     /* Ketika Nilai Kehadiran aktif, kolom Penilaian Harian TETAP menampilkan dan menerima nilai
        manual: itu data milik guru dan langsung terpakai kembali begitu toggle dimatikan. Yang
@@ -196,6 +234,7 @@ export function renderAssessment(session){
   }
   root.querySelector('[data-subject]').onchange=event=>{subjectId=event.target.value;draw();};root.querySelector('[data-type]').onchange=event=>{assessmentType=event.target.value;draw();};
 root.querySelector('[data-fill-target]').onchange=()=>draw();
+  root.querySelector('[data-butir]').onchange=event=>{cpButirId=event.target.value;};
   saveButton.onclick=()=>{
     const values=modeLingkup()
       ? Object.fromEntries(idsTampil().map(id=>{
@@ -204,7 +243,7 @@ root.querySelector('[data-fill-target]').onchange=()=>draw();
           return [id,{parts}];
         }))
       : Object.fromEntries(allInputs().map(input=>[input.dataset.id,input.value]));
-    try{saveAssessmentScores(session,subjectId,assessmentType,values);draw();toast(modeLingkup()?'Nilai Lingkup Materi tersimpan. Rata-rata lingkup terisi menjadi nilai Sumatif Lingkup Materi.':'Nilai berhasil disimpan. Nilai kosong tetap tidak dinilai.');}catch(error){toast(error.message,'error');}
+    try{saveAssessmentScores(session,subjectId,assessmentType,values,{cpButirId:cpButirId||null});draw();toast(modeLingkup()?'Nilai Lingkup Materi tersimpan. Rata-rata lingkup terisi menjadi nilai Sumatif Lingkup Materi.':'Nilai berhasil disimpan. Nilai kosong tetap tidak dinilai.');}catch(error){toast(error.message,'error');}
   };
   /* Sasaran mengikuti siswa yang sedang tampil: satu siswa terpilih hanya mengisi siswa itu,
      pilihan Semua Siswa mengisi seluruh siswa rombel. */
@@ -219,7 +258,7 @@ root.querySelector('[data-fill-target]').onchange=()=>draw();
     fillButton.disabled=true;fillButton.textContent='Mengisi…';
     await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));
     try{
-      const result=fillAllAssessmentScores(session,subjectId,value,{studentId});
+      const result=fillAllAssessmentScores(session,subjectId,value,{studentId,cpButirId:cpButirId||null});
       draw();
       const sasaran=studentId?`${namaSasaran} saja`:`${result.studentCount} siswa`;
       toast(result.dailyFromAttendance?`Nilai massal disimpan ke lima jenis penilaian untuk ${sasaran}. Nilai Harian ikut tersimpan, tetapi selama Nilai Kehadiran aktif perhitungan memakai nilai kehadiran.`:`Nilai massal berhasil disimpan ke lima jenis penilaian untuk ${sasaran}.`);
