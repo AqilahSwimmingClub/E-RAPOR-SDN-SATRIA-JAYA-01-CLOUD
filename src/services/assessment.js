@@ -3,6 +3,8 @@ import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
 import { requireActiveSubject } from './subjects.js';
 import { listCpButir } from './cp-butir.js';
+import { cpEvidenceKomponen, cpEvidenceLain, hapusCpEvidence, pindahkanEvidenceLama,
+  tulisCpEvidence } from './cp-evidence.js';
 import { defaultReportRubric, normalizeReportRubric, readReportRubric, rubricConsistency,
   suggestReportRubricForKktp } from './report-rubric.js';
 
@@ -178,14 +180,30 @@ export function resetAssessmentSettings(session,subjectId){
   return defaultAssessmentSettings();
 }
 
-export function getAssessmentSheet(session,subjectId,assessmentType){
+/* Lembar nilai satu komponen.
+
+   TANPA `cpButirId` - bentuk yang dipakai sejak awal, dan yang dipakai Nilai Akhir - isinya
+   adalah NILAI KOMPONEN: satu angka per siswa, persis seperti sebelumnya.
+
+   DENGAN `cpButirId`, isinya adalah BUKTI kompetensi itu pada komponen tersebut. Inilah yang
+   membuat guru dapat berpindah dari satu Butir CP ke Butir CP lain pada komponen yang sama
+   dan menemukan kembali angka yang memang milik masing-masing: berpindah ke Butir CP kedua
+   menampilkan nilai butir kedua, dan kembali ke butir pertama menampilkan nilai butir pertama
+   yang tersimpan - bukan angka komponen yang sudah berpindah tangan. */
+export function getAssessmentSheet(session,subjectId,assessmentType,{cpButirId=null}={}){
   requireActiveSubject(session,subjectId);assertAssessmentType(assessmentType);
+  const butirId=cpButirId===null||cpButirId===undefined
+    ? null
+    : assertCpButirDinilai(session,subjectId,cpButirId).id;
   const students=listStudents(session,{classId:session.classId});
+  const db=loadDb();
   const prefix=scorePrefix(session,subjectId,assessmentType);
-  const records=Object.entries(loadDb().assessmentScores||{})
+  const records=Object.entries(db.assessmentScores||{})
     .filter(([key])=>key.startsWith(prefix))
     .map(([,record])=>record);
-  const byStudent=new Map(records.map(record=>[record.studentId,record]));
+  const byStudent=butirId
+    ? cpEvidenceKomponen(db,session,subjectId,assessmentType,butirId)
+    : new Map(records.map(record=>[record.studentId,record]));
   const rows=students.map(student=>{
     const record=byStudent.get(student.id);
     const parts=assessmentType===SCOPE_SUMMATIVE_TYPE?clone(record?.parts||{}):null;
@@ -193,7 +211,7 @@ export function getAssessmentSheet(session,subjectId,assessmentType){
   });
   const filled=rows.filter(row=>row.score!==null);
   return {
-    subjectId,assessmentType,classId:session.classId,semester:session.semester,academicYear:session.academicYear,
+    subjectId,assessmentType,cpButirId:butirId,classId:session.classId,semester:session.semester,academicYear:session.academicYear,
     rows,filledCount:filled.length,pendingCount:rows.length-filled.length,
     average:filled.length?filled.reduce((sum,row)=>sum+row.score,0)/filled.length:null,
   };
@@ -246,14 +264,45 @@ export function saveAssessmentScores(session,subjectId,assessmentType,values,{cp
   });
   const now=new Date().toISOString();
   updateDb(db=>{
+    /* Bukti yang sudah tersimpan sejak 4087ede dipindahkan lebih dulu ke koleksi bukti, sebab
+       inilah satu-satunya saat ia dapat tertimpa: nilai komponen di bawah akan segera ditulis
+       ulang oleh penyimpanan yang sedang berjalan. Perpindahannya non-destruktif dan
+       idempotent, jadi aman dijalankan setiap kali - termasuk pada penyimpanan yang TIDAK
+       menyebut Butir CP, seperti Import Nilai, yang justru paling mungkin menimpanya. */
+    pindahkanEvidenceLama(db,session,subjectId);
     normalized.forEach(([studentId,score,parts])=>{
       const key=scoreKey(session,subjectId,assessmentType,studentId);
-      if(score===null){delete db.assessmentScores[key];return;}
+      const rincian=parts&&Object.keys(parts).length?parts:null;
+      /* BUKTI BUTIR CP - catatan tersendiri per komponen PER BUTIR. Menyimpan butir kedua
+         menambah catatan baru; catatan butir pertama tidak tersentuh. */
+      if(butir){
+        if(score===null)hapusCpEvidence(db,session,{subjectId,studentId,assessmentType,cpButirId:butir.id});
+        else tulisCpEvidence(db,session,{subjectId,studentId,assessmentType,cpButirId:butir.id,score,parts:rincian,now});
+      }
+      /* NILAI KOMPONEN - satu angka per siswa, sumber tunggal Nilai Akhir. Bentuk catatannya,
+         cara menulisnya, dan cara Bobot membacanya sama persis seperti sebelum koleksi bukti
+         ada; menambah bukti sebanyak apa pun tidak menambah satu pun komponen di sini. */
+      if(score===null){
+        /* Mengosongkan nilai satu Butir CP tidak boleh ikut menghapus nilai komponen yang
+           masih didukung kegiatan penilaian lain pada komponen yang sama. Bila masih ada bukti
+           tersisa, nilai komponen diisi kembali dari bukti tersebut; bila tidak ada lagi,
+           catatannya dihapus seperti biasa. */
+        const tersisa=butir?cpEvidenceLain(db,session,subjectId,assessmentType,studentId,butir.id)[0]||null:null;
+        if(!tersisa){delete db.assessmentScores[key];return;}
+        const sebelum=db.assessmentScores[key];
+        db.assessmentScores[key]={
+          studentId,classId:session.classId,subjectId,semester:session.semester,academicYear:session.academicYear,
+          assessmentType,score:tersisa.score,createdAt:sebelum?.createdAt||now,updatedAt:now,
+          ...(tersisa.parts&&Object.keys(tersisa.parts).length?{parts:tersisa.parts}:{}),
+          cpButirId:tersisa.cpButirId,
+        };
+        return;
+      }
       const previous=db.assessmentScores[key];
       db.assessmentScores[key]={
         studentId,classId:session.classId,subjectId,semester:session.semester,academicYear:session.academicYear,
         assessmentType,score,createdAt:previous?.createdAt||now,updatedAt:now,
-        ...(parts&&Object.keys(parts).length?{parts}:{}),
+        ...(rincian?{parts:rincian}:{}),
         /* Keterangan kompetensi ikut tersimpan bersama angkanya. Bila pemanggil tidak
            menyebutkan butir, keterangan yang sudah ada dipertahankan - menimpanya dengan
            kosong akan memutus hubungan yang sudah benar. */
@@ -262,5 +311,5 @@ export function saveAssessmentScores(session,subjectId,assessmentType,values,{cp
     });
     return db;
   });
-  return getAssessmentSheet(session,subjectId,assessmentType);
+  return getAssessmentSheet(session,subjectId,assessmentType,{cpButirId:butir?butir.id:null});
 }

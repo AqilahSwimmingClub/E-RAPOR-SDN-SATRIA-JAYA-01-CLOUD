@@ -151,7 +151,7 @@ export function renderAssessment(session){
       : '<option value="">—</option>';
     pilih.disabled=!daftar.length;
     catatan.textContent=daftar.length
-      ? 'Nilai yang disimpan menjadi bukti ketercapaian Butir CP ini. Pilih satu Butir CP untuk satu kegiatan penilaian.'
+      ? 'Tabel di bawah menampilkan nilai Butir CP ini. Satu kegiatan penilaian menilai satu Butir CP; menilai Butir CP lain pada komponen yang sama tidak menghapus nilai yang sudah tersimpan di sini.'
       : PESAN_TANPA_BUTIR_AKTIF_NILAI;
     catatan.classList.toggle('status-error',!daftar.length);
     field.hidden=false;
@@ -170,7 +170,9 @@ export function renderAssessment(session){
        berubah hanyalah sumber yang dipakai saat MENGHITUNG Nilai Akhir, dan nilai kehadiran
        yang sedang dipakai itu ditampilkan berdampingan sebagai keterangan. */
     const attendanceMode=assessmentType==='daily'&&getDailyAttendanceMode(session,subjectId);
-    const sheet=getAssessmentSheet(session,subjectId,assessmentType);
+    /* Tabel menampilkan BUKTI butir yang sedang dipilih. Tanpa Butir CP aktif - mapel yang
+       butirnya belum disiapkan - tampilannya kembali ke nilai komponen seperti semula. */
+    const sheet=getAssessmentSheet(session,subjectId,assessmentType,{cpButirId:cpButirId||null});
     const kehadiranById=new Map(attendanceMode
       ? attendanceDerivedSheet(session,subjectId).rows.map(row=>[row.studentId,row.score])
       : []);
@@ -234,7 +236,10 @@ export function renderAssessment(session){
   }
   root.querySelector('[data-subject]').onchange=event=>{subjectId=event.target.value;draw();};root.querySelector('[data-type]').onchange=event=>{assessmentType=event.target.value;draw();};
 root.querySelector('[data-fill-target]').onchange=()=>draw();
-  root.querySelector('[data-butir]').onchange=event=>{cpButirId=event.target.value;};
+  /* Mengganti Butir CP menggambar ulang tabel, sebab yang ditampilkan memang berbeda: nilai
+     milik butir yang baru dipilih. Berpindah ke butir lain lalu kembali karena itu selalu
+     menemukan angka yang sudah tersimpan untuk masing-masing butir. */
+  root.querySelector('[data-butir]').onchange=event=>{cpButirId=event.target.value;draw();};
   saveButton.onclick=()=>{
     const values=modeLingkup()
       ? Object.fromEntries(idsTampil().map(id=>{
@@ -243,7 +248,7 @@ root.querySelector('[data-fill-target]').onchange=()=>draw();
           return [id,{parts}];
         }))
       : Object.fromEntries(allInputs().map(input=>[input.dataset.id,input.value]));
-    try{saveAssessmentScores(session,subjectId,assessmentType,values,{cpButirId:cpButirId||null});draw();toast(modeLingkup()?'Nilai Lingkup Materi tersimpan. Rata-rata lingkup terisi menjadi nilai Sumatif Lingkup Materi.':'Nilai berhasil disimpan. Nilai kosong tetap tidak dinilai.');}catch(error){toast(error.message,'error');}
+    try{saveAssessmentScores(session,subjectId,assessmentType,values,{cpButirId:cpButirId||null});draw();toast(modeLingkup()?'Nilai Lingkup Materi tersimpan. Rata-rata lingkup terisi menjadi nilai Sumatif Lingkup Materi.':(cpButirId?'Nilai tersimpan sebagai bukti Butir CP yang dipilih. Nilai Butir CP lain pada komponen ini tetap utuh.':'Nilai berhasil disimpan. Nilai kosong tetap tidak dinilai.'));}catch(error){toast(error.message,'error');}
   };
   /* Sasaran mengikuti siswa yang sedang tampil: satu siswa terpilih hanya mengisi siswa itu,
      pilihan Semua Siswa mengisi seluruh siswa rombel. */
@@ -252,7 +257,9 @@ root.querySelector('[data-fill-target]').onchange=()=>draw();
     const target=root.querySelector('[data-fill-target]');
     const studentId=target.value||null;
     const namaSasaran=studentId?target.options[target.selectedIndex].textContent:'semua siswa';
-    const value=await askScore({title:'Isi Semua Nilai',message:`Nilai berikut diterapkan ke ${namaSasaran} pada lima jenis penilaian mapel ini.`});
+    const butirTerpilih=butirTersedia().find(item=>item.id===cpButirId);
+    const keterangan=butirTerpilih?` Nilai tersimpan sebagai bukti Butir CP yang sedang dipilih; bukti Butir CP lain tidak tersentuh.`:'';
+    const value=await askScore({title:'Isi Semua Nilai',message:`Nilai berikut diterapkan ke ${namaSasaran} pada lima jenis penilaian mapel ini.${keterangan}`});
     if(value===null)return;
     const label=fillButton.textContent;
     fillButton.disabled=true;fillButton.textContent='Mengisi…';

@@ -23,7 +23,12 @@ export function fillAllAssessmentScores(session,subjectId,value=80,{studentId=nu
   const dailyFromAttendance=getDailyAttendanceMode(session,subjectId);
   const savedTypes=[];
   /* Butir CP yang sedang dinilai ikut terbawa ke kelima komponen, sehingga nilai massal pun
-     tetap punya keterangan kompetensi - bukan angka tanpa asal. */
+     tetap punya keterangan kompetensi - bukan angka tanpa asal.
+
+     Yang ditulis hanyalah bukti BUTIR CP YANG SEDANG DIPILIH. Bukti Butir CP lain pada
+     komponen yang sama tidak disentuh sama sekali, karena setiap bukti tinggal pada catatannya
+     sendiri: mengisi seluruh kelas untuk satu butir tidak dapat menghapus penilaian butir
+     lain yang sudah dilakukan sebelumnya. */
   ASSESSMENT_TYPES.forEach(type=>{
     saveAssessmentScores(session,subjectId,type.id,values,{cpButirId});savedTypes.push(type.id);
   });

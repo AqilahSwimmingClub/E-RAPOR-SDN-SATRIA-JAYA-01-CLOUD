@@ -1,6 +1,7 @@
 import { loadDb, scopeKey } from './storage.js';
 import { requireActiveSubject } from './subjects.js';
 import { listCpButir } from './cp-butir.js';
+import { cpEvidenceSiswa } from './cp-evidence.js';
 import { listStudents } from './students.js';
 import { ASSESSMENT_TYPES, getAssessmentSettings } from './assessment.js';
 import { categoryForScore } from './report-rubric.js';
@@ -80,19 +81,16 @@ export function requireKktp(session,subjectId){
    bukti sebuah kompetensi, sebab tidak ada yang tahu kompetensi mana yang diukurnya. */
 export function buktiButirSiswa(session,subjectId,studentId){
   requireActiveSubject(session,subjectId);
-  const awalan=`${scopeKey(session)}|${subjectId}|`;
   const label=new Map(ASSESSMENT_TYPES.map(item=>[item.id,item.label]));
   const hasil=new Map();
-  for(const [kunci,record] of Object.entries(loadDb().assessmentScores||{})){
-    if(!kunci.startsWith(awalan))continue;
-    if(record?.studentId!==studentId)continue;
-    const butirId=String(record?.cpButirId||'').trim();
-    if(!butirId)continue;
-    const score=Number(record?.score);
-    if(!Number.isFinite(score))continue;
-    if(!hasil.has(butirId))hasil.set(butirId,[]);
-    hasil.get(butirId).push({assessmentType:record.assessmentType,
-      assessmentLabel:label.get(record.assessmentType)||record.assessmentType,score});
+  /* Sumbernya adalah KOLEKSI BUKTI, tempat satu komponen dapat menyimpan beberapa Butir CP
+     sekaligus. Karena setiap bukti membawa butirnya sendiri, nilai kegiatan penilaian yang
+     mengukur kompetensi A tidak pernah ikut menghitung kompetensi B: pengelompokan di bawah
+     memakai `cpButirId` catatan itu, bukan komponen tempat ia disimpan. */
+  for(const bukti of cpEvidenceSiswa(loadDb(),session,subjectId,studentId)){
+    if(!hasil.has(bukti.cpButirId))hasil.set(bukti.cpButirId,[]);
+    hasil.get(bukti.cpButirId).push({assessmentType:bukti.assessmentType,
+      assessmentLabel:label.get(bukti.assessmentType)||bukti.assessmentType,score:bukti.score});
   }
   /* Urutan bukti mengikuti urutan komponen penilaian aplikasi, bukan urutan penyimpanan,
      supaya hasilnya sama persis setiap kali dibaca. */

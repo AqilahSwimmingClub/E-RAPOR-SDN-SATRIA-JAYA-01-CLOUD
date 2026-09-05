@@ -60,7 +60,7 @@ function baseDb(){
     security: {},
     subjectMappings: {},
     assessmentSettings: {},
-    students: {}, attendance: {}, manualAttendance: {}, learningObjectives: {}, cpButir: {}, cpButirScores: {}, assessmentScores: {},
+    students: {}, attendance: {}, manualAttendance: {}, learningObjectives: {}, cpButir: {}, cpButirScores: {}, assessmentScores: {}, cpEvidenceScores: {},
     reportScores: {}, reportDescriptions: {}, extracurricularScores: {}, cocurricularActivities: {}, cocurricularScores: {},
     intracurricularActivities: {}, intracurricularScores: {}, dapodikSyncState: {}, dapodikSyncLogs: {}, dapodikMappings: {}, publishedReports: {},
     attitudeProfiles: {}, printSettings: {}, homeroomNotes: {}, promotionStatus: {}, graduationStatus: {}, transcriptScores: {},

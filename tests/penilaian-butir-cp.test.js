@@ -208,6 +208,19 @@ test('12. Nilai lama tanpa hubungan CP tetap aman dan tidak ditebak kompetensiny
     'tidak dipasangkan ke butir mana pun, termasuk butir pertama');
 });
 
+/* EKSPEKTASI DIPERBARUI bersama pemisahan nilai komponen dan bukti Butir CP.
+
+   Sebelumnya bukti kompetensi menumpang pada catatan nilai komponen, sehingga menyimpan ulang
+   angka komponen otomatis mengubah pula bukti kompetensinya. Sejak bukti punya catatannya
+   sendiri, keduanya tidak lagi satu benda, dan pertanyaannya menjadi jelas: penyimpanan yang
+   TIDAK menyebut Butir CP - Import Nilai, pemanggil lama - tidak menyatakan kompetensi apa pun
+   yang sedang diukurnya. Membiarkan angkanya menggantikan bukti sebuah kompetensi berarti
+   menebak kompetensi angka itu, dan §12 melarangnya.
+
+   Karena itu klaim yang diuji sekarang: hubungan yang sudah ada tetap utuh - tidak terputus,
+   dan juga tidak ditulis ulang oleh angka yang tidak menyebutkan kompetensinya. Nilai komponen
+   yang baru tetap tersimpan dan tetap dipakai Nilai Akhir seperti biasa; yang diuji di baris
+   terakhir adalah buktinya. */
 test('13. Menyimpan ulang tanpa menyebut butir tidak memutus hubungan yang sudah ada',()=>{
   useMemoryStorage();
   const sesi=siapkan();const siswa=tambahSiswa(sesi);
@@ -215,8 +228,11 @@ test('13. Menyimpan ulang tanpa menyebut butir tidak memutus hubungan yang sudah
   const butir=listCpButir(sesi,mapel,{activeOnly:true})[0];
   saveAssessmentScores(sesi,mapel,'daily',{[siswa.id]:85},{cpButirId:butir.id});
   saveAssessmentScores(sesi,mapel,'daily',{[siswa.id]:90});
+  assert.equal(getAssessmentSheet(sesi,mapel,'daily').rows.find(row=>row.studentId===siswa.id).score,90,
+    'nilai komponen yang dipakai Nilai Akhir tetap mengikuti penyimpanan terakhir');
   const bukti=buktiButirSiswa(sesi,mapel,siswa.id).get(butir.id);
-  assert.deepEqual(bukti,[{assessmentType:'daily',assessmentLabel:'Penilaian Harian',score:90}]);
+  assert.deepEqual(bukti,[{assessmentType:'daily',assessmentLabel:'Penilaian Harian',score:85}],
+    'bukti kompetensi tetap angka yang memang disimpan sebagai bukti kompetensi itu');
 });
 
 /* ------------------------------------------- §38 NILAI AKHIR TIDAK BERGESER */
