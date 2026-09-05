@@ -848,7 +848,10 @@ textarea.input{color:var(--light-ink)}
    desktop yang bergeser: aturan ini tidak pernah menyala pada mouse. */
 @media (pointer:coarse){
   .btn,.tab,.mobile-menu,.input,select.input,.password-toggle{min-height:44px}
-  .btn-small{min-height:40px;padding-inline:14px}
+  /* Tombol kecil dulu dibatasi 40px agar baris tabel tidak terlalu tinggi. Pada perangkat
+     sentuh baris tabelnya sudah digantikan kartu, sehingga alasan itu tidak lagi berlaku dan
+     sasaran sentuhnya disamakan dengan tombol lain: 44px, ukuran yang memang dituju. */
+  .btn-small{min-height:44px;padding-inline:14px}
   .btn-icon{min-width:44px}
   input[type=checkbox],input[type=radio]{width:20px;height:20px}
   .objective-reference-item{padding-block:10px;gap:12px}
@@ -872,7 +875,7 @@ textarea.input{color:var(--light-ink)}
    kelas perangkat yang paling banyak dipakai menyentuh layar. */
 @media (max-width:1024px){
   .content .btn,.content .tab,.mobile-menu{min-height:44px}
-  .content .btn-small{min-height:40px;padding:8px 14px;font-size:11.5px}
+  .content .btn-small{min-height:44px;padding:8px 14px;font-size:11.5px}
   .content .input,.content select.input{min-height:44px}
   .content input[type=checkbox],.content input[type=radio]{width:20px;height:20px}
   .objective-reference-item{padding-block:10px;gap:12px}

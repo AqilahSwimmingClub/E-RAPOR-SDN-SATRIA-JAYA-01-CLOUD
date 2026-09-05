@@ -109,6 +109,16 @@ test('4. Ukuran sasaran sentuh ditegakkan berdasarkan lebar layar, bukan hanya j
   assert.match(css,/@media\s*\(pointer:coarse\)/);
   assert.match(css,/@media\s*\(max-width:1024px\)\{[^@]*min-height:44px/);
   assert.match(css,/@media\s*\(pointer:coarse\)\{[^@]*min-height:44px/);
+  /* Termasuk tombol kecil. Ia dulu berhenti di 40px demi kerapatan baris tabel; pada layar
+     sentuh tabel itu sudah digantikan kartu, jadi tidak ada lagi yang perlu dikorbankan. */
+  for(const blok of css.split('@media').slice(1)){
+    const syarat=blok.slice(0,blok.indexOf('{'));
+    if(!/pointer:coarse|max-width:1024px/.test(syarat))continue;
+    const aturan=blok.match(/\.(?:content )?\.?btn-small\{[^}]*\}/g)||[];
+    for(const a of aturan)
+      assert.equal(/min-height:4[0-3]px/.test(a),false,
+        `sasaran sentuh tombol kecil tidak boleh di bawah 44px: ${a}`);
+  }
 });
 
 test('5. Halaman Pembelajaran memisahkan Mapel Berlaku dari Mapel Ditugaskan',()=>{
