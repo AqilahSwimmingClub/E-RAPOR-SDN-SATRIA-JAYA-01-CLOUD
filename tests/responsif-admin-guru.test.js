@@ -139,3 +139,52 @@ test('6. Setiap menu yang tampil benar-benar membuka halamannya sendiri',()=>{
     }
   }
 });
+
+test('7. Kolom aksi pada tabel lebar dipakukan agar tidak terpotong penggulir',()=>{
+  /* Tabel yang lebih lebar daripada ruang isinya digulir mendatar. Tanpa pemakuan, kolom
+     terakhir - tempat tombol aksinya berada - berada di luar layar sampai pengguna menggulir,
+     dan audit browser memang menemukannya keluar viewport pada HP portrait, tablet 600x960
+     dan 1112x834, sampai desktop 1280x720.
+
+     Yang dijaga di sini: setiap tabel yang punya kolom Aksi DAN dibungkus penggulir wajib
+     menandai kolom itu `cell-actions`, dan CSS-nya memakukannya ke tepi kanan. */
+  assert.match(css,/\.data-table \.cell-actions\{[^}]*position:sticky[^}]*right:0/,
+    'kolom aksi dipakukan ke tepi kanan');
+  assert.match(css,/@media print\{\.data-table \.cell-actions\{position:static/,
+    'pemakuan dilepas saat mencetak');
+
+  /* Tabel-tabel yang audit browsernya pernah memotong kolom aksi. */
+  const wajib=[
+    ['users.js','<th>Kontak</th>'],            // Data Guru - Identitas wali kelas
+    ['users.js','<th>Mata Pelajaran Ditugaskan</th>'], // Akun Guru & Penugasan
+    ['references.js','<th>Mata Pelajaran</th>'],       // Master Mata Pelajaran
+    ['students.js','<th>Telepon</th>'],                // Data Siswa
+    ['attendance.js','<th>Sumber</th>'],               // Rekap absensi manual
+    ['reports.js','<th>Status</th>'],                  // Input Nilai Rapor
+  ];
+  for(const [berkas,sebelum] of wajib){
+    const isi=isiHalaman.get(berkas);
+    const i=isi.indexOf(sebelum);
+    assert.ok(i>=0,`${berkas} memuat kolom ${sebelum}`);
+    assert.match(isi.slice(i,i+120),/<th class="cell-actions">/,
+      `kolom aksi setelah ${sebelum} pada ${berkas} ditandai cell-actions`);
+  }
+  /* Sel datanya ikut ditandai, bukan hanya judul kolomnya. */
+  for(const berkas of ['users.js','references.js','students.js','attendance.js','reports.js'])
+    assert.ok((isiHalaman.get(berkas).match(/<td class="cell-actions"/g)||[]).length>0,
+      `${berkas} menandai sel aksinya`);
+});
+
+test('8. Modal lebar benar-benar lebar pada layar yang memang luas',()=>{
+  /* `.modal-wide` ditulis sebelum `.modal-card` dan keduanya satu kelas, sehingga aturan
+     440px milik `.modal-card` menang dan modal lebar diam-diam menyusut. Daftar centang mapel
+     pada Penugasan Guru pun selalu sesak di layar lebar. Kekhususannya dinaikkan menjadi dua
+     kelas agar urutan berkas tidak lagi menentukan. */
+  assert.match(css,/\.modal-card\.modal-wide\{width:min\(820px,100%\)\}/,
+    'modal lebar memakai 820px dengan kekhususan dua kelas');
+  assert.match(css,/\.modal-card\.modal-extra-wide\{width:min\(1040px,100%\)\}/,
+    'modal ekstra lebar memakai 1040px dengan kekhususan dua kelas');
+  /* Batas 100% tetap ada sehingga pada HP lebarnya tidak pernah melebihi layar. */
+  for(const aturan of css.match(/\.modal-card\.modal-(?:extra-)?wide\{width:[^}]*\}/g)||[])
+    assert.match(aturan,/100%/,`${aturan} tetap dibatasi lebar layar`);
+});
