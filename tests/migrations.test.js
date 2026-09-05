@@ -34,14 +34,18 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.2.2 uses versionCode 14 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.2.2');
-  assert.equal(VERSION_CODE,14);
+test('release v1.2.3 uses versionCode 15 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.2.3');
+  assert.equal(VERSION_CODE,15);
+  /* SCHEMA TETAP 5. Rilis ini hanya membawa perubahan perilaku dan tata letak - penugasan
+     Guru sebagai sumber otorisasi, dan perbaikan responsive - tanpa satu pun perubahan bentuk
+     data. Menaikkan schema hanya karena versinya naik akan memicu migration yang tidak
+     mengerjakan apa pun, dan itu risiko tanpa manfaat. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.2.2-INTRAKURIKULER-SIKAP-RUBRIK');
-  /* Rilis sebelumnya bergeser ke 1.2.1 supaya APK baru tetap dapat dipasang menimpanya
-     tanpa uninstall. Format data tidak berubah: schema tetap 5. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.1',versionCode:13});
+  assert.equal(BUILD_TAG,'1.2.3-PENUGASAN-ADMIN-RESPONSIVE');
+  /* Rilis sebelumnya bergeser ke 1.2.2 supaya APK baru tetap dapat dipasang menimpanya
+     tanpa uninstall. */
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.2',versionCode:14});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
