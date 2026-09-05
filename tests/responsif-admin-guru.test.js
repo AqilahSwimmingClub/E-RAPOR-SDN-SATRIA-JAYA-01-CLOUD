@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
+import { flattenNavigation } from '../src/data/navigation.js';
+import { resolveRoute } from '../src/core/router.js';
+import { ACADEMIC_YEAR } from '../src/data/constants.js';
 
 /* RESPONSIVE: TIDAK ADA ISI ATAU AKSI YANG HILANG DI LAYAR SEMPIT.
 
@@ -113,4 +116,26 @@ test('5. Halaman Pembelajaran memisahkan Mapel Berlaku dari Mapel Ditugaskan',()
   assert.match(isi,/Mapel Berlaku/,'kolom dari Mapping Mata Pelajaran');
   assert.match(isi,/Mapel Ditugaskan/,'kolom dari Penugasan Guru');
   assert.match(isi,/getTeacherAssignment/,'angkanya dibaca dari penugasan yang sesungguhnya');
+});
+
+test('6. Setiap menu yang tampil benar-benar membuka halamannya sendiri',()=>{
+  /* Router melemparkan route yang tidak dikenal ke Dashboard TANPA bersuara. Sifat itu benar
+     sebagai pengaman, tetapi ia juga membuat menu yang salah tulis tampak berfungsi: ia
+     terbuka, hanya saja yang muncul Dashboard. Test ini menutup celah itu untuk kedua peran,
+     sekaligus memastikan setiap route yang ada di sidebar memang punya halaman di pageFor. */
+  const app=readFileSync(new URL('../src/app.js',import.meta.url),'utf8');
+  const punyaHalaman=new Set([...app.matchAll(/case '([a-z0-9-]+)'/g)].map(m=>m[1]));
+  for(const peran of ['admin','teacher']){
+    const sesi=peran==='admin'
+      ?{role:'admin',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`}
+      :{role:'teacher',classId:'5B',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACADEMIC_YEAR}`};
+    const daftar=flattenNavigation(peran).map(item=>item.route);
+    assert.ok(daftar.length>0,`${peran} punya menu`);
+    for(const route of daftar){
+      assert.equal(resolveRoute(route,sesi),route,
+        `menu ${peran} "${route}" tidak boleh jatuh ke Dashboard`);
+      if(route!=='dashboard')
+        assert.ok(punyaHalaman.has(route),`menu ${peran} "${route}" punya halaman sendiri di app.js`);
+    }
+  }
 });
