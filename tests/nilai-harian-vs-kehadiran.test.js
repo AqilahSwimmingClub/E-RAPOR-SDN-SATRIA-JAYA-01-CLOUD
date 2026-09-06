@@ -210,6 +210,17 @@ test('10. Data existing tanpa penanda toggle tetap terbaca sebagai OFF',()=>{
 
 /* ------------------------------------------------------------------- §D, §G ANTARMUKA */
 
+/* EKSPEKTASI TAMPILAN DIPERBARUI.
+
+   Klaim yang diuji tidak berubah - Nilai Harian manual tetap ditampilkan, tetap dapat diisi,
+   dan tetap tersimpan selama toggle ON. Yang berubah adalah SUSUNANNYA, dan itu perubahan
+   requirement yang disengaja.
+
+   Sebelumnya angka manual menempati kolom utama sementara nilai kehadiran menumpang di kolom
+   sebelahnya. Guru karena itu membaca angka manual sebagai nilai yang berlaku, padahal Nilai
+   Akhir memakai nilai kehadiran - dan menyimpulkan togglenya tidak bekerja. Sekarang kolom
+   pertama adalah NILAI YANG DIPAKAI, dan angka manual diberi judul yang menyatakan apa adanya:
+   tersimpan, tetapi tidak sedang dipakai. */
 test('D-G. Halaman Penilaian tetap menampilkan dan menerima Nilai Harian saat toggle ON',()=>{
   const halaman=read('src/pages/assessment.js');
   /* Kolom nilai tidak lagi dinonaktifkan ketika kehadiran aktif. */
@@ -217,9 +228,12 @@ test('D-G. Halaman Penilaian tetap menampilkan dan menerima Nilai Harian saat to
     'input Nilai Harian tidak pernah dimatikan oleh toggle');
   assert.equal(/saveButton\.disabled=!sheet\.rows\.length\|\|attendanceMode/.test(halaman),false,
     'tombol Simpan Nilai tetap hidup');
-  /* Nilai kehadiran yang sedang dipakai ditampilkan berdampingan sebagai keterangan. */
-  assert.match(halaman,/Nilai Kehadiran \(dipakai\)/);
+  /* Nilai yang sedang dipakai berdiri sebagai kolom utama, bukan keterangan sampingan. */
+  assert.match(halaman,/Nilai Harian Dipakai \(dari Kehadiran\)/);
+  assert.match(halaman,/Nilai manual tersimpan \(tidak dipakai\)/);
   assert.match(halaman,/tetap dapat diisi dan tersimpan/);
+  /* Dan input manualnya memang masih dirender pada kedua keadaan toggle. */
+  assert.match(halaman,/const inputNilai=row=>`<input class="input score-input"/);
 
   const layanan=read('src/services/assessment-bulk.js');
   assert.equal(/skippedTypes\.push/.test(layanan),false,'tidak ada komponen yang dilewati lagi');

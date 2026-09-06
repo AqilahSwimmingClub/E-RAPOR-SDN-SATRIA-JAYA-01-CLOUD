@@ -93,6 +93,87 @@ export const COCURRICULAR_ACTIVITY_PRESETS=Object.freeze([
       'Menunjukkan kebiasaan membaca yang konsisten dan menjadi teladan literasi bagi teman.',
     ]),
   }),
+  /* ------------------------------------------------------------------ RAGAM TAMBAHAN
+
+     Empat kegiatan berikut melengkapi ragam yang sudah ada supaya rumpun kegiatan kokurikuler
+     yang lazim diselenggarakan sekolah dasar - keagamaan dan karakter, sains dan teknologi,
+     seni, serta kewirausahaan - punya pilihannya sendiri. Sebelumnya rumpun itu terpaksa
+     dititipkan ke kegiatan lain yang deskripsinya tidak menceritakannya.
+
+     Penambahannya bersifat MENAMBAH SAJA: kelima kegiatan lama beserta id, nama, dan seluruh
+     kalimatnya tidak disentuh, sehingga data yang sudah tersimpan tetap menemukan presetnya. */
+  Object.freeze({
+    id:'keagamaan-karakter',
+    name:'Kegiatan Keagamaan dan Penguatan Karakter',
+    lower:Object.freeze([
+      'Terbiasa berdoa sebelum dan sesudah kegiatan dengan tertib dan sungguh-sungguh.',
+      'Mengikuti kegiatan keagamaan di sekolah dengan senang hati dan penuh perhatian.',
+      'Membiasakan diri mengucapkan salam, terima kasih, dan maaf kepada guru dan teman.',
+      'Menunjukkan sikap jujur dan berani mengakui kesalahan dalam kegiatan sehari-hari.',
+      'Mulai terbiasa menolong teman tanpa diminta dalam kegiatan bersama.',
+    ]),
+    upper:Object.freeze([
+      'Mengikuti kegiatan keagamaan dengan khusyuk serta memahami makna di balik pembiasaannya.',
+      'Menunjukkan kejujuran dan tanggung jawab yang konsisten dalam kegiatan sehari-hari.',
+      'Menjadi teladan bagi teman dalam bersikap santun kepada guru dan sesama.',
+      'Aktif mengambil peran dalam kegiatan keagamaan sekolah dengan penuh kesungguhan.',
+      'Mampu menjelaskan nilai baik yang dipelajarinya dan menerapkannya dalam pergaulan.',
+    ]),
+  }),
+  Object.freeze({
+    id:'sains-teknologi',
+    name:'Praktik Sains dan Teknologi',
+    lower:Object.freeze([
+      'Antusias mengikuti percobaan sederhana dan mengamati hasilnya dengan rasa ingin tahu.',
+      'Mampu menyebutkan apa yang dilihatnya selama percobaan dengan bahasa sendiri.',
+      'Mengikuti langkah percobaan sesuai arahan guru dengan tertib dan hati-hati.',
+      'Berani bertanya mengenai hal baru yang ditemuinya saat kegiatan praktik.',
+      'Senang mencoba kembali kegiatan percobaan bersama teman kelompoknya.',
+    ]),
+    upper:Object.freeze([
+      'Melakukan percobaan sesuai prosedur dan mencatat hasil pengamatannya secara mandiri.',
+      'Mampu menarik kesimpulan sederhana dari data yang diperolehnya selama percobaan.',
+      'Menggunakan alat dan bahan praktik dengan tepat serta menjaga keselamatan kerja.',
+      'Menunjukkan sikap teliti dan pantang menyerah ketika percobaan belum berhasil.',
+      'Menyampaikan hasil percobaan kepada teman dengan runtut dan percaya diri.',
+    ]),
+  }),
+  Object.freeze({
+    id:'pentas-seni',
+    name:'Pentas Seni dan Kreativitas',
+    lower:Object.freeze([
+      'Senang mengikuti kegiatan menyanyi, menari, dan berkarya bersama teman.',
+      'Berani tampil di depan kelas dengan percaya diri sesuai kemampuannya.',
+      'Mengerjakan karya sederhana dengan rapi dan penuh semangat.',
+      'Mengikuti latihan bersama dengan tertib dan mendengarkan arahan pembimbing.',
+      'Menghargai penampilan teman dengan memberi tepuk tangan dan sikap yang baik.',
+    ]),
+    upper:Object.freeze([
+      'Menampilkan karya seni dengan persiapan yang matang dan percaya diri.',
+      'Mengembangkan gagasan kreatif menjadi karya yang utuh dan layak ditampilkan.',
+      'Bekerja sama dalam kelompok latihan dan menjalankan perannya dengan tanggung jawab.',
+      'Menunjukkan disiplin berlatih hingga penampilannya berkembang dari waktu ke waktu.',
+      'Menghargai karya teman serta memberi tanggapan yang membangun.',
+    ]),
+  }),
+  Object.freeze({
+    id:'kewirausahaan',
+    name:'Kewirausahaan (Market Day)',
+    lower:Object.freeze([
+      'Antusias menyiapkan barang dagangan bersama kelompok dengan gembira.',
+      'Berani menawarkan produk kepada pembeli dengan sopan dan ramah.',
+      'Mulai memahami kegiatan jual beli sederhana beserta nilai uang.',
+      'Menjaga kebersihan dan kerapian meja kelompok selama kegiatan berlangsung.',
+      'Bekerja sama dengan teman dalam membagi tugas kegiatan Market Day.',
+    ]),
+    upper:Object.freeze([
+      'Merencanakan produk, harga, dan pembagian tugas kelompok dengan matang.',
+      'Melayani pembeli dengan ramah, jujur, dan bertanggung jawab.',
+      'Mampu menghitung modal serta hasil penjualan kelompoknya dengan teliti.',
+      'Menunjukkan inisiatif dan kreativitas dalam menarik minat pembeli.',
+      'Mengevaluasi jalannya kegiatan dan menyampaikan usulan perbaikan secara santun.',
+    ]),
+  }),
 ]);
 
 export function cocurricularActivityNames(){return COCURRICULAR_ACTIVITY_PRESETS.map(item=>item.name);}

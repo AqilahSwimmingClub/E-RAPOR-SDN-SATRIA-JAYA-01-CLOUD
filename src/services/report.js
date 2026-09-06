@@ -57,6 +57,44 @@ export function attendanceDerivedSheet(session,subjectId){
   return {subjectId,rows,conversion,daysRecorded:recap.daysRecorded,filledCount:filled.length,pendingCount:rows.length-filled.length,average:filled.length?filled.reduce((sum,row)=>sum+row.score,0)/filled.length:null};
 }
 
+/* NILAI HARIAN YANG SEDANG BERLAKU.
+
+   Slot Penilaian Harian punya DUA kemungkinan sumber, dan hanya satu yang berlaku pada satu
+   saat. Berkas ini sudah lama memilih sumbernya dengan benar saat menghitung Nilai Akhir;
+   yang belum ada adalah cara menyatakan pilihan itu kepada layar - sehingga halaman Penilaian
+   sempat menampilkan angka manual sebagai nilai yang berlaku padahal aplikasi memakai angka
+   kehadiran, dan guru menyimpulkan togglenya tidak bekerja.
+
+   Fungsi ini menjawab satu pertanyaan saja: BERAPA nilai Harian yang sedang dipakai, dan DARI
+   MANA asalnya. Halaman memakainya untuk memilih angka mana yang ditonjolkan; perhitungan
+   Nilai Akhir tetap memakai jalurnya sendiri di bawah, sehingga tidak ada sumber kedua yang
+   bisa berbeda pendapat.
+
+   Nilai manual selalu ikut dibawa apa adanya. Ia tidak pernah dihapus, tidak pernah ditimpa
+   angka kehadiran, dan langsung menjadi nilai berlaku kembali begitu toggle dimatikan. */
+export function dailyEffectiveSheet(session,subjectId){
+  requireActiveSubject(session,subjectId);
+  const fromAttendance=getDailyAttendanceMode(session,subjectId);
+  const manual=new Map(getAssessmentSheet(session,subjectId,'daily').rows.map(row=>[row.studentId,row]));
+  /* Nilai kehadiran dibaca dari rekap absensi SETIAP KALI, tidak pernah disalin ke penyimpanan
+     nilai. Itulah yang membuat perubahan Absensi langsung tercermin tanpa guru mengisi ulang. */
+  const attendance=new Map(fromAttendance
+    ? attendanceDerivedSheet(session,subjectId).rows.map(row=>[row.studentId,row.score])
+    : []);
+  const rows=listStudents(session,{classId:session.classId}).map(student=>{
+    const tersimpan=manual.get(student.id)?.score??null;
+    const kehadiran=fromAttendance?(attendance.get(student.id)??null):null;
+    const score=fromAttendance?kehadiran:tersimpan;
+    return {studentId:student.id,name:student.name,nis:student.nis,nisn:student.nisn,
+      score,source:fromAttendance?'attendance':'manual',
+      manualScore:tersimpan,attendanceScore:kehadiran};
+  });
+  const terisi=rows.filter(row=>Number.isFinite(row.score));
+  return {subjectId,fromAttendance,rows,
+    filledCount:terisi.length,pendingCount:rows.length-terisi.length,
+    average:terisi.length?terisi.reduce((sum,row)=>sum+row.score,0)/terisi.length:null};
+}
+
 /* Konteks perhitungan satu mapel disiapkan SEKALI lalu dipakai ulang untuk seluruh siswa.
    Sebelumnya setiap siswa memuat lima lembar penilaian sendiri-sendiri, sehingga satu rombel
    penuh membaca database ratusan kali dan tombol Simpan Otomatis terasa tidak bisa diklik

@@ -27,6 +27,9 @@ const paths={
   upload:'<path d="M12 21V9M7 14l5-5 5 5M4 3h16"/>',
   rotate:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/>',
   school:'<path d="m3 10 9-6 9 6-9 6-9-6Z"/><path d="M5 13v5h14v-5M9 21h6"/>',
-  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>'
+  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+  /* Tindakan yang menghapus data pantas punya lambangnya sendiri. Tanpa ini `icon('trash')`
+     jatuh ke lambang berkas, dan tombol yang membuang data terlihat seperti tombol biasa. */
+  trash:'<path d="M4 7h16M10 4h4M9 7v12M15 7v12M6 7l1 13h10l1-13"/>'
 };
 export function icon(name, size=19){return `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.file}</svg>`}

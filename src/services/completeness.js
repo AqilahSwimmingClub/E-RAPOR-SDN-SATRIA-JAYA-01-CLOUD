@@ -1,6 +1,7 @@
 import { COCURRICULAR_ACTIVITY_PRESETS, cocurricularActivityNames, findCocurricularPreset } from '../data/cocurricular.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
+import { requireActiveSubject } from './subjects.js';
 
 export const PROMOTION_STATUSES=[
   {id:'PROMOTED',label:'Naik ke kelas berikutnya'},
@@ -509,4 +510,109 @@ export function prepareGraduationStatus(session,studentId){
 export function saveGraduationStatus(session,studentId,status){
   requireStudent(session,studentId);if(gradeOf(session.classId)!==6)throw new Error('Status kelulusan hanya tersedia untuk Kelas 6.');if(!GRADUATION_STATUSES.some(item=>item.id===status))throw new Error('Status kelulusan tidak valid.');let saved;
   updateDb(db=>{const key=studentKey(session,studentId);const existing=db.graduationStatus[key];const now=new Date().toISOString();saved=scopedRecord(session,studentId,{...existing,status,prepared:true,resultType:'GRADUATION',createdAt:existing?.createdAt||now,updatedAt:now});db.graduationStatus[key]=saved;return db;});return clone(saved);
+}
+
+/* ==================================================== MEMBATALKAN SATU KEGIATAN: HAPUS SEMUA
+
+   Guru mencoba sebuah kegiatan: memilihnya, mengisi seluruh siswa, lalu menyimpannya. Beberapa
+   saat kemudian ia memutuskan kegiatan itu tidak jadi dipakai. Sampai sebelum ini tidak ada
+   satu pun cara untuk membatalkannya - catatannya tetap tersimpan dan tetap terbawa ke Rapor,
+   dan satu-satunya jalan keluar adalah menyunting seluruh siswa satu per satu.
+
+   Ketiga fungsi di bawah menutup jalan buntu itu. Masing-masing membersihkan SATU KEGIATAN pada
+   SATU KONTEKS yang sedang dibuka, dan tidak lebih:
+
+     tahun pelajaran | semester | rombel | menu | kegiatan/mapel yang dipilih
+
+   Yang berada di luar kotak itu tidak pernah tersentuh - kegiatan lain, rombel lain, semester
+   lain, tahun lain, dan menu lain tetap utuh.
+
+   YANG TIDAK PERNAH IKUT TERHAPUS, sebab bukan milik kegiatan ini: nilai Penilaian, bukti Butir
+   CP, KKTP, Rubrik, Bobot, Nilai Akhir, Absensi, Nilai Sikap, data siswa, akun, penugasan, dan
+   daftar master kegiatan itu sendiri. Membatalkan HASIL sebuah kegiatan tidak sama dengan
+   menghapus kegiatannya dari daftar pilihan: guru harus tetap dapat memilihnya lagi nanti dan
+   mengisinya ulang dari nol.
+
+   Seluruhnya menulis lewat updateDb, jadi penghapusannya benar-benar mengenai penyimpanan -
+   bukan sekadar mengosongkan tampilan. Memuat ulang aplikasi tidak mengembalikannya. */
+
+/* Rombel dan mapel yang boleh disentuh guru diperiksa DI SINI, bukan hanya di tombolnya.
+   Permintaan yang menyebut mapel di luar penugasannya ditolak layanan, apa pun yang dikirim. */
+function assertKegiatanMapel(session,subjectId){
+  assertTeacher(session);
+  const mapel=clean(subjectId,40);
+  if(!mapel)throw new Error('Pilih mata pelajaran intrakurikuler terlebih dahulu.');
+  return mapel;
+}
+function assertNamaKegiatan(session,nama,pesan){
+  assertTeacher(session);
+  const teks=clean(nama,180);
+  if(!teks)throw new Error(pesan);
+  return teks;
+}
+
+/* INTRAKURIKULER — seluruh catatan mata pelajaran yang sedang dibuka, untuk seluruh siswa
+   rombel aktif. Catatan lama yang kuncinya belum memuat mapel ikut dibersihkan HANYA bila
+   isinya memang menyebut mapel itu; catatan tanpa mapel sama sekali tidak disentuh karena
+   tidak ada yang tahu ia milik mapel mana. */
+export function hapusSemuaIntracurricular(session,subjectId){
+  const mapel=assertKegiatanMapel(session,subjectId);
+  /* Mapel yang bukan miliknya ditolak di sini juga - penugasan Guru tetap menjadi satu-satunya
+     sumber izin, dan permintaan yang menyebut mapel lain tidak pernah sampai ke penyimpanan. */
+  requireActiveSubject(session,mapel);
+  const siswa=new Set(listStudents(session,{classId:session.classId}).map(item=>item.id));
+  let terhapus=0;
+  updateDb(db=>{
+    for(const [key,record] of Object.entries(db.intracurricularScores||{})){
+      if(!key.startsWith(`${scopeKey(session)}|`))continue;
+      if(!siswa.has(record?.studentId))continue;
+      if(String(record?.subjectId||'')!==mapel)continue;
+      delete db.intracurricularScores[key];
+      terhapus+=1;
+    }
+    return db;
+  });
+  return {subjectId:mapel,classId:session.classId,semester:session.semester,
+    academicYear:session.academicYear,terhapus,siswa:siswa.size};
+}
+
+/* KOKURIKULER — seluruh catatan siswa untuk SATU kegiatan. Kegiatan kokurikuler lain pada
+   rombel yang sama tetap utuh karena setiap catatan membawa nama kegiatannya sendiri. */
+export function hapusSemuaCocurricular(session,activity){
+  const kegiatan=assertNamaKegiatan(session,activity,'Pilih kegiatan kokurikuler terlebih dahulu.');
+  const siswa=new Set(listStudents(session,{classId:session.classId}).map(item=>item.id));
+  let terhapus=0;
+  updateDb(db=>{
+    for(const [key,record] of Object.entries(db.cocurricularScores||{})){
+      if(!key.startsWith(`${scopeKey(session)}|`))continue;
+      if(!siswa.has(record?.studentId))continue;
+      if(clean(record?.activity,180).toLowerCase()!==kegiatan.toLowerCase())continue;
+      delete db.cocurricularScores[key];
+      terhapus+=1;
+    }
+    return db;
+  });
+  return {activity:kegiatan,classId:session.classId,semester:session.semester,
+    academicYear:session.academicYear,terhapus,siswa:siswa.size};
+}
+
+/* EKSTRAKURIKULER — seluruh catatan siswa untuk SATU kegiatan. Satu siswa dapat punya beberapa
+   kegiatan ekstrakurikuler sekaligus, jadi penyaringannya memakai nama kegiatan dan bukan
+   sekadar kunci siswa. */
+export function hapusSemuaExtracurricular(session,name){
+  const kegiatan=assertNamaKegiatan(session,name,'Pilih kegiatan ekstrakurikuler terlebih dahulu.');
+  const siswa=new Set(listStudents(session,{classId:session.classId}).map(item=>item.id));
+  let terhapus=0;
+  updateDb(db=>{
+    for(const [key,record] of Object.entries(db.extracurricularScores||{})){
+      if(!key.startsWith(`${scopeKey(session)}|`))continue;
+      if(!siswa.has(record?.studentId))continue;
+      if(clean(record?.name,120).toLowerCase()!==kegiatan.toLowerCase())continue;
+      delete db.extracurricularScores[key];
+      terhapus+=1;
+    }
+    return db;
+  });
+  return {name:kegiatan,classId:session.classId,semester:session.semester,
+    academicYear:session.academicYear,terhapus,siswa:siswa.size};
 }

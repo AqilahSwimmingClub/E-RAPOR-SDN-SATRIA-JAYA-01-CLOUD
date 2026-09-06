@@ -4,7 +4,7 @@ import { fillAllAssessmentScores } from '../services/assessment-bulk.js';
 import { listActiveObjectives, phaseForClassId } from '../services/learning-objectives.js';
 import { assessmentTemplateFilename, assessmentTemplateWorkbook, commitAssessmentImport, previewAssessmentImport } from '../services/assessment-import.js';
 import { pickFile, saveFile } from '../services/file-io.js';
-import { attendanceDerivedSheet, getDailyAttendanceMode } from '../services/report.js';
+import { dailyEffectiveSheet, getDailyAttendanceMode } from '../services/report.js';
 import { listActiveSubjects } from '../services/subjects.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
@@ -165,18 +165,31 @@ export function renderAssessment(session){
   function draw(){
     drawButir();
     drawObjectives();
-    /* Ketika Nilai Kehadiran aktif, kolom Penilaian Harian TETAP menampilkan dan menerima nilai
-       manual: itu data milik guru dan langsung terpakai kembali begitu toggle dimatikan. Yang
-       berubah hanyalah sumber yang dipakai saat MENGHITUNG Nilai Akhir, dan nilai kehadiran
-       yang sedang dipakai itu ditampilkan berdampingan sebagai keterangan. */
+    /* NILAI YANG SEDANG DIPAKAI HARUS MENJADI ANGKA YANG PALING TERLIHAT.
+
+       Ketika Nilai Kehadiran aktif, yang mengisi slot Penilaian Harian pada Nilai Akhir adalah
+       nilai kehadiran - bukan angka manual. Sebelumnya angka manual tetap berdiri di kolom
+       utama dan nilai kehadiran hanya menumpang di kolom sebelahnya, sehingga guru membaca 90
+       padahal aplikasi memakai 78 dan menyimpulkan togglenya tidak bekerja.
+
+       Karena itu urutannya dibalik: kolom pertama adalah NILAI YANG DIPAKAI, dan angka manual
+       turun menjadi keterangan sekunder. Angka manual TETAP ditampilkan dan TETAP dapat diisi
+       dan tersimpan - ia data milik guru dan langsung terpakai kembali begitu toggle dimatikan
+       - hanya saja tidak lagi menyamar sebagai nilai yang sedang berlaku. */
     const attendanceMode=assessmentType==='daily'&&getDailyAttendanceMode(session,subjectId);
     /* Tabel menampilkan BUKTI butir yang sedang dipilih. Tanpa Butir CP aktif - mapel yang
        butirnya belum disiapkan - tampilannya kembali ke nilai komponen seperti semula. */
     const sheet=getAssessmentSheet(session,subjectId,assessmentType,{cpButirId:cpButirId||null});
-    const kehadiranById=new Map(attendanceMode
-      ? attendanceDerivedSheet(session,subjectId).rows.map(row=>[row.studentId,row.score])
-      : []);
-    drawSummary(sheet.average,sheet.pendingCount,sheet.filledCount,sheet.rows.length,attendanceMode);
+    /* Angka yang ditonjolkan dibaca dari layanan yang sama dengan yang menentukan sumber slot
+       Harian pada Nilai Akhir, sehingga layar dan perhitungan tidak mungkin berbeda pendapat. */
+    const berlaku=attendanceMode?dailyEffectiveSheet(session,subjectId):null;
+    const kehadiranById=new Map(berlaku?berlaku.rows.map(row=>[row.studentId,row.score]):[]);
+    /* Ringkasan kelas ikut membaca sumber yang sedang berlaku. Rata-rata manual di atas tabel
+       yang seluruh angkanya berasal dari kehadiran hanya akan mengulang kebingungan yang sama. */
+    drawSummary(berlaku?berlaku.average:sheet.average,
+      berlaku?berlaku.pendingCount:sheet.pendingCount,
+      berlaku?berlaku.filledCount:sheet.filledCount,
+      sheet.rows.length,attendanceMode);
     saveButton.disabled=!sheet.rows.length;saveButton.innerHTML=`${icon('save',17)} Simpan Nilai`;
     const target=root.querySelector('[data-fill-target]');const chosen=target.value;
     target.innerHTML=`<option value="">Semua Siswa</option>${sheet.rows.map(row=>`<option value="${escapeHtml(row.studentId)}">${escapeHtml(row.name)}</option>`).join('')}`;
@@ -200,14 +213,36 @@ export function renderAssessment(session){
       return angka===null||angka===undefined?'—':angka;
     };
     const statusSel=row=>row.saved?'Tersimpan':'Belum diisi';
-    const kolomKehadiran=attendanceMode?'<th>Nilai Kehadiran (dipakai)</th>':'';
-    const rows=tampil.map((row,index)=>`<tr><td>${index+1}</td><td><strong>${escapeHtml(row.name)}</strong><span>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</span></td><td><input class="input score-input" type="number" min="0" max="100" step="0.01" data-score data-id="${escapeHtml(row.studentId)}" value="${row.score??''}" aria-label="Nilai ${escapeHtml(row.name)}"/></td>${attendanceMode?`<td><strong data-attendance-score>${escapeHtml(String(nilaiKehadiran(row)))}</strong></td>`:''}<td><span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${statusSel(row)}</span></td></tr>`).join('');
-    const cards=tampil.map((row,index)=>`<article class="card assessment-mobile-card"><div class="assessment-student"><span>${index+1}</span><div><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</small></div></div><div class="score-mobile-input"><label>Nilai 0–100</label><input class="input score-input" type="number" min="0" max="100" step="0.01" data-score data-id="${escapeHtml(row.studentId)}" value="${row.score??''}" aria-label="Nilai ${escapeHtml(row.name)}"/>${attendanceMode?`<small class="muted">Nilai Kehadiran yang dipakai: <strong data-attendance-score>${escapeHtml(String(nilaiKehadiran(row)))}</strong></small>`:''}<span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${statusSel(row)}</span></div></article>`).join('');
-    listHost.innerHTML=`<section class="card assessment-table-card"><div class="table-scroll"><table class="data-table assessment-table"><thead><tr><th>No.</th><th>Siswa</th><th>Nilai 0–100</th>${kolomKehadiran}<th>Status</th></tr></thead><tbody>${rows}</tbody></table></div></section><div class="assessment-card-list">${cards}</div>`;
+    /* Saat kehadiran aktif, kolom pertama adalah nilai yang benar-benar dipakai Nilai Akhir.
+
+       Judul kolom input mengikuti APA YANG SEBENARNYA ADA DI DALAMNYA. Ketika sebuah Butir CP
+       sedang dipilih, kolom itu berisi bukti kompetensi butir tersebut - bukan nilai komponen
+       - jadi menyebutnya "nilai manual tersimpan" akan keliru. Nilai komponen yang tersimpan
+       tetap diperlihatkan, tetapi di tempat yang benar: sebagai keterangan di bawah angka yang
+       sedang dipakai. */
+    const kolomButir=Boolean(cpButirId);
+    const judulInput=kolomButir
+      ? 'Nilai Butir CP (bukan sumber Nilai Akhir)'
+      : 'Nilai manual tersimpan (tidak dipakai)';
+    const kepalaNilai=attendanceMode
+      ? `<th>Nilai Harian Dipakai (dari Kehadiran)</th><th>${judulInput}</th>`
+      : '<th>Nilai 0–100</th>';
+    const manualById=new Map(berlaku?berlaku.rows.map(row=>[row.studentId,row.manualScore]):[]);
+    const catatanManual=row=>{
+      const angka=manualById.get(row.studentId);
+      return Number.isFinite(angka)?`<small class="muted">Nilai manual tersimpan: ${escapeHtml(String(angka))}</small>`:'';
+    };
+    const selEfektif=row=>attendanceMode
+      ? `<td><strong class="score-effective" data-attendance-score>${escapeHtml(String(nilaiKehadiran(row)))}</strong>${catatanManual(row)}</td>`
+      : '';
+    const inputNilai=row=>`<input class="input score-input" type="number" min="0" max="100" step="0.01" data-score data-id="${escapeHtml(row.studentId)}" value="${row.score??''}" aria-label="Nilai ${escapeHtml(row.name)}"/>`;
+    const rows=tampil.map((row,index)=>`<tr><td>${index+1}</td><td><strong>${escapeHtml(row.name)}</strong><span>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</span></td>${selEfektif(row)}<td>${inputNilai(row)}</td><td><span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${statusSel(row)}</span></td></tr>`).join('');
+    const cards=tampil.map((row,index)=>`<article class="card assessment-mobile-card"><div class="assessment-student"><span>${index+1}</span><div><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</small></div></div><div class="score-mobile-input">${attendanceMode?`<label>Nilai Harian Dipakai (dari Kehadiran)</label><strong class="score-effective" data-attendance-score>${escapeHtml(String(nilaiKehadiran(row)))}</strong>${catatanManual(row)}<label class="muted">${escapeHtml(judulInput)}</label>`:'<label>Nilai 0–100</label>'}${inputNilai(row)}<span class="score-state ${row.saved?'status-ok':'muted'}" data-state>${statusSel(row)}</span></div></article>`).join('');
+    listHost.innerHTML=`<section class="card assessment-table-card"><div class="table-scroll"><table class="data-table assessment-table"><thead><tr><th>No.</th><th>Siswa</th>${kepalaNilai}<th>Status</th></tr></thead><tbody>${rows}</tbody></table></div></section><div class="assessment-card-list">${cards}</div>`;
     bindInputs();
   }
   function drawSummary(average,pending,filled,total,attendanceMode=false){
-    summaryHost.innerHTML=`${attendanceMode?'<div class="source-banner">Nilai Kehadiran sedang aktif: perhitungan Nilai Akhir memakai nilai kehadiran pada slot Penilaian Harian. Nilai Harian di bawah tetap dapat diisi dan tersimpan, dan langsung dipakai kembali begitu Nilai Kehadiran dimatikan.</div>':''}<div class="assessment-summary"><article class="stat-card"><div class="stat-label">Rata-rata Kelas</div><div class="stat-value" data-average>${formatAverage(average)}</div><div class="stat-foot">Nilai kosong tidak dihitung</div></article><article class="stat-card"><div class="stat-label">Sudah Dinilai</div><div class="stat-value" data-filled>${filled}</div><div class="stat-foot">dari ${total} siswa</div></article><article class="stat-card"><div class="stat-label">Belum Dinilai</div><div class="stat-value" data-pending>${pending}</div><div class="stat-foot">nilai masih kosong</div></article></div>`;
+    summaryHost.innerHTML=`${attendanceMode?'<div class="source-banner"><strong>Nilai Harian sedang diambil dari Kehadiran.</strong> Angka pada kolom <em>Nilai Harian Dipakai</em> itulah yang mengisi slot Penilaian Harian pada Nilai Akhir, dan ia mengikuti data Absensi terbaru. Nilai manual di sebelahnya tetap dapat diisi dan tersimpan, tetapi tidak sedang dipakai; ia langsung dipakai kembali begitu Nilai Kehadiran dimatikan.</div>':''}<div class="assessment-summary"><article class="stat-card"><div class="stat-label">Rata-rata Kelas</div><div class="stat-value" data-average>${formatAverage(average)}</div><div class="stat-foot">Nilai kosong tidak dihitung</div></article><article class="stat-card"><div class="stat-label">Sudah Dinilai</div><div class="stat-value" data-filled>${filled}</div><div class="stat-foot">dari ${total} siswa</div></article><article class="stat-card"><div class="stat-label">Belum Dinilai</div><div class="stat-value" data-pending>${pending}</div><div class="stat-foot">nilai masih kosong</div></article></div>`;
   }
   function allInputs(){return [...listHost.querySelectorAll('.assessment-table-card [data-score]')];}
   function idsTampil(){return [...new Set([...listHost.querySelectorAll('.assessment-table-card [data-part]')].map(input=>input.dataset.id))];}
@@ -217,6 +252,11 @@ export function renderAssessment(session){
       const nilai=rata.length?rata.reduce((sum,value)=>sum+value,0)/rata.length:null;
       drawSummary(nilai,ids.length-rata.length,rata.length,ids.length);return;
     }
+    /* Ketika nilai yang berlaku berasal dari Kehadiran, mengetik di kolom manual tidak boleh
+       menggeser ringkasan: angka yang dipakai aplikasi memang tidak berubah karenanya.
+       Ringkasannya dibiarkan apa adanya - menggambar ulang di sini justru akan merebut fokus
+       dari kolom yang sedang diketik guru. */
+    if(assessmentType==='daily'&&getDailyAttendanceMode(session,subjectId))return;
     const inputs=allInputs();const filled=inputs.map(input=>input.value.trim()).filter(Boolean).map(Number).filter(value=>Number.isFinite(value)&&value>=0&&value<=100);
     const average=filled.length?filled.reduce((sum,value)=>sum+value,0)/filled.length:null;drawSummary(average,inputs.length-filled.length,filled.length,inputs.length);
   }

@@ -83,10 +83,20 @@ test('UI simpan nilai memakai satu commit dan memberi status selesai',()=>{
 
 /* ------------------------------------------------------------- 2 & 3. Kegiatan */
 
-test('Lima kegiatan kokurikuler dengan 5 deskripsi kelas rendah dan 5 kelas tinggi',()=>{
+/* EKSPEKTASI DIPERBARUI: ragam kegiatan diperluas, bukan diganti.
+
+   Rumpun kegiatan kokurikuler yang lazim di sekolah dasar - keagamaan dan karakter, sains dan
+   teknologi, seni, serta kewirausahaan - kini punya pilihannya sendiri. Yang diuji karena itu
+   bukan lagi ANGKA lima, melainkan hal yang sebenarnya dijaga: kelima kegiatan lama tetap ada
+   dengan nama yang sama persis dan pada urutan yang sama, sehingga data yang sudah tersimpan
+   tetap menemukan presetnya, dan setiap kegiatan - lama maupun baru - tetap membawa 5 deskripsi
+   kelas rendah dan 5 kelas tinggi yang seluruhnya unik. */
+test('Setiap kegiatan kokurikuler punya 5 deskripsi kelas rendah dan 5 kelas tinggi',()=>{
   const kegiatan=listCocurricularActivities();
-  assert.equal(kegiatan.length,5);
-  assert.deepEqual(kegiatan,['Kunjungan Edukasi (Field Trip)','Proyek Peduli Lingkungan','Bakti Sosial','Pengenalan Budaya','Pelatihan Literasi']);
+  assert.deepEqual(kegiatan.slice(0,5),['Kunjungan Edukasi (Field Trip)','Proyek Peduli Lingkungan','Bakti Sosial','Pengenalan Budaya','Pelatihan Literasi'],
+    'kelima kegiatan lama tetap ada, dengan nama dan urutan yang tidak berubah');
+  assert.ok(kegiatan.length>=5,'ragamnya hanya bertambah, tidak pernah berkurang');
+  assert.equal(new Set(kegiatan).size,kegiatan.length,'tidak ada nama kegiatan yang kembar');
   const semua=[];
   COCURRICULAR_ACTIVITY_PRESETS.forEach(preset=>{
     const rendah=cocurricularDescriptionsForClass('2A',preset.name);
@@ -96,8 +106,8 @@ test('Lima kegiatan kokurikuler dengan 5 deskripsi kelas rendah dan 5 kelas ting
     assert.notDeepEqual(rendah,tinggi,`${preset.name} membedakan kelas rendah dan tinggi`);
     semua.push(...rendah,...tinggi);
   });
-  assert.equal(semua.length,50,'5 kegiatan x 5 deskripsi x 2 tingkat');
-  assert.equal(new Set(semua).size,50,'tidak ada deskripsi generik yang dipakai ulang');
+  assert.equal(semua.length,kegiatan.length*10,'setiap kegiatan x 5 deskripsi x 2 tingkat');
+  assert.equal(new Set(semua).size,semua.length,'tidak ada deskripsi generik yang dipakai ulang');
 });
 
 test('Ekstrakurikuler Pramuka mengikuti tingkat kelas secara otomatis',()=>{

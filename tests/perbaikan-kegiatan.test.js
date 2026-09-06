@@ -93,8 +93,14 @@ test('5. Ekstrakurikuler dapat diterapkan ke semua siswa sekaligus',()=>{
 
 /* ------------------------------------------------------------- 6-9. Kokurikuler preset */
 
-test('6. Lima kegiatan kokurikuler tersedia sebagai pilihan',()=>{
-  assert.deepEqual(listCocurricularActivities(),['Kunjungan Edukasi (Field Trip)','Proyek Peduli Lingkungan','Bakti Sosial','Pengenalan Budaya','Pelatihan Literasi']);
+/* EKSPEKTASI DIPERBARUI bersama perluasan ragam kegiatan kokurikuler. Klaim aslinya - kegiatan
+   dipilih dari daftar preset lewat dropdown, bukan diketik bebas - tidak berubah. Yang
+   diperbarui hanya angkanya: kelima kegiatan lama tetap ada dengan nama dan urutan yang sama,
+   dan kegiatan baru menyusul di belakangnya. */
+test('6. Kegiatan kokurikuler preset tersedia sebagai pilihan',()=>{
+  const kegiatan=listCocurricularActivities();
+  assert.deepEqual(kegiatan.slice(0,5),['Kunjungan Edukasi (Field Trip)','Proyek Peduli Lingkungan','Bakti Sosial','Pengenalan Budaya','Pelatihan Literasi']);
+  assert.ok(kegiatan.includes('Kewirausahaan (Market Day)'),'ragam baru ikut menjadi pilihan');
   const page=read('src/pages/cocurricular-input.js');
   assert.match(page,/listCocurricularActivities\(\)/,'halaman memakai daftar preset');
   assert.match(page,/select class="input" data-activity/,'kegiatan berupa dropdown');
@@ -111,8 +117,10 @@ test('7 & 8. Setiap kegiatan punya 5 deskripsi kelas rendah dan 5 kelas tinggi y
     assert.notDeepEqual(rendah,tinggi,`${preset.name} membedakan kelas rendah dan tinggi`);
     semua.push(...rendah,...tinggi);
   }
-  assert.equal(semua.length,50);
-  assert.equal(new Set(semua).size,50,'seluruh 50 deskripsi unik');
+  /* Jumlahnya mengikuti banyaknya kegiatan yang tersedia: ragam kegiatan boleh bertambah,
+     tetapi setiap kegiatan tetap wajib membawa 10 deskripsi yang seluruhnya unik. */
+  assert.equal(semua.length,COCURRICULAR_ACTIVITY_PRESETS.length*10);
+  assert.equal(new Set(semua).size,semua.length,'seluruh deskripsi unik');
   /* Deskripsi berubah mengikuti kegiatan yang dipilih, bukan satu daftar generik. */
   assert.notDeepEqual(cocurricularDescriptionsForClass('5B','Bakti Sosial'),cocurricularDescriptionsForClass('5B','Pelatihan Literasi'));
   /* Deskripsi otomatis pada halaman input juga mengikuti kegiatan dan tingkat kelas. */

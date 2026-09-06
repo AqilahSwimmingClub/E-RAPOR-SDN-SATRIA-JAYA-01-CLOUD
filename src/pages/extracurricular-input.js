@@ -1,9 +1,10 @@
 import { defaultExtracurricularActivities, findExtracurricularDefault,
   generateExtracurricularDescription } from '../data/extracurricular-defaults.js';
-import { ACTIVITY_PREDICATES, DEFAULT_ACTIVITY_PREDICATE, listExtracurriculars,
-  previewAllExtracurricular, saveAllExtracurricular } from '../services/completeness.js';
+import { ACTIVITY_PREDICATES, DEFAULT_ACTIVITY_PREDICATE, hapusSemuaExtracurricular,
+  listExtracurriculars, previewAllExtracurricular,
+  saveAllExtracurricular } from '../services/completeness.js';
 import { listStudents } from '../services/students.js';
-import { el, escapeHtml, toast } from '../ui/dom.js';
+import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 
 /* INPUT NILAI EKSTRAKURIKULER — POLA YANG SAMA PERSIS DENGAN INTRAKURIKULER.
@@ -76,7 +77,7 @@ export function renderExtracurricularInput(session){
       <div class="form-grid"><div class="field form-span-2"><label>Ekstrakurikuler *</label><select class="input" data-activity>${choices.map(item=>`<option value="${escapeHtml(item.name)}" ${item.name===kegiatan?'selected':''}>${escapeHtml(item.name)}</option>`).join('')}</select></div>
       <div class="field"><label>Predikat *</label><select class="input" data-predicate>${predicateOptions(predicate)}</select></div>
       <div class="field form-span-2"><label>Deskripsi *</label><textarea class="input" rows="4" data-description placeholder="Tekan Isi Otomatis Semua Siswa atau tuliskan sendiri...">${escapeHtml(isiDeskripsi)}</textarea><div class="actions" style="margin-top:8px"><button class="btn btn-light" type="button" data-generate-description>${icon('activity',16)} Generate Deskripsi Otomatis</button></div></div></div>
-      <div class="actions"><button class="btn btn-light" type="button" data-fill-all>${icon('activity',16)} Isi Otomatis Semua Siswa</button><button class="btn btn-primary" type="button" data-save-all ${isian.size?'':'disabled'}>${icon('save',16)} Simpan Semua</button></div></section>
+      <div class="actions"><button class="btn btn-light" type="button" data-fill-all>${icon('activity',16)} Isi Otomatis Semua Siswa</button><button class="btn btn-primary" type="button" data-save-all ${isian.size?'':'disabled'}>${icon('save',16)} Simpan Semua</button><button class="btn btn-danger" type="button" data-clear-all>${icon('trash',16)} Hapus Semua</button></div></section>
       <section class="card"><div class="section-head"><div><h3>Hasil Semua Siswa</h3><p>${isian.size?`${isian.size} siswa berstatus draf pada kegiatan ${escapeHtml(kegiatan)} dan belum tersimpan.`:`Belum ada hasil baru untuk kegiatan ${escapeHtml(kegiatan)}.`}</p></div></div><div class="table-scroll"><table class="data-table" data-preview><thead><tr><th>No</th><th>Siswa</th><th>Predikat</th><th>Status</th><th>Deskripsi</th></tr></thead><tbody>${baris}</tbody></table></div></section>`;
 
     const kegiatanObjek=nama=>choices.find(item=>item.name===nama)
@@ -119,6 +120,19 @@ export function renderExtracurricularInput(session){
         const catatan=[`${hasil.tersimpan} dari ${hasil.total} siswa tersimpan`];
         if(hasil.gagal.length)catatan.push(`${hasil.gagal.length} gagal`);
         toast(catatan.join(' · '),hasil.gagal.length?'warning':'success');
+      }catch(error){toast(error.message,'error');}
+    };
+    /* HAPUS SEMUA: membatalkan SATU kegiatan ekstrakurikuler. Kegiatan lain milik siswa yang
+       sama tetap utuh, dan kegiatan ini tetap ada pada daftar pilihan. */
+    view.querySelector('[data-clear-all]').onclick=async()=>{
+      if(!await confirmDialog({title:'Hapus semua data kegiatan ini?',
+        message:`Seluruh penilaian dan deskripsi siswa untuk kegiatan ${kegiatan} pada semester ini akan dihapus dan tidak akan tampil di Rapor. Kegiatan ekstrakurikuler lain tidak ikut terhapus, dan kegiatan ini tetap dapat dipilih lagi nanti.`,
+        confirmText:'Hapus Semua',danger:true}))return;
+      try{
+        const hasil=hapusSemuaExtracurricular(session,kegiatan);
+        isian.clear();
+        draw();
+        toast(hasil.terhapus?`Data kegiatan berhasil dihapus · ${hasil.terhapus} catatan siswa`:'Tidak ada data kegiatan yang perlu dihapus.',hasil.terhapus?'success':'warning');
       }catch(error){toast(error.message,'error');}
     };
     view.querySelector('[data-student]').onchange=event=>{selectedStudentId=event.target.value;draw();};

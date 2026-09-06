@@ -1,5 +1,6 @@
 import { defaultIntracurricularActivities, generateIntracurricularDescription } from '../data/intracurricular-defaults.js';
-import { ACTIVITY_PREDICATES, DEFAULT_ACTIVITY_PREDICATE, getStudentIntracurricular, saveIntracurricularBulk, saveStudentIntracurricular } from '../services/completeness.js';
+import { ACTIVITY_PREDICATES, DEFAULT_ACTIVITY_PREDICATE, getStudentIntracurricular,
+  hapusSemuaIntracurricular, saveIntracurricularBulk, saveStudentIntracurricular } from '../services/completeness.js';
 import { composeIntracurricularDescriptionFromCp, DEFAULT_JENIS_INTRAKURIKULER,
   getIntracurricularCp, getStudentIntracurricularSelection,
   INTRACURRICULAR_PREDICATES, JENIS_INTRAKURIKULER, jenisIntrakurikulerValid,
@@ -7,7 +8,7 @@ import { composeIntracurricularDescriptionFromCp, DEFAULT_JENIS_INTRAKURIKULER,
   PESAN_BUTIR_WAJIB, previewAllIntracurricular, saveAllIntracurricular,
   setIntracurricularVisibility } from '../services/intracurricular.js';
 import { listStudents } from '../services/students.js';
-import { el, escapeHtml, toast } from '../ui/dom.js';
+import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 
 /* ALUR INTRAKURIKULER:
@@ -134,7 +135,7 @@ export function renderIntracurricularInput(session){
         <div class="field"><label>Predikat *</label><select class="input" data-predicate>${predicateOptions(predicate)}</select></div>
         <div class="field form-span-2"><label>Butir CP yang Dinilai *</label>${pilihanButir}<div class="objective-reference-foot">${butirTerpilih.size?'':`<strong>${escapeHtml(PESAN_BUTIR_WAJIB)}</strong> `}Hanya Butir CP aktif yang dapat dipilih. Semester penilaian mengikuti ${escapeHtml(session.semester)} dan tidak perlu diatur.</div></div>
         <div class="field form-span-2"><label>Deskripsi *</label><textarea class="input" rows="4" data-description placeholder="Kosongkan untuk memakai deskripsi otomatis...">${escapeHtml(isiDeskripsi)}</textarea><div class="actions" style="margin-top:8px"><button class="btn btn-light" type="button" data-generate-description>${icon('activity',16)} Generate Deskripsi Otomatis</button></div></div></div>
-        <div class="actions"><button class="btn btn-light" type="button" data-fill-all ${butirTerpilih.size?'':'disabled'}>${icon('activity',16)} Isi Otomatis Semua Siswa</button><button class="btn btn-primary" type="button" data-save-all ${jumlahDraf?'':'disabled'}>${icon('save',16)} Simpan Semua</button></div></section>
+        <div class="actions"><button class="btn btn-light" type="button" data-fill-all ${butirTerpilih.size?'':'disabled'}>${icon('activity',16)} Isi Otomatis Semua Siswa</button><button class="btn btn-primary" type="button" data-save-all ${jumlahDraf?'':'disabled'}>${icon('save',16)} Simpan Semua</button><button class="btn btn-danger" type="button" data-clear-all>${icon('trash',16)} Hapus Semua</button></div></section>
         <section class="card"><div class="section-head"><div><h3>Hasil Semua Siswa</h3><p>${jumlahDraf?`${jumlahDraf} siswa berstatus draf dan belum tersimpan. Tekan Simpan Semua untuk menyimpannya.`:'Belum ada hasil baru. Tekan Isi Otomatis Semua Siswa untuk menyusunnya.'}</p><p>Lepas centang <strong>Tampil di Rapor</strong> untuk mata pelajaran yang tidak ingin dicetak pada rapor siswa itu. Catatannya tetap tersimpan dan kembali dipakai begitu dicentang lagi.</p></div></div><div class="table-scroll"><table class="data-table" data-preview><thead><tr><th>No</th><th>Siswa</th><th>Predikat</th><th>Status</th><th>Tampil di Rapor</th><th>Deskripsi</th></tr></thead><tbody>${baris}</tbody></table></div></section>`;
 
       const idTerpilih=()=>[...butirTerpilih];
@@ -239,6 +240,20 @@ export function renderIntracurricularInput(session){
           const catatan=[`${hasil.tersimpan} dari ${hasil.total} siswa tersimpan`];
           if(hasil.gagal.length)catatan.push(`${hasil.gagal.length} gagal`);
           toast(catatan.join(' · '),hasil.gagal.length?'warning':'success');
+        }catch(error){toast(error.message,'error');}
+      };
+      /* HAPUS SEMUA: membatalkan mata pelajaran yang sedang dibuka. Tindakan ini merusak data,
+         jadi ia selalu melewati konfirmasi lebih dulu - tidak pernah jalan dengan satu klik. */
+      view.querySelector('[data-clear-all]').onclick=async()=>{
+        const mapel=subjects.find(item=>item.id===subjectId);
+        if(!await confirmDialog({title:'Hapus semua data kegiatan ini?',
+          message:`Seluruh penilaian dan deskripsi Intrakurikuler siswa untuk ${mapel?.name||'mata pelajaran ini'} pada semester ini akan dihapus dan tidak akan tampil di Rapor. Nilai Penilaian, bukti Butir CP, dan data mata pelajaran lain tidak ikut terhapus.`,
+          confirmText:'Hapus Semua',danger:true}))return;
+        try{
+          const hasil=hapusSemuaIntracurricular(session,subjectId);
+          draf.clear();
+          draw();
+          toast(hasil.terhapus?`Data kegiatan berhasil dihapus · ${hasil.terhapus} catatan siswa`:'Tidak ada data kegiatan yang perlu dihapus.',hasil.terhapus?'success':'warning');
         }catch(error){toast(error.message,'error');}
       };
       view.querySelector('[data-student]').onchange=event=>{
