@@ -34,9 +34,9 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.2.4 uses versionCode 16 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.2.4');
-  assert.equal(VERSION_CODE,16);
+test('release v1.2.5 uses versionCode 17 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.2.5');
+  assert.equal(VERSION_CODE,17);
   /* SCHEMA TETAP 5, walaupun rilis ini menambah koleksi `cpEvidenceScores`.
 
      Koleksi baru itu lahir dari bentuk bawaan database yang selalu digabungkan saat membaca,
@@ -45,13 +45,17 @@ test('release v1.2.4 uses versionCode 16 and schema 5',()=>{
      non-destruktif dan idempotent oleh layanan Penilaian sendiri, tepat sebelum ia dapat
      tertimpa.
 
+     Rilis ini pun tidak mengubah bentuk data sama sekali: perbaikan Nilai Harian murni soal
+     tampilan, Hapus Semua hanya membuang catatan kegiatan pada koleksi yang sudah ada, dan
+     ragam kegiatan kokurikuler bertambah pada data bawaan - bukan pada database pengguna.
+
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.2.4-BUKTI-BUTIR-CP-GANDA');
-  /* Rilis sebelumnya bergeser ke 1.2.3 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.2.5-HARIAN-ABSENSI-HAPUS-KEGIATAN');
+  /* Rilis sebelumnya bergeser ke 1.2.4 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.3',versionCode:15});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.4',versionCode:16});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
