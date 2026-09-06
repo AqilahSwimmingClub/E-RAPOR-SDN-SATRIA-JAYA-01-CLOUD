@@ -198,12 +198,17 @@ test('11. Susunan GAMBAR 3: identitas kiri atas, kredit kiri bawah, kartu kanan'
 
 test('12. Kartu Masuk membulat, ringkas, kaca pastel - bukan putih polos, bukan navy',()=>{
   const t=css();
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA (1.3.1): setelah diuji pada APK sungguhan,
+     pengguna menyatakan kartu ini masih terlalu putih dan meminta warnanya diambil dari gambar
+     Login. Pangkalnya kini mint, bukan putih - larangan "putih polos" justru makin ketat. */
   const kartu=aturan(t,'.login-shell','background:linear-gradient');
-  assert.match(kartu,/rgba\(255,255,255,\.9\)/,'cukup pekat untuk terbaca');
-  assert.match(kartu,/rgba\(228,248,244,\.82\)/,'berujung mint, bukan putih polos');
+  assert.match(kartu,/rgba\(235,255,247,\.88\)/,'berpangkal mint');
+  assert.match(kartu,/rgba\(204,242,255,\.86\)/,'berujung biru langit muda, bukan putih polos');
+  assert.equal(/rgba\(255,\s*255,\s*255,\s*\.[89]/.test(kartu),false,'tidak putih dominan');
   assert.match(kartu,/backdrop-filter:blur/,'berkesan kaca');
-  assert.match(kartu,/border:1px solid rgba\(17,120,140,\.2\)/,'batas lembut, bukan garis keras');
-  assert.match(kartu,/box-shadow:0 22px 46px/,'bayangan lembut');
+  /* Tepi dan bayangannya ikut dipindah ke keluarga tosca pada 1.3.1. */
+  assert.match(kartu,/border:1px solid rgba\(38,170,190,\.34\)/,'batas tosca lembut, bukan garis keras');
+  assert.match(kartu,/box-shadow:0 20px 44px/,'bayangan lembut');
   assert.match(aturan(t,'.login-shell','border-radius'),/border-radius:(20|18)px/,'sudutnya membulat');
   /* Tidak ada satu pun warna navy tersisa pada kartu. */
   assert.doesNotMatch(kartu,/#0b1a2f|#0f2745|var\(--navy\)/);

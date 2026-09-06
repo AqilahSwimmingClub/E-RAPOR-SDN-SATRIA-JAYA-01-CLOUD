@@ -1156,3 +1156,234 @@ textarea.input{color:var(--light-ink)}
 .login-page .login-card p{font-size:12.5px;color:var(--light-muted);line-height:1.55}
 .login-page .creator strong{display:block;font-size:11px;font-weight:800;letter-spacing:.16em;color:var(--sky-accent)}
 .login-page .creator p{margin:4px 0 0;font-size:11px;color:var(--sky-muted);line-height:1.5}
+
+/* ==========================================================================================
+   PERBAIKAN 1.3.1 - HASIL PENGUJIAN FISIK APK 1.3.0
+
+   Lima hal, satu berkas gaya, ditulis di akhir supaya menang atas aturan lama tanpa perlu
+   menyunting satu pun baris di atasnya:
+
+     A. Absensi Manual - kotak angka terlalu sempit dan tertutup kolom Aksi yang menempel.
+     B. Mapping Mata Pelajaran - nama mapel bertabrakan dengan kontrol di kiri.
+     C-E. Kartu, panel, form, tabel, sidebar, topbar, dan footer diselaraskan dengan latar
+          global: mint, aqua, tosca, cyan, biru langit - bukan blok putih yang tertempel.
+     F-L. Halaman Masuk: identitas kiri atas dan kiri bawah dinaikkan keterbacaannya, kartu
+          dan isiannya mengambil warna dari gambar latarnya sendiri.
+
+   Berkas latar TIDAK disentuh sama sekali. Struktur, menu, navigasi, logika akademik, dan
+   otorisasi juga tidak diubah - yang berubah hanya ukuran, jarak, dan warna.
+   ========================================================================================== */
+
+/* ===================================================== A. ABSENSI MANUAL - KOTAK ANGKA */
+/* AKAR MASALAH, terukur pada perangkat: kolom Aksi tabel ini memakai position:sticky right:0,
+   sementara tabelnya jauh lebih lebar daripada kartu yang memuatnya. Tombol Simpan karena itu
+   mengambang DI ATAS kolom angka - pada 390x844 tepi tombol terukur 294px di dalam wilayah
+   kolom Alpa. Ketiga kotak angka pun tidak punya lebar minimum sendiri, sehingga sisa ruang
+   tabel yang membaginya dan kotaknya terlihat terpotong.
+
+   Perbaikannya dua, dan sengaja seminimal mungkin supaya algoritma tabel tidak diguncang:
+
+     1. Kolom Aksi pada TABEL INI saja dikembalikan menjadi statis. Tabel ini hanya punya satu
+        tombol utama per baris dan barisnya pendek, jadi tidak ada yang perlu dijangkarkan;
+        yang menempel justru menutupi isian yang harus diisi guru. Tabel lain tidak disentuh.
+     2. Kotak angkanya sendiri yang diberi lebar minimum, bukan tabelnya. Lebar kolom lalu
+        tumbuh mengikuti isinya lewat algoritma tabel biasa, tanpa min-width paksa. */
+.attendance-manual .cell-actions{position:static;box-shadow:none;background:transparent;
+  padding-left:18px}
+.attendance-manual .cell-actions .row-actions{gap:10px;flex-wrap:nowrap;justify-content:flex-start}
+.attendance-manual .cell-actions .btn-small{min-height:44px;padding:9px 15px;font-size:11.5px;white-space:nowrap}
+.attendance-manual td.attendance-manual-cell,.attendance-manual th.attendance-manual-cell{
+  text-align:center;padding-inline:9px;vertical-align:middle}
+.attendance-manual .attendance-manual-input{
+  width:88px;min-width:88px;margin:0 auto;
+  padding:10px 8px;text-align:center;font-size:13px;font-weight:700;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em;
+  border-radius:10px;min-height:44px}
+/* Panah putar bawaan memakan lebar yang sudah sempit dan tidak pernah dipakai di ponsel;
+   angkanya tetap dapat diketik dan tetap dibatasi min/max oleh atribut input. */
+.attendance-manual .attendance-manual-input::-webkit-outer-spin-button,
+.attendance-manual .attendance-manual-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.attendance-manual .attendance-manual-input{-moz-appearance:textfield;appearance:textfield}
+
+/* ============================================ B. MAPPING MATA PELAJARAN - LIMA AREA */
+/* AKAR MASALAH: nomor urut dulu ditulis sebagai <span> di dalam blok nama, dan kolom tombol
+   urutan hanya 42px sementara isinya dua tombol. Tombolnya terukur menyusut sampai 20px -
+   jauh di bawah sasaran sentuh - dan pada perangkat sungguhan isinya meluber ke area nama.
+
+   Sekarang barisnya kisi lima area yang berdiri sendiri-sendiri. Nama mapel punya ruangnya
+   sendiri, boleh membungkus baris secara alami, dan tidak pernah berbagi sel dengan apa pun. */
+.subject-row{display:grid;
+  grid-template-columns:auto auto minmax(0,1fr) auto auto;
+  grid-template-areas:"urut nomor nama kelompok aktif";
+  align-items:center;gap:12px;padding:12px 14px}
+.subject-row>*{min-width:0}
+.order-actions{grid-area:urut;display:flex;gap:6px;flex:none}
+.order-actions .btn-icon{width:40px;min-width:40px;height:40px;min-height:40px;flex:none;padding:0}
+.subject-order{grid-area:nomor;flex:none;min-width:30px;text-align:right;
+  font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums}
+.subject-text{grid-area:nama;min-width:0}
+.subject-name{font-size:13px;font-weight:700;line-height:1.4;overflow-wrap:anywhere;hyphens:auto}
+.subject-parent{font-size:11px;line-height:1.4;margin-top:2px;overflow-wrap:anywhere}
+.mapping-group-select{grid-area:kelompok;width:132px;min-width:132px;flex:none;
+  padding:9px 10px;font-size:11px;min-height:40px}
+.subject-row .switch{grid-area:aktif;flex:none;justify-content:flex-end;white-space:nowrap;
+  min-width:78px;gap:8px;font-size:11.5px;font-weight:700}
+.subject-row .switch input{width:20px;height:20px;flex:none}
+
+/* Tablet dan layar menengah: kelompok dan aktif turun ke baris kedua, nama tetap utuh. */
+@media(max-width:1050px){
+  .subject-row{grid-template-columns:auto auto minmax(0,1fr);
+    grid-template-areas:"urut nomor nama" ".  .    kelompok" ".  .    aktif";
+    row-gap:8px}
+  .mapping-group-select{width:100%;min-width:0;justify-self:start;max-width:220px}
+  .subject-row .switch{justify-content:flex-start;justify-self:start}
+}
+/* Ponsel: tombol urutan berdampingan di baris sendiri supaya sasaran sentuhnya tetap penuh,
+   nama mapel memakai selebar kartu, dan tidak ada satu pun bagian yang saling menindih. */
+@media(max-width:767px){
+  .subject-row{grid-template-columns:auto minmax(0,1fr);
+    grid-template-areas:"nomor nama" "urut urut" "kelompok kelompok" "aktif aktif";
+    gap:10px;padding:12px}
+  .order-actions{justify-self:start}
+  .order-actions .btn-icon{width:44px;min-width:44px;height:44px;min-height:44px}
+  .subject-order{text-align:left;min-width:26px}
+  .mapping-group-select{max-width:none}
+}
+
+/* ================================== C-D. PERMUKAAN KARTU, PANEL, FORM, DAN TABEL GLOBAL */
+/* Sampai 1.3.0 permukaan kartu memakai putih 94% sehingga terbaca sebagai lembar putih yang
+   ditempel di atas latar. Sekarang seluruh permukaan memakai kaca mint-aqua yang mengambil
+   warna dari latar global, tetap cukup pekat untuk dibaca, dan berbatas tosca sangat lembut.
+
+   Warna teksnya TIDAK ikut diterangkan: --light-ink dan --light-muted tetap dipakai supaya
+   nama siswa, angka, dan isi tabel tetap kontras di atas permukaan yang lebih berwarna. */
+:root{
+  --kaca-1:rgba(245,255,252,.84);--kaca-2:rgba(226,250,250,.8);--kaca-3:rgba(214,243,255,.82);
+  --kaca-tepi:rgba(70,210,220,.24);--kaca-tepi-kuat:rgba(38,170,190,.34);
+  --kaca-bayang:0 12px 28px rgba(13,71,86,.12);
+  --teks-utama:#0b3b48;--teks-kedua:#2a6b7c}
+
+.card,.modal-card,.stat-card,.saved-table-card,.users-table-card,.cocurricular-table-card,
+.intracurricular-table-card,.reference-subject-card,.admin-status-detail,.empty-state,
+.module-filter,.report-tabs,.promotion-list,.completion-subject,.admin-class-status,
+.student-table-card,.leger-table-card,.import-preview-table,.wide-table-card,
+.master-data-layout,.objective-card,.attitude-list article,.dash-stat,.dash-panel{
+  background:linear-gradient(150deg,var(--kaca-1) 0%,var(--kaca-2) 55%,var(--kaca-3) 100%);
+  border:1px solid var(--kaca-tepi);box-shadow:var(--kaca-bayang);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+/* Kartu di dalam kartu tidak boleh menumpuk kaca berlapis sampai buram. */
+.card .card,.modal-card .card,.dash-panel .card{backdrop-filter:none;-webkit-backdrop-filter:none;
+  background:rgba(255,255,255,.66);box-shadow:none}
+
+/* Baris, sel, dan pembatas tabel mengikuti keluarga warna yang sama. */
+.data-table th{background:rgba(214,243,255,.62);color:#215f70;border-bottom:1px solid var(--kaca-tepi)}
+.data-table td{border-bottom:1px solid rgba(70,210,220,.18)}
+.data-table tbody tr:hover td{background:rgba(226,250,250,.5)}
+.data-table .cell-actions{background:linear-gradient(150deg,var(--kaca-1),var(--kaca-2));
+  box-shadow:-8px 0 12px -10px rgba(13,71,86,.28)}
+.data-table th.cell-actions{background:rgba(214,243,255,.86)}
+.table-scroll{border-radius:12px}
+
+/* Isian form: mint sangat muda, bukan putih pekat. Teksnya tetap gelap. */
+.input,.tab{background:rgba(250,255,254,.9);border-color:var(--kaca-tepi)}
+.input:focus{border-color:#2fa8ff;background:#fff;box-shadow:0 0 0 3px rgba(47,168,255,.16)}
+select.input option{background:#fff;color:var(--light-ink)}
+.readonly{background:rgba(226,250,250,.7);color:var(--light-muted)}
+.password-wrap{border-color:var(--kaca-tepi)}
+.password-wrap .password-toggle{background:transparent;color:#2a6b7c}
+.field label{color:#1d5566}
+.section-head h3{color:var(--teks-utama)}
+.section-head p{color:var(--teks-kedua)}
+.module-filter,.report-tabs{backdrop-filter:none;-webkit-backdrop-filter:none}
+.tab.active{background:linear-gradient(135deg,#5de4e0,#2fa8ff);color:#06323c;border-color:rgba(47,168,255,.42)}
+.btn-light{background:rgba(250,255,254,.92);border-color:var(--kaca-tepi);color:var(--light-ink)}
+.btn-light:hover{background:#fff}
+.switch{color:#2a6b7c}
+.badge-active{background:rgba(93,228,224,.3);border-color:var(--kaca-tepi);color:#0b5f70}
+.badge-inactive{background:rgba(250,255,254,.8);border-color:var(--kaca-tepi);color:#2a6b7c}
+.recovery-code{background:rgba(226,250,250,.75);border-color:var(--kaca-tepi)}
+.modal-backdrop{background:rgba(8,52,64,.44)}
+.placeholder-icon{background:rgba(93,228,224,.24);color:#0b5f70}
+.subject-row{background:linear-gradient(150deg,rgba(250,255,253,.9),rgba(226,250,250,.8));
+  border:1px solid var(--kaca-tepi);border-radius:12px}
+.subject-row .subject-name{color:var(--light-ink)}
+.subject-row .subject-order{color:#1d7a8c}
+.subject-row .subject-parent{color:var(--light-muted)}
+
+/* ==================================================== E. SIDEBAR, TOPBAR, DAN FOOTER */
+/* Strukturnya tetap. Warnanya dirapatkan ke latar global supaya tidak lagi terbaca sebagai
+   pita putih, tetapi tetap jelas dibedakan dari area konten. */
+.sidebar{background:linear-gradient(180deg,rgba(236,253,250,.9) 0%,rgba(214,243,250,.82) 100%);
+  border-right:1px solid var(--kaca-tepi-kuat)}
+.topbar{background:linear-gradient(120deg,rgba(240,254,251,.88),rgba(216,244,252,.84));
+  border-bottom:1px solid var(--kaca-tepi-kuat)}
+.footer{color:#1f6b7c}
+.semester-chip{background:rgba(255,255,255,.82);border-color:var(--kaca-tepi-kuat);color:#0b5f70}
+.mobile-menu{background:rgba(255,255,255,.86);border-color:var(--kaca-tepi-kuat)}
+.brand-mark{background:rgba(255,255,255,.8);border-color:var(--kaca-tepi)}
+.nav-group-toggle,.nav-item{color:#12505f}
+.nav-group-toggle:hover,.nav-item:hover{background:rgba(255,255,255,.78);color:var(--teks-utama)}
+.nav-section{color:#17798c}
+
+/* ============================== F-H. HALAMAN MASUK - KETERBACAAN IDENTITAS DUA SUDUT */
+/* Pada APK sungguhan kedua blok teks ini menyatu dengan bagian latar yang terang. Posisinya
+   TIDAK dipindahkan dan ukurannya tidak dibesarkan berlebihan - yang dinaikkan warnanya:
+   dari tosca muda menjadi teal gelap, dengan halo putih tipis supaya tetap terbaca di atas
+   bagian gambar yang paling terang sekalipun. */
+.login-brand-app{color:#075985;font-weight:850;letter-spacing:.26em;
+  text-shadow:0 1px 6px rgba(255,255,255,.9)}
+.login-brand-text strong{color:#073B5C;font-weight:900;
+  text-shadow:0 1px 3px rgba(255,255,255,.95),0 2px 12px rgba(255,255,255,.75)}
+.login-brand-tagline{color:#064E63;font-weight:700;font-size:10.5px;letter-spacing:.13em;
+  text-shadow:0 1px 3px rgba(255,255,255,.95),0 2px 10px rgba(255,255,255,.7)}
+.login-credit-lead{color:#075985;font-weight:800;
+  text-shadow:0 1px 3px rgba(255,255,255,.95),0 2px 8px rgba(255,255,255,.7)}
+.login-credit-name{color:#073B5C;font-weight:900;
+  text-shadow:0 1px 3px rgba(255,255,255,.95),0 2px 12px rgba(255,255,255,.8)}
+.login-credit-role{color:#064E63;font-weight:600;
+  text-shadow:0 1px 3px rgba(255,255,255,.95),0 2px 8px rgba(255,255,255,.7)}
+.login-credit-copy{color:#075985;font-weight:600;
+  text-shadow:0 1px 3px rgba(255,255,255,.95),0 2px 8px rgba(255,255,255,.7)}
+.login-credit::before{background:linear-gradient(180deg,transparent,#0e7f95 18%,#0e7f95 82%,transparent);
+  box-shadow:0 0 10px rgba(14,127,149,.4)}
+
+/* ======================================== I-K. KARTU, ISIAN, DAN TOMBOL HALAMAN MASUK */
+/* Kartunya tetap berupa kotak tersendiri - bukan dihilangkan - tetapi warnanya diambil dari
+   gambar latarnya: mint ke aqua ke biru langit muda, bukan putih susu yang tertempel. */
+.login-shell{background:linear-gradient(145deg,rgba(235,255,247,.88) 0%,rgba(210,250,247,.84) 52%,rgba(204,242,255,.86) 100%);
+  border:1px solid rgba(38,170,190,.34);
+  box-shadow:0 20px 44px rgba(9,74,92,.2),inset 0 1px 0 rgba(255,255,255,.6);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.login-shell-head h2{color:#073B5C;font-weight:900}
+.login-shell-head p{color:#0f5d70}
+.login-shell .role-switch{background:rgba(228,252,250,.72);border-color:rgba(38,170,190,.3)}
+.login-shell .role-btn{color:#12606f;font-weight:750}
+.login-shell .role-btn.active{color:#04303c;background:linear-gradient(135deg,#5de4e0,#2fa8ff);
+  box-shadow:0 5px 14px rgba(47,168,255,.32)}
+.login-field{background:linear-gradient(140deg,rgba(240,255,251,.86),rgba(219,248,250,.82));
+  border-color:rgba(38,170,190,.32)}
+.login-field:focus-within{border-color:#0f8fbd;background:rgba(248,255,254,.96);
+  box-shadow:0 0 0 3px rgba(47,168,255,.2)}
+.login-field-icon{color:#0f7d92}
+.login-field:focus-within .login-field-icon{color:#0b6d95}
+.login-shell .input{color:#073B5C;font-weight:600}
+.login-shell .input::placeholder{color:#4d8a99;opacity:1}
+.login-shell .password-toggle{color:#0f7d92}
+.login-help{background:rgba(240,255,251,.72);border:1px dashed rgba(38,170,190,.3);color:#175f70}
+.login-link{color:#0b6d95;font-weight:700}
+.login-version{color:#0f7d92;background:rgba(255,255,255,.72);border-color:rgba(38,170,190,.3);font-weight:800}
+.login-ghost{background:rgba(240,255,251,.8);border-color:rgba(38,170,190,.32);color:#073B5C}
+
+/* ============================================================== N. CETAK TETAP BERSIH */
+/* Permukaan kaca hanya untuk layar. Saat mencetak seluruhnya kembali putih polos supaya
+   lembar A4, Cover, Leger, dan Transkrip tidak pernah membawa warna maupun latar aplikasi. */
+@media print{
+  .card,.modal-card,.stat-card,.saved-table-card,.users-table-card,.cocurricular-table-card,
+  .intracurricular-table-card,.reference-subject-card,.admin-status-detail,.empty-state,
+  .module-filter,.report-tabs,.promotion-list,.completion-subject,.admin-class-status,
+  .student-table-card,.leger-table-card,.import-preview-table,.wide-table-card,
+  .master-data-layout,.objective-card,.attitude-list article,.dash-stat,.dash-panel{
+    background:#fff!important;border-color:#ddd!important;box-shadow:none!important;
+    backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .data-table th,.data-table td,.data-table .cell-actions{background:#fff!important}
+}

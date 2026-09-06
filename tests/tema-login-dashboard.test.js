@@ -144,9 +144,20 @@ test('5. Kartu form mengambang di atas latar yang sama, tanpa panel terpisah',()
   const t=css();
   const kartu=aturanBerisi(t,'.login-shell','background:linear-gradient');
   assert.ok(kartu,'aturan kartu ditemukan');
-  assert.match(kartu,/rgba\(255,255,255,\.9\)/,'cukup pekat untuk terbaca, bukan kaca tipis');
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA (1.3.1).
+
+     Baseline 1.3.0 mengunci putih 90% sebagai warna pangkal kartu. Setelah diuji pada APK
+     sungguhan, pengguna menyatakan kartu itu masih terlihat "terlalu PUTIH dan seperti
+     ditempel di atas background", dan meminta kartunya mengambil warna dari gambar Login:
+     mint, aqua, tosca muda, cyan muda. Jadi yang dikunci sekarang kebalikannya - pangkalnya
+     mint/aqua, bukan putih - sambil tetap cukup pekat untuk dibaca. */
+  assert.match(kartu,/rgba\(235,255,247,\.88\)/,'berpangkal mint, bukan putih');
+  assert.match(kartu,/rgba\(210,250,247,\.84\)/,'melewati aqua');
+  assert.match(kartu,/rgba\(204,242,255,\.86\)/,'berujung biru langit muda');
+  assert.equal(/rgba\(255,\s*255,\s*255,\s*\.[89]\d?\)/.test(kartu),false,
+    'tidak ada lagi putih pekat sebagai warna dominan kartu');
   assert.match(kartu,/border:1px solid/,'batas kartu tetap terlihat');
-  assert.match(kartu,/box-shadow:0 22px 46px/,'bayangan lembut');
+  assert.match(kartu,/box-shadow:0 20px 44px/,'bayangan lembut');
   assert.match(kartu,/backdrop-filter:blur/,'tetap berkesan kaca');
   /* Tidak ada kolom kedua yang membawa latarnya sendiri. */
   const source=login();
@@ -220,7 +231,10 @@ test('10. Jarak antarbaris identitas pengembang dirapatkan',()=>{
     assert.ok(jarak(nama)<=2,`jarak ${nama} rapat (${jarak(nama)}px)`);
   /* Hierarkinya tetap: nama paling tegas, label dan hak cipta paling kecil. */
   assert.match(aturanBerisi(t,'.login-credit-lead','font-size'),/font-size:9\.5px/);
-  assert.match(aturanBerisi(t,'.login-credit-name','font-weight'),/font-weight:850/);
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA (1.3.1): nama pengembang dinaikkan dari
+     850 ke 900 karena pada APK sungguhan blok ini terlalu menyatu dengan gambar latar.
+     Hierarkinya tidak berubah - nama tetap yang paling kuat di antara keempat barisnya. */
+  assert.match(aturanBerisi(t,'.login-credit-name','font-weight'),/font-weight:900/);
   assert.match(aturanBerisi(t,'.login-credit-role','font-size:11px'),/font-size:11px/);
   assert.match(aturanBerisi(t,'.login-credit-copy','font-size'),/font-size:9\.5px/);
 });
@@ -340,10 +354,21 @@ test('18. Kartu tetap terbaca, dan tema BARU memang menyentuh seluruh kerangka',
      Pengguna mencabut batasan itu dan menyatakan penghapusan tema navy WAJIB. Jadi harapannya
      dibalik: sekarang kerangka justru HARUS ikut berubah. */
   const gaya=css();
-  const kartu=aturanBerisi(gaya,'.dash-stat,.dash-panel','background:linear-gradient');
-  assert.match(kartu,/rgba\(255,255,255,\.92\)/,'cukup opaque, bukan terlalu transparan');
-  assert.match(kartu,/border:1px solid/);
-  assert.match(kartu,/box-shadow:0 14px 30px/);
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA (1.3.1): permukaan kartu tidak lagi
+     berpangkal putih 92%. Setelah pengujian APK, pengguna meminta seluruh kartu, panel, form,
+     dan tabel memakai kaca mint/aqua yang menyatu dengan latar - bukan blok putih yang
+     tertempel. Yang dijaga sekarang: pangkalnya mint, dan tetap cukup pekat untuk dibaca. */
+  /* Permukaan kartu kini satu aturan bersama untuk seluruh aplikasi, jadi selektornya panjang;
+     yang dicari adalah aturan yang memuat .dash-stat DAN .dash-panel sekaligus. */
+  /* Aturan cetak juga menyebut kedua selektor itu; yang dicari adalah aturan LAYAR, yaitu
+     yang memakai permukaan kaca bersama. */
+  const kartu=[...gaya.matchAll(/[^{}]*\.dash-stat,\.dash-panel\{[^}]*\}/g)]
+    .map(m=>m[0]).filter(x=>x.includes('--kaca-1')).at(-1)||'';
+  assert.ok(kartu,'aturan permukaan kartu bersama ditemukan');
+  assert.match(kartu,/var\(--kaca-1\)/,'memakai permukaan kaca bersama');
+  assert.match(kartu,/border:1px solid var\(--kaca-tepi\)/);
+  assert.match(kartu,/box-shadow:var\(--kaca-bayang\)/);
+  assert.match(gaya,/--kaca-1:rgba\(245,255,252,\.84\)/,'pangkal mint, bukan putih pekat');
   for(const nada of ['cyan','teal','purple','amber'])
     assert.match(gaya,new RegExp(`\\.dash-stat-${nada}\\{`),`aksen ${nada} tetap ada`);
   /* Tema baru memang menyentuh kerangka: shell, sidebar, dan topbar semuanya diterangkan. */

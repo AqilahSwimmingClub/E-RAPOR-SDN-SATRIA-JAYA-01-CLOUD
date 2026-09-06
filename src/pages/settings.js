@@ -31,10 +31,19 @@ export function renderSubjectMapping(session){
     }).join('')}</div>`;
     bindRows();
   }
+  /* SATU BARIS, LIMA AREA TERPISAH: urutan, nomor, nama, kelompok, aktif.
+
+     Sampai 1.3.0 nomor urut ditulis sebagai <span> DI DALAM blok nama, dan tombol naik/turun
+     berdiri pada kolom selebar 42px yang lebih sempit daripada isinya sendiri. Keduanya membuat
+     nama mata pelajaran panjang bertabrakan dengan kontrol di sebelah kiri pada perangkat
+     sungguhan. Sekarang setiap bagian punya areanya sendiri pada kisi, sehingga nama mapel tidak
+     pernah lagi berbagi ruang dengan nomor maupun tombol urutan. Seluruh fungsinya tidak
+     diubah: reorder, kelompok, aktif/nonaktif, Reset Default, dan Simpan Mapping tetap sama. */
   function subjectRow(item){
     return `<div class="subject-row" data-id="${item.id}">
       <div class="order-actions"><button class="btn btn-light btn-icon" data-up title="Naik" ${canReorderWithinGroup(mapping,item.id,-1)?'':'disabled'}>${icon('arrowUp',15)}</button><button class="btn btn-light btn-icon" data-down title="Turun" ${canReorderWithinGroup(mapping,item.id,1)?'':'disabled'}>${icon('arrowDown',15)}</button></div>
-      <div><div class="subject-name"><span class="muted" style="margin-right:7px">${item.order}.</span>${escapeHtml(item.name)}</div>${item.parent?`<div class="subject-parent">${escapeHtml(item.parent)}</div>`:''}</div>
+      <div class="subject-order" aria-hidden="true">${item.order}.</div>
+      <div class="subject-text"><div class="subject-name">${escapeHtml(item.name)}</div>${item.parent?`<div class="subject-parent">${escapeHtml(item.parent)}</div>`:''}</div>
       <select class="input mapping-group-select" data-group aria-label="Kelompok ${escapeHtml(item.name)}"><option value="A" ${item.group==='A'?'selected':''}>Kelompok A</option><option value="B" ${item.group==='B'?'selected':''}>Kelompok B</option></select>
       <label class="switch"><input type="checkbox" data-active ${item.active?'checked':''}/> Aktif</label>
     </div>`;
