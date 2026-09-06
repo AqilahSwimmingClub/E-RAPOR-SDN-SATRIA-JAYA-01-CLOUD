@@ -367,7 +367,7 @@ test('18. Guru membaca logo master Admin: tidak ada master logo terpisah per Gur
 
 test('19. Form Login memakai tiga logo dengan urutan Tut Wuri, daerah, lalu sekolah',()=>{
   const halaman=read('src/pages/login.js');
-  const panel=halaman.slice(halaman.indexOf('<section class="login-panel">'));
+  const panel=halaman.slice(halaman.indexOf('<div class="login-card-slot">'));
   const baris=panel.slice(panel.indexOf('class="login-crest-row"'),panel.indexOf('<h2>Masuk ke e-Rapor</h2>'));
   const urutan=[...baris.matchAll(/data-crest="(\w+)"/g)].map(item=>item[1]);
   assert.deepEqual(urutan,['ministry','region','school'],'urutan ketiganya tidak berubah');
@@ -385,8 +385,10 @@ test('19. Form Login memakai tiga logo dengan urutan Tut Wuri, daerah, lalu seko
   assert.match(halaman,/const kelasUnggahan=nilai=>nilai\?' login-crest-upload':'';/);
   assert.match(baris,/regionUpload\?'login-crest-upload':'login-crest-region'/);
   const gaya=read('src/styles/app.css');
-  assert.equal((gaya.match(/\.login-crest-upload\{width:(\d+)px;height:\1px;margin:0\}/g)||[]).length,3,
-    'kotak tetap disediakan pada ketiga ukuran layar');
+  /* Ukuran layar bertambah satu pada 1.3.0: lanskap pendek kini punya kisinya sendiri, dan
+     kotak unggahan ikut disediakan di sana supaya rasio apa pun tetap tidak menggeser baris. */
+  assert.equal((gaya.match(/\.login-crest-upload\{width:(\d+)px;height:\1px;margin:0\}/g)||[]).length,4,
+    'kotak tetap disediakan pada keempat ukuran layar');
   for(const [,tinggi] of [...gaya.matchAll(/\.login-crest\{height:(\d+)px/g)])
     assert.match(gaya,new RegExp(`\\.login-crest-upload\\{width:${tinggi}px;height:${tinggi}px`),
       `kotak unggahan setinggi ${tinggi}px, sama dengan lambang bawaan`);
@@ -394,7 +396,7 @@ test('19. Form Login memakai tiga logo dengan urutan Tut Wuri, daerah, lalu seko
 
 test('20. Logo Sekolah dipakai di kiri atas Login dan sebagai logo ketiga form',()=>{
   const halaman=read('src/pages/login.js');
-  const foto=halaman.slice(halaman.indexOf('<section class="login-photo">'),halaman.indexOf('<section class="login-panel">'));
+  const foto=halaman.slice(halaman.indexOf('<div class="login-brand">'),halaman.indexOf('<div class="login-credit">'));
   assert.match(foto,/class="login-logo" src="\$\{escapeHtml\(crest\)\}"/,'kiri atas memakai Logo Sekolah');
   assert.match(halaman,/data-crest="school"/,'logo ketiga form juga Logo Sekolah');
   /* Logo Sekolah TIDAK boleh masuk slot Cover. */

@@ -18,12 +18,24 @@ test('Tema dashboard memakai token dark navy, glass, dan aksen cyan/teal/ungu',(
   assert.match(t,/backdrop-filter\s*:\s*blur\(/);
 });
 
-test('Sidebar dan topbar mengikuti tema baru, bukan gradasi maroon lama',()=>{
+test('Sidebar dan topbar mengikuti tema terang, bukan maroon maupun navy',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA.
+
+     Baseline v1.2.1 mengunci tema navy sebagai penggantinya maroon. Pengguna menyatakan
+     penghapusan navy WAJIB: tidak boleh ada blok biru tua besar pada sidebar, topbar, footer,
+     panel menu, maupun wadah utama. Sidebar dan topbar tetap ada dan tetap berstruktur sama;
+     yang berubah hanya permukaannya menjadi kaca terang dalam palet latar aplikasi. */
   const t=css();
   assert.doesNotMatch(t,/\.sidebar\{[^}]*linear-gradient\(180deg,#711827/,'gradasi maroon sidebar diganti');
-  assert.match(t,/\.sidebar\{[^}]*var\(--navy/,'sidebar memakai navy');
-  assert.match(t,/\.topbar\{[^}]*var\(--glass/,'topbar memakai permukaan kaca');
-  assert.match(t,/\.app-shell\{[^}]*var\(--navy/,'shell memakai latar navy');
+  for(const warna of ['#0b1a2f','#0f2745','#132f52'])
+    assert.equal(t.includes(warna),false,`warna navy ${warna} tidak dipakai lagi`);
+  const blok=t.slice(t.indexOf('TEMA 1.3.0'));
+  assert.match(blok,/\.sidebar\{[^}]*rgba\(255,255,255,\.78\)/s,'sidebar menjadi kaca putih kebiruan');
+  assert.match(blok,/\.topbar\{[^}]*rgba\(255,255,255,\.7\)/s,'topbar memakai permukaan kaca terang');
+  assert.match(t,/\.app-shell\{[^}]*app-background\.webp/s,'shell memakai latar aplikasi, bukan blok warna');
+  /* Menu terpilih tetap jelas ditandai. */
+  assert.match(blok,/\.nav-group-toggle\.active,\.nav-item\.active\{[^}]*linear-gradient\(135deg,#5de4e0 0%,#2fa8ff 100%\)/s,
+    'menu terpilih ditandai aksen tosca ke biru langit');
 });
 
 test('Dashboard membaca seluruh angka dari layanan data asli',()=>{

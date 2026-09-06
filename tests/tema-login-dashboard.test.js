@@ -74,64 +74,91 @@ function kataTerulang(teks){
 
 /* ============================================================ A-C. HALAMAN MASUK */
 
-test('1. Latar Masuk memakai berkas baru; foto kapal Phinisi tidak dipakai lagi',()=>{
+test('1. Latar Masuk memakai BERKAS ASLI GAMBAR 1, bukan gambar ulang',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA (revisi final acuan visual).
+
+     Rilis 1.2.9 mengunci latar Masuk sebagai berkas SVG yang digambar ulang menyerupai acuan.
+     Pengguna menyatakan itu salah dan meminta BERKAS ASLI dipakai apa adanya: tidak digambar
+     ulang menjadi SVG, tidak diganti ilustrasi pengganti, tidak diubah komposisi maupun
+     warnanya. Karena itu harapan test dibalik: yang dikunci sekarang justru berkas aslinya. */
   const t=css();
-  assert.ok(existsSync(new URL('assets/login-background.svg',root)),'berkas latar baru tersedia');
+  assert.ok(existsSync(new URL('assets/login-background.webp',root)),'berkas asli tersedia');
+  assert.equal(existsSync(new URL('assets/login-background.svg',root)),false,
+    'gambar ulang SVG tidak lagi dipaketkan');
   assert.equal(existsSync(new URL('assets/login-background.jpg',root)),false,
-    'foto lama tidak lagi ikut dipaketkan');
-  assert.equal((t.match(/login-background\.svg/g)||[]).length,1,'disebut tepat sekali');
-  assert.equal((t.match(/login-background\.jpg/g)||[]).length,0);
-  const foto=t.match(/\.login-photo\{[^}]*\}/)[0];
-  assert.match(foto,/url\('\.\.\/\.\.\/assets\/login-background\.svg'\)/);
-  assert.match(foto,/cover/);
-  assert.match(foto,/no-repeat/);
-  assert.match(foto,/linear-gradient/,'ada gradasi cadangan bila berkasnya belum ada');
+    'foto kapal Phinisi lama juga tidak dipaketkan');
+  assert.equal((t.match(/login-background\.webp/g)||[]).length,1,'disebut tepat sekali');
+  assert.equal((t.match(/login-background\.(svg|jpg)/g)||[]).length,0);
+  const panggung=aturanBerisi(t,'.login-stage','login-background');
+  assert.match(panggung,/url\('\.\.\/\.\.\/assets\/login-background\.webp'\)/);
+  assert.match(panggung,/cover/,'menutup layar dengan cover');
+  assert.match(panggung,/no-repeat/);
+  assert.match(panggung,/linear-gradient/,'ada gradasi cadangan bila berkasnya belum ada');
 });
+test('2. Berkas latar dipakai utuh: dipotong cover, tidak pernah diregangkan',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA.
 
-test('2. Berkas latar Masuk tidak memuat teks apa pun',()=>{
-  const svg=read('assets/login-background.svg');
-  const tanpaKomentar=svg.replace(/<!--[\s\S]*?-->/g,'');
-  assert.equal(/<text|<tspan|font-family|font-size/.test(tanpaKomentar),false,
-    'tidak ada teks yang dibakar ke dalam gambar');
-  assert.match(svg,/preserveAspectRatio="xMidYMid slice"/,'gambar menutup kolom tanpa gepeng');
+     Dulu berkas latar wajib bersih dari teks karena slogannya ditulis sebagai elemen halaman.
+     Acuan final justru sebaliknya: papan tulis dan tulisan MEMANG bagian dari gambar, dan
+     pengguna melarang keduanya dihapus. Yang dijaga sekarang bukan lagi "tidak ada teks",
+     melainkan bahwa berkasnya tidak pernah diregangkan sehingga tulisan itu tetap terbaca. */
+  const berkas=readFileSync(new URL('assets/login-background.webp',root));
+  assert.equal(berkas.slice(0,4).toString('latin1'),'RIFF','berkas raster asli, bukan hasil gambar ulang');
+  assert.equal(berkas.slice(8,12).toString('latin1'),'WEBP');
+  assert.ok(berkas.length>100000,'berkas foto penuh, bukan ilustrasi pengganti yang ringan');
+  const t=css();
+  const panggung=aturanBerisi(t,'.login-stage','login-background');
+  assert.match(panggung,/\/cover/,'cover: dipotong, bukan digepengkan');
+  assert.doesNotMatch(panggung,/background-size:100% 100%/,'tidak pernah diregangkan');
+  /* Titik potongnya boleh bergeser per lebar layar, tetapi perbandingan gambarnya tetap. */
+  assert.match(t,/--login-bg-pos/,'titik fokus dapat digeser per ukuran layar');
 });
+test('3. Slogan papan tulis tidak ditulis ulang sebagai elemen halaman',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA.
 
-test('3. Slogan papan tulis ditulis SATU KALI sebagai elemen halaman',()=>{
+     Pada 1.2.9 slogan sengaja diangkat menjadi elemen .login-chalkboard karena latar buatan
+     saat itu memang tidak memuatnya. Berkas asli GAMBAR 1 sudah memuat papan tulis beserta
+     tulisannya, sehingga menuliskannya lagi akan membuat slogan itu muncul DUA KALI. Karena
+     itu elemen papan tulis dibuang, dan yang dikunci sekarang adalah ketiadaannya. */
   const source=login();
   const slogan='Administrasi Kelas yang Tertata untuk Generasi yang Lebih Baik';
-  assert.equal((source.match(new RegExp(slogan,'g'))||[]).length,1,'ditulis tepat sekali');
-  assert.match(source,/<p class="login-chalkboard">/,'berdiri sebagai satu elemen papan tulis');
-  assert.equal((source.match(/login-chalkboard/g)||[]).length,1);
-  /* Bidang papan tulisnya adalah elemen itu sendiri, bukan bidang kedua di dalam gambar. */
-  const gaya=css();
-  assert.match(gaya,/\.login-chalkboard\{[^}]*border:7px solid #e6d6bd/,'punya bingkai papan tulis');
-  assert.match(gaya,/\.login-chalkboard\{[^}]*linear-gradient\(160deg,#2f4f55,#1d3a41\)/,'bidang papan gelap');
-  assert.equal(/papan|chalk/i.test(read('assets/login-background.svg').replace(/<!--[\s\S]*?-->/g,'')),false,
-    'tidak ada papan tulis kedua yang digambar di dalam berkas latar');
+  assert.equal((source.match(new RegExp(slogan,'g'))||[]).length,0,
+    'tidak ditulis di halaman: slogan sudah menjadi bagian berkas latar');
+  assert.equal(/login-chalkboard/.test(source),false,'elemen papan tulis dibuang');
+  assert.equal(/login-chalkboard/.test(css()),false,'gayanya ikut dibuang, tidak menyisakan aturan mati');
 });
-
 test('4. Slogan lama tidak ada lagi di mana pun',()=>{
-  const berkas=[login(),css(),read('assets/login-background.svg'),read('src/data/app-identity.js')];
+  const berkas=[login(),css(),read('src/data/app-identity.js')];
   for(const isi of berkas){
     assert.equal(/Data Akurat/i.test(isi),false,'"Data Akurat" tidak muncul');
     assert.equal(/Prestasi Nyata/i.test(isi),false,'"Prestasi Nyata" tidak muncul');
     assert.equal(/Anak Hebat/i.test(isi),false,'"Anak Hebat" tidak muncul');
   }
 });
+test('5. Kartu form mengambang di atas latar yang sama, tanpa panel terpisah',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA.
 
-test('5. Kartu form punya batas sendiri dan menyatu warna dengan latar',()=>{
+     Baseline 1.2.9 masih mengunci keberadaan .login-panel, yaitu kolom kanan yang punya latar
+     sendiri. Pengguna menyatakan tegas: TIDAK BOLEH ADA SEKAT ATAU PEMISAH antara kanan dan
+     kiri. Kolom itu dibubarkan, jadi yang dikunci sekarang adalah ketiadaannya. */
   const t=css();
   const kartu=aturanBerisi(t,'.login-shell','background:linear-gradient');
   assert.ok(kartu,'aturan kartu ditemukan');
-  assert.match(kartu,/rgba\(255,255,255,\.86\)/,'cukup pekat untuk terbaca, bukan kaca tipis');
+  assert.match(kartu,/rgba\(255,255,255,\.9\)/,'cukup pekat untuk terbaca, bukan kaca tipis');
   assert.match(kartu,/border:1px solid/,'batas kartu tetap terlihat');
   assert.match(kartu,/box-shadow:0 22px 46px/,'bayangan lembut');
   assert.match(kartu,/backdrop-filter:blur/,'tetap berkesan kaca');
-  /* Panel kanan memakai keluarga warna yang sama dengan kolom latar. */
-  const panel=aturanBerisi(t,'.login-panel','#e6f8f1');
-  assert.match(panel,/#e6f8f1|#cdf0f0|#b6e6f5/,'panel memakai mint/tosca yang sama');
+  /* Tidak ada kolom kedua yang membawa latarnya sendiri. */
+  const source=login();
+  assert.equal(/login-panel|login-photo/.test(source),false,'markup dua kolom dibubarkan');
+  /* Aturan kolom kiri/kanan halaman Masuk dibuang. (.login-page .login-panel yang tersisa
+     milik halaman Aktivasi Pemilik - wadah tengah, bukan kolom - jadi tidak ikut terjaring.) */
+  assert.equal(/^\.login-panel\{|^\.login-photo\{/m.test(t),false,'gaya dua kolom ikut dibuang');
+  /* Satu latar untuk seluruh layar: .login-stage bukan lagi kisi dua kolom. */
+  const panggung=aturanBerisi(t,'.login-stage','display');
+  assert.match(panggung,/display:block/,'satu bidang, bukan kisi dua kolom');
+  assert.equal(/grid-template-columns:1\.05fr \.95fr/.test(t),false,'kisi dua kolom lama dibuang');
 });
-
 test('6. Tombol Masuk memakai gradasi cream-mint → tosca → biru langit',()=>{
   const t=css();
   const tombol=aturanBerisi(t,'.login-submit','#e8f7e8');
@@ -164,19 +191,24 @@ test('8. Tagline sekolah lebih tebal dan lebih kontras, tanpa diperbesar',()=>{
   assert.ok(login().includes('Cerdas • Berkarakter • Berprestasi'),'teksnya tidak diubah');
 });
 
-test('9. Identitas pengembang tetap di kiri bawah kolom latar, bukan di dalam kartu',()=>{
+test('9. Identitas pengembang tetap di kiri bawah, di luar kartu Masuk',()=>{
   const source=login();
-  const kolomFoto=source.slice(source.indexOf('<section class="login-photo">'),
-    source.indexOf('<section class="login-panel">'));
-  assert.ok(kolomFoto.includes('login-photo-caption'),'blok identitas berada di kolom latar');
-  const panel=source.slice(source.indexOf('<section class="login-panel">'));
-  assert.equal(panel.includes('login-photo-caption'),false,'tidak dipindahkan ke bawah form');
-  assert.equal(panel.includes('DEVELOPER_NAME'),false,'tidak disalin ke dalam kartu form');
+  /* Blok identitas berdiri langsung di atas latar, sebagai saudara kartu - bukan di dalamnya. */
+  const kartu=source.slice(source.indexOf('<div class="login-card-slot">'));
+  assert.equal(kartu.includes('login-credit'),false,'tidak dipindahkan ke bawah form');
+  assert.equal(kartu.includes('DEVELOPER_NAME'),false,'tidak disalin ke dalam kartu form');
+  assert.ok(source.indexOf('class="login-credit"')<source.indexOf('<div class="login-card-slot">'),
+    'blok identitas berdiri di luar dan sebelum kartu');
+  /* Kisi halaman menempatkannya pada baris terakhir kolom kiri. */
+  const t=css();
+  assert.match(aturanBerisi(t,'.login-credit','grid-area'),/grid-area:kredit/);
+  assert.match(aturanBerisi(t,'.login-credit','align-self'),/align-self:end/,'merapat ke kaki layar');
+  assert.match(aturanBerisi(t,'.login-layout','grid-template-areas'),/"kredit kartu"/,
+    'kredit di kiri, kartu di kanan, pada baris yang sama');
   /* Keempat barisnya tetap ada, dengan hierarki yang sama. */
   for(const kelas of ['login-credit-lead','login-credit-name','login-credit-role','login-credit-copy'])
     assert.equal((source.match(new RegExp(kelas,'g'))||[]).length,1,`${kelas} tepat satu kali`);
 });
-
 test('10. Jarak antarbaris identitas pengembang dirapatkan',()=>{
   const t=css();
   const jarak=nama=>{
@@ -206,21 +238,18 @@ test('11. Form Masuk tetap memuat tepat tiga logo dengan urutan yang sama',()=>{
   assert.match(source,/const regionLogo=regionUpload\|\|'\.\/assets\/logo-kabupaten-bekasi\.png';/);
   assert.match(source,/const crest=schoolLogo\|\|'\.\/assets\/app-icon-192\.png';/);
   /* Rasio ekstrem tetap dipasang pada kotak berukuran tetap. */
-  assert.equal((css().match(/\.login-crest-upload\{width:(\d+)px;height:\1px;margin:0\}/g)||[]).length,3);
+  assert.equal((css().match(/\.login-crest-upload\{width:(\d+)px;height:\1px;margin:0\}/g)||[]).length,4);
 });
-
 test('12. Logo Sekolah dipakai kiri atas Masuk dan tidak pernah masuk Cover',()=>{
   const source=login();
-  const kolomFoto=source.slice(source.indexOf('<section class="login-photo">'),
-    source.indexOf('<section class="login-panel">'));
-  assert.match(kolomFoto,/class="login-logo" src="\$\{escapeHtml\(crest\)\}"/,'kiri atas memakai Logo Sekolah');
+  const brand=source.slice(source.indexOf('<div class="login-brand">'),source.indexOf('<div class="login-credit">'));
+  assert.match(brand,/class="login-logo" src="\$\{escapeHtml\(crest\)\}"/,'kiri atas memakai Logo Sekolah');
   const cetak=read('src/pages/print.js');
   const cover=cetak.slice(cetak.indexOf('report-cover-a4'),cetak.indexOf('cover-ministry')+400);
   assert.equal(cover.includes('schoolLogo'),false,'Cover tidak pernah memakai Logo Sekolah');
   assert.match(cetak,/coverLogo\(school\.ministryLogo,COVER_LOGO_DEFAULTS\.ministry,'cover-logo-ministry'/);
   assert.match(cetak,/coverLogo\(school\.regionLogo,COVER_LOGO_DEFAULTS\.region,'cover-logo-region'/);
 });
-
 test('13. Slot Cover tidak bergeser oleh rasio berkas yang diunggah',()=>{
   const gaya=css();
   assert.match(gaya,/\.report-cover-a4>\.cover-logo-custom\{overflow:visible;width:189px;height:189px\}/);
@@ -246,33 +275,44 @@ test('14. Master logo tetap milik Admin dan dibaca Guru apa adanya',()=>{
 
 /* ============================================================ I-K. DASHBOARD */
 
-test('15. Dashboard Admin dan Guru memakai latar baru yang sama',()=>{
-  const halaman=read('src/pages/dashboard.js');
-  assert.match(halaman,/el\(`<div class="dash dashboard-page">/,'satu penanda tema untuk kedua peran');
-  assert.equal((halaman.match(/dashboard-page/g)||[]).length,1);
-  /* Penanda itu dipasang tanpa mencabangkan peran, jadi Admin dan Guru sama-sama memakainya. */
-  const sebelum=halaman.slice(0,halaman.indexOf('dashboard-page'));
-  assert.equal(/isAdmin\s*\?\s*'dash/.test(sebelum),false,'tidak ada cabang peran pada kelas tema');
+test('15. Latar GAMBAR 2 dipasang GLOBAL, bukan hanya Dashboard',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA.
+
+     Rilis 1.2.9 sengaja membatasi latar ini ke halaman Dashboard saja, dan baseline lama
+     mengunci kait .dashboard-page. Pengguna membalik keputusan itu: latar harus dipakai
+     SELURUH halaman sesudah masuk - "BUKAN HANYA DASHBOARD". Karena latarnya kini melekat
+     pada .app-shell, tidak ada satu pun halaman yang perlu menyebutnya sendiri. */
   const gaya=css();
-  assert.match(gaya,/\.dashboard-page::before\{[^}]*url\('\.\.\/\.\.\/assets\/dashboard-background\.svg'\)/);
-  assert.match(gaya,/\.dashboard-page::before\{[^}]*center\/cover no-repeat/,'menutup viewport tanpa gepeng');
-  assert.match(gaya,/\.dashboard-page>\*\{position:relative;z-index:1\}/,'konten tetap di atas latar');
+  const shell=aturanBerisi(gaya,'.app-shell','app-background');
+  assert.match(shell,/url\('\.\.\/\.\.\/assets\/app-background\.webp'\)/,'latar melekat pada shell aplikasi');
+  assert.match(shell,/cover/,'menutup layar tanpa gepeng');
+  assert.match(shell,/no-repeat/);
+  /* Kait khusus Dashboard dibuang supaya tidak ada halaman yang berbeda sendiri. */
+  const halaman=read('src/pages/dashboard.js');
+  assert.equal(/dashboard-page/.test(halaman),false,'kait khusus Dashboard dibuang');
+  assert.equal(/dashboard-page/.test(gaya),false,'gayanya ikut dibuang');
+  assert.match(halaman,/el\(`<div class="dash">/,'satu kelas untuk kedua peran');
+  /* Latar global tidak boleh ikut tercetak. */
+  assert.match(gaya,/@media print\{\.app-shell\{background:#fff!important\}\}/,
+    'dokumen cetak tetap bersih');
+  assert.match(gaya,/\.print-workspace \.report-a4,\.print-workspace \.report-cover-a4\{background:#fff/,
+    'lembar kertas tetap putih meski ruang kerjanya memperlihatkan latar');
 });
-
-test('16. Berkas latar Dashboard adalah latar MURNI',()=>{
-  const svg=read('assets/dashboard-background.svg');
-  const isi=svg.replace(/<!--[\s\S]*?-->/g,'');
-  for(const dilarang of ['<text','<tspan','<image','font-family','font-size'])
-    assert.equal(isi.includes(dilarang),false,`${dilarang} tidak boleh ada di dalam latar`);
-  /* Hanya bentuk warna: tidak ada gambar tertanam maupun rujukan berkas lain. */
-  assert.equal(/href=|xlink:href=/.test(isi),false,'tidak menautkan berkas gambar lain');
-  assert.equal(/base64/.test(isi),false,'tidak ada gambar tertanam');
-  assert.match(svg,/preserveAspectRatio="xMidYMid slice"/,'menutup viewport tanpa terdistorsi');
-  /* Warnanya memang keluarga mint - tosca - cyan - biru langit. */
-  for(const warna of ['#eaf7ec','#8fe6e6','#5fd2ee','#37b4f4'])
-    assert.ok(svg.includes(warna),`gradasi memuat ${warna}`);
+test('16. Berkas latar aplikasi adalah BERKAS ASLI GAMBAR 2 dan murni latar',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA: berkas SVG gambar ulang diganti berkas asli. */
+  assert.equal(existsSync(new URL('assets/dashboard-background.svg',root)),false,
+    'gambar ulang SVG tidak lagi dipaketkan');
+  const berkas=readFileSync(new URL('assets/app-background.webp',root));
+  assert.equal(berkas.slice(0,4).toString('latin1'),'RIFF','berkas raster asli');
+  assert.equal(berkas.slice(8,12).toString('latin1'),'WEBP');
+  /* Murni latar: berkasnya jauh lebih ringan daripada latar Masuk yang penuh isi, karena
+     memang hanya langit, awan, dan dedaunan - tanpa kartu, menu, teks, atau antarmuka. */
+  const masuk=readFileSync(new URL('assets/login-background.webp',root));
+  assert.ok(berkas.length<masuk.length/3,'jauh lebih ringan: hanya warna dan bentuk lembut');
+  const gaya=css();
+  assert.equal((gaya.match(/app-background\.webp/g)||[]).length,1,'disebut tepat sekali');
+  assert.equal((gaya.match(/dashboard-background/g)||[]).length,0);
 });
-
 test('17. Struktur, menu, dan otorisasi Dashboard tidak berubah',()=>{
   /* Menu kedua peran tetap utuh dan tetap berbeda. */
   const menuAdmin=flattenNavigation('admin').map(item=>item.route);
@@ -292,21 +332,34 @@ test('17. Struktur, menu, dan otorisasi Dashboard tidak berubah',()=>{
     assert.ok(layout.includes(bagian),`${bagian} tetap ada`);
 });
 
-test('18. Kartu Dashboard cukup pekat untuk dibaca dan tetap satu keluarga warna',()=>{
+test('18. Kartu tetap terbaca, dan tema BARU memang menyentuh seluruh kerangka',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA.
+
+     Baseline 1.2.9 mengunci hal sebaliknya: tema TIDAK BOLEH menyentuh .app-shell, .sidebar,
+     .topbar, dan .content, karena saat itu cakupannya sengaja dibatasi ke dua halaman.
+     Pengguna mencabut batasan itu dan menyatakan penghapusan tema navy WAJIB. Jadi harapannya
+     dibalik: sekarang kerangka justru HARUS ikut berubah. */
   const gaya=css();
-  const kartu=gaya.match(/\.dashboard-page \.card,\.dashboard-page \.dash-stat,\.dashboard-page \.dash-panel\{[^}]*\}/)[0];
-  assert.match(kartu,/rgba\(255,255,255,\.9\)/,'cukup opaque, bukan terlalu transparan');
+  const kartu=aturanBerisi(gaya,'.dash-stat,.dash-panel','background:linear-gradient');
+  assert.match(kartu,/rgba\(255,255,255,\.92\)/,'cukup opaque, bukan terlalu transparan');
   assert.match(kartu,/border:1px solid/);
   assert.match(kartu,/box-shadow:0 14px 30px/);
-  /* Aksen kartu statistik tetap membedakan informasi. */
   for(const nada of ['cyan','teal','purple','amber'])
-    assert.match(gaya,new RegExp(`\\.dashboard-page \\.dash-stat-${nada}\\{`),`aksen ${nada} tetap ada`);
-  /* Tema hanya menempel pada Dashboard: tidak ada aturan yang menyentuh app-shell atau sidebar. */
-  const blok=gaya.slice(gaya.indexOf('TEMA TERANG 1.2.9'));
-  for(const selektor of ['.app-shell{','.sidebar{','.topbar{','.content{'])
-    assert.equal(blok.includes(selektor),false,`${selektor} tidak ikut diubah tema baru`);
+    assert.match(gaya,new RegExp(`\\.dash-stat-${nada}\\{`),`aksen ${nada} tetap ada`);
+  /* Tema baru memang menyentuh kerangka: shell, sidebar, dan topbar semuanya diterangkan. */
+  const blok=gaya.slice(gaya.indexOf('TEMA 1.3.0'));
+  for(const selektor of ['.sidebar{','.topbar{'])
+    assert.ok(blok.includes(selektor),`${selektor} ikut diterangkan tema baru`);
+  assert.match(aturanBerisi(gaya,'.app-shell','app-background'),/app-background\.webp/,
+    'wadah utama memakai latar baru, bukan gradasi navy');
+  /* Tidak ada lagi blok navy besar di mana pun: ketiga warnanya tidak lagi tertulis dalam
+     berkas gaya, termasuk sebagai nilai token. */
+  for(const warna of ['#0b1a2f','#0f2745','#132f52'])
+    assert.equal(gaya.includes(warna),false,`warna navy ${warna} tidak dipakai lagi`);
+  for(const aturan of ['.sidebar','.topbar'])
+    assert.doesNotMatch(aturanBerisi(gaya,aturan,'background'),/var\(--navy\)/,
+      `${aturan} tidak lagi memakai gradasi navy`);
 });
-
 /* ==================================== M. PEMILIHAN KATA DESKRIPSI INTRAKURIKULER */
 
 test('19. Kasus yang dilaporkan tidak lagi mengulang kata "baik"',()=>{

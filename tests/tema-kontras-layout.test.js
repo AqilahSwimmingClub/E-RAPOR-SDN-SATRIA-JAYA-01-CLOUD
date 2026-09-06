@@ -99,13 +99,16 @@ test('Mode ponsel tetap memakai drawer dan gulir halaman biasa',()=>{
 
 /* ---------------------------------------------- 3. Latar Login dan form yang dibuka */
 
-test('Foto sekolah dipakai apa adanya dengan cover dan titik fokus responsif',()=>{
-  const t=css(),foto=rule('.login-photo');
-  assert.match(foto,/login-background\.svg/,'memakai berkas latar sekolah');
+test('Latar Masuk dipakai apa adanya dengan cover dan titik fokus responsif',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA: latar tidak lagi menempel pada kolom kiri
+     (.login-photo) melainkan pada seluruh panggung (.login-stage), dan berkasnya kembali ke
+     gambar asli acuan. Yang dijaga tetap sama: cover, titik fokus satu variabel, cadangan. */
+  const t=css(),foto=rule('.login-stage');
+  assert.match(foto,/login-background\.webp/,'memakai berkas latar asli');
   assert.match(foto,/cover/,'memakai background-size cover');
   assert.match(foto,/var\(--login-bg-pos/,'titik fokus dikendalikan satu variabel');
   assert.match(t,/--login-bg-pos\s*:/,'variabel titik fokus tersedia');
-  assert.match(t,/@media\(max-width:1200px\)[^@]*--login-bg-pos/,'titik fokus digeser saat kolom menyempit');
+  assert.match(t,/@media\(max-width:1200px\)[^@]*--login-bg-pos/,'titik fokus digeser saat layar menyempit');
   /* Gradasi cadangan menjaga halaman tetap rapi bila berkas foto belum tersedia. */
   assert.match(foto,/linear-gradient\(150deg,#eefaf3/,'cadangan gradasi');
 });
@@ -142,10 +145,15 @@ test('Mencetak melepas tinggi tetap sehingga dokumen tidak terpotong satu layar'
   assert.match(t,/\.report-a4\{padding:14mm 13mm\}/);
 });
 
-test('Tata letak dua kolom menumpuk rapi di tablet, ponsel, dan lanskap',()=>{
+test('Isi halaman Masuk menumpuk rapi di tablet, ponsel, dan lanskap',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA: yang menumpuk bukan lagi dua kolom
+     foto/form - keduanya sudah dibubarkan - melainkan tiga isi halaman di atas satu latar. */
   const t=css();
-  assert.match(t,/@media\(max-width:900px\)[^@]*\.login-photo\{[^}]*height:32vh/,'foto menjadi panel atas di tablet');
+  assert.match(t,/@media\(max-width:900px\)[^@]*\.login-layout\{[^}]*grid-template-areas:"brand" "kartu" "kredit"/s,
+    'tablet dan ponsel menumpuk identitas, kartu, lalu kredit');
   assert.match(t,/@media\(max-width:767px\)[^@]*\.login-shell\{/,'penyesuaian ponsel');
-  assert.match(t,/@media\(max-height:560px\) and \(max-width:900px\)[^@]*\.login-photo-caption\{display:none/,'lanskap pendek menyembunyikan sambutan agar form muat');
-  assert.match(rule('.login-panel'),/overflow-y:auto/,'kolom form dapat digulir bila layar pendek');
+  assert.match(t,/@media\(max-height:560px\) and \(orientation:landscape\)[^@]*\.login-credit-copy\{display:none/s,
+    'lanskap pendek menyembunyikan baris hak cipta agar kartu muat');
+  assert.match(t,/@media\(max-height:560px\) and \(orientation:landscape\)[^@]*\.login-stage\{[^}]*overflow-y:auto/s,
+    'halaman dapat digulir bila layar pendek');
 });

@@ -2,17 +2,28 @@
   --maroon:#711827;--maroon-2:#8a2234;--yellow:#ffc93d;--ink:#2d2521;--muted:#82766e;
   --bg:#f0ede8;--card:#fff;--line:#e6e0d8;--soft:#f8f6f2;--success:#257a55;--danger:#b93b42;--warning:#b67514;
   --sidebar:268px;--radius:16px;--shadow:0 8px 30px rgba(49,34,28,.08);
-  /* Tema gelap dashboard v1.2.1. Permukaan kaca dipakai untuk shell, sidebar, topbar,
-     dan kartu dashboard; lembar dokumen cetak tetap putih dengan warnanya sendiri. */
-  --navy:#0b1a2f;--navy-2:#0f2745;--navy-3:#132f52;
-  --glass:rgba(255,255,255,.06);--glass-2:rgba(255,255,255,.1);--glass-line:rgba(255,255,255,.14);
+  /* PALET TERANG 1.3.0 - DIAMBIL DARI LATAR APLIKASI (GAMBAR 2).
+     Cream, mint, tosca, cyan, dan biru langit. Tema navy v1.2.1 dibuang seluruhnya: tidak ada
+     lagi blok biru tua besar pada sidebar, topbar, footer, panel menu, maupun wadah utama.
+
+     Nama --navy, --glass, dan --dark-ink DIPERTAHANKAN sebagai alias supaya seluruh aturan
+     lama yang memakainya ikut berubah sekaligus, tanpa perlu menyunting ratusan baris satu per
+     satu. Nilainya kini terang; nama sebenarnya ada pada --sky-* di bawah ini. */
+  --sky-cream:#f4fbef;--sky-mint:#e6f8f2;--sky-aqua:#cdeff3;--sky-sea:#b6e6f5;
+  --sky-ink:#0d3b47;--sky-muted:#2c6c7c;--sky-accent:#0b7f9c;
+  --sky-line:rgba(17,120,140,.2);
+  --sky-glass:rgba(255,255,255,.58);--sky-glass-2:rgba(255,255,255,.78);
+  --navy:var(--sky-mint);--navy-2:var(--sky-aqua);--navy-3:var(--sky-cream);
+  --glass:var(--sky-glass);--glass-2:var(--sky-glass-2);--glass-line:var(--sky-line);
+  /* --cyan dan --teal tetap cerah karena keduanya dipakai sebagai ISIAN aksen, bukan warna
+     teks. Untuk teks di atas permukaan terang dipakai --sky-accent yang lebih pekat. */
   --cyan:#38e1ff;--teal:#2ee6c0;--purple:#a98bff;--amber:#ffc93d;
-  --dark-ink:#eaf3ff;--dark-muted:#93aac6;
+  --dark-ink:var(--sky-ink);--dark-muted:var(--sky-muted);
   --light-ink:#241d19;--light-muted:#6b5f57
 }
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}
 button,input,select,textarea{font:inherit}button{cursor:pointer}.icon{display:block;flex:none}.hidden{display:none!important}
-#app{min-height:100vh}.app-shell{height:100dvh;overflow:hidden;display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr);background:radial-gradient(1200px 600px at 15% -10%,var(--navy-3) 0%,transparent 60%),radial-gradient(900px 500px at 100% 0%,rgba(169,139,255,.16) 0%,transparent 55%),linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%);color:var(--dark-ink)}
+#app{min-height:100vh}.app-shell{height:100dvh;overflow:hidden;display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr);background:var(--app-bg-pos,center)/cover no-repeat url('../../assets/app-background.webp'),linear-gradient(160deg,var(--sky-mint) 0%,var(--sky-sea) 100%);color:var(--sky-ink)}
 .sidebar{position:sticky;top:0;height:100dvh;overflow-y:auto;background:linear-gradient(180deg,var(--navy) 0%,var(--navy-2) 100%);border-right:1px solid var(--glass-line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);color:var(--dark-ink);padding:18px 14px;display:flex;flex-direction:column;z-index:30}
 .brand{display:flex;gap:11px;align-items:center;padding:5px 8px 18px}.brand-mark{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.12);display:grid;place-items:center;color:var(--yellow)}
 .brand-title{font-weight:800;font-size:16px}.brand-sub{font-size:11px;color:#e4c9ce;margin-top:2px}.nav{display:flex;flex-direction:column;gap:5px;overflow-y:auto;overscroll-behavior:contain}.nav-group{border-radius:11px}.nav-group-toggle,.nav-item{display:flex;align-items:center;gap:11px;width:100%;min-height:44px;border:0;background:transparent;color:#f2dfe3;padding:11px 12px;border-radius:11px;text-align:left;font-size:13.5px;font-weight:600}.nav-group-toggle span:nth-child(2){flex:1}.nav-group-toggle:hover,.nav-item:hover{background:rgba(255,255,255,.09);color:#fff}.nav-group-toggle.active,.nav-item.active{background:var(--yellow);color:#3f2c0e;box-shadow:0 5px 16px rgba(0,0,0,.14)}.nav-group.active-ancestor>.nav-group-toggle:not(.active){background:rgba(255,255,255,.08);color:#fff}.nav-group-toggle:focus-visible,.nav-item:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}.nav-chevron{transition:transform .18s ease}.nav-group-toggle[aria-expanded="true"] .nav-chevron{transform:rotate(180deg)}.nav-children{display:flex;flex-direction:column;gap:3px;padding:3px 0 6px 18px}.nav-children[hidden]{display:none}.nav-child{min-height:44px;font-size:12.5px;padding-left:11px}.nav-section{font-size:10.5px;font-weight:800;letter-spacing:.14em;color:#c79da6;padding:19px 10px 6px}.sidebar-spacer{flex:1}.sidebar-footer{margin-top:14px;border-top:1px solid rgba(255,255,255,.12);padding-top:12px}.logout-btn{color:#ffdfe4}
@@ -603,17 +614,12 @@ textarea.input{color:var(--light-ink)}
 .setup-credit span,.setup-credit small{display:block;font-size:10px;color:var(--dark-muted)}
 .setup-credit strong{display:block;font-size:12.5px;font-weight:850;color:#fff;margin:3px 0}
 @media(max-width:767px){.setup-stage{padding:20px 14px calc(20px + env(safe-area-inset-bottom))}.setup-card h1{font-size:17px}}
-.login-stage{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:1.05fr .95fr;background:linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%);color:var(--dark-ink)}
 
 /* ---- Kolom kiri: foto sekolah ---- */
-.login-photo{position:relative;min-height:100dvh;display:flex;flex-direction:column;justify-content:space-between;padding:34px;overflow:hidden;background:var(--login-bg-pos,center 45%)/cover no-repeat url('../../assets/login-background.svg'),linear-gradient(150deg,#eefaf3,#bfeaf6)}
 /* Lapisan peredup berdiri sendiri di antara foto dan branding. Kedua ujungnya dibuat
    lebih pekat karena identitas sekolah menempel di tepi atas dan identitas pengembang
    di tepi bawah, sehingga foto latar apa pun yang dipasang nanti tetap menyisakan
    kontras untuk teks putih. Bagian tengah dibiarkan bening agar foto tetap terlihat. */
-.login-photo-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(6,20,38,.58) 0%,rgba(6,20,38,.34) 45%,rgba(6,20,38,.78) 100%)}
-.login-photo-content{position:relative;z-index:2;display:flex;flex-direction:column;justify-content:space-between;height:100%;gap:24px}
-.login-photo .login-brand{display:flex;align-items:center;gap:14px}
 .login-brand-mark{display:grid;place-items:center;flex:none;color:#eaf6ff}
 .login-logo{width:58px;height:58px;object-fit:contain;flex:none;display:block;filter:drop-shadow(0 3px 10px rgba(4,18,34,.45))}
 .login-logo-fallback{display:grid;place-items:center;width:58px;height:58px;border-radius:16px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.32)}
@@ -623,15 +629,12 @@ textarea.input{color:var(--light-ink)}
 .login-brand-tagline{display:block;font-size:10.5px;letter-spacing:.14em;color:#d3e6f8;margin-top:3px}
 /* Identitas pembuat aplikasi berdiri langsung di atas foto: hanya garis aksen cyan
    setipis dua piksel, tanpa kartu atau kotak yang menutupi gambar. */
-.login-photo-caption{position:relative;padding-left:14px;max-width:min(100%,430px)}
-.login-photo-caption::before{content:'';position:absolute;left:0;top:3px;bottom:3px;width:2px;border-radius:2px;background:linear-gradient(180deg,transparent,var(--cyan) 20%,var(--cyan) 80%,transparent);box-shadow:0 0 12px rgba(56,225,255,.5)}
 .login-credit-lead{display:block;font-size:10.5px;font-weight:650;letter-spacing:.18em;text-transform:uppercase;color:#cfe3f6;text-shadow:0 2px 10px rgba(4,18,34,.65)}
 .login-credit-name{display:block;margin-top:5px;font-size:clamp(17px,1.5vw,21px);font-weight:850;letter-spacing:.01em;line-height:1.2;color:#ffffff;text-shadow:0 3px 16px rgba(4,18,34,.7),0 0 24px rgba(56,225,255,.2)}
 .login-credit-role{display:block;margin-top:4px;font-size:11.5px;letter-spacing:.03em;color:#dbeaf8;text-shadow:0 2px 10px rgba(4,18,34,.6)}
 .login-credit-copy{display:block;margin-top:8px;font-size:10px;letter-spacing:.07em;color:#a9c3dc;text-shadow:0 2px 8px rgba(4,18,34,.55)}
 
 /* ---- Kolom kanan: form Masuk ---- */
-.login-panel{position:relative;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:30px 24px calc(22px + env(safe-area-inset-bottom));overflow-y:auto;background:radial-gradient(700px 420px at 70% 8%,rgba(56,225,255,.1) 0%,transparent 60%),linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%)}
 .login-shell{position:relative;width:min(380px,100%);padding:26px 24px 20px;border-radius:20px;border:1px solid var(--glass-line);background:linear-gradient(165deg,rgba(255,255,255,.09),rgba(255,255,255,.04));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 24px 60px rgba(0,0,0,.45);transform-origin:50% 60%;animation:loginCaseOpen .55s cubic-bezier(.22,1,.36,1) both}
 /* Tiga lambang berdiri sebagai satu kelompok rapat di tengah panel. Lebarnya mengikuti isi,
    bukan lebar panel, sehingga layar selebar apa pun tidak pernah menjauhkan ketiganya.
@@ -704,17 +707,11 @@ textarea.input{color:var(--light-ink)}
 /* Tablet potret dan ponsel: dua kolom ditumpuk menjadi satu. */
 @media(max-width:900px){
   .login-stage{grid-template-columns:1fr;min-height:100dvh}
-  .login-photo{min-height:0;height:32vh;padding:20px;justify-content:flex-end}
-  .login-photo-content{gap:14px}
-  .login-photo-caption{padding-left:12px}
   .login-credit-name{font-size:17px}
   .login-credit-role{font-size:11px}
-  .login-panel{min-height:0;padding:22px 16px calc(20px + env(safe-area-inset-bottom))}
 }
 @media(max-width:767px){
-  .login-photo{height:28vh;min-height:190px}
   .login-logo,.login-logo-fallback{width:46px;height:46px}
-  .login-photo .login-brand{gap:11px}
   .login-credit-lead{font-size:9.5px;letter-spacing:.15em}
   .login-credit-name{font-size:16px}
   .login-credit-role{font-size:10.5px}
@@ -727,10 +724,7 @@ textarea.input{color:var(--light-ink)}
 }
 /* Lanskap ponsel: layar pendek, foto dipersempit agar form tetap terjangkau. */
 @media(max-height:560px) and (max-width:900px){
-  .login-photo{height:auto;min-height:0;padding:14px}
   .login-logo,.login-logo-fallback{width:40px;height:40px}
-  .login-photo-caption{display:none}
-  .login-panel{padding-top:16px}
   .login-crest{height:32px}.login-crest-upload{width:32px;height:32px;margin:0}
   .login-crest-region{height:55px;margin:-12px -13px}
   .login-crest-row{gap:8px;margin-bottom:10px}
@@ -897,116 +891,268 @@ textarea.input{color:var(--light-ink)}
 }
 
 /* ==========================================================================================
-   TEMA TERANG 1.2.9 - HALAMAN MASUK DAN DASHBOARD
+   TEMA 1.3.0 - SATU LATAR UNTUK SELURUH APLIKASI, TANPA BLOK NAVY
 
-   DUA HALAMAN SAJA. Blok ini hanya menyentuh halaman Masuk dan Dashboard; menu lain tetap
-   memakai tampilan yang sudah terverifikasi. Struktur, urutan, dan isi keduanya tidak diubah
-   sama sekali - yang berubah hanya warna, latar, dan jarak.
+   Blok 1.2.9 sebelumnya di sini hanya menyentuh DUA halaman: Masuk dan Dashboard. Batasan itu
+   dicabut. Sekarang latar GAMBAR 2 dipasang pada shell aplikasi, sehingga SETIAP halaman
+   sesudah masuk berdiri di atas latar yang sama - Dashboard, Profil, Dapodik, Data Pengguna,
+   Data Referensi, Mapping, CP, Absensi, Penilaian, Intrakurikuler, Kokurikuler,
+   Ekstrakurikuler, Sikap, Rapor, Leger, Pengaturan, dan seluruh menu lain. Tidak ada satu pun
+   halaman yang dikecualikan, karena latarnya melekat pada .app-shell dan bukan pada halaman.
 
-   Ditulis di akhir berkas supaya menang atas aturan lama tanpa perlu menyunting satu pun
-   baris di atasnya. Karena itu aturan tanggapan layar untuk kedua halaman ikut ditulis ulang
-   di bagian bawah blok ini.
+   Tema navy v1.2.1 dibuang. Nilai --navy, --glass, dan --dark-ink sudah diterangkan di :root,
+   sehingga sidebar, topbar, footer, panel menu, dan wadah utama ikut berubah tanpa perlu
+   menyunting ratusan aturan lama. Yang tersisa di sini hanya dua hal: warna yang dulu ditulis
+   mati untuk latar gelap (putih, biru pucat, bayangan pekat), dan permukaan yang perlu dibuat
+   cukup pekat supaya isinya tetap terbaca di atas latar bergambar.
+
+   Struktur, urutan menu, dan navigasi tidak diubah sama sekali. Tidak ada menu yang dihapus.
    ========================================================================================== */
 
-/* -------------------------------------------------------------------- Halaman Masuk */
-.login-stage{background:linear-gradient(150deg,#eefaf3 0%,#d6f3f1 46%,#bfeaf6 100%);color:#123a45}
-/* Peredup lama dibuat jauh lebih tipis: latarnya terang, dan teks di atasnya kini gelap.
-   Yang tersisa hanya selubung mint tipis supaya tulisan tetap punya kontras. */
-.login-photo-overlay{background:linear-gradient(180deg,rgba(233,250,246,.42) 0%,rgba(226,247,247,.12) 42%,rgba(190,233,240,.66) 100%)}
-.login-photo-content{gap:18px}
-.login-brand-app{color:#0f7f93}
-.login-brand-text strong{color:#0d3b47;text-shadow:0 1px 10px rgba(255,255,255,.75)}
-/* Tagline sekolah: sebelumnya terlalu tipis dan pucat sehingga nyaris tenggelam pada latar
-   terang. Bobotnya dinaikkan ke semibold dan warnanya dipekatkan - ukurannya tidak diubah. */
-.login-brand-tagline{font-size:10.5px;font-weight:650;letter-spacing:.12em;color:#0b6b7d;margin-top:4px;text-shadow:0 1px 8px rgba(255,255,255,.8)}
+/* ------------------------------------------------------- Latar global tidak ikut tercetak */
+/* Dokumen cetak wajib bersih: saat mencetak, seluruh kerangka disembunyikan dan shell kembali
+   putih polos, sehingga latar ini tidak pernah masuk ke kertas maupun PDF.
 
-/* PAPAN TULIS. Satu-satunya tempat slogan ini muncul di seluruh halaman. */
-.login-chalkboard{position:relative;align-self:flex-start;max-width:min(100%,330px);margin:0;
-  padding:20px 22px;border-radius:14px;border:7px solid #e6d6bd;
-  background:linear-gradient(160deg,#2f4f55,#1d3a41);color:#f2fbf6;
-  font-size:clamp(15px,1.35vw,19px);font-weight:750;line-height:1.42;letter-spacing:.01em;
-  box-shadow:0 16px 34px rgba(11,58,68,.28)}
-.login-chalkboard::after{content:'';display:block;width:78px;height:3px;margin-top:12px;
-  border-radius:3px;background:#f4c94a;opacity:.85}
+   Di LAYAR halaman Rapor dan Leger tetap memakai latar ini - keduanya memang halaman aplikasi
+   biasa. Yang putih di sana hanya lembar dokumennya sendiri, lewat .content:has(.print-workspace)
+   yang sudah ada sejak sebelumnya. */
+@media print{.app-shell{background:#fff!important}}
+/* Halaman Rapor dan Leger DI LAYAR ikut memakai latar ini - keduanya disebut pengguna sebagai
+   halaman yang harus ikut. Sampai 1.2.9 ruang kerjanya dicat putih penuh untuk menutupi krem
+   --bg yang dulu mengintip di tepi kertas; kini yang ada di belakangnya justru latar aplikasi,
+   jadi penutup itu tidak diperlukan lagi. LEMBAR KERTASNYA SENDIRI tetap putih dengan aturan
+   .print-workspace .report-a4 yang tidak disentuh, dan dokumen cetak tetap bersih lewat
+   @media print di atas. */
+.print-workspace{background:transparent}
+.content:has(.print-workspace){background:transparent}
 
-/* Identitas pengembang: tetap di kiri bawah, hanya dirapatkan menjadi satu blok kompak. */
-.login-photo-caption{padding-left:12px}
-.login-photo-caption::before{background:linear-gradient(180deg,transparent,#0f9fb4 18%,#0f9fb4 82%,transparent);box-shadow:0 0 10px rgba(15,159,180,.35)}
-.login-credit-lead{font-size:9.5px;font-weight:750;letter-spacing:.16em;color:#0b5f70;text-shadow:0 1px 8px rgba(255,255,255,.8)}
-.login-credit-name{margin-top:1px;font-size:clamp(16px,1.4vw,19px);font-weight:850;line-height:1.15;color:#0b3542;text-shadow:0 1px 10px rgba(255,255,255,.8)}
-.login-credit-role{margin-top:0;font-size:11px;line-height:1.35;color:#125c6b;text-shadow:0 1px 8px rgba(255,255,255,.75)}
-.login-credit-copy{margin-top:2px;font-size:9.5px;line-height:1.3;letter-spacing:.05em;color:#2b7484;text-shadow:0 1px 8px rgba(255,255,255,.7)}
+/* ------------------------------------------------------------------ Sidebar: kaca terang */
+/* Strukturnya tetap: brand, daftar menu, lalu tombol Keluar di kaki. Yang berubah hanya
+   permukaannya - dari blok navy pekat menjadi kaca putih kebiruan yang meneruskan latar. */
+.sidebar{background:linear-gradient(180deg,rgba(255,255,255,.78) 0%,rgba(233,249,245,.66) 100%);
+  border-right:1px solid var(--sky-line);color:var(--sky-ink);
+  box-shadow:1px 0 0 rgba(255,255,255,.5)}
+.brand-title{color:var(--sky-ink)}
+.brand-sub{color:var(--sky-muted)}
+.brand-mark{background:rgba(255,255,255,.72);color:var(--sky-accent);border:1px solid var(--sky-line)}
+.brand-photo{border-color:rgba(255,255,255,.85);box-shadow:0 5px 16px rgba(13,71,86,.18)}
+.nav-section{color:var(--sky-accent)}
+.nav-group-toggle,.nav-item{color:#14505f;font-weight:650}
+.nav-group-toggle:hover,.nav-item:hover{background:rgba(255,255,255,.72);color:var(--sky-ink)}
+/* MENU TERPILIH TETAP JELAS. Tosca ke biru langit, cukup kuat untuk dibedakan sekilas. */
+.nav-group-toggle.active,.nav-item.active{background:linear-gradient(135deg,#5de4e0 0%,#2fa8ff 100%);
+  color:#04303c;font-weight:800;border:1px solid rgba(47,168,255,.45);
+  box-shadow:0 6px 18px rgba(47,168,255,.3)}
+.nav-group.active-ancestor>.nav-group-toggle:not(.active){background:rgba(93,228,224,.22);color:var(--sky-ink)}
+.nav-group-toggle:focus-visible,.nav-item:focus-visible{outline:2px solid var(--sky-accent);outline-offset:2px}
+.sidebar-footer{border-top:1px solid var(--sky-line)}
+.logout-btn{color:#9b2c35}
+.logout-btn:hover{background:rgba(185,59,66,.12);color:#7d1f28}
 
-/* Kolom kanan memakai warna yang sama dengan latar kiri, sehingga keduanya terbaca sebagai
-   satu bidang - bukan dua bidang warna yang bertemu tajam di tengah layar. */
-.login-panel{background:radial-gradient(760px 460px at 62% 6%,rgba(255,255,255,.62) 0%,transparent 62%),linear-gradient(150deg,#e6f8f1 0%,#cdf0f0 48%,#b6e6f5 100%)}
-/* Kartu tetap punya batasnya sendiri: cukup pekat untuk terbaca, tidak setipis kaca. */
-.login-shell{background:linear-gradient(165deg,rgba(255,255,255,.86),rgba(232,250,247,.78));
-  border:1px solid rgba(17,120,140,.18);box-shadow:0 22px 46px rgba(13,71,86,.16);
+/* ------------------------------------------------------- Topbar dan footer: kaca terang */
+.topbar{background:rgba(255,255,255,.7);border-bottom:1px solid var(--sky-line);color:var(--sky-ink)}
+.page-title{color:var(--sky-ink)}
+.page-sub{color:var(--sky-muted)}
+.mobile-menu{background:rgba(255,255,255,.8);color:var(--sky-ink);border:1px solid var(--sky-line)}
+.semester-chip{background:rgba(255,255,255,.8);border:1px solid var(--sky-line);color:var(--sky-accent);font-weight:700}
+.profile-text strong{color:var(--sky-ink)}
+.profile-text span{color:var(--sky-muted)}
+.avatar{border-color:rgba(255,255,255,.9)}
+.footer{color:#25707f}
+.drawer-backdrop{background:rgba(10,60,72,.34)}
+
+/* ------------------------------------------------- Judul halaman di atas latar bergambar */
+.page-head h1{color:var(--sky-ink)}
+.page-head p{color:var(--sky-muted)}
+
+/* --------------------------------------------------------- Permukaan kartu: cukup pekat */
+/* Latar bergambar tidak boleh membuat angka dan nama sulit dibaca. Kartu dibuat hampir
+   pekat, bukan kaca tipis, dan tetap memakai warna teks gelapnya sendiri. */
+.card,.modal-card,.stat-card,.saved-table-card,.users-table-card,.cocurricular-table-card,
+.intracurricular-table-card,.reference-subject-card,.admin-status-detail,.empty-state,
+.module-filter,.report-tabs,.promotion-list,.completion-subject,.admin-class-status,
+.student-table-card,.leger-table-card,.import-preview-table{
+  background:rgba(255,255,255,.94);border:1px solid var(--sky-line);
+  box-shadow:0 14px 30px rgba(13,71,86,.12)}
+
+/* Kartu ringkasan dan panel Dashboard memakai kaca pastel yang sewarna tombol Masuk. */
+.dash-hero{background:linear-gradient(135deg,rgba(255,255,255,.86),rgba(205,239,243,.7));
+  border:1px solid var(--sky-line);box-shadow:0 14px 30px rgba(13,71,86,.12)}
+.dash-hero h1{color:var(--sky-ink)}
+.dash-hero p{color:var(--sky-muted)}
+.dash-chip{background:rgba(255,255,255,.82);border:1px solid var(--sky-line);color:var(--sky-accent)}
+.dash-stat,.dash-panel{background:linear-gradient(165deg,rgba(255,255,255,.92),rgba(233,249,245,.84));
+  border:1px solid var(--sky-line);box-shadow:0 14px 30px rgba(13,71,86,.12)}
+.dash-stat-cyan{border-color:rgba(47,168,255,.3)}
+.dash-stat-teal{border-color:rgba(93,228,224,.4)}
+.dash-stat-purple{border-color:rgba(120,190,235,.36)}
+.dash-stat-amber{border-color:rgba(240,200,120,.44)}
+.dash-stat-label,.dash-stat-foot,.dash-panel-head p,.dash-empty,.dash-axis{color:var(--sky-muted)}
+.dash-stat-value,.dash-panel-head h3,.dash-bar-name,.dash-bar-value{color:var(--sky-ink)}
+.dash-stat-icon{background:rgba(255,255,255,.85);border:1px solid var(--sky-line)}
+.dash-empty{border-color:var(--sky-line)}
+.dash-bar-track,.dash-donut-track{background:rgba(17,120,140,.12);stroke:rgba(17,120,140,.12)}
+/* Garis bantu grafik dulu putih agar terlihat di atas navy; di atas kartu terang ia hilang. */
+.dash-grid{stroke:rgba(17,120,140,.14)}
+.dash-line{stroke:var(--sky-accent)}
+.dash-fill-top{stop-color:#38c6ef;stop-opacity:.32}
+.dash-dot{fill:#ffffff;stroke:var(--sky-accent)}
+.badge-active{background:rgba(93,228,224,.26);border-color:var(--sky-line);color:#0b5f70}
+.badge-inactive{background:rgba(255,255,255,.7);border-color:var(--sky-line);color:var(--sky-muted)}
+
+/* ==========================================================================================
+   HALAMAN MASUK 1.3.0 - SATU BIDANG LATAR, KARTU MENGAMBANG DI KANAN
+
+   TIDAK ADA SEKAT. Sampai 1.2.9 halaman ini dua kolom dengan latar berbeda di kiri dan kanan,
+   dan pertemuannya terbaca sebagai garis tegak di tengah layar. Susunan dua kolom itu dibuang
+   seluruhnya: latar GAMBAR 1 kini satu bidang utuh dari tepi kiri sampai tepi kanan layar,
+   dan seluruh isi halaman berdiri di atasnya.
+
+   Berkas latar dipakai apa adanya. Ia hanya diletakkan dan dipotong oleh cover, tidak pernah
+   diregangkan, sehingga papan tulis dan tulisan yang memang bagian dari gambar tetap utuh.
+   ========================================================================================== */
+.login-stage{position:relative;min-height:100vh;min-height:100dvh;display:block;
+  background:var(--login-bg-pos,center 42%)/cover no-repeat url('../../assets/login-background.webp'),
+    linear-gradient(150deg,#eefaf3,#bfeaf6);
+  color:var(--sky-ink)}
+/* Selubung sangat tipis, satu untuk seluruh layar, dan HANYA di dua sudut kiri tempat
+   tulisan berdiri. Bagian tengah dan kanan gambar dibiarkan sepenuhnya bening, sehingga meja,
+   papan tulis, jendela, dan warnanya tampil persis seperti berkas aslinya. Selubung ini bukan
+   peredup gambar - ia hanya halo lembut di belakang dua blok teks. */
+.login-veil{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(660px 300px at 1% -4%,rgba(244,253,250,.52) 0%,rgba(244,253,250,0) 70%),
+    radial-gradient(600px 280px at 1% 104%,rgba(244,253,250,.5) 0%,rgba(244,253,250,0) 70%)}
+/* Tiga isi halaman berdiri pada satu kisi di atas latar yang sama: identitas sekolah di kiri
+   atas, identitas pengembang di kiri bawah, dan kartu Masuk di kanan. Kolom kartu memanjang
+   dari baris pertama sampai baris terakhir, jadi kartunya betul-betul mengambang di tengah
+   tinggi layar - bukan berdiri di dalam panel tersendiri. */
+.login-layout{position:relative;z-index:2;min-height:100dvh;display:grid;
+  grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto 1fr auto;
+  grid-template-areas:"brand kartu" ". kartu" "kredit kartu";
+  gap:18px 28px;padding:32px 38px calc(28px + env(safe-area-inset-bottom))}
+.login-brand{grid-area:brand;align-self:start;display:flex;align-items:center;gap:14px}
+.login-credit{grid-area:kredit;align-self:end;position:relative;padding-left:12px;max-width:min(100%,430px)}
+.login-card-slot{grid-area:kartu;align-self:center;justify-self:end;display:flex;align-items:center;
+  width:min(392px,100%)}
+
+/* Identitas sekolah di kiri atas. Seluruh isinya dibaca dari master Admin. */
+.login-brand-app{color:var(--sky-accent)}
+.login-brand-text strong{color:#0b3542;text-shadow:0 1px 10px rgba(255,255,255,.8)}
+.login-brand-tagline{font-size:10.5px;font-weight:650;letter-spacing:.12em;color:#0b6b7d;margin-top:4px;
+  text-shadow:0 1px 8px rgba(255,255,255,.85)}
+.login-logo{filter:drop-shadow(0 3px 9px rgba(11,58,68,.22))}
+.login-logo-fallback{background:rgba(255,255,255,.6);border:1px solid var(--sky-line);color:var(--sky-accent)}
+
+/* Identitas pengembang tetap di kiri bawah, satu blok rapat, di luar kartu Masuk. */
+.login-credit::before{content:'';position:absolute;left:0;top:3px;bottom:3px;width:2px;border-radius:2px;
+  background:linear-gradient(180deg,transparent,#0f9fb4 18%,#0f9fb4 82%,transparent);
+  box-shadow:0 0 10px rgba(15,159,180,.35)}
+.login-credit-lead{display:block;font-size:9.5px;font-weight:750;letter-spacing:.16em;text-transform:uppercase;
+  color:#0b5f70;text-shadow:0 1px 8px rgba(255,255,255,.85)}
+.login-credit-name{display:block;margin-top:1px;font-size:clamp(16px,1.4vw,19px);font-weight:850;line-height:1.15;
+  color:#0b3542;text-shadow:0 1px 10px rgba(255,255,255,.85)}
+.login-credit-role{display:block;margin-top:0;font-size:11px;line-height:1.35;color:#125c6b;
+  text-shadow:0 1px 8px rgba(255,255,255,.8)}
+.login-credit-copy{display:block;margin-top:2px;font-size:9.5px;line-height:1.3;letter-spacing:.05em;
+  color:#256b7c;text-shadow:0 1px 8px rgba(255,255,255,.75)}
+
+/* KARTU MASUK. Membulat, ringkas, kaca pastel yang cukup pekat untuk dibaca di atas gambar -
+   bukan putih polos, bukan navy. Seluruh kendali di dalamnya tidak diubah. */
+.login-shell{width:100%;background:linear-gradient(165deg,rgba(255,255,255,.9),rgba(228,248,244,.82));
+  border:1px solid rgba(17,120,140,.2);box-shadow:0 22px 46px rgba(13,71,86,.18);
   backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding:22px 22px 18px}
 .login-shell-head{margin-bottom:14px}
 .login-shell-head h2{color:#0d3b47}
-.login-shell-head p{color:#2c6c7c}
-.login-shell .role-switch{background:rgba(255,255,255,.62);border-color:rgba(17,120,140,.16)}
-.login-shell .role-btn{color:#2c6c7c}
-.login-shell .role-btn.active{color:#06323c;background:linear-gradient(135deg,#5de4e0,#2fa8ff);box-shadow:0 5px 14px rgba(47,168,255,.28)}
-.login-field{background:rgba(255,255,255,.72);border-color:rgba(17,120,140,.18)}
-.login-field:focus-within{border-color:#2fa8ff;background:rgba(255,255,255,.92);box-shadow:0 0 0 3px rgba(47,168,255,.16)}
+.login-shell-head p{color:var(--sky-muted)}
+.login-shell .role-switch{background:rgba(255,255,255,.66);border-color:var(--sky-line)}
+.login-shell .role-btn{color:var(--sky-muted)}
+.login-shell .role-btn.active{color:#06323c;background:linear-gradient(135deg,#5de4e0,#2fa8ff);
+  box-shadow:0 5px 14px rgba(47,168,255,.28)}
+.login-field{background:rgba(255,255,255,.78);border-color:var(--sky-line)}
+.login-field:focus-within{border-color:#2fa8ff;background:rgba(255,255,255,.95);box-shadow:0 0 0 3px rgba(47,168,255,.16)}
 .login-field-icon{color:#2c8b9c}
 .login-field:focus-within .login-field-icon{color:#0f8fbd}
 .login-shell .input{color:#0d3b47}
 .login-shell .input::placeholder{color:#6796a3}
+.login-shell select.input option{background:#fff;color:#0d3b47}
+.login-shell .password-toggle:hover{color:var(--sky-accent)}
 /* Tombol utama: cream/mint sangat muda ke tosca terang lalu biru langit terang. */
-.login-submit{background:linear-gradient(100deg,#e8f7e8 0%,#5de4e0 46%,#2fa8ff 100%);color:#06323c;box-shadow:0 12px 26px rgba(47,168,255,.3)}
+.login-submit{background:linear-gradient(100deg,#e8f7e8 0%,#5de4e0 46%,#2fa8ff 100%);color:#06323c;
+  box-shadow:0 12px 26px rgba(47,168,255,.3)}
 .login-submit:hover{box-shadow:0 14px 30px rgba(47,168,255,.38)}
-.login-link{color:#0f7f93}
-.login-help{color:#2c6c7c}
-.login-version{color:#2c8b9c;background:rgba(255,255,255,.6);border-color:rgba(17,120,140,.16)}
-.login-crest{filter:drop-shadow(0 2px 7px rgba(11,58,68,.18))}
-.login-logo{filter:drop-shadow(0 3px 9px rgba(11,58,68,.2))}
-.login-logo-fallback{background:rgba(255,255,255,.55);border-color:rgba(17,120,140,.2);color:#0f7f93}
+.login-link{color:var(--sky-accent)}
+.login-link:hover{color:#0d3b47}
+.login-ghost{background:rgba(255,255,255,.7);border-color:var(--sky-line);color:#0d3b47}
+.login-ghost:hover{background:rgba(255,255,255,.88)}
+.login-help{color:var(--sky-muted)}
+.login-shell .login-error{background:#fff0f1;border:1px solid #f0c8cc;color:#9b2c35}
+.login-version{color:#2c8b9c;background:rgba(255,255,255,.66);border-color:var(--sky-line)}
+.login-crest{filter:drop-shadow(0 2px 7px rgba(11,58,68,.2))}
 
-/* -------------------------------------------------------- Dashboard Admin dan Guru */
-/* Latar murni: hanya warna, awan lembut, dan dedaunan buram di tepinya. Tidak ada logo, teks,
-   peta, kartu, menu, maupun bayangan antarmuka apa pun di dalam berkasnya. Ia dipasang pada
-   halaman Dashboard saja, sehingga menu lain tetap seperti sebelumnya. */
-.dashboard-page{position:relative;margin:-24px;padding:24px;min-height:calc(100dvh - 68px)}
-.dashboard-page::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:center/cover no-repeat url('../../assets/dashboard-background.svg')}
-.dashboard-page>*{position:relative;z-index:1}
-/* Kartu dashboard: kaca pastel yang cukup pekat untuk dibaca, sewarna dengan tombol Masuk. */
-.dashboard-page .card,.dashboard-page .dash-stat,.dashboard-page .dash-panel{
-  background:linear-gradient(165deg,rgba(255,255,255,.9),rgba(232,250,247,.82));
-  border:1px solid rgba(17,120,140,.16);box-shadow:0 14px 30px rgba(13,71,86,.12);
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#0d3b47}
-.dashboard-page .card h1,.dashboard-page .card h2,.dashboard-page .card h3,
-.dashboard-page .dash-stat-value,.dashboard-page strong{color:#0d3b47}
-.dashboard-page .card p,.dashboard-page .dash-stat-label,.dashboard-page .dash-stat-foot,
-.dashboard-page .muted,.dashboard-page small,.dashboard-page span{color:#2c6c7c}
-.dashboard-page .page-head h1{color:#0b3542}
-.dashboard-page .page-head p{color:#125c6b}
-/* Aksen warna kartu statistik tetap membedakan informasinya, dalam satu keluarga warna. */
-.dashboard-page .dash-stat-cyan{border-color:rgba(47,168,255,.3);box-shadow:0 14px 30px rgba(47,168,255,.16)}
-.dashboard-page .dash-stat-teal{border-color:rgba(93,228,224,.36);box-shadow:0 14px 30px rgba(45,190,180,.16)}
-.dashboard-page .dash-stat-purple{border-color:rgba(120,190,235,.34);box-shadow:0 14px 30px rgba(90,160,220,.16)}
-.dashboard-page .dash-stat-amber{border-color:rgba(240,200,120,.42);box-shadow:0 14px 30px rgba(214,168,74,.16)}
-.dashboard-page .dash-stat-icon{background:rgba(255,255,255,.7);color:#0f7f93}
-.dashboard-page .badge-active{background:rgba(93,228,224,.24);border-color:rgba(17,120,140,.24);color:#0b5f70}
-.dashboard-page .badge-inactive{background:rgba(255,255,255,.6);border-color:rgba(17,120,140,.16);color:#2c6c7c}
-
-/* ------------------------------------------------------------ Tanggapan layar tema baru */
-@media(max-width:1200px){.login-photo{background-position:60% 50%}}
+/* ---------------------------------------------------------------- Tanggapan layar 1.3.0 */
+/* Latar digeser, bukan diregangkan: yang berubah hanya titik potongnya, sehingga meja, papan
+   tulis, dan jendela tetap pada perbandingan aslinya di setiap lebar layar. */
+@media(max-width:1200px){.login-stage{--login-bg-pos:58% 45%}.login-layout{padding:26px 24px calc(24px + env(safe-area-inset-bottom));gap:16px 20px}}
 @media(max-width:900px){
-  /* Dua kolom ditumpuk seperti sebelumnya. Papan tulis disembunyikan pada pita latar yang
-     memendek supaya identitas sekolah dan pengembang tetap muat tanpa saling menindih. */
-  .login-chalkboard{display:none}
-  .login-photo-content{gap:12px}
-  .login-credit-name{font-size:16px}
+  /* Kartu turun ke tengah layar dan melebar. Identitas sekolah tetap di atas, identitas
+     pengembang tetap merapat ke kaki layar - keduanya tidak pernah masuk ke dalam kartu. */
+  .login-stage{--login-bg-pos:62% 42%}
+  .login-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr auto;
+    grid-template-areas:"brand" "kartu" "kredit";gap:16px;padding:22px 18px calc(20px + env(safe-area-inset-bottom))}
+  .login-card-slot{justify-self:center;width:min(392px,100%)}
+  .login-credit{max-width:100%}
+  .login-veil{background:linear-gradient(180deg,rgba(244,253,250,.5) 0%,rgba(244,253,250,.1) 26%,rgba(244,253,250,.46) 100%)}
 }
 @media(max-width:767px){
+  .login-layout{padding:18px 14px calc(16px + env(safe-area-inset-bottom));gap:14px}
   .login-shell{padding:18px 16px 16px}
-  .dashboard-page{margin:-15px;padding:15px;min-height:calc(100dvh - 62px)}
+  .login-credit-name{font-size:16px}
 }
-/* Layar pendek dan mendatar: papan tulis memakan tinggi yang tidak ada, jadi ia mundur. */
-@media(max-height:520px){.login-chalkboard{display:none}}
-@media print{.dashboard-page::before{display:none}}
+/* Layar mendatar dan pendek: kisi tetap dua kolom supaya kartu tidak memakan seluruh tinggi,
+   dan halaman boleh menggulir bila kartunya masih lebih tinggi daripada layar. */
+@media(max-height:560px) and (orientation:landscape){
+  .login-layout{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto 1fr auto;
+    grid-template-areas:"brand kartu" ". kartu" "kredit kartu";
+    min-height:0;padding:14px 18px calc(12px + env(safe-area-inset-bottom));gap:10px 18px}
+  .login-stage{overflow-y:auto}
+  .login-card-slot{justify-self:end;width:min(360px,58%)}
+  .login-shell{padding:14px 16px 12px}
+  .login-crest{height:30px}.login-crest-upload{width:30px;height:30px;margin:0}
+  .login-crest-region{height:52px;margin:-11px -12px}
+  .login-crest-row{margin-bottom:8px}
+  .login-shell-head{margin-bottom:9px}
+  .login-shell-head h2{font-size:16px}
+  .login-credit-copy{display:none}
+}
+
+/* ------------------------------------------------- Setup Awal dan Aktivasi Pemilik */
+/* Kedua halaman ini berdiri di luar shell aplikasi, jadi latarnya ditulis sendiri dalam
+   palet yang sama. Keduanya dulu memakai gradasi navy dan permukaan kaca yang hanya masuk
+   akal di atas latar gelap: kaca setipis 9% menjadi tidak terlihat begitu latarnya terang,
+   dan namanya yang ditulis putih akan hilang. Isi, urutan, dan alurnya tidak diubah. */
+.setup-stage{background:linear-gradient(150deg,var(--sky-mint) 0%,var(--sky-aqua) 48%,var(--sky-sea) 100%);color:var(--sky-ink)}
+.setup-card{background:rgba(255,255,255,.92);border:1px solid var(--sky-line);box-shadow:0 22px 46px rgba(13,71,86,.16)}
+.setup-card h1{color:var(--sky-ink)}
+.setup-card .section-head p{color:var(--sky-muted)}
+.setup-card .field label{color:var(--sky-ink)}
+.setup-card .input{background:#fff;border:1px solid var(--sky-line);color:var(--light-ink)}
+.setup-card .input::placeholder{color:#6796a3}
+.setup-hint{color:var(--sky-muted)}
+.setup-credit span,.setup-credit small{color:var(--sky-muted)}
+.setup-credit strong{color:var(--sky-ink)}
+
+/* Halaman Aktivasi Pemilik memakai .login-panel sebagai wadah tengahnya. Sampai 1.2.9 ia
+   menumpang aturan kolom kanan halaman Masuk; kolom itu sudah dibubarkan, jadi wadahnya
+   ditulis di sini secara mandiri supaya tata letaknya tidak ikut hilang. */
+.login-page{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:16px;overflow-y:auto;
+  padding:30px 24px calc(22px + env(safe-area-inset-bottom));
+  background:linear-gradient(150deg,var(--sky-mint) 0%,var(--sky-aqua) 48%,var(--sky-sea) 100%);
+  color:var(--sky-ink)}
+.login-page .login-panel{width:min(520px,100%)}
+.login-page .login-card{display:block;background:rgba(255,255,255,.94);border:1px solid var(--sky-line);
+  border-radius:20px;padding:24px;box-shadow:0 22px 46px rgba(13,71,86,.16);color:var(--light-ink)}
+.login-page .login-card h1{margin:0 0 6px;font-size:19px;color:var(--light-ink)}
+.login-page .login-card p{font-size:12.5px;color:var(--light-muted);line-height:1.55}
+.login-page .creator strong{display:block;font-size:11px;font-weight:800;letter-spacing:.16em;color:var(--sky-accent)}
+.login-page .creator p{margin:4px 0 0;font-size:11px;color:var(--sky-muted);line-height:1.5}

@@ -34,10 +34,13 @@ test('Intro lama tidak lagi dijalankan dan aplikasi langsung merender Login',()=
 
 /* ------------------------------------------------------ 2. Layout dan tema login baru */
 
-test('Login memakai satu panel menyatu, bukan foto besar kiri dan blok putih kanan',()=>{
+test('Login memakai satu latar menyatu, bukan foto besar kiri dan blok putih kanan',()=>{
   const source=login(),t=css();
   assert.doesNotMatch(source,/login-visual/,'panel foto besar dibuang');
   assert.doesNotMatch(t,/\.login-visual\{/,'gaya panel foto dibuang');
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA: kolom kiri/kanan ikut dibubarkan. */
+  assert.equal(/^\.login-photo\{|^\.login-panel\{/m.test(t),false,'gaya dua kolom dibuang');
+  assert.doesNotMatch(source,/login-photo|<section class="login-panel">/,'markup dua kolom dibuang');
   assert.doesNotMatch(t,/\.login-page\{[^}]*background:#fff/,'tidak ada blok putih besar');
   assert.match(source,/login-stage/);
   assert.match(source,/login-shell/);
@@ -45,12 +48,17 @@ test('Login memakai satu panel menyatu, bukan foto besar kiri dan blok putih kan
   assert.match(t,/\.login-shell\{/);
 });
 
-test('Tema login memakai foto di kolom kiri dan panel kaca di kolom kanan',()=>{
+test('Tema login memakai satu latar penuh layar dan kartu kaca mengambang di kanan',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA.
+
+     Baseline lama mengunci justru yang sekarang dilarang: kisi dua kolom, latar hanya pada
+     kolom kiri, dan latar navy tersendiri pada kolom kanan. Pengguna menyatakan tidak boleh
+     ada sekat atau pemisah antara kanan dan kiri, jadi ketiganya dibalik. */
   const t=css();
-  assert.match(t,/\.login-stage\{[^}]*grid-template-columns:1\.05fr \.95fr/,'dua kolom di layar lebar');
-  assert.match(t,/\.login-photo\{[^}]*login-background\.svg/,'kolom kiri memakai latar sekolah');
-  assert.match(t,/\.login-photo-overlay\{[^}]*linear-gradient/,'foto diberi peredup agar teks terbaca');
-  assert.match(t,/\.login-panel\{[^}]*var\(--navy/,'kolom kanan memakai latar navy');
+  assert.equal(/grid-template-columns:1\.05fr \.95fr/.test(t),false,'tidak ada lagi kisi dua kolom');
+  assert.match(t,/\.login-stage\{[^}]*login-background\.webp/s,'satu latar untuk seluruh layar');
+  assert.match(t,/\.login-veil\{[^}]*linear-gradient/s,'latar diberi peredup tipis agar teks terbaca');
+  assert.match(t,/\.login-card-slot\{[^}]*justify-self:end/s,'kartu mengambang di kanan, tanpa panel sendiri');
   assert.match(t,/\.login-shell\{[^}]*backdrop-filter\s*:\s*blur\(/,'kartu form tetap kaca');
   assert.match(t,/\.login-shell\{[^}]*border:1px solid/,'border tipis');
 });
@@ -154,8 +162,8 @@ test('Branding sekolah dan footer pengembang sesuai permintaan',()=>{
   assert.match(read('src/data/app-identity.js'),/COPYRIGHT='©\s*2026 — Semua Hak Dilindungi'/);
   assert.doesNotMatch(source,/System Architect/,'teks lama dibuang');
   assert.doesNotMatch(source,/Inovasi digital mandiri/,'motto lama dibuang');
-  /* Identitas pengembang hanya di kiri bawah, panel kanan tidak lagi membawa footer. */
-  assert.match(css(),/\.login-photo-caption\{[^}]*position:relative/,'blok identitas kiri tetap ada');
+  /* Identitas pengembang hanya di kiri bawah; kartu Masuk tidak membawa footer. */
+  assert.match(css(),/\.login-credit\{[^}]*position:relative/,'blok identitas kiri tetap ada');
   assert.doesNotMatch(source,/login-footer/,'footer panel kanan sudah dihapus');
   assert.equal(SCHOOL_PLACEHOLDER.length>0,true);
 });
@@ -166,13 +174,17 @@ test('Login nyaman di Android potret, lanskap, tablet, dan laptop',()=>{
   const t=css();
   const stage=t.match(/\.login-stage\{[^}]*\}/)[0];
   assert.match(stage,/min-height:100/,'memenuhi tinggi layar');
-  /* Pada tata letak dua kolom, kolom form kanan yang bergulir, bukan seluruh panggung. */
-  assert.match(t,/\.login-panel\{[^}]*overflow-y:auto/,'kolom form dapat digulir saat layar pendek');
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA: tidak ada lagi kolom form tersendiri yang
+     bergulir. Saat layar mendatar dan pendek, seluruh panggung yang boleh digulir. */
+  assert.match(t,/@media\(max-height:560px\) and \(orientation:landscape\)[^@]*\.login-stage\{[^}]*overflow-y:auto/s,
+    'halaman dapat digulir saat layar pendek');
   assert.match(t,/\.login-shell\{[^}]*width:min\(/,'lebar mengikuti layar sehingga tidak terpotong');
   assert.doesNotMatch(stage,/overflow-x:scroll/);
   assert.match(t,/@media\(max-width:767px\)[^@]*\.login-shell\{/,'penyesuaian ponsel');
-  assert.match(t,/@media\(max-width:900px\)[^@]*\.login-stage\{[^}]*grid-template-columns:1fr/,'tablet dan ponsel menumpuk dua kolom');
-  assert.match(t,/@media\(max-height:560px\) and \(max-width:900px\)[^@]*\.login-photo\{/,'lanskap ponsel mempersempit foto');
+  assert.match(t,/@media\(max-width:900px\)[^@]*\.login-layout\{[^}]*grid-template-columns:minmax\(0,1fr\)/s,
+    'tablet dan ponsel menumpuk isi menjadi satu kolom');
+  assert.match(t,/@media\(max-height:560px\) and \(orientation:landscape\)[^@]*\.login-layout\{/s,
+    'lanskap pendek memakai kisi yang lebih rapat');
   assert.match(t,/env\(safe-area-inset-bottom\)/,'aman dari area sistem dan papan ketik');
 });
 

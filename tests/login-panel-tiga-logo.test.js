@@ -2,9 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-/* Panel Masuk di kolom kanan dibuka oleh satu kelompok tiga lambang yang rapat dan center,
-   lalu judul dan form. Identitas pengembang tidak lagi berada di kolom kanan; tempatnya
-   hanya di kiri bawah kolom foto. */
+/* Kartu Masuk dibuka oleh satu kelompok tiga lambang yang rapat dan center, lalu judul dan
+   form. Identitas pengembang tidak berada di dalam kartu; tempatnya hanya di kiri bawah.
+
+   REVISI 1.3.0: kolom kanan yang dulu membungkus kartu ini dibubarkan atas permintaan
+   pengguna - tidak boleh ada sekat antara kanan dan kiri. Kartunya kini mengambang langsung
+   di atas latar yang sama. Isi kartu, urutan lambang, dan pemisahan identitas tidak berubah;
+   yang berubah hanya nama wadahnya, dari .login-panel menjadi .login-card-slot. */
 
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
@@ -16,7 +20,7 @@ function rule(selector){
 }
 function bagianPanel(){
   const source=login();
-  const mulai=source.indexOf('<section class="login-panel">');
+  const mulai=source.indexOf('<div class="login-card-slot">');
   assert.ok(mulai>-1,'kolom form kanan tetap ada');
   return source.slice(mulai);
 }
@@ -111,7 +115,7 @@ test('Ukuran lambang kecil dan proporsional, tidak membesar di layar lebar',()=>
   assert.ok(Number(ponsel[0][1])<Number(tinggi[1]),`di ponsel ${ponsel[0][1]}px lebih kecil daripada ${tinggi[1]}px`);
 });
 
-test('Identitas pengembang tidak lagi berada di kolom kanan',()=>{
+test('Identitas pengembang tidak lagi berada di dalam kartu Masuk',()=>{
   const panel=bagianPanel();
   assert.equal(panel.includes('login-footer'),false,'footer kanan sudah dihapus');
   assert.equal(panel.includes('FAHMI DJAWAS, S.Pd.'),false,'nama pengembang tidak ada di panel kanan');
@@ -126,20 +130,25 @@ test('Identitas pengembang tidak lagi berada di kolom kanan',()=>{
 
 test('Identitas pengembang di kiri bawah tetap utuh',()=>{
   const source=login();
-  const foto=source.slice(source.indexOf('<section class="login-photo">'),source.indexOf('<section class="login-panel">'));
+  const foto=source.slice(source.indexOf('<main class="login-stage">'),source.indexOf('<div class="login-card-slot">'));
   for(const teks of ['DEVELOPER_CREDIT_LEAD','DEVELOPER_NAME','DEVELOPER_ROLE','COPYRIGHT'])
-    assert.ok(foto.includes(teks),`${teks} tetap di kolom foto`);
+    assert.ok(foto.includes(teks),`${teks} tetap berdiri langsung di atas latar`);
   assert.match(foto,/class="login-credit-name"/,'nama pengembang tetap jadi fokus di kiri bawah');
 });
 
 test('Sisa halaman Masuk tidak ikut berubah',()=>{
   const source=login(),t=css();
-  const foto=source.slice(source.indexOf('<section class="login-photo">'),source.indexOf('<section class="login-panel">'));
-  /* Kolom foto, header kiri, tagline, dan mekanisme latar yang dapat ditimpa tetap sama. */
+  const foto=source.slice(source.indexOf('<main class="login-stage">'),source.indexOf('<div class="login-card-slot">'));
+  /* Header kiri, tagline, dan mekanisme latar yang dapat ditimpa tetap sama. */
   for(const teks of ['e-Rapor','schoolLabel.toUpperCase()','Cerdas • Berkarakter • Berprestasi','class="login-logo"'])
-    assert.ok(foto.includes(teks),`${teks} tetap di kolom foto`);
-  assert.equal((t.match(/login-background\.svg/g)||[]).length,1,'berkas latar tetap disebut sekali');
-  assert.match(t,/\.login-stage\{[^}]*grid-template-columns:1\.05fr \.95fr/,'tata letak dua kolom tetap');
+    assert.ok(foto.includes(teks),`${teks} tetap berdiri langsung di atas latar`);
+  assert.equal((t.match(/login-background\.webp/g)||[]).length,1,'berkas latar tetap disebut sekali');
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA: kisi dua kolom 1.05fr/.95fr dibuang.
+     Pengguna melarang sekat kanan-kiri, sehingga latar kini satu bidang utuh dan yang menata
+     isinya adalah .login-layout - kartu di kanan, identitas di kiri, di atas latar yang sama. */
+  assert.equal(/grid-template-columns:1\.05fr \.95fr/.test(t),false,'kisi dua kolom lama dibuang');
+  assert.match(t,/\.login-layout\{[^}]*grid-template-areas:"brand kartu" "\. kartu" "kredit kartu"/,
+    'kartu di kanan, identitas sekolah dan pengembang di kiri');
   /* Seluruh kendali dan logika masuk tidak tersentuh. */
   for(const id of ['semester','username','password','loginForm','loginError','forgot','loginHelp'])
     assert.match(source,new RegExp(`id="${id}"`),`kontrol ${id} tetap ada`);

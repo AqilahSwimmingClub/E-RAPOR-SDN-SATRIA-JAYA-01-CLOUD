@@ -34,7 +34,7 @@ test('Ukuran logo sedang, rasio asli dipertahankan, dan responsif',()=>{
 });
 
 test('Logo sejajar dengan blok identitas dan diberi jarak rapi',()=>{
-  const brand=rule('.login-photo .login-brand');
+  const brand=rule('.login-brand');
   assert.match(brand,/align-items:center/,'logo sejajar vertikal dengan teks');
   assert.match(brand,/gap:/,'ada jarak antara logo dan teks');
 });
@@ -47,25 +47,28 @@ test('Sambutan dihapus, tagline bertitik pemisah tetap tampil',()=>{
 });
 
 test('Latar Login diambil dari satu berkas tetap yang dapat ditimpa manual',()=>{
-  const t=css(),foto=rule('.login-photo');
-  assert.match(foto,/url\('\.\.\/\.\.\/assets\/login-background\.svg'\)/,'jalur dan nama berkas tetap');
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA: berkas kembali ke gambar ASLI acuan (webp)
+     dan wadahnya kini seluruh layar. Mekanismenya - satu berkas, satu penyebutan - tetap. */
+  const t=css(),foto=rule('.login-stage');
+  assert.match(foto,/url\('\.\.\/\.\.\/assets\/login-background\.webp'\)/,'jalur dan nama berkas tetap');
   assert.match(foto,/cover/,'memakai background-size cover');
   /* Tidak boleh ada gambar yang ditanam langsung di kode. */
   assert.doesNotMatch(t,/url\(["']?data:image/,'tidak ada base64 pada CSS');
   assert.doesNotMatch(login(),/data:image\/(png|jpe?g);base64/,'tidak ada base64 pada halaman');
   /* Hanya satu penyebutan berkas latar, sehingga menggantinya cukup menimpa satu berkas. */
-  assert.equal((t.match(/login-background\.svg/g)||[]).length,1,'berkas latar hanya disebut sekali');
+  assert.equal((t.match(/login-background\.webp/g)||[]).length,1,'berkas latar hanya disebut sekali');
 });
 
 test('Aset yang boleh diganti manual tidak tersangkut cache lama',()=>{
   const sw=read('sw.js');
   assert.match(sw,/SWAPPABLE_ASSETS/,'ada daftar aset yang dapat ditimpa');
-  assert.match(sw,/login-background\.svg/,'latar termasuk aset yang dapat ditimpa');
-  assert.match(sw,/dashboard-background\.svg/,'latar dashboard juga dapat ditimpa');
+  assert.match(sw,/login-background\.webp/,'latar Masuk termasuk aset yang dapat ditimpa');
+  assert.match(sw,/app-background\.webp/,'latar aplikasi juga dapat ditimpa');
   assert.match(sw,/isSwappableAsset\(event\.request\.url\)\?networkFirst/,'aset itu diambil dari jaringan lebih dulu');
   /* Tetap ada cadangan cache sehingga aplikasi tidak kosong saat offline. */
   assert.match(sw,/async function networkFirst\(request\)\{try\{const response=await fetch\(request\)/);
-  assert.doesNotMatch(sw,/'\.\/assets\/login-background\.svg'/,'latar tidak ikut di-precache agar tidak tertahan versi lama');
+  assert.doesNotMatch(sw,/'\.\/assets\/login-background\.webp'/,'latar tidak ikut di-precache agar tidak tertahan versi lama');
+  assert.doesNotMatch(sw,/'\.\/assets\/app-background\.webp'/,'latar aplikasi juga tidak di-precache');
 });
 
 test('Panel form, tema, dan identitas pengembang tidak ikut berubah',()=>{
@@ -73,6 +76,10 @@ test('Panel form, tema, dan identitas pengembang tidak ikut berubah',()=>{
   for(const teks of ['Masuk ke e-Rapor','Admin','Guru / Wali Kelas','MASUK','Lupa Password?','Aktivasi Admin Pertama','DEVELOPER_NAME'])
     assert.ok(source.includes(teks),`${teks} tetap ada`);
   assert.match(source,/v\$\{escapeHtml\(APP_VERSION\)\}/,'nomor versi tetap otomatis');
-  assert.match(t,/\.login-stage\{[^}]*grid-template-columns:1\.05fr \.95fr/,'tata letak dua kolom tetap');
-  assert.match(t,/\.login-submit\{[^}]*var\(--cyan\)/,'warna tombol tetap');
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA: kisi dua kolom dibuang atas permintaan
+     pengguna, dan tombol Masuk memakai gradasi cream-mint → tosca → biru langit sejak 1.2.9. */
+  assert.equal(/grid-template-columns:1\.05fr \.95fr/.test(t),false,'kisi dua kolom lama dibuang');
+  assert.match(t,/\.login-card-slot\{[^}]*justify-self:end/s,'kartu tetap berdiri di sisi kanan');
+  assert.match(t,/\.login-submit\{background:linear-gradient\(100deg,#e8f7e8 0%,#5de4e0 46%,#2fa8ff 100%\)/,
+    'warna tombol tetap seperti 1.2.9');
 });

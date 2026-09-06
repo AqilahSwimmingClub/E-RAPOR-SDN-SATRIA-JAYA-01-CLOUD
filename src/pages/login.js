@@ -8,9 +8,19 @@ import { refreshLicenseForLogin } from '../services/license.js';
 import { icon } from '../ui/icons.js';
 import { el, escapeHtml, qs, toast } from '../ui/dom.js';
 
-/* Halaman Masuk v1.2.1. Satu panel kaca yang menyatu di tengah layar: tidak ada lagi foto
-   besar di kiri dan blok putih di kanan. Panel terbuka sekali seperti koper yang dibuka,
-   lalu diam. Seluruh logika masuk, recovery, aktivasi, dan bootstrap keamanan tidak diubah. */
+/* HALAMAN MASUK 1.3.0 - SATU LATAR UTUH, TANPA SEKAT.
+
+   Sampai 1.2.9 halaman ini dua kolom: kolom kiri memegang latar, kolom kanan punya latar
+   sendiri, dan keduanya bertemu sebagai garis tegak di tengah layar. Susunan itu dibuang.
+   Sekarang latar GAMBAR 1 dipasang satu kali pada seluruh bidang layar, dari tepi kiri sampai
+   tepi kanan, dan tiga isi halaman berdiri DI ATAS latar yang sama: identitas sekolah di kiri
+   atas, identitas pengembang di kiri bawah, dan kartu Masuk mengambang di kanan.
+
+   Slogan papan tulis tidak lagi ditulis sebagai elemen halaman. Ia sudah menjadi bagian dari
+   berkas latar itu sendiri, sehingga menuliskannya lagi di sini akan membuatnya muncul dua
+   kali. Berkas latar dipakai apa adanya - tidak digambar ulang, tidak diubah komposisinya.
+
+   Seluruh logika masuk, recovery, aktivasi, dan bootstrap keamanan tidak diubah sama sekali. */
 
 const LOCK_ICON='<svg class="icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
 
@@ -48,77 +58,68 @@ export function renderLogin({onSuccess,onActivate,onLicenseBlocked}){
      sekolah - yang menyesuaikan adalah gambarnya. */
   const kelasUnggahan=nilai=>nilai?' login-crest-upload':'';
   const root=el(`<main class="login-stage">
-    <section class="login-photo">
-      <div class="login-photo-overlay" aria-hidden="true"></div>
-      <div class="login-photo-content">
-        <div class="login-brand">
-          <div class="login-brand-mark">
-            <img class="login-logo" src="${escapeHtml(crest)}" alt="${escapeHtml(crestAlt)}" data-login-logo/>
-            <span class="login-logo-fallback hidden" aria-hidden="true">${icon('school',26)}</span>
-          </div>
-          <div class="login-brand-text">
-            <span class="login-brand-app">e-Rapor</span>
-            <strong>${escapeHtml(schoolLabel.toUpperCase())}</strong>
-            <span class="login-brand-tagline">Cerdas • Berkarakter • Berprestasi</span>
-          </div>
+    <div class="login-veil" aria-hidden="true"></div>
+    <div class="login-layout">
+      <div class="login-brand">
+        <div class="login-brand-mark">
+          <img class="login-logo" src="${escapeHtml(crest)}" alt="${escapeHtml(crestAlt)}" data-login-logo/>
+          <span class="login-logo-fallback hidden" aria-hidden="true">${icon('school',26)}</span>
         </div>
-        <!-- SLOGAN PAPAN TULIS - DITULIS SATU KALI, DI SATU TEMPAT.
-
-             Sebelumnya seluruh tulisan pada halaman ini ikut terbakar ke dalam berkas foto,
-             sehingga slogan lama tidak dapat diubah, tidak terbaca pembaca layar, dan sempat
-             muncul dua kali karena berkasnya memuatnya sendiri. Sekarang ia elemen halaman:
-             satu blok, satu kali, tepat di atas bidang papan tulis pada latar. -->
-        <p class="login-chalkboard">Administrasi Kelas yang Tertata untuk Generasi yang Lebih Baik</p>
-        <div class="login-photo-caption">
-          <span class="login-credit-lead">${escapeHtml(DEVELOPER_CREDIT_LEAD)}</span>
-          <strong class="login-credit-name">${escapeHtml(DEVELOPER_NAME)}</strong>
-          <span class="login-credit-role">${escapeHtml(DEVELOPER_ROLE)}</span>
-          <span class="login-credit-copy">${escapeHtml(COPYRIGHT)}</span>
+        <div class="login-brand-text">
+          <span class="login-brand-app">e-Rapor</span>
+          <strong>${escapeHtml(schoolLabel.toUpperCase())}</strong>
+          <span class="login-brand-tagline">Cerdas • Berkarakter • Berprestasi</span>
         </div>
       </div>
-    </section>
-    <section class="login-panel">
-      <div class="login-shell">
-        <div class="login-shell-head">
-          <div class="login-crest-row">
-            <img class="login-crest${kelasUnggahan(ministryUpload)}" src="${escapeHtml(ministryLogo)}" alt="Logo Tut Wuri Handayani" data-crest="ministry"/>
-            <img class="login-crest ${regionUpload?'login-crest-upload':'login-crest-region'}" src="${escapeHtml(regionLogo)}" alt="Logo Kabupaten/Kota/Provinsi" data-crest="region"/>
-            <img class="login-crest${kelasUnggahan(schoolLogo)}" src="${escapeHtml(crest)}" alt="${escapeHtml(crestAlt)}" data-crest="school"/>
-          </div>
-          <h2>Masuk ke e-Rapor</h2>
-          <p>Pilih peran, semester, lalu masukkan akun Anda.</p>
-        </div>
-        <form class="login-form" id="loginForm" novalidate>
-          <div class="role-switch" role="tablist">
-            <button type="button" class="role-btn active" data-role="admin" role="tab" aria-selected="true">Admin</button>
-            <button type="button" class="role-btn" data-role="teacher" role="tab" aria-selected="false">Guru / Wali Kelas</button>
-          </div>
-          <div class="login-field login-anim" style="--rise:1">
-            <span class="login-field-icon">${icon('school',15)}</span>
-            <input class="input" id="loginSchool" value="${escapeHtml(schoolLabel)}" aria-label="Sekolah" readonly/>
-          </div>
-          <div class="login-field login-anim" style="--rise:2">
-            <span class="login-field-icon">${icon('calendar',15)}</span>
-            <select class="input" id="semester" aria-label="Semester Aktif">${semesters.map(value=>`<option>${escapeHtml(value)}</option>`).join('')}</select>
-          </div>
-          <div class="login-field login-anim" style="--rise:3">
-            <span class="login-field-icon">${icon('user',15)}</span>
-            <input class="input" id="username" autocomplete="username" placeholder="Username" aria-label="Username" required/>
-          </div>
-          <div class="login-field login-anim" style="--rise:4">
-            <span class="login-field-icon">${LOCK_ICON}</span>
-            <input class="input" id="password" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required/>
-            <button class="password-toggle" type="button" aria-label="Tampilkan password">👁</button>
-          </div>
-          <div class="login-error hidden" id="loginError" role="alert"></div>
-          <button class="login-submit login-anim" style="--rise:5" type="submit" data-login>MASUK</button>
-          <button class="login-link" type="button" id="forgot">Lupa Password?</button>
-          <button class="login-ghost hidden" type="button" data-activate>Aktivasi Admin Pertama</button>
-          <div class="login-help" id="loginHelp">Memeriksa keamanan akun lokal...</div>
-        </form>
-        <span class="login-version">v${escapeHtml(APP_VERSION)}</span>
+      <div class="login-credit">
+        <span class="login-credit-lead">${escapeHtml(DEVELOPER_CREDIT_LEAD)}</span>
+        <strong class="login-credit-name">${escapeHtml(DEVELOPER_NAME)}</strong>
+        <span class="login-credit-role">${escapeHtml(DEVELOPER_ROLE)}</span>
+        <span class="login-credit-copy">${escapeHtml(COPYRIGHT)}</span>
       </div>
-    </section>
+      <div class="login-card-slot">
+        <div class="login-shell">
+          <div class="login-shell-head">
+            <div class="login-crest-row">
+              <img class="login-crest${kelasUnggahan(ministryUpload)}" src="${escapeHtml(ministryLogo)}" alt="Logo Tut Wuri Handayani" data-crest="ministry"/>
+              <img class="login-crest ${regionUpload?'login-crest-upload':'login-crest-region'}" src="${escapeHtml(regionLogo)}" alt="Logo Kabupaten/Kota/Provinsi" data-crest="region"/>
+              <img class="login-crest${kelasUnggahan(schoolLogo)}" src="${escapeHtml(crest)}" alt="${escapeHtml(crestAlt)}" data-crest="school"/>
+            </div>
+            <h2>Masuk ke e-Rapor</h2>
+            <p>Pilih peran, semester, lalu masukkan akun Anda.</p>
+          </div>
+          <form class="login-form" id="loginForm" novalidate>
+            <div class="role-switch" role="tablist">
+              <button type="button" class="role-btn active" data-role="admin" role="tab" aria-selected="true">Admin</button>
+              <button type="button" class="role-btn" data-role="teacher" role="tab" aria-selected="false">Guru / Wali Kelas</button>
+            </div>
+            <div class="login-field login-anim" style="--rise:1">
+              <span class="login-field-icon">${icon('school',15)}</span>
+              <input class="input" id="loginSchool" value="${escapeHtml(schoolLabel)}" aria-label="Sekolah" readonly/>
+            </div>
+            <div class="login-field login-anim" style="--rise:2">
+              <span class="login-field-icon">${icon('calendar',15)}</span>
+              <select class="input" id="semester" aria-label="Semester Aktif">${semesters.map(value=>`<option>${escapeHtml(value)}</option>`).join('')}</select>
+            </div>
+            <div class="login-field login-anim" style="--rise:3">
+              <span class="login-field-icon">${icon('user',15)}</span>
+              <input class="input" id="username" autocomplete="username" placeholder="Username" aria-label="Username" required/>
+            </div>
+            <div class="login-field login-anim" style="--rise:4">
+              <span class="login-field-icon">${LOCK_ICON}</span>
+              <input class="input" id="password" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required/>
+              <button class="password-toggle" type="button" aria-label="Tampilkan password">👁</button>
+            </div>
+            <div class="login-error hidden" id="loginError" role="alert"></div>
+            <button class="login-submit login-anim" style="--rise:5" type="submit" data-login>MASUK</button>
+            <button class="login-link" type="button" id="forgot">Lupa Password?</button>
+            <button class="login-ghost hidden" type="button" data-activate>Aktivasi Admin Pertama</button>
+            <div class="login-help" id="loginHelp">Memeriksa keamanan akun lokal...</div>
+          </form>
+          <span class="login-version">v${escapeHtml(APP_VERSION)}</span>
+        </div>
+      </div>
+    </div>
   </main>`);
 
   function help(){const activation=root.querySelector('[data-activate]');activation.classList.toggle('hidden',role!=='admin'||adminActivated);qs('#loginHelp',root).innerHTML=role==='admin'?(adminActivated?'Gunakan akun Admin dan password lokal yang sudah diaktivasi.':'Belum ada password default. Aktivasi Admin dan simpan kode recovery yang ditampilkan.'):'Gunakan username akun rombel, atau username Guru selama credential bootstrap masih aktif.';}
