@@ -1,4 +1,5 @@
-import { COCURRICULAR_ACTIVITY_PRESETS, cocurricularActivityNames, findCocurricularPreset } from '../data/cocurricular.js';
+import { COCURRICULAR_ACTIVITY_PRESETS, cocurricularActivityNames, findCocurricularPreset,
+  findDimensiProfil } from '../data/cocurricular.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
 import { requireActiveSubject } from './subjects.js';
@@ -123,7 +124,25 @@ export function saveStudentExtracurricular(session,studentId,input){
 }
 
 function cocurricularKey(session,studentId){return `${scopeKey(session)}|${studentId}`;}
-function normalizeCocurricular(input){const record={activity:clean(input?.activity||input?.projectTitle||input?.theme,180),predicate:clean(input?.predicate,50),description:clean(input?.description,1200)};if(!record.activity)throw new Error('Kegiatan kokurikuler wajib diisi.');if(!knownPredicate(record.predicate))throw new Error('Predikat kokurikuler tidak valid.');if(!record.description)throw new Error('Deskripsi kokurikuler wajib diisi.');return record;}
+function normalizeCocurricular(input){
+  const record={activity:clean(input?.activity||input?.projectTitle||input?.theme,180),
+    predicate:clean(input?.predicate,50),description:clean(input?.description,1200)};
+  if(!record.activity)throw new Error('Kegiatan kokurikuler wajib diisi.');
+  if(!knownPredicate(record.predicate))throw new Error('Predikat kokurikuler tidak valid.');
+  if(!record.description)throw new Error('Deskripsi kokurikuler wajib diisi.');
+  /* DIMENSI PROFIL PELAJAR PANCASILA - indikator penilaian kokurikuler menurut panduan.
+
+     Sengaja OPSIONAL. Catatan kokurikuler yang dibuat sebelum dimensi ada tetap sah dan tidak
+     ditolak; yang tidak sah hanyalah dimensi yang diisi tetapi tidak dikenal, sebab itu berarti
+     rapor akan menyebut indikator yang tidak ada di dalam daftar mana pun. */
+  const dimensi=clean(input?.dimension,80);
+  if(dimensi){
+    const dikenal=findDimensiProfil(dimensi);
+    if(!dikenal)throw new Error('Dimensi Profil Pelajar Pancasila tidak valid.');
+    record.dimension=dikenal.id;
+  }
+  return record;
+}
 
 export function getStudentCocurricular(session,studentId){requireStudent(session,studentId);const record=loadDb().cocurricularScores?.[cocurricularKey(session,studentId)];return record?clone(record):null;}
 
@@ -152,7 +171,7 @@ function predikatKegiatan(nilai,bawaan){
 
 /* Menyusun hasil Kokurikuler seluruh murid untuk SATU kegiatan. Tidak menyimpan apa pun. */
 export function previewAllCocurricular(session,{activity,predicate=DEFAULT_ACTIVITY_PREDICATE,
-  predicates={},describe}={}){
+  predicates={},describe,dimension=''}={}){
   assertTeacher(session);
   const kegiatan=clean(activity,180);
   if(!kegiatan)throw new Error('Pilih kegiatan kokurikuler terlebih dahulu.');
@@ -165,10 +184,13 @@ export function previewAllCocurricular(session,{activity,predicate=DEFAULT_ACTIV
     const predikat=predikatKegiatan(predicates?.[student.id],null)
       ||(String(tersimpan?.activity||'')===kegiatan?predikatKegiatan(tersimpan?.predicate,null):null)
       ||predicate;
+    /* Dimensi ikut dibawa ke penyusun kalimat DAN ke baris hasilnya, sehingga dimensi yang
+       dilihat guru pada layar adalah dimensi yang benar-benar tersimpan. */
     return {studentId:student.id,name:student.name,activity:kegiatan,predicate:predikat,
-      description:clean(describe({student,activity:kegiatan,predicate:predikat}),1200)};
+      ...(dimension?{dimension}:{}),
+      description:clean(describe({student,activity:kegiatan,predicate:predikat,dimension}),1200)};
   });
-  return {activity:kegiatan,predicate,total:students.length,rows};
+  return {activity:kegiatan,predicate,dimension,total:students.length,rows};
 }
 
 /* Menyimpan hasil Kokurikuler yang sedang ditampilkan. */
@@ -184,7 +206,7 @@ export function saveAllCocurricular(session,{activity,rows=[]}={}){
       /* Kegiatan baris dipaksa ke kegiatan yang sedang diproses, sehingga tidak ada baris
          yang dapat menyimpan deskripsi kegiatan lain. */
       saveStudentCocurricular(session,row.studentId,{activity:kegiatan,
-        predicate:row.predicate,description:row.description});
+        predicate:row.predicate,description:row.description,dimension:row.dimension||''});
       hasil.tersimpan+=1;
     }catch(error){hasil.gagal.push({studentId:row.studentId,name:row.name,alasan:error.message});}
   }

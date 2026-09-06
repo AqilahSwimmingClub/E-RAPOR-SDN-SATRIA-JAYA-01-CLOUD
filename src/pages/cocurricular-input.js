@@ -1,4 +1,5 @@
-import { generateCocurricularDescription } from '../data/cocurricular.js';
+import { DIMENSI_PROFIL_PELAJAR_PANCASILA, dimensiKokurikuler,
+  generateCocurricularDescription } from '../data/cocurricular.js';
 import { ACTIVITY_PREDICATES, DEFAULT_ACTIVITY_PREDICATE, getStudentCocurricular,
   hapusSemuaCocurricular, listCocurricularActivities, previewAllCocurricular,
   saveAllCocurricular } from '../services/completeness.js';
@@ -30,11 +31,25 @@ function studentOptions(students,selected=''){
 function predicateOptions(selected){
   return ACTIVITY_PREDICATES.map(value=>`<option value="${escapeHtml(value)}" ${value===selected?'selected':''}>${escapeHtml(value)}</option>`).join('');
 }
+/* Indikator penilaian kokurikuler adalah Dimensi Profil Pelajar Pancasila. Daftarnya tetap dan
+   diambil dari data aplikasi, sehingga rapor tidak pernah menyebut dimensi yang diketik bebas. */
+function dimensiOptions(selected){
+  return DIMENSI_PROFIL_PELAJAR_PANCASILA.map(item=>
+    `<option value="${escapeHtml(item.id)}" ${item.id===selected?'selected':''}>${escapeHtml(item.label)}</option>`).join('');
+}
 
 export function renderCocurricularInput(session){
   let selectedStudentId='';
   let kegiatan='';
   let predicate=DEFAULT_ACTIVITY_PREDICATE;
+  let dimensi='';
+  /* Dimensi yang DIPILIH SENDIRI oleh guru, disimpan per kegiatan.
+
+     Tanpa ini, menggambar ulang layar akan mengembalikan dimensi ke nilai yang sudah tersimpan
+     - sehingga guru yang mengganti dimensi sesudah menekan Simpan Semua melihat pilihannya
+     kembali sendiri ke dimensi lama. Pilihan guru yang sedang berjalan harus menang atas
+     catatan lama; catatan lama tetap dipakai ketika guru belum memilih apa pun. */
+  const dimensiPilihan=new Map();
   /* Draf per kegiatan: Map<namaKegiatan, Map<studentId,baris>>. Inilah yang membuat deskripsi
      satu kegiatan tidak pernah menjadi deskripsi kegiatan lain. */
   const drafPerKegiatan=new Map();
@@ -60,12 +75,17 @@ export function renderCocurricularInput(session){
     if(kegiatanTersimpan&&!choices.includes(kegiatanTersimpan))choices.unshift(kegiatanTersimpan);
     if(!choices.includes(kegiatan))kegiatan=kegiatanTersimpan||choices[0]||'';
 
+    /* Dimensi utama kegiatan dipakai sebagai pilihan awal, lalu guru bebas menggantinya. */
+    const bawaanDimensi=dimensiKokurikuler(kegiatan,'')?.id||DIMENSI_PROFIL_PELAJAR_PANCASILA[0].id;
     const isian=draf();
     const barisSiswa=isian.get(selectedStudentId);
     /* Kotak deskripsi HANYA menampilkan isi yang memang milik kegiatan yang sedang dipilih. */
     const cocokTersimpan=kegiatanTersimpan===kegiatan?tersimpan:null;
     if(barisSiswa)predicate=barisSiswa.predicate;
     else if(cocokTersimpan?.predicate)predicate=cocokTersimpan.predicate;
+    dimensi=dimensiPilihan.get(kegiatan)
+      ||barisSiswa?.dimension||cocokTersimpan?.dimension||bawaanDimensi;
+    if(!DIMENSI_PROFIL_PELAJAR_PANCASILA.some(item=>item.id===dimensi))dimensi=bawaanDimensi;
     const isiDeskripsi=barisSiswa?barisSiswa.description:(cocokTersimpan?.description||'');
 
     const baris=students.map((item,index)=>{
@@ -83,15 +103,16 @@ export function renderCocurricularInput(session){
       <section class="card"><div class="section-head"><div><h3>Kokurikuler ${escapeHtml(student.name)}</h3><p>Pilih kegiatan dan predikat, tekan Isi Otomatis Semua Siswa untuk melihat hasilnya, lalu Simpan Semua untuk menyimpannya.</p></div></div>
       <div class="form-grid"><div class="field form-span-2"><label>Kegiatan Kokurikuler *</label><select class="input" data-activity>${choices.map(nama=>`<option value="${escapeHtml(nama)}" ${nama===kegiatan?'selected':''}>${escapeHtml(nama)}</option>`).join('')}</select></div>
       <div class="field"><label>Predikat *</label><select class="input" data-predicate>${predicateOptions(predicate)}</select></div>
+      <div class="field"><label>Dimensi Profil Pelajar Pancasila *</label><select class="input" data-dimension>${dimensiOptions(dimensi)}</select><p class="muted">Indikator penilaian kokurikuler. Dimensi ini yang disebut pada deskripsi rapor.</p></div>
       <div class="field form-span-2"><label>Deskripsi *</label><textarea class="input" rows="4" data-description placeholder="Tekan Isi Otomatis Semua Siswa atau tuliskan sendiri...">${escapeHtml(isiDeskripsi)}</textarea><div class="actions" style="margin-top:8px"><button class="btn btn-light" type="button" data-generate-description>${icon('activity',16)} Generate Deskripsi Otomatis</button></div></div></div>
       <div class="actions"><button class="btn btn-light" type="button" data-fill-all>${icon('activity',16)} Isi Otomatis Semua Siswa</button><button class="btn btn-primary" type="button" data-save-all ${isian.size?'':'disabled'}>${icon('save',16)} Simpan Semua</button><button class="btn btn-danger" type="button" data-clear-all>${icon('trash',16)} Hapus Semua</button></div></section>
       <section class="card"><div class="section-head"><div><h3>Hasil Semua Siswa</h3><p>${isian.size?`${isian.size} siswa berstatus draf pada kegiatan ${escapeHtml(kegiatan)} dan belum tersimpan.`:`Belum ada hasil baru untuk kegiatan ${escapeHtml(kegiatan)}.`}</p></div></div><div class="table-scroll"><table class="data-table" data-preview><thead><tr><th>No</th><th>Siswa</th><th>Predikat</th><th>Status</th><th>Deskripsi</th></tr></thead><tbody>${baris}</tbody></table></div></section>`;
 
     const susun=murid=>generateCocurricularDescription({studentName:murid.name,activity:kegiatan,
-      predicate,classId:session.classId});
+      predicate,classId:session.classId,dimension:dimensi});
     const catatDraf=teks=>{
       isian.set(selectedStudentId,{studentId:selectedStudentId,name:student.name,activity:kegiatan,
-        predicate,description:String(teks||'').trim()});
+        predicate,dimension:dimensi,description:String(teks||'').trim()});
     };
     view.querySelector('[data-description]').oninput=event=>catatDraf(event.target.value);
     view.querySelector('[data-generate-description]').onclick=()=>{
@@ -104,7 +125,21 @@ export function renderCocurricularInput(session){
     /* BERGANTI KEGIATAN MEMBUANG TAMPILAN KEGIATAN SEBELUMNYA. Draf kegiatan lama tetap
        tersimpan di dalam Map-nya sendiri, tetapi tidak pernah tampil sebagai milik kegiatan
        yang baru dipilih. */
-    view.querySelector('[data-activity]').onchange=event=>{kegiatan=event.target.value;draw();};
+    view.querySelector('[data-activity]').onchange=event=>{
+      kegiatan=event.target.value;
+      /* Dimensi ikut menyesuaikan kegiatan yang baru: dimensi kegiatan sebelumnya belum tentu
+         relevan, dan membawanya diam-diam akan membuat rapor menyebut indikator yang salah.
+         Pilihan guru untuk kegiatan LAIN tetap disimpan, jadi kembali ke kegiatan itu
+         menemukan dimensinya lagi. */
+      dimensi='';
+      draw();
+    };
+    view.querySelector('[data-dimension]').onchange=event=>{
+      dimensi=event.target.value;
+      dimensiPilihan.set(kegiatan,dimensi);
+      if(isian.has(selectedStudentId))catatDraf(view.querySelector('[data-description]').value);
+      draw();
+    };
     view.querySelector('[data-predicate]').onchange=event=>{
       predicate=event.target.value;
       if(isian.has(selectedStudentId))catatDraf(view.querySelector('[data-description]').value);
@@ -112,10 +147,10 @@ export function renderCocurricularInput(session){
     };
     view.querySelector('[data-fill-all]').onclick=()=>{
       try{
-        const hasil=previewAllCocurricular(session,{activity:kegiatan,predicate,
+        const hasil=previewAllCocurricular(session,{activity:kegiatan,predicate,dimension:dimensi,
           predicates:Object.fromEntries([...isian].map(([id,row])=>[id,row.predicate])),
-          describe:({student:murid,activity,predicate:predikat})=>generateCocurricularDescription(
-            {studentName:murid.name,activity,predicate:predikat,classId:session.classId})});
+          describe:({student:murid,activity,predicate:predikat,dimension})=>generateCocurricularDescription(
+            {studentName:murid.name,activity,predicate:predikat,classId:session.classId,dimension})});
         for(const row of hasil.rows)isian.set(row.studentId,{...row});
         draw();
         toast(`${hasil.rows.length} dari ${hasil.total} siswa tersusun · belum disimpan`);
