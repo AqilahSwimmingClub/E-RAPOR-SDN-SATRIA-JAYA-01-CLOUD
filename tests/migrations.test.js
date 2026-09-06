@@ -34,9 +34,9 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.0 uses versionCode 22 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.0');
-  assert.equal(VERSION_CODE,22);
+test('release v1.3.1 uses versionCode 23 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.1');
+  assert.equal(VERSION_CODE,23);
   /* SCHEMA TETAP 5, walaupun rilis ini menambah koleksi `cpEvidenceScores`.
 
      Koleksi baru itu lahir dari bentuk bawaan database yang selalu digabungkan saat membaca,
@@ -45,18 +45,18 @@ test('release v1.3.0 uses versionCode 22 and schema 5',()=>{
      non-destruktif dan idempotent oleh layanan Penilaian sendiri, tepat sebelum ia dapat
      tertimpa.
 
-     Rilis ini pun tidak menyentuh bentuk data sama sekali: isinya latar halaman Masuk yang
-     kembali memakai berkas acuan asli, latar aplikasi yang kini berlaku untuk seluruh halaman,
-     dan pembuangan tema navy dari kerangka. Semuanya murni tampilan - tidak ada koleksi baru,
-     tidak ada field baru, dan tidak ada catatan lama yang ditulis ulang.
+     Rilis ini pun tidak menyentuh bentuk data sama sekali: isinya perbaikan kotak angka
+     Absensi manual, pemisahan lima area pada baris Mapping, dan penyelarasan warna permukaan
+     dengan latar global. Semuanya murni tampilan - tidak ada koleksi baru, tidak ada field
+     baru, dan tidak ada catatan lama yang ditulis ulang.
 
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.0-ACUAN-VISUAL-FINAL');
-  /* Rilis sebelumnya bergeser ke 1.2.9 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.3.1-TEMA-DAN-FORM-RESPONSIF');
+  /* Rilis sebelumnya bergeser ke 1.3.0 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.9',versionCode:21});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.0',versionCode:22});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
