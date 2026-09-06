@@ -137,7 +137,7 @@ export function renderDashboard(session){
         {name:'Alpa',value:recap.totals.Alpa,tone:'amber'}
       ]));
 
-  return el(`<div class="dash">
+  return el(`<div class="dash dashboard-page">
     <section class="dash-hero">
       <div class="dash-hero-text">
         <span class="dash-chip">${escapeHtml(session.semester)}</span>

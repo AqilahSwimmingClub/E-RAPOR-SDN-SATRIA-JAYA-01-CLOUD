@@ -48,23 +48,24 @@ test('Sambutan dihapus, tagline bertitik pemisah tetap tampil',()=>{
 
 test('Latar Login diambil dari satu berkas tetap yang dapat ditimpa manual',()=>{
   const t=css(),foto=rule('.login-photo');
-  assert.match(foto,/url\('\.\.\/\.\.\/assets\/login-background\.jpg'\)/,'jalur dan nama berkas tetap');
+  assert.match(foto,/url\('\.\.\/\.\.\/assets\/login-background\.svg'\)/,'jalur dan nama berkas tetap');
   assert.match(foto,/cover/,'memakai background-size cover');
   /* Tidak boleh ada gambar yang ditanam langsung di kode. */
   assert.doesNotMatch(t,/url\(["']?data:image/,'tidak ada base64 pada CSS');
   assert.doesNotMatch(login(),/data:image\/(png|jpe?g);base64/,'tidak ada base64 pada halaman');
   /* Hanya satu penyebutan berkas latar, sehingga menggantinya cukup menimpa satu berkas. */
-  assert.equal((t.match(/login-background\.jpg/g)||[]).length,1,'berkas latar hanya disebut sekali');
+  assert.equal((t.match(/login-background\.svg/g)||[]).length,1,'berkas latar hanya disebut sekali');
 });
 
 test('Aset yang boleh diganti manual tidak tersangkut cache lama',()=>{
   const sw=read('sw.js');
   assert.match(sw,/SWAPPABLE_ASSETS/,'ada daftar aset yang dapat ditimpa');
-  assert.match(sw,/login-background\.jpg/,'latar termasuk aset yang dapat ditimpa');
+  assert.match(sw,/login-background\.svg/,'latar termasuk aset yang dapat ditimpa');
+  assert.match(sw,/dashboard-background\.svg/,'latar dashboard juga dapat ditimpa');
   assert.match(sw,/isSwappableAsset\(event\.request\.url\)\?networkFirst/,'aset itu diambil dari jaringan lebih dulu');
   /* Tetap ada cadangan cache sehingga aplikasi tidak kosong saat offline. */
   assert.match(sw,/async function networkFirst\(request\)\{try\{const response=await fetch\(request\)/);
-  assert.doesNotMatch(sw,/'\.\/assets\/login-background\.jpg'/,'latar tidak ikut di-precache agar tidak tertahan versi lama');
+  assert.doesNotMatch(sw,/'\.\/assets\/login-background\.svg'/,'latar tidak ikut di-precache agar tidak tertahan versi lama');
 });
 
 test('Panel form, tema, dan identitas pengembang tidak ikut berubah',()=>{

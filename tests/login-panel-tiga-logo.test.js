@@ -138,7 +138,7 @@ test('Sisa halaman Masuk tidak ikut berubah',()=>{
   /* Kolom foto, header kiri, tagline, dan mekanisme latar yang dapat ditimpa tetap sama. */
   for(const teks of ['e-Rapor','schoolLabel.toUpperCase()','Cerdas • Berkarakter • Berprestasi','class="login-logo"'])
     assert.ok(foto.includes(teks),`${teks} tetap di kolom foto`);
-  assert.equal((t.match(/login-background\.jpg/g)||[]).length,1,'berkas latar tetap disebut sekali');
+  assert.equal((t.match(/login-background\.svg/g)||[]).length,1,'berkas latar tetap disebut sekali');
   assert.match(t,/\.login-stage\{[^}]*grid-template-columns:1\.05fr \.95fr/,'tata letak dua kolom tetap');
   /* Seluruh kendali dan logika masuk tidak tersentuh. */
   for(const id of ['semester','username','password','loginForm','loginError','forgot','loginHelp'])

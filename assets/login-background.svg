@@ -1,0 +1,245 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 1000" preserveAspectRatio="xMidYMid slice" role="presentation">
+  <!--
+    LATAR HALAMAN MASUK - RUANG ADMINISTRASI KELAS.
+
+    Menggantikan foto kapal Phinisi. Temanya administrasi kelas dan e-Rapor: jendela dengan
+    langit cerah, rak berisi map administrasi, papan tulis, meja kerja dengan laptop e-Rapor,
+    tumpukan buku, alat tulis, dan tanaman.
+
+    Gambar ini sengaja digambar datar (flat) dengan warna mint, tosca, cyan, biru muda, dan
+    cream lembut - bukan foto - supaya satu berkas kecil tetap tajam di setiap ukuran layar,
+    dari HP sampai Windows, dan tetap ringan di dalam APK.
+
+    TIDAK ADA SATU PUN TEKS DI DALAM BERKAS INI. Slogan papan tulis ditulis sebagai elemen
+    halaman, bukan dibakar ke dalam gambar, sehingga ia dapat dibaca pembaca layar, diterjemahkan,
+    dan dipastikan hanya muncul sekali. Berkas ini tetap dapat ditimpa sekolah dengan gambar
+    lain, persis seperti sebelumnya.
+  -->
+  <defs>
+    <linearGradient id="dinding" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0" stop-color="#f2fbf4"/>
+      <stop offset="0.45" stop-color="#d9f3ef"/>
+      <stop offset="1" stop-color="#b9e7ea"/>
+    </linearGradient>
+    <linearGradient id="langitJendela" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#eafbf1"/>
+      <stop offset="0.3" stop-color="#a8ecec"/>
+      <stop offset="0.7" stop-color="#63d3f0"/>
+      <stop offset="1" stop-color="#3bb6f2"/>
+    </linearGradient>
+    <linearGradient id="meja" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e8c79a"/>
+      <stop offset="1" stop-color="#cfa877"/>
+    </linearGradient>
+    <linearGradient id="layar" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e6f6fb"/>
+    </linearGradient>
+    <radialGradient id="silau" cx="0.62" cy="0.12" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.72"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="kabutBawah" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cdeff0" stop-opacity="0"/>
+      <stop offset="1" stop-color="#bfeaf0" stop-opacity="0.85"/>
+    </linearGradient>
+    <filter id="lembut" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="daunBuram" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="13"/>
+    </filter>
+  </defs>
+
+  <rect width="1180" height="1000" fill="url(#dinding)"/>
+
+  <!-- Jendela: langit cerah, kusen putih, tanpa bangunan maupun lambang apa pun. -->
+  <g>
+    <rect x="620" y="52" width="520" height="560" rx="16" fill="url(#langitJendela)"/>
+    <g fill="#ffffff" opacity="0.8" filter="url(#lembut)">
+      <ellipse cx="770" cy="150" rx="62" ry="24"/>
+      <ellipse cx="836" cy="162" rx="44" ry="18"/>
+      <ellipse cx="1020" cy="238" rx="70" ry="26"/>
+      <ellipse cx="946" cy="252" rx="46" ry="18"/>
+    </g>
+    <g fill="#9fdc8a" opacity="0.75" filter="url(#lembut)">
+      <ellipse cx="700" cy="470" rx="96" ry="70"/>
+      <ellipse cx="812" cy="510" rx="82" ry="58"/>
+      <ellipse cx="1058" cy="486" rx="90" ry="64"/>
+      <ellipse cx="960" cy="530" rx="70" ry="48"/>
+    </g>
+    <rect x="620" y="52" width="520" height="560" rx="16" fill="url(#silau)"/>
+    <g fill="none" stroke="#ffffff" stroke-width="14" stroke-linejoin="round">
+      <rect x="620" y="52" width="520" height="560" rx="16"/>
+      <path d="M880 52 V612"/>
+      <path d="M620 330 H1140"/>
+    </g>
+  </g>
+
+  <!-- Rak map administrasi di dinding kiri. -->
+  <g>
+    <rect x="72" y="150" width="420" height="18" rx="6" fill="#ffffff" opacity="0.95"/>
+    <g>
+      <rect x="96" y="60" width="34" height="90" rx="5" fill="#2f7d8c"/>
+      <rect x="136" y="52" width="34" height="98" rx="5" fill="#3f9aa8"/>
+      <rect x="176" y="64" width="34" height="86" rx="5" fill="#63c1c4"/>
+      <rect x="216" y="48" width="34" height="102" rx="5" fill="#2a6f86"/>
+      <rect x="256" y="66" width="34" height="84" rx="5" fill="#7fd3cf"/>
+      <rect x="296" y="56" width="34" height="94" rx="5" fill="#357f95"/>
+      <rect x="336" y="70" width="34" height="80" rx="5" fill="#9adcd6"/>
+      <rect x="376" y="54" width="34" height="96" rx="5" fill="#46a3ad"/>
+      <rect x="416" y="66" width="34" height="84" rx="5" fill="#6fc9cc"/>
+    </g>
+    <g fill="#ffffff" opacity="0.55">
+      <rect x="100" y="96" width="26" height="7" rx="3"/>
+      <rect x="140" y="90" width="26" height="7" rx="3"/>
+      <rect x="180" y="100" width="26" height="7" rx="3"/>
+      <rect x="220" y="86" width="26" height="7" rx="3"/>
+      <rect x="260" y="102" width="26" height="7" rx="3"/>
+      <rect x="300" y="94" width="26" height="7" rx="3"/>
+      <rect x="340" y="106" width="26" height="7" rx="3"/>
+      <rect x="380" y="92" width="26" height="7" rx="3"/>
+      <rect x="420" y="102" width="26" height="7" rx="3"/>
+    </g>
+  </g>
+
+  <!-- Tanaman gantung di sisi kiri rak. -->
+  <g fill="#7cc96a" opacity="0.92">
+    <ellipse cx="516" cy="120" rx="26" ry="15" transform="rotate(-28 516 120)"/>
+    <ellipse cx="536" cy="164" rx="24" ry="14" transform="rotate(16 536 164)"/>
+    <ellipse cx="510" cy="206" rx="26" ry="15" transform="rotate(-20 510 206)"/>
+    <ellipse cx="542" cy="248" rx="22" ry="13" transform="rotate(24 542 248)"/>
+    <ellipse cx="514" cy="290" rx="24" ry="14" transform="rotate(-14 514 290)"/>
+    <ellipse cx="540" cy="332" rx="20" ry="12" transform="rotate(20 540 332)"/>
+  </g>
+
+  <!-- Meja kerja. -->
+  <rect x="0" y="612" width="1180" height="112" fill="url(#meja)"/>
+  <rect x="0" y="612" width="1180" height="12" fill="#f0dbba" opacity="0.7"/>
+
+  <!-- Laptop e-Rapor: layar polos, tanpa teks maupun lambang. -->
+  <g>
+    <path d="M352 612 L392 448 H716 L756 612 Z" fill="#cfd8de"/>
+    <rect x="392" y="444" width="324" height="176" rx="10" fill="#b9c4cc"/>
+    <rect x="404" y="456" width="300" height="150" rx="6" fill="url(#layar)"/>
+    <rect x="404" y="456" width="76" height="150" rx="6" fill="#e3f2f7"/>
+    <g fill="#a9d9e6">
+      <rect x="414" y="470" width="56" height="9" rx="4"/>
+      <rect x="414" y="488" width="56" height="9" rx="4"/>
+      <rect x="414" y="506" width="56" height="9" rx="4"/>
+      <rect x="414" y="524" width="56" height="9" rx="4"/>
+      <rect x="414" y="542" width="56" height="9" rx="4"/>
+    </g>
+    <rect x="414" y="470" width="56" height="9" rx="4" fill="#3fb6d8"/>
+    <g>
+      <rect x="494" y="478" width="60" height="52" rx="8" fill="#4fb8e8"/>
+      <rect x="566" y="478" width="60" height="52" rx="8" fill="#48c9b0"/>
+      <rect x="638" y="478" width="56" height="52" rx="8" fill="#f4b942"/>
+    </g>
+    <g fill="#cfe7ef">
+      <rect x="494" y="546" width="200" height="10" rx="5"/>
+      <rect x="494" y="566" width="160" height="10" rx="5"/>
+      <rect x="494" y="586" width="120" height="10" rx="5"/>
+    </g>
+  </g>
+
+  <!-- Tumpukan buku administrasi di kiri meja. -->
+  <g>
+    <rect x="60" y="560" width="256" height="26" rx="6" fill="#2f6f7f"/>
+    <rect x="52" y="586" width="272" height="26" rx="6" fill="#3f8f7a"/>
+    <rect x="66" y="534" width="244" height="26" rx="6" fill="#2b5f78"/>
+    <rect x="74" y="508" width="228" height="26" rx="6" fill="#46a08f"/>
+    <g fill="#ffffff" opacity="0.5">
+      <rect x="78" y="570" width="120" height="7" rx="3"/>
+      <rect x="70" y="596" width="140" height="7" rx="3"/>
+      <rect x="84" y="544" width="110" height="7" rx="3"/>
+      <rect x="92" y="518" width="96" height="7" rx="3"/>
+    </g>
+  </g>
+
+  <!-- Tumpukan buku di kanan meja. -->
+  <g>
+    <rect x="820" y="566" width="230" height="24" rx="6" fill="#2c6b86"/>
+    <rect x="812" y="590" width="246" height="22" rx="6" fill="#3d8fa0"/>
+    <g fill="#ffffff" opacity="0.5">
+      <rect x="836" y="575" width="112" height="6" rx="3"/>
+      <rect x="828" y="598" width="130" height="6" rx="3"/>
+    </g>
+  </g>
+
+  <!-- Gelas alat tulis dan pensil. -->
+  <g>
+    <g stroke-linecap="round" stroke-width="9">
+      <path d="M158 500 V446" stroke="#f0a63c"/>
+      <path d="M176 500 V434" stroke="#2f7d8c"/>
+      <path d="M194 500 V452" stroke="#e2735f"/>
+      <path d="M212 500 V440" stroke="#4bb59c"/>
+      <path d="M230 500 V456" stroke="#f0c94a"/>
+    </g>
+    <path d="M144 494 H244 L236 560 H152 Z" fill="#ffffff"/>
+    <path d="M144 494 H244 L240 522 H148 Z" fill="#eef7f6"/>
+  </g>
+
+  <!-- Cangkir di kanan laptop. -->
+  <g>
+    <rect x="762" y="546" width="76" height="62" rx="10" fill="#ffffff"/>
+    <path d="M838 562 h20 a16 16 0 0 1 0 32 h-20" fill="none" stroke="#ffffff" stroke-width="10"/>
+    <rect x="770" y="556" width="60" height="18" rx="8" fill="#eaf6f6"/>
+  </g>
+
+  <!-- Buku catatan dan pena di depan meja. -->
+  <g>
+    <rect x="300" y="640" width="300" height="150" rx="10" fill="#ffffff" opacity="0.96"/>
+    <rect x="300" y="640" width="24" height="150" rx="10" fill="#dceef1"/>
+    <g fill="#bcdfe6">
+      <rect x="344" y="668" width="196" height="9" rx="4"/>
+      <rect x="344" y="694" width="176" height="9" rx="4"/>
+      <rect x="344" y="720" width="206" height="9" rx="4"/>
+      <rect x="344" y="746" width="150" height="9" rx="4"/>
+    </g>
+    <g fill="#4bb59c">
+      <rect x="322" y="666" width="13" height="13" rx="3"/>
+      <rect x="322" y="692" width="13" height="13" rx="3"/>
+      <rect x="322" y="718" width="13" height="13" rx="3"/>
+      <rect x="322" y="744" width="13" height="13" rx="3"/>
+    </g>
+    <path d="M628 646 L700 700 L690 714 L618 660 Z" fill="#22434f"/>
+    <path d="M618 660 L690 714 L676 726 L606 672 Z" fill="#2f5c6b"/>
+  </g>
+
+  <!-- Tanaman pot di kanan meja. -->
+  <g>
+    <g fill="#6fc45f">
+      <ellipse cx="1004" cy="486" rx="34" ry="20" transform="rotate(-26 1004 486)"/>
+      <ellipse cx="1058" cy="474" rx="32" ry="19" transform="rotate(18 1058 474)"/>
+      <ellipse cx="1030" cy="440" rx="30" ry="18" transform="rotate(-6 1030 440)"/>
+      <ellipse cx="986" cy="528" rx="30" ry="18" transform="rotate(-34 986 528)"/>
+      <ellipse cx="1076" cy="520" rx="28" ry="17" transform="rotate(26 1076 520)"/>
+    </g>
+    <path d="M994 548 H1082 L1070 612 H1006 Z" fill="#ffffff"/>
+    <path d="M994 548 H1082 L1078 572 H998 Z" fill="#eef7f6"/>
+  </g>
+
+  <!-- Dedaunan buram di kedua sudut bawah, menutup tepi layar dengan lembut. -->
+  <g filter="url(#daunBuram)" opacity="0.85">
+    <g fill="#84cf68">
+      <ellipse cx="26" cy="820" rx="72" ry="40" transform="rotate(-18 26 820)"/>
+      <ellipse cx="120" cy="884" rx="66" ry="36" transform="rotate(14 120 884)"/>
+      <ellipse cx="34" cy="942" rx="86" ry="44" transform="rotate(-8 34 942)"/>
+      <ellipse cx="248" cy="956" rx="80" ry="38" transform="rotate(10 248 956)"/>
+      <ellipse cx="1146" cy="806" rx="70" ry="38" transform="rotate(20 1146 806)"/>
+      <ellipse cx="1060" cy="884" rx="66" ry="36" transform="rotate(-16 1060 884)"/>
+      <ellipse cx="1160" cy="944" rx="88" ry="44" transform="rotate(8 1160 944)"/>
+      <ellipse cx="928" cy="964" rx="78" ry="38" transform="rotate(-10 928 964)"/>
+    </g>
+    <g fill="#b0e485" opacity="0.85">
+      <ellipse cx="88" cy="852" rx="44" ry="24" transform="rotate(-24 88 852)"/>
+      <ellipse cx="176" cy="930" rx="46" ry="24" transform="rotate(16 176 930)"/>
+      <ellipse cx="1096" cy="842" rx="44" ry="24" transform="rotate(22 1096 842)"/>
+      <ellipse cx="1010" cy="936" rx="46" ry="24" transform="rotate(-14 1010 936)"/>
+    </g>
+  </g>
+
+  <!-- Kabut mint di kaki layar: menyatukan latar dengan warna kartu form Masuk. -->
+  <rect y="724" width="1180" height="276" fill="url(#kabutBawah)"/>
+</svg>

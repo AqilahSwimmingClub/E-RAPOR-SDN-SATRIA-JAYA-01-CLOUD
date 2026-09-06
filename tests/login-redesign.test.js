@@ -48,7 +48,7 @@ test('Login memakai satu panel menyatu, bukan foto besar kiri dan blok putih kan
 test('Tema login memakai foto di kolom kiri dan panel kaca di kolom kanan',()=>{
   const t=css();
   assert.match(t,/\.login-stage\{[^}]*grid-template-columns:1\.05fr \.95fr/,'dua kolom di layar lebar');
-  assert.match(t,/\.login-photo\{[^}]*login-background\.jpg/,'kolom kiri memakai foto sekolah');
+  assert.match(t,/\.login-photo\{[^}]*login-background\.svg/,'kolom kiri memakai latar sekolah');
   assert.match(t,/\.login-photo-overlay\{[^}]*linear-gradient/,'foto diberi peredup agar teks terbaca');
   assert.match(t,/\.login-panel\{[^}]*var\(--navy/,'kolom kanan memakai latar navy');
   assert.match(t,/\.login-shell\{[^}]*backdrop-filter\s*:\s*blur\(/,'kartu form tetap kaca');

@@ -62,6 +62,13 @@ export function renderLogin({onSuccess,onActivate,onLicenseBlocked}){
             <span class="login-brand-tagline">Cerdas • Berkarakter • Berprestasi</span>
           </div>
         </div>
+        <!-- SLOGAN PAPAN TULIS - DITULIS SATU KALI, DI SATU TEMPAT.
+
+             Sebelumnya seluruh tulisan pada halaman ini ikut terbakar ke dalam berkas foto,
+             sehingga slogan lama tidak dapat diubah, tidak terbaca pembaca layar, dan sempat
+             muncul dua kali karena berkasnya memuatnya sendiri. Sekarang ia elemen halaman:
+             satu blok, satu kali, tepat di atas bidang papan tulis pada latar. -->
+        <p class="login-chalkboard">Administrasi Kelas yang Tertata untuk Generasi yang Lebih Baik</p>
         <div class="login-photo-caption">
           <span class="login-credit-lead">${escapeHtml(DEVELOPER_CREDIT_LEAD)}</span>
           <strong class="login-credit-name">${escapeHtml(DEVELOPER_NAME)}</strong>

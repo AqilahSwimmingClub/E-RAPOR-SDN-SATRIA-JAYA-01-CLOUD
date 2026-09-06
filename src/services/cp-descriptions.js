@@ -228,29 +228,144 @@ const REDAKSI_PRAKTIK=Object.freeze({
    melainkan register yang benar-benar terpakai pada klausa pembukanya. Butir CP yang hanya
    memuat rumusan pengetahuan tetap ditutup dengan bahasa pemahaman meskipun guru memilih
    Praktik - sebab menutupnya dengan "melaksanakan kegiatan" akan mengarang keterampilan yang
-   tidak ada di dalam CP-nya. */
+   tidak ada di dalam CP-nya.
+
+   SATU PREDIKAT KINI PUNYA BEBERAPA PENUTUP, dan yang dipilih adalah yang TIDAK MENGULANG kata
+   yang sudah terpakai di kalimat itu.
+
+   MASALAH YANG DIPERBAIKI. Penutup sebelumnya tunggal dan ditulis tetap, sehingga kalimatnya
+   berbunyi seperti ini:
+
+     "... menunjukkan penguasaan yang baik terhadap iman kepada hari akhir serta qada dan qadar
+      dan telah memahami kompetensi tersebut dengan baik."
+
+   Kata "baik" muncul dua kali dalam satu napas. Predikat lain lebih parah lagi: pada Perlu
+   Bimbingan, klausa lanjutan dan klausa pembuka sama-sama berbunyi "masih memerlukan bimbingan
+   dalam ...", kata demi kata.
+
+   Ini BUKAN diselesaikan dengan menukar satu kata secara tetap. Setiap predikat diberi beberapa
+   penutup yang semuanya sah untuk tingkat capaian itu, lalu penutup dipilih dengan MEMBACA
+   kalimat yang sudah terbentuk: yang tidak berbagi satu pun kata isi dengan kalimat itu yang
+   dipakai. Bila semuanya beririsan - dan itu mungkin terjadi karena rumusan Butir CP sendiri
+   bisa memuat kata apa saja - yang dipilih adalah yang paling sedikit beririsan, sehingga hasil
+   terburuknya tetap tidak lebih buruk daripada sebelumnya.
+
+   Yang TIDAK berubah: makna akademiknya. Tidak ada penutup yang menaikkan atau menurunkan
+   tingkat capaian, dan tidak ada capaian yang disebut di luar rumusan Butir CP. */
 const PENUTUP_TEORI=Object.freeze({
-  'Sangat Baik':'serta mampu menunjukkan pemahaman yang kuat terhadap kompetensi tersebut',
-  'Baik':'dan telah memahami kompetensi tersebut dengan baik',
-  'Cukup':'namun masih memerlukan penguatan agar penguasaannya semakin mantap',
-  'Perlu Bimbingan':'dan perlu penguatan secara bertahap untuk meningkatkan pemahamannya',
+  'Sangat Baik':Object.freeze([
+    'secara tepat dan runtut',
+    'dengan pemahaman yang mendalam',
+    'serta mampu menjelaskannya kembali secara mandiri',
+    'dengan capaian yang menonjol',
+  ]),
+  'Baik':Object.freeze([
+    'secara tepat',
+    'dengan pemahaman yang memadai',
+    'secara runtut',
+    'dengan hasil yang meyakinkan',
+  ]),
+  'Cukup':Object.freeze([
+    'namun masih memerlukan penguatan agar penguasaannya semakin mantap',
+    'namun perlu pembiasaan agar pemahamannya lebih menetap',
+    'namun masih perlu dikuatkan pada beberapa bagian',
+    'namun belum sepenuhnya menetap',
+  ]),
+  'Perlu Bimbingan':Object.freeze([
+    'dan perlu pendampingan bertahap agar pemahamannya berkembang',
+    'sehingga masih membutuhkan pendampingan yang berkelanjutan',
+    'dan perlu penguatan berulang bersama guru',
+    'sehingga pendampingan guru tetap dibutuhkan',
+  ]),
 });
 const PENUTUP_PRAKTIK=Object.freeze({
-  'Sangat Baik':'serta mampu melaksanakan kegiatan dengan tepat dan mandiri',
-  'Baik':'serta mampu melaksanakan kegiatan dengan cukup mandiri',
-  'Cukup':'namun masih memerlukan arahan pada beberapa tahapan kegiatan',
-  'Perlu Bimbingan':'dan perlu latihan bertahap untuk mengembangkan keterampilannya',
+  'Sangat Baik':Object.freeze([
+    'secara tepat dan mandiri',
+    'dengan langkah yang runtut',
+    'secara konsisten pada setiap tahapannya',
+    'dengan hasil yang rapi',
+  ]),
+  'Baik':Object.freeze([
+    'dengan cukup mandiri',
+    'secara tertib',
+    'dengan lancar',
+    'sesuai langkah yang diajarkan',
+  ]),
+  'Cukup':Object.freeze([
+    'namun masih memerlukan arahan pada beberapa tahapan kegiatan',
+    'namun perlu didampingi pada bagian yang belum lancar',
+    'namun masih perlu dibiasakan agar lebih tertib',
+    'namun belum sepenuhnya lancar',
+  ]),
+  'Perlu Bimbingan':Object.freeze([
+    'dan perlu latihan bertahap untuk mengembangkan keterampilannya',
+    'sehingga masih membutuhkan pendampingan pada setiap tahapannya',
+    'dan perlu pembiasaan berulang bersama guru',
+    'sehingga latihan bertahap tetap dibutuhkan',
+  ]),
 });
 /* "namun" memulai pertentangan sehingga didahului koma; penghubung lain tidak. */
 const PENUTUP_BERKOMA=new Set(['Cukup']);
 
+/* Bentuk baku setiap predikat tetap ditulis paling atas. Bentuk keduanya memakai susunan kata
+   depan yang sama - "mengenai ..." untuk pemahaman, "dalam ..." untuk yang masih dibimbing -
+   supaya rumusan Butir CP yang dibuka kata kerja tetap terbaca wajar sesudahnya, persis seperti
+   bentuk bakunya. Yang berbeda hanya kata yang menimbulkan pengulangan. */
 const LANJUTAN_PEMAHAMAN=Object.freeze({
-  'Sangat Baik':f=>`serta menunjukkan pemahaman yang sangat baik mengenai ${frasaBenda(f)}`,
-  'Baik':f=>`serta memahami ${frasaBenda(f)} dengan baik`,
-  'Cukup':f=>`serta cukup memahami ${frasaBenda(f)}`,
-  'Perlu Bimbingan':f=>`serta masih memerlukan bimbingan dalam ${frasaKerja(f)}`,
+  'Sangat Baik':Object.freeze([
+    f=>`serta menunjukkan pemahaman yang sangat baik mengenai ${frasaBenda(f)}`,
+    f=>`sekaligus memiliki pemahaman yang mendalam mengenai ${frasaBenda(f)}`,
+  ]),
+  'Baik':Object.freeze([
+    f=>`serta memahami ${frasaBenda(f)} dengan baik`,
+    f=>`sekaligus memiliki pemahaman yang memadai mengenai ${frasaBenda(f)}`,
+  ]),
+  'Cukup':Object.freeze([
+    f=>`serta cukup memahami ${frasaBenda(f)}`,
+    f=>`sekaligus mulai memiliki pemahaman mengenai ${frasaBenda(f)}`,
+  ]),
+  /* Bentuk lama di sini berbunyi persis sama dengan klausa pembukanya - "masih memerlukan
+     bimbingan dalam ...", kata demi kata. Bentuk kedua menyebut hal yang sama tanpa mengulangnya. */
+  'Perlu Bimbingan':Object.freeze([
+    f=>`serta masih memerlukan bimbingan dalam ${frasaKerja(f)}`,
+    f=>`sekaligus perlu didampingi dalam ${frasaKerja(f)}`,
+  ]),
 });
 
+/* Kata yang tidak dihitung sebagai pengulangan: kata tugas dan kata bantu yang memang harus
+   muncul berkali-kali dalam bahasa Indonesia yang wajar. Mengharamkan "dan" atau "yang" bukan
+   memperbaiki gaya bahasa, melainkan merusaknya. */
+const KATA_TUGAS=new Set(['dan','yang','serta','dalam','untuk','pada','dengan','secara','di','ke',
+  'dari','atas','terhadap','mengenai','tersebut','namun','sehingga','agar','ia','itu','ini','lebih',
+  'sudah','telah','akan','juga','bila','saat','oleh','antara','para','sebagai','maupun','atau','bagi',
+  'kembali','beberapa','setiap','belum','tidak']);
+function kataIsi(teks){
+  return new Set(String(teks||'').toLowerCase().replace(/[^a-z\s-]/g,' ').split(/\s+/)
+    .filter(kata=>kata.length>2&&!KATA_TUGAS.has(kata)));
+}
+/* Memilih satu bentuk dari beberapa pilihan yang semuanya sah: yang paling sedikit mengulang
+   kata isi yang sudah ada di dalam kalimat. Seri diputus oleh urutan penulisannya, sehingga
+   bentuk baku - yang selalu ditulis paling atas - menang bila tidak ada yang beririsan.
+   Hasilnya tetap dapat diulang: masukan yang sama selalu menghasilkan kalimat yang sama. */
+function pilihTanpaUlangan(pilihan,sudahAda,susun=item=>item){
+  const dipakai=kataIsi(sudahAda);
+  let terbaik=null,skorTerbaik=Infinity;
+  for(const item of pilihan){
+    const teks=susun(item);
+    let skor=0;
+    for(const kata of kataIsi(teks))if(dipakai.has(kata))skor+=1;
+    /* Pengulangan di dalam bentuk itu sendiri ikut dihitung. Rumusan Butir CP bisa saja
+       dibuka kata kerja yang sama dengan kata kerja pada redaksinya, dan tanpa perhitungan ini
+       bentuk yang berbunyi "memahami memahami ..." tetap dapat terpilih. */
+    const urut=String(teks||'').toLowerCase().replace(/[^a-z\s-]/g,' ').split(/\s+/).filter(Boolean);
+    for(let i=1;i<urut.length;i+=1)if(urut[i]===urut[i-1])skor+=2;
+    const isi=[...kataIsi(teks)];
+    skor+=urut.filter(kata=>isi.includes(kata)).length-isi.length;
+    if(skor<skorTerbaik){terbaik=teks;skorTerbaik=skor;}
+    if(skorTerbaik===0)break;
+  }
+  return terbaik;
+}
 
 export function composeIntracurricularButirDescription({studentName='',butir=[],jenis='teori',
   predicate='Baik'}={}){
@@ -284,10 +399,13 @@ export function composeIntracurricularButirDescription({studentName='',butir=[],
 
   /* Sisa butir yang hanya punya rumusan pengetahuan pada penilaian Praktik. */
   const sisa=registerPraktik?berpengetahuan:[];
-  if(sisa.length)bagian.push(LANJUTAN_PEMAHAMAN[predikat](rangkai(sisa)));
+  if(sisa.length)bagian.push(pilihTanpaUlangan(LANJUTAN_PEMAHAMAN[predikat],bagian.join(' '),
+    bentuk=>bentuk(rangkai(sisa))));
 
-  /* Klausa penutup menutup kalimat dengan tindak lanjutnya. */
-  const penutup=(registerPraktik?PENUTUP_PRAKTIK:PENUTUP_TEORI)[predikat];
+  /* Klausa penutup menutup kalimat dengan tindak lanjutnya, dan dipilih agar tidak mengulang
+     kata yang sudah terpakai pada klausa-klausa sebelumnya. */
+  const penutup=pilihTanpaUlangan((registerPraktik?PENUTUP_PRAKTIK:PENUTUP_TEORI)[predikat],
+    bagian.join(' '));
   if(penutup)bagian.push(PENUTUP_BERKOMA.has(predikat)?`, ${penutup}`:penutup);
 
   /* TANPA NAMA MURID TIDAK ADA KALIMAT. Deskripsi Intrakurikuler dibaca orang tua dan selalu

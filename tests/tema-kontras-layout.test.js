@@ -101,13 +101,13 @@ test('Mode ponsel tetap memakai drawer dan gulir halaman biasa',()=>{
 
 test('Foto sekolah dipakai apa adanya dengan cover dan titik fokus responsif',()=>{
   const t=css(),foto=rule('.login-photo');
-  assert.match(foto,/login-background\.jpg/,'memakai berkas foto sekolah');
+  assert.match(foto,/login-background\.svg/,'memakai berkas latar sekolah');
   assert.match(foto,/cover/,'memakai background-size cover');
   assert.match(foto,/var\(--login-bg-pos/,'titik fokus dikendalikan satu variabel');
   assert.match(t,/--login-bg-pos\s*:/,'variabel titik fokus tersedia');
   assert.match(t,/@media\(max-width:1200px\)[^@]*--login-bg-pos/,'titik fokus digeser saat kolom menyempit');
   /* Gradasi cadangan menjaga halaman tetap rapi bila berkas foto belum tersedia. */
-  assert.match(foto,/linear-gradient\(160deg,#1f4f7d/,'cadangan gradasi');
+  assert.match(foto,/linear-gradient\(150deg,#eefaf3/,'cadangan gradasi');
 });
 
 test('Form Login langsung tampil dan isian berbentuk pil dengan ikon',()=>{

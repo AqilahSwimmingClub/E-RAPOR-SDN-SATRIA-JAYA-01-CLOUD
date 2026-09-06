@@ -86,21 +86,51 @@ const BUTIR_TEORI=[{teori:'konsep pecahan sederhana'}];
 const BUTIR_PRAKTIK=[{teori:'konsep pecahan sederhana',
   praktik:'menyelesaikan soal pecahan dalam kehidupan sehari-hari'}];
 
+/* HARAPAN PENUTUP KALIMAT DIPERBARUI DENGAN SENGAJA.
+
+   Penutup lama ditulis tetap untuk tiap predikat, dan justru itulah yang membuat kalimatnya
+   berbunyi mengulang: "menunjukkan penguasaan yang BAIK terhadap ... dan telah memahami
+   kompetensi tersebut dengan BAIK". Pada Perlu Bimbingan bahkan klausa lanjutan dan klausa
+   pembukanya berbunyi sama kata demi kata.
+
+   Sekarang setiap predikat punya beberapa penutup yang semuanya sah untuk tingkat capaian itu,
+   dan yang dipakai adalah yang tidak mengulang kata yang sudah ada di kalimatnya. Karena itu
+   yang diperiksa di bawah bukan lagi satu kalimat penutup yang dibekukan, melainkan hal yang
+   memang harus dijaga: tingkat capaiannya benar, kompetensinya berasal dari Butir CP,
+   keterampilan tidak dikarang, dan tidak ada kata isi yang terulang. */
+const KATA_TUGAS_UJI=new Set(['dan','yang','serta','dalam','untuk','pada','dengan','secara','di',
+  'ke','dari','atas','terhadap','mengenai','tersebut','namun','sehingga','agar','itu','ini','lebih',
+  'sudah','telah','akan','juga','oleh','antara','para','sebagai','maupun','atau','bagi','kembali',
+  'beberapa','setiap','belum','tidak','ananda']);
+function kataTerulang(teks){
+  const kata=String(teks||'').toLowerCase().replace(/[^a-z\s-]/g,' ').split(/\s+/)
+    .filter(item=>item.length>2&&!KATA_TUGAS_UJI.has(item));
+  return [...new Set(kata.filter((item,index)=>kata.indexOf(item)!==index))];
+}
+function periksaKalimat(teks,{kompetensi,dilarang=[]}={}){
+  assert.ok(teks&&teks.endsWith('.'),`kalimat utuh dan berakhir titik — ${teks}`);
+  if(kompetensi)assert.ok(teks.includes(kompetensi),`kompetensinya dari Butir CP — ${teks}`);
+  for(const kata of dilarang)
+    assert.equal(teks.toLowerCase().includes(kata),false,`"${kata}" tidak boleh muncul — ${teks}`);
+  assert.deepEqual(kataTerulang(teks),[],`tidak ada kata isi yang terulang — ${teks}`);
+}
+
 test('1. Teori + Sangat Baik menyebut penguasaan sangat baik dan menutup dengan pemahaman yang kuat',()=>{
   const teks=composeIntracurricularButirDescription({studentName:'Adwa',butir:BUTIR_TEORI,
     jenis:'teori',predicate:'Sangat Baik'});
   assert.ok(teks.startsWith('Ananda Adwa '),teks);
   assert.match(teks,/sangat baik/);
-  assert.match(teks,/konsep pecahan sederhana/);
-  assert.match(teks,/pemahaman yang kuat terhadap kompetensi tersebut\.$/);
+  periksaKalimat(teks,{kompetensi:'konsep pecahan sederhana'});
 });
 
 test('2. Teori + Baik menyebut penguasaan baik dan menutup dengan telah memahami',()=>{
   const teks=composeIntracurricularButirDescription({studentName:'Adwa',butir:BUTIR_TEORI,
     jenis:'teori',predicate:'Baik'});
   assert.match(teks,/yang baik/);
-  assert.match(teks,/telah memahami kompetensi tersebut dengan baik\.$/);
+  periksaKalimat(teks,{kompetensi:'konsep pecahan sederhana'});
   assert.equal(/sangat baik/.test(teks),false,'predikat Baik tidak boleh berbunyi sangat baik');
+  /* Inilah kasus yang dilaporkan: kata "baik" tidak boleh muncul dua kali. */
+  assert.equal((teks.toLowerCase().match(/\bbaik\b/g)||[]).length,1,`"baik" tepat sekali — ${teks}`);
 });
 
 test('3. Teori + Cukup menutup dengan penguatan, bukan pujian',()=>{
@@ -114,22 +144,25 @@ test('4. Teori + Perlu Bimbingan menutup dengan penguatan bertahap',()=>{
   const teks=composeIntracurricularButirDescription({studentName:'Adwa',butir:BUTIR_TEORI,
     jenis:'teori',predicate:'Perlu Bimbingan'});
   assert.match(teks,/masih memerlukan bimbingan/);
-  assert.match(teks,/perlu penguatan secara bertahap untuk meningkatkan pemahamannya\.$/);
+  assert.match(teks,/perlu|pendampingan|penguatan/,'menyebut tindak lanjutnya');
+  periksaKalimat(teks,{kompetensi:'konsep pecahan sederhana'});
 });
 
 test('5. Praktik + Sangat Baik menyebut keterampilan dan kemandirian',()=>{
   const teks=composeIntracurricularButirDescription({studentName:'Adwa',butir:BUTIR_PRAKTIK,
     jenis:'praktik',predicate:'Sangat Baik'});
   assert.match(teks,/keterampilan yang sangat baik|sangat terampil/);
-  assert.match(teks,/menyelesaikan soal pecahan/);
-  assert.match(teks,/melaksanakan kegiatan dengan tepat dan mandiri\.$/);
+  assert.match(teks,/mandiri|runtut|konsisten|rapi/,'menutup dengan mutu pelaksanaannya');
+  periksaKalimat(teks,{kompetensi:'menyelesaikan soal pecahan dalam kehidupan sehari-hari'});
 });
 
 test('6. Praktik + Baik menutup dengan cukup mandiri',()=>{
   const teks=composeIntracurricularButirDescription({studentName:'Adwa',butir:BUTIR_PRAKTIK,
     jenis:'praktik',predicate:'Baik'});
   assert.match(teks,/keterampilan yang baik|terampil/);
-  assert.match(teks,/melaksanakan kegiatan dengan cukup mandiri\.$/);
+  assert.match(teks,/cukup mandiri|tertib|lancar|langkah yang diajarkan/,'menutup sesuai tingkat Baik');
+  assert.equal(/sangat/.test(teks),false,'predikat Baik tidak boleh berbunyi sangat');
+  periksaKalimat(teks,{kompetensi:'menyelesaikan soal pecahan dalam kehidupan sehari-hari'});
 });
 
 test('7. Praktik + Cukup menutup dengan arahan pada beberapa tahapan',()=>{
@@ -156,7 +189,9 @@ test('9. Praktik pada Butir CP pengetahuan-saja tidak mengarang keterampilan',()
     'melaksanakan kegiatan'])
     assert.equal(teks.toLowerCase().includes(dikarang),false,
       `"${dikarang}" tidak boleh muncul: butirnya tidak memuat kompetensi keterampilan — ${teks}`);
-  assert.match(teks,/telah memahami kompetensi tersebut dengan baik\.$/);
+  /* Registernya tetap pemahaman, dan penutupnya pun bukan penutup keterampilan. */
+  assert.match(teks,/penguasaan|pemahaman|memahami/,'tetap berbahasa pemahaman');
+  periksaKalimat(teks,{kompetensi:'konsep pecahan sederhana'});
 });
 
 test('10. Multi Butir CP tercakup seluruhnya, masing-masing tepat sekali',()=>{
@@ -228,7 +263,8 @@ test('14. Isi Otomatis Semua Siswa mengikuti predikat masing-masing siswa',()=>{
   assert.equal(baris[budi.id].predicate,'Sangat Baik');
   assert.equal(baris[citra.id].predicate,'Cukup');
   assert.match(baris[budi.id].description,/sangat baik/);
-  assert.match(baris[adwa.id].description,/telah memahami kompetensi tersebut dengan baik/);
+  assert.match(baris[adwa.id].description,/yang baik/);
+  for(const row of pratinjau.rows)assert.deepEqual(kataTerulang(row.description),[],row.description);
   assert.match(baris[citra.id].description,/memerlukan penguatan/);
   assert.equal(new Set(pratinjau.rows.map(row=>row.description)).size,3,
     'tiga predikat berbeda menghasilkan tiga kalimat berbeda');

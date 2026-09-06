@@ -606,7 +606,7 @@ textarea.input{color:var(--light-ink)}
 .login-stage{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:1.05fr .95fr;background:linear-gradient(160deg,var(--navy) 0%,var(--navy-2) 100%);color:var(--dark-ink)}
 
 /* ---- Kolom kiri: foto sekolah ---- */
-.login-photo{position:relative;min-height:100dvh;display:flex;flex-direction:column;justify-content:space-between;padding:34px;overflow:hidden;background:var(--login-bg-pos,center 45%)/cover no-repeat url('../../assets/login-background.jpg'),linear-gradient(160deg,#1f4f7d,#2f6fa8)}
+.login-photo{position:relative;min-height:100dvh;display:flex;flex-direction:column;justify-content:space-between;padding:34px;overflow:hidden;background:var(--login-bg-pos,center 45%)/cover no-repeat url('../../assets/login-background.svg'),linear-gradient(150deg,#eefaf3,#bfeaf6)}
 /* Lapisan peredup berdiri sendiri di antara foto dan branding. Kedua ujungnya dibuat
    lebih pekat karena identitas sekolah menempel di tepi atas dan identitas pengembang
    di tepi bawah, sehingga foto latar apa pun yang dipasang nanti tetap menyisakan
@@ -895,3 +895,118 @@ textarea.input{color:var(--light-ink)}
   .cp-butir-actions .btn{flex:1 1 100%}
   .row-actions{flex-wrap:wrap}
 }
+
+/* ==========================================================================================
+   TEMA TERANG 1.2.9 - HALAMAN MASUK DAN DASHBOARD
+
+   DUA HALAMAN SAJA. Blok ini hanya menyentuh halaman Masuk dan Dashboard; menu lain tetap
+   memakai tampilan yang sudah terverifikasi. Struktur, urutan, dan isi keduanya tidak diubah
+   sama sekali - yang berubah hanya warna, latar, dan jarak.
+
+   Ditulis di akhir berkas supaya menang atas aturan lama tanpa perlu menyunting satu pun
+   baris di atasnya. Karena itu aturan tanggapan layar untuk kedua halaman ikut ditulis ulang
+   di bagian bawah blok ini.
+   ========================================================================================== */
+
+/* -------------------------------------------------------------------- Halaman Masuk */
+.login-stage{background:linear-gradient(150deg,#eefaf3 0%,#d6f3f1 46%,#bfeaf6 100%);color:#123a45}
+/* Peredup lama dibuat jauh lebih tipis: latarnya terang, dan teks di atasnya kini gelap.
+   Yang tersisa hanya selubung mint tipis supaya tulisan tetap punya kontras. */
+.login-photo-overlay{background:linear-gradient(180deg,rgba(233,250,246,.42) 0%,rgba(226,247,247,.12) 42%,rgba(190,233,240,.66) 100%)}
+.login-photo-content{gap:18px}
+.login-brand-app{color:#0f7f93}
+.login-brand-text strong{color:#0d3b47;text-shadow:0 1px 10px rgba(255,255,255,.75)}
+/* Tagline sekolah: sebelumnya terlalu tipis dan pucat sehingga nyaris tenggelam pada latar
+   terang. Bobotnya dinaikkan ke semibold dan warnanya dipekatkan - ukurannya tidak diubah. */
+.login-brand-tagline{font-size:10.5px;font-weight:650;letter-spacing:.12em;color:#0b6b7d;margin-top:4px;text-shadow:0 1px 8px rgba(255,255,255,.8)}
+
+/* PAPAN TULIS. Satu-satunya tempat slogan ini muncul di seluruh halaman. */
+.login-chalkboard{position:relative;align-self:flex-start;max-width:min(100%,330px);margin:0;
+  padding:20px 22px;border-radius:14px;border:7px solid #e6d6bd;
+  background:linear-gradient(160deg,#2f4f55,#1d3a41);color:#f2fbf6;
+  font-size:clamp(15px,1.35vw,19px);font-weight:750;line-height:1.42;letter-spacing:.01em;
+  box-shadow:0 16px 34px rgba(11,58,68,.28)}
+.login-chalkboard::after{content:'';display:block;width:78px;height:3px;margin-top:12px;
+  border-radius:3px;background:#f4c94a;opacity:.85}
+
+/* Identitas pengembang: tetap di kiri bawah, hanya dirapatkan menjadi satu blok kompak. */
+.login-photo-caption{padding-left:12px}
+.login-photo-caption::before{background:linear-gradient(180deg,transparent,#0f9fb4 18%,#0f9fb4 82%,transparent);box-shadow:0 0 10px rgba(15,159,180,.35)}
+.login-credit-lead{font-size:9.5px;font-weight:750;letter-spacing:.16em;color:#0b5f70;text-shadow:0 1px 8px rgba(255,255,255,.8)}
+.login-credit-name{margin-top:1px;font-size:clamp(16px,1.4vw,19px);font-weight:850;line-height:1.15;color:#0b3542;text-shadow:0 1px 10px rgba(255,255,255,.8)}
+.login-credit-role{margin-top:0;font-size:11px;line-height:1.35;color:#125c6b;text-shadow:0 1px 8px rgba(255,255,255,.75)}
+.login-credit-copy{margin-top:2px;font-size:9.5px;line-height:1.3;letter-spacing:.05em;color:#2b7484;text-shadow:0 1px 8px rgba(255,255,255,.7)}
+
+/* Kolom kanan memakai warna yang sama dengan latar kiri, sehingga keduanya terbaca sebagai
+   satu bidang - bukan dua bidang warna yang bertemu tajam di tengah layar. */
+.login-panel{background:radial-gradient(760px 460px at 62% 6%,rgba(255,255,255,.62) 0%,transparent 62%),linear-gradient(150deg,#e6f8f1 0%,#cdf0f0 48%,#b6e6f5 100%)}
+/* Kartu tetap punya batasnya sendiri: cukup pekat untuk terbaca, tidak setipis kaca. */
+.login-shell{background:linear-gradient(165deg,rgba(255,255,255,.86),rgba(232,250,247,.78));
+  border:1px solid rgba(17,120,140,.18);box-shadow:0 22px 46px rgba(13,71,86,.16);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding:22px 22px 18px}
+.login-shell-head{margin-bottom:14px}
+.login-shell-head h2{color:#0d3b47}
+.login-shell-head p{color:#2c6c7c}
+.login-shell .role-switch{background:rgba(255,255,255,.62);border-color:rgba(17,120,140,.16)}
+.login-shell .role-btn{color:#2c6c7c}
+.login-shell .role-btn.active{color:#06323c;background:linear-gradient(135deg,#5de4e0,#2fa8ff);box-shadow:0 5px 14px rgba(47,168,255,.28)}
+.login-field{background:rgba(255,255,255,.72);border-color:rgba(17,120,140,.18)}
+.login-field:focus-within{border-color:#2fa8ff;background:rgba(255,255,255,.92);box-shadow:0 0 0 3px rgba(47,168,255,.16)}
+.login-field-icon{color:#2c8b9c}
+.login-field:focus-within .login-field-icon{color:#0f8fbd}
+.login-shell .input{color:#0d3b47}
+.login-shell .input::placeholder{color:#6796a3}
+/* Tombol utama: cream/mint sangat muda ke tosca terang lalu biru langit terang. */
+.login-submit{background:linear-gradient(100deg,#e8f7e8 0%,#5de4e0 46%,#2fa8ff 100%);color:#06323c;box-shadow:0 12px 26px rgba(47,168,255,.3)}
+.login-submit:hover{box-shadow:0 14px 30px rgba(47,168,255,.38)}
+.login-link{color:#0f7f93}
+.login-help{color:#2c6c7c}
+.login-version{color:#2c8b9c;background:rgba(255,255,255,.6);border-color:rgba(17,120,140,.16)}
+.login-crest{filter:drop-shadow(0 2px 7px rgba(11,58,68,.18))}
+.login-logo{filter:drop-shadow(0 3px 9px rgba(11,58,68,.2))}
+.login-logo-fallback{background:rgba(255,255,255,.55);border-color:rgba(17,120,140,.2);color:#0f7f93}
+
+/* -------------------------------------------------------- Dashboard Admin dan Guru */
+/* Latar murni: hanya warna, awan lembut, dan dedaunan buram di tepinya. Tidak ada logo, teks,
+   peta, kartu, menu, maupun bayangan antarmuka apa pun di dalam berkasnya. Ia dipasang pada
+   halaman Dashboard saja, sehingga menu lain tetap seperti sebelumnya. */
+.dashboard-page{position:relative;margin:-24px;padding:24px;min-height:calc(100dvh - 68px)}
+.dashboard-page::before{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:center/cover no-repeat url('../../assets/dashboard-background.svg')}
+.dashboard-page>*{position:relative;z-index:1}
+/* Kartu dashboard: kaca pastel yang cukup pekat untuk dibaca, sewarna dengan tombol Masuk. */
+.dashboard-page .card,.dashboard-page .dash-stat,.dashboard-page .dash-panel{
+  background:linear-gradient(165deg,rgba(255,255,255,.9),rgba(232,250,247,.82));
+  border:1px solid rgba(17,120,140,.16);box-shadow:0 14px 30px rgba(13,71,86,.12);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#0d3b47}
+.dashboard-page .card h1,.dashboard-page .card h2,.dashboard-page .card h3,
+.dashboard-page .dash-stat-value,.dashboard-page strong{color:#0d3b47}
+.dashboard-page .card p,.dashboard-page .dash-stat-label,.dashboard-page .dash-stat-foot,
+.dashboard-page .muted,.dashboard-page small,.dashboard-page span{color:#2c6c7c}
+.dashboard-page .page-head h1{color:#0b3542}
+.dashboard-page .page-head p{color:#125c6b}
+/* Aksen warna kartu statistik tetap membedakan informasinya, dalam satu keluarga warna. */
+.dashboard-page .dash-stat-cyan{border-color:rgba(47,168,255,.3);box-shadow:0 14px 30px rgba(47,168,255,.16)}
+.dashboard-page .dash-stat-teal{border-color:rgba(93,228,224,.36);box-shadow:0 14px 30px rgba(45,190,180,.16)}
+.dashboard-page .dash-stat-purple{border-color:rgba(120,190,235,.34);box-shadow:0 14px 30px rgba(90,160,220,.16)}
+.dashboard-page .dash-stat-amber{border-color:rgba(240,200,120,.42);box-shadow:0 14px 30px rgba(214,168,74,.16)}
+.dashboard-page .dash-stat-icon{background:rgba(255,255,255,.7);color:#0f7f93}
+.dashboard-page .badge-active{background:rgba(93,228,224,.24);border-color:rgba(17,120,140,.24);color:#0b5f70}
+.dashboard-page .badge-inactive{background:rgba(255,255,255,.6);border-color:rgba(17,120,140,.16);color:#2c6c7c}
+
+/* ------------------------------------------------------------ Tanggapan layar tema baru */
+@media(max-width:1200px){.login-photo{background-position:60% 50%}}
+@media(max-width:900px){
+  /* Dua kolom ditumpuk seperti sebelumnya. Papan tulis disembunyikan pada pita latar yang
+     memendek supaya identitas sekolah dan pengembang tetap muat tanpa saling menindih. */
+  .login-chalkboard{display:none}
+  .login-photo-content{gap:12px}
+  .login-credit-name{font-size:16px}
+}
+@media(max-width:767px){
+  .login-shell{padding:18px 16px 16px}
+  .dashboard-page{margin:-15px;padding:15px;min-height:calc(100dvh - 62px)}
+}
+/* Layar pendek dan mendatar: papan tulis memakan tinggi yang tidak ada, jadi ia mundur. */
+@media(max-height:520px){.login-chalkboard{display:none}}
+@media print{.dashboard-page::before{display:none}}

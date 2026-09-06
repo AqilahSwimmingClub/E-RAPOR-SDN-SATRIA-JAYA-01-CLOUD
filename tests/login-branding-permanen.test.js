@@ -27,14 +27,18 @@ function bagianFoto(){
 test('Berkas latar hanya dipakai sebagai gambar latar CSS, bukan pembawa teks',()=>{
   const t=css(),source=login();
   /* Satu-satunya penyebutan berada pada background .login-photo. */
-  assert.equal((t.match(/login-background\.jpg/g)||[]).length,1,'berkas latar disebut tepat sekali di CSS');
-  assert.equal(source.includes('login-background.jpg'),false,'berkas latar tidak pernah dipasang sebagai elemen gambar');
+/* Berkasnya berganti dari foto kapal Phinisi ke gambar ruang administrasi kelas, dan
+     formatnya ikut berganti ke SVG. Yang dijaga tetap sama persis: satu penyebutan, dipakai
+     hanya sebagai gambar latar CSS, dan tetap dapat ditimpa sekolah dengan menimpa satu berkas. */
+  assert.equal((t.match(/login-background\.svg/g)||[]).length,1,'berkas latar disebut tepat sekali di CSS');
+  assert.equal((t.match(/login-background\.jpg/g)||[]).length,0,'foto kapal Phinisi tidak dipakai lagi');
+  assert.equal(source.includes('login-background'),false,'berkas latar tidak pernah dipasang sebagai elemen gambar');
   const foto=rule('.login-photo');
-  assert.match(foto,/url\('\.\.\/\.\.\/assets\/login-background\.jpg'\)/,'jalur berkas tetap dan dapat ditimpa manual');
+  assert.match(foto,/url\('\.\.\/\.\.\/assets\/login-background\.svg'\)/,'jalur berkas tetap dan dapat ditimpa manual');
   assert.match(foto,/cover/,'gambar apa pun akan menutup kolom secara utuh');
   assert.match(foto,/no-repeat/,'gambar tidak diubin bila rasionya berbeda');
   /* Bila berkas hilang atau rusak, kolom tetap berwarna dan branding tetap terbaca. */
-  assert.match(foto,/linear-gradient\(160deg,#1f4f7d,#2f6fa8\)/,'ada gradasi cadangan di belakang gambar');
+  assert.match(foto,/linear-gradient\(150deg,#eefaf3,#bfeaf6\)/,'ada gradasi cadangan di belakang gambar');
 });
 
 test('Branding adalah lapisan HTML tersendiri di atas foto',()=>{
@@ -107,5 +111,5 @@ test('Mengganti berkas latar tidak menuntut kode diubah',()=>{
   /* Cache tidak boleh menahan gambar lama setelah berkas ditimpa. */
   const sw=read('sw.js');
   assert.match(sw,/SWAPPABLE_ASSETS/,'ada daftar aset yang dapat ditimpa');
-  assert.match(sw,/login-background\.jpg/,'latar termasuk aset yang dapat ditimpa');
+  assert.match(sw,/login-background\.svg/,'latar termasuk aset yang dapat ditimpa');
 });
