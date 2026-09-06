@@ -61,19 +61,47 @@ function validateSubjectMapping(mapping,path){
   assert(mapping.length===SUBJECTS_DEFAULT.length,`${path} harus memuat ${SUBJECTS_DEFAULT.length} mata pelajaran.`);
   const expectedById=new Map(SUBJECTS_DEFAULT.map(item=>[item.id,item]));
   const ids=new Set();
-  const orders={A:new Set(),B:new Set()};
+  /* URUTAN TUNGGAL sejak 1.3.2. Dulu nomor diperiksa per kelompok - tiap kelompok wajib
+     bernomor 1..n sendiri. Sekarang seluruh mapel berbagi satu deret 1..N.
+
+     BERKAS BACKUP LAMA TETAP DITERIMA: `group` masih boleh ada dan nilainya tidak lagi
+     dipersoalkan, karena kelompok bukan penentu urutan. Nomor lama yang kembar antar kelompok
+     dirapikan secara deterministik oleh normalizeMappingOrder saat mapping dipulihkan, jadi
+     yang diperiksa di sini cukup bentuk datanya. */
+  const orders=new Set();
+  let nomorKembar=false;
   mapping.forEach((item,index)=>{
     assert(isPlainObject(item),`${path}[${index}] tidak valid.`);
     const expected=expectedById.get(item.id);
     assert(expected && !ids.has(item.id),`${path} memiliki ID mata pelajaran yang tidak valid atau duplikat.`);
-    assert(['A','B'].includes(item.group),`${path}.${item.id} memiliki kelompok yang tidak valid.`);
     assert(typeof item.name==='string' && item.name.trim(),`${path}.${item.id} tidak memiliki nama yang valid.`);
     assert(typeof item.active==='boolean',`${path}.${item.id} harus memiliki status aktif boolean.`);
-    assert(Number.isInteger(item.order) && item.order>=1 && !orders[item.group].has(item.order),`${path}.${item.id} memiliki urutan yang tidak valid pada Kelompok ${item.group}.`);
-    ids.add(item.id);orders[item.group].add(item.order);
+    assert(Number.isInteger(item.order) && item.order>=1,`${path}.${item.id} memiliki urutan yang tidak valid.`);
+    if(orders.has(item.order))nomorKembar=true;
+    ids.add(item.id);orders.add(item.order);
   });
   assert(ids.size===expectedById.size,`${path} tidak memuat seluruh mata pelajaran wajib.`);
-  ['A','B'].forEach(group=>[...orders[group]].sort((a,b)=>a-b).forEach((order,index)=>assert(order===index+1,`${path} memiliki nomor tidak berurutan pada Kelompok ${group}.`)));
+  /* Nomor yang sudah tunggal wajib benar-benar berderet 1..N.
+
+     Nomor yang kembar HANYA dimaafkan bila bentuknya memang penomoran lama per kelompok:
+     setiap mapel punya kelompok A/B yang sah, DAN nomor di dalam tiap kelompok berderet 1..n
+     tanpa lompatan. Bentuk itu pasti hasil rilis lama dan akan dinormalkan ulang saat
+     dipulihkan. Nomor kembar di luar bentuk tersebut tetap ditolak sebagai berkas rusak. */
+  if(nomorKembar){
+    assert(bentukPenomoranLamaPerKelompok(mapping),`${path} memiliki urutan yang tidak valid.`);
+  }else{
+    [...orders].sort((a,b)=>a-b).forEach((order,index)=>
+      assert(order===index+1,`${path} memiliki urutan yang tidak valid.`));
+  }
+}
+
+/* Bentuk penomoran rilis lama: dua kelompok, masing-masing bernomor 1..n sendiri. */
+function bentukPenomoranLamaPerKelompok(mapping){
+  if(!mapping.every(item=>['A','B'].includes(item.group)))return false;
+  return ['A','B'].every(group=>{
+    const nomor=mapping.filter(item=>item.group===group).map(item=>Number(item.order)).sort((a,b)=>a-b);
+    return nomor.every((angka,index)=>angka===index+1);
+  });
 }
 
 function validateBackupData(data,teacherScope=null){

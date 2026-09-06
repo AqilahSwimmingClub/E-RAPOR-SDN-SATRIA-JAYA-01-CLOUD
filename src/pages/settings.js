@@ -5,7 +5,7 @@ import { getPrintSettings, savePrintSettings } from '../services/print-settings.
 import { createRecoverySnapshot, listRecoverySnapshots, previewRecoverySnapshot, restoreRecoverySnapshot } from '../services/snapshots.js';
 import { getApplicationInfo } from '../services/migrations.js';
 import { BUILD_TAG } from '../data/version.js';
-import { canReorderWithinGroup, moveSubjectToGroup, normalizeMappingGroups, reorderWithinGroup } from '../services/mapping.js';
+import { canReorderSubject, normalizeMappingOrder, reorderSubject } from '../services/mapping.js';
 import { icon } from '../ui/icons.js';
 import { el, toast, confirmDialog, escapeHtml } from '../ui/dom.js';
 import { pickFile, saveFile } from '../services/file-io.js';
@@ -18,33 +18,28 @@ function aboutApplicationCard(){
 }
 
 export function renderSubjectMapping(session){
-  let mapping=normalizeMappingGroups(getSubjectMapping(session));
+  let mapping=normalizeMappingOrder(getSubjectMapping(session));
   const root=el(`<div><div class="page-head"><div><h1>Mapping Mata Pelajaran</h1><p>Atur urutan mapel untuk Penilaian, Rapor, Leger, dan Transkrip.</p></div><div class="actions"><button class="btn btn-light" data-reset>${icon('rotate',17)} Reset Default</button><button class="btn btn-primary" data-save>${icon('save',17)} Simpan Mapping</button></div></div><div data-list></div></div>`);
   const listHost=root.querySelector('[data-list]');
 
+  /* SATU DAFTAR MAPEL, tanpa sekat kelompok.
+
+     Sampai 1.3.1 halaman ini dibagi menjadi dua kartu - Kelompok A dan Kelompok B - dan tiap
+     kartu menomori mapelnya sendiri mulai dari 1. Admin karena itu tidak pernah melihat urutan
+     yang sebenarnya, dan nomor yang tampil di sini tidak sama dengan urutan pada Rapor.
+
+     Sekarang seluruh mapel berdiri dalam satu daftar bernomor 1..N. Admin cukup menentukan
+     dua hal: URUTAN dan AKTIF/NONAKTIF. */
   function draw(){
-    const groups=['A','B'];
-    listHost.innerHTML=`<div class="mapping-groups">${groups.map(g=>{
-      const items=mapping.filter(x=>x.group===g);
-      const title=g==='A'?'A. Kelompok Mata Pelajaran Wajib':'B. Kelompok Mata Pelajaran Pilihan';
-      return `<section class="card"><div class="mapping-header"><h3>${title}</h3><span class="badge badge-${g.toLowerCase()}">${items.filter(x=>x.active).length} aktif</span></div><div class="mapping-list">${items.map(item=>subjectRow(item)).join('')}</div></section>`;
-    }).join('')}</div>`;
+    const aktif=mapping.filter(item=>item.active).length;
+    listHost.innerHTML=`<section class="card"><div class="mapping-header"><h3>Daftar Mata Pelajaran</h3><span class="badge badge-active">${aktif} dari ${mapping.length} aktif</span></div><p class="mapping-note">Nomor urut di bawah ini dipakai apa adanya oleh Penilaian, Intrakurikuler, Rapor, Leger, dan Transkrip.</p><div class="mapping-list">${mapping.map(item=>subjectRow(item)).join('')}</div></section>`;
     bindRows();
   }
-  /* SATU BARIS, LIMA AREA TERPISAH: urutan, nomor, nama, kelompok, aktif.
-
-     Sampai 1.3.0 nomor urut ditulis sebagai <span> DI DALAM blok nama, dan tombol naik/turun
-     berdiri pada kolom selebar 42px yang lebih sempit daripada isinya sendiri. Keduanya membuat
-     nama mata pelajaran panjang bertabrakan dengan kontrol di sebelah kiri pada perangkat
-     sungguhan. Sekarang setiap bagian punya areanya sendiri pada kisi, sehingga nama mapel tidak
-     pernah lagi berbagi ruang dengan nomor maupun tombol urutan. Seluruh fungsinya tidak
-     diubah: reorder, kelompok, aktif/nonaktif, Reset Default, dan Simpan Mapping tetap sama. */
   function subjectRow(item){
     return `<div class="subject-row" data-id="${item.id}">
-      <div class="order-actions"><button class="btn btn-light btn-icon" data-up title="Naik" ${canReorderWithinGroup(mapping,item.id,-1)?'':'disabled'}>${icon('arrowUp',15)}</button><button class="btn btn-light btn-icon" data-down title="Turun" ${canReorderWithinGroup(mapping,item.id,1)?'':'disabled'}>${icon('arrowDown',15)}</button></div>
+      <div class="order-actions"><button class="btn btn-light btn-icon" data-up title="Naik" ${canReorderSubject(mapping,item.id,-1)?'':'disabled'}>${icon('arrowUp',15)}</button><button class="btn btn-light btn-icon" data-down title="Turun" ${canReorderSubject(mapping,item.id,1)?'':'disabled'}>${icon('arrowDown',15)}</button></div>
       <div class="subject-order" aria-hidden="true">${item.order}.</div>
       <div class="subject-text"><div class="subject-name">${escapeHtml(item.name)}</div>${item.parent?`<div class="subject-parent">${escapeHtml(item.parent)}</div>`:''}</div>
-      <select class="input mapping-group-select" data-group aria-label="Kelompok ${escapeHtml(item.name)}"><option value="A" ${item.group==='A'?'selected':''}>Kelompok A</option><option value="B" ${item.group==='B'?'selected':''}>Kelompok B</option></select>
       <label class="switch"><input type="checkbox" data-active ${item.active?'checked':''}/> Aktif</label>
     </div>`;
   }
@@ -54,16 +49,15 @@ export function renderSubjectMapping(session){
       row.querySelector('[data-up]').onclick=()=>move(id,-1);
       row.querySelector('[data-down]').onclick=()=>move(id,1);
       row.querySelector('[data-active]').onchange=e=>{mapping=mapping.map(x=>x.id===id?{...x,active:e.target.checked}:x);draw()};
-      row.querySelector('[data-group]').onchange=e=>{mapping=moveSubjectToGroup(mapping,id,e.target.value);draw();};
     });
   }
   function move(id,dir){
-    mapping=reorderWithinGroup(mapping,id,dir);draw();
+    mapping=reorderSubject(mapping,id,dir);draw();
   }
   root.querySelector('[data-save]').onclick=()=>{saveSubjectMapping(session,mapping);toast('Mapping mata pelajaran berhasil disimpan.');};
   root.querySelector('[data-reset]').onclick=async()=>{
     if(await confirmDialog({title:'Reset Mapping',message:'Kembalikan seluruh urutan dan status mata pelajaran ke mapping default?',confirmText:'Reset'})){
-      resetSubjectMapping(session);mapping=normalizeMappingGroups(getSubjectMapping(session));draw();toast('Mapping dikembalikan ke master mata pelajaran.','warning');
+      resetSubjectMapping(session);mapping=normalizeMappingOrder(getSubjectMapping(session));draw();toast('Mapping dikembalikan ke master mata pelajaran.','warning');
     }
   };
   draw();return root;

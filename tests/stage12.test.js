@@ -63,7 +63,16 @@ assert.equal(getStudentCocurricular(session,first.id).predicate,'Berkembang Sesu
 
 test('dimensi sikap bersifat opsional dan hanya dimensi terpilih yang tersimpan',()=>{setup();const session=teacher();const student=addStudent(session);assert.equal(listStudentAttitudes(session,student.id).filter(item=>item.status!=='EMPTY').length,0);saveStudentAttitude(session,student.id,ATTITUDE_DIMENSIONS[0].id,{level:'Berkembang Sesuai Harapan'});const filled=listStudentAttitudes(session,student.id).filter(item=>item.status!=='EMPTY');assert.equal(filled.length,1);assert.equal(filled[0].status,'AUTO');assert.equal(filled[0].classId,'2A');});
 
-test('Mapping dapat pindah A/B dengan nomor kelompok terpisah',()=>{const moved=moveSubjectToGroup(SUBJECTS_DEFAULT,'agama','B');assert.equal(moved.find(item=>item.id==='agama').group,'B');const jumlah=g=>SUBJECTS_DEFAULT.filter(item=>item.group===g).length;const urut=n=>Array.from({length:n},(_,i)=>i+1);assert.deepEqual(moved.filter(item=>item.group==='A').map(item=>item.order),urut(jumlah('A')-1));assert.deepEqual(moved.filter(item=>item.group==='B').map(item=>item.order),urut(jumlah('B')+1));});
+/* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA (1.3.2): penomoran tidak lagi terpisah per
+   kelompok. Pengguna meminta Mapping menjadi satu daftar bernomor 1..N, sehingga memindahkan
+   label kelompok sebuah mapel tidak boleh lagi menggeser nomor mapel mana pun. */
+test('Mapping memakai satu deret nomor, label kelompok tidak menggeser urutan',()=>{
+  const moved=moveSubjectToGroup(SUBJECTS_DEFAULT,'agama','B');
+  assert.equal(moved.find(item=>item.id==='agama').group,'B');
+  const urut=n=>Array.from({length:n},(_,i)=>i+1);
+  assert.deepEqual(moved.map(item=>item.order),urut(SUBJECTS_DEFAULT.length));
+  assert.deepEqual(moved.map(item=>item.id),SUBJECTS_DEFAULT.map(item=>item.id));
+});
 
 test('tanggal cetak menggunakan format Indonesia dan tersimpan per scope Guru',()=>{setup();const session=teacher();const value=savePrintSettings(session,{principalName:'Kepala Sekolah',principalNip:'19800101',teacherName:'Guru Kelas',teacherNip:'19900101',city:'Bekasi',printDate:'2026-01-23'});assert.equal(value.printDateLabel,'Bekasi, 23 Januari 2026');assert.equal(formatIndonesianPrintDate('2026-08-09','Bekasi'),'Bekasi, 9 Agustus 2026');});
 

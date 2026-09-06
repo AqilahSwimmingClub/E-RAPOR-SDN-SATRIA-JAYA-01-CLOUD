@@ -64,7 +64,11 @@ const admin=()=>({role:'admin',academicYear:ACADEMIC_YEAR,semester:`Ganjil ${ACA
 
 test('1. Kotak angka Absensi manual punya lebar dan tinggi sentuh yang layak',()=>{
   const t=css();
-  const kotak=aturan(t,'.attendance-manual .attendance-manual-input','width');
+  /* DIBACA DARI ATURAN DASAR (1.3.2). Sejak Absensi landscape dirapikan, ada penimpaan
+     sengaja di `@media (max-height:560px) and (orientation:landscape)` yang mengecilkan
+     kotak angka supaya enam kolomnya muat tanpa penggulir mendatar. Yang dijaga test ini
+     adalah ukuran portrait/desktop, jadi yang dibaca aturan PERTAMA, bukan pemenang cascade. */
+  const kotak=aturanDasar(t,'.attendance-manual .attendance-manual-input','width');
   assert.ok(kotak,'aturan kotak angka ditemukan');
   const lebar=angka(kotak,'width'),lebarMin=angka(kotak,'min-width');
   assert.ok(lebar>=80,`lebar ${lebar}px cukup untuk angka tiga digit`);
@@ -95,14 +99,15 @@ test('3. Kotak angka tidak pernah tertindih tombol Simpan',()=>{
   /* AKAR MASALAHNYA: kolom Aksi memakai position:sticky right:0 sementara tabelnya lebih lebar
      daripada kartu yang memuatnya, sehingga tombol Simpan mengambang di atas kolom angka.
      Pada tabel INI kolomnya dikembalikan statis, jadi tombolnya ikut mengalir dalam baris. */
-  const aksi=aturan(t,'.attendance-manual .cell-actions','position');
+  const aksi=aturanDasar(t,'.attendance-manual .cell-actions','position');
   assert.match(aksi,/position:static/,'kolom Aksi tidak lagi menempel di atas isian');
   assert.match(aksi,/padding-left:1[0-9]px/,'ada jarak antara kolom angka dan tombol');
   /* Tabel lain TIDAK ikut berubah: kolom aksinya tetap menempel seperti sebelumnya. */
   assert.match(aturanDasar(t,'.data-table .cell-actions','position'),/position:sticky/,
     'tabel lain tetap memakai kolom aksi yang menempel');
   /* Tombolnya sendiri tetap nyaman disentuh dan tidak menyusut. */
-  const tombol=aturan(t,'.attendance-manual .cell-actions .btn-small','min-height');
+  /* Sama seperti test 1: aturan dasar, bukan penimpaan landscape yang memampatkan tombol. */
+  const tombol=aturanDasar(t,'.attendance-manual .cell-actions .btn-small','min-height');
   assert.match(tombol,/min-height:44px/,'tombol Simpan tetap setinggi sasaran sentuh');
   assert.match(tombol,/white-space:nowrap/,'label Simpan tidak pernah terpotong dua baris');
 });
@@ -151,17 +156,23 @@ test('5. Logika Absensi, perhitungan hari, dan penyimpanannya tidak berubah',()=
 
 /* ============================================ B. MAPPING - LIMA AREA TERPISAH */
 
-test('6. Baris Mapping punya lima area terpisah: urutan, nomor, nama, kelompok, aktif',()=>{
+test('6. Baris Mapping punya empat area terpisah: urutan, nomor, nama, aktif',()=>{
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA (1.3.2): area "kelompok" dibuang. Pengguna
+     meminta konsep Kelompok A/B hilang dari Mapping, sehingga barisnya tinggal empat area. */
   const t=css();
   const baris=aturanDasar(t,'.subject-row','grid-template-areas');
-  assert.match(baris,/grid-template-areas:"urut nomor nama kelompok aktif"/,
-    'kelima bagian berdiri pada areanya masing-masing');
-  assert.match(baris,/grid-template-columns:auto auto minmax\(0,1fr\) auto auto/,
-    'hanya kolom nama yang melar; empat lainnya selebar isinya');
+  assert.match(baris,/grid-template-areas:"urut nomor nama aktif"/,
+    'keempat bagian berdiri pada areanya masing-masing');
+  assert.match(baris,/grid-template-columns:auto auto minmax\(0,1fr\) auto/,
+    'hanya kolom nama yang melar; tiga lainnya selebar isinya');
   for(const [selektor,area] of [['.order-actions','urut'],['.subject-order','nomor'],
-    ['.subject-text','nama'],['.mapping-group-select','kelompok'],['.subject-row .switch','aktif']])
+    ['.subject-text','nama'],['.subject-row .switch','aktif']])
     assert.match(aturanDasar(t,selektor,'grid-area'),new RegExp(`grid-area:${area}`),
       `${selektor} menempati area ${area}`);
+  /* Dropdown kelompok benar-benar tidak ada lagi, baik di markup maupun di gaya. */
+  assert.equal(/mapping-group-select/.test(t),false,'gaya dropdown kelompok dibuang');
+  assert.equal(/mapping-group-select|data-group/.test(read('src/pages/settings.js')),false,
+    'markup dropdown kelompok dibuang');
 });
 
 test('7. Nomor urut bukan lagi elemen yang dapat bertumpuk dengan nama mapel',()=>{
@@ -203,20 +214,22 @@ test('9. Tombol urutan tidak lagi menyusut sampai di bawah sasaran sentuh',()=>{
 test('10. Mapping tetap rapi pada tablet dan ponsel',()=>{
   const t=css();
   const blok=t.slice(t.indexOf('B. MAPPING MATA PELAJARAN'));
-  /* Tablet: kelompok dan aktif turun ke baris sendiri, nama tetap utuh di baris pertama. */
-  assert.match(blok,/@media\(max-width:1050px\)[^@]*grid-template-areas:"urut nomor nama" "\.  \.    kelompok" "\.  \.    aktif"/s);
+  /* Tablet: status aktif turun ke baris sendiri, nama tetap utuh di baris pertama. */
+  assert.match(blok,/@media\(max-width:1050px\)[^@]*grid-template-areas:"urut nomor nama" "\.  \.    aktif"/s);
   /* Ponsel: nomor dan nama di baris pertama, sisanya menumpuk penuh selebar kartu. */
-  assert.match(blok,/@media\(max-width:767px\)[^@]*grid-template-areas:"nomor nama" "urut urut" "kelompok kelompok" "aktif aktif"/s);
-  assert.match(blok,/@media\(max-width:767px\)[^@]*\.mapping-group-select\{max-width:none\}/s,
-    'dropdown kelompok memakai selebar kartu di ponsel');
+  assert.match(blok,/@media\(max-width:767px\)[^@]*grid-template-areas:"nomor nama" "urut urut" "aktif aktif"/s);
 });
 
 test('11. Seluruh fungsi Mapping tetap utuh',()=>{
   const halaman=read('src/pages/settings.js');
-  for(const bagian of ['data-up','data-down','data-group','data-active','data-reset','data-save',
-    'reorderWithinGroup','moveSubjectToGroup','resetSubjectMapping','saveSubjectMapping',
-    'Reset Default','Simpan Mapping','canReorderWithinGroup'])
+  /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA (1.3.2): data-group, moveSubjectToGroup, dan
+     kedua nama fungsi lama tidak lagi dipakai halaman ini karena kelompok sudah dibuang.
+     Sisanya - reorder, aktif, Reset Default, Simpan Mapping - tetap wajib ada. */
+  for(const bagian of ['data-up','data-down','data-active','data-reset','data-save',
+    'reorderSubject','canReorderSubject','resetSubjectMapping','saveSubjectMapping',
+    'Reset Default','Simpan Mapping','normalizeMappingOrder'])
     assert.ok(halaman.includes(bagian),`${bagian} tetap ada`);
+  assert.equal(halaman.includes('data-group'),false,'dropdown kelompok sudah dibuang');
   /* Dan mapping yang tersimpan tetap terbaca apa adanya. */
   useMemoryStorage();
   const sesi=admin();

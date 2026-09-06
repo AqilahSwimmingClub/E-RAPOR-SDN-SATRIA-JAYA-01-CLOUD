@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
-import { canReorderWithinGroup, moveSubjectToGroup, normalizeMappingGroups, reorderWithinGroup } from '../src/services/mapping.js';
+import { canReorderSubject, moveSubjectToGroup, normalizeMappingOrder, reorderSubject } from '../src/services/mapping.js';
 import { ensureDefaultSubjects } from '../src/services/seed.js';
 import { getSubjectMapping, mappingKey } from '../src/services/storage.js';
 import { saveSubjectMapping } from './helpers/penugasan.js';
@@ -38,14 +38,28 @@ test('Pengaman startup tidak pernah menyuntikkan mapel agama di luar kedua mapel
   assert.deepEqual(sesudah.map(item=>item.id),['agama','agama_kristen']);
 });
 
-test('Default subject orders are contiguous and separate inside groups',()=>{for(const group of ['A','B'])assert.deepEqual(SUBJECTS_DEFAULT.filter(x=>x.group===group).map(x=>x.order),Array.from({length:SUBJECTS_DEFAULT.filter(x=>x.group===group).length},(_,index)=>index+1));});
+/* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA (1.3.2).
 
-test('Reorder only moves subjects inside the same group',()=>{
-  const moved=reorderWithinGroup(SUBJECTS_DEFAULT,'pancasila',-1);
+   Empat test di bawah ini dulu mengunci penomoran PER KELOMPOK: Kelompok A bernomor 1..9 dan
+   Kelompok B bernomor 1..3 sendiri, dan mapel tidak boleh berpindah melewati batas kelompok.
+   Pengguna meminta konsep Kelompok A/B dibuang dari Mapping: satu daftar mapel, satu urutan,
+   dan urutan itulah sumber kebenaran di seluruh aplikasi. Harapan keempatnya karena itu
+   dibalik - yang dikunci sekarang justru deret tunggal dan kebebasan berpindah. */
+test('Nomor urut bawaan adalah satu deret tunggal 1..N, bukan per kelompok',()=>{
+  assert.deepEqual(SUBJECTS_DEFAULT.map(item=>item.order),sequence(SUBJECTS_DEFAULT.length));
+  /* Tidak ada nomor kembar di seluruh daftar. */
+  assert.equal(new Set(SUBJECTS_DEFAULT.map(item=>item.order)).size,SUBJECTS_DEFAULT.length);
+  /* Field group tetap tersimpan demi keterbacaan data lama, tetapi bukan lagi penentu urutan. */
+  assert.ok(SUBJECTS_DEFAULT.every(item=>['A','B'].includes(item.group)),'metadata lama tetap ada');
+});
+
+test('Reorder memindahkan mapel di dalam satu daftar tunggal',()=>{
+  const moved=reorderSubject(SUBJECTS_DEFAULT,'pancasila',-1);
   assert.deepEqual(moved.slice(0,3).map(item=>item.id),['agama','pancasila','agama_kristen']);
-  assert.deepEqual(moved.filter(item=>item.group==='B').map(item=>item.id),SUBJECTS_DEFAULT.filter(item=>item.group==='B').map(item=>item.id));
-  assert.deepEqual(moved.filter(item=>item.group==='A').map(item=>item.order),sequence(countOf('A')));
-  assert.deepEqual(moved.filter(item=>item.group==='B').map(item=>item.order),sequence(countOf('B')));
+  /* Nomornya tetap satu deret rapat sesudah dipindahkan. */
+  assert.deepEqual(moved.map(item=>item.order),sequence(SUBJECTS_DEFAULT.length));
+  /* Tidak ada mapel yang hilang atau berubah id. */
+  assert.deepEqual([...moved].map(item=>item.id).sort(),[...SUBJECTS_DEFAULT].map(item=>item.id).sort());
 });
 
 const lastOf=group=>SUBJECTS_DEFAULT.filter(item=>item.group===group).at(-1).id;
@@ -53,25 +67,49 @@ const firstOf=group=>SUBJECTS_DEFAULT.filter(item=>item.group===group)[0].id;
 const countOf=group=>SUBJECTS_DEFAULT.filter(item=>item.group===group).length;
 const sequence=length=>Array.from({length},(_,index)=>index+1);
 
-test('Reorder blocks crossing the A and B group boundary',()=>{
-  assert.equal(canReorderWithinGroup(SUBJECTS_DEFAULT,lastOf('A'),1),false);
-  assert.equal(canReorderWithinGroup(SUBJECTS_DEFAULT,firstOf('B'),-1),false);
-  assert.deepEqual(reorderWithinGroup(SUBJECTS_DEFAULT,lastOf('A'),1).map(item=>item.id),normalizeMappingGroups(SUBJECTS_DEFAULT).map(item=>item.id));
-  assert.deepEqual(reorderWithinGroup(SUBJECTS_DEFAULT,firstOf('B'),-1).map(item=>item.id),normalizeMappingGroups(SUBJECTS_DEFAULT).map(item=>item.id));
+test('Reorder bebas melewati bekas batas kelompok, dan berhenti di ujung daftar',()=>{
+  /* Batas kelompok sudah tidak ada: mapel terakhir bekas Kelompok A boleh turun, dan mapel
+     pertama bekas Kelompok B boleh naik. */
+  assert.equal(canReorderSubject(normalizeMappingOrder(SUBJECTS_DEFAULT),lastOf('A'),1),true);
+  assert.equal(canReorderSubject(normalizeMappingOrder(SUBJECTS_DEFAULT),firstOf('B'),-1),true);
+  const turun=reorderSubject(SUBJECTS_DEFAULT,lastOf('A'),1);
+  assert.deepEqual(turun.map(item=>item.id).slice(8,10),[firstOf('B'),lastOf('A')],
+    'mapel benar-benar bertukar tempat melewati bekas batas kelompok');
+  /* Yang tetap ditolak hanyalah bergerak keluar dari ujung daftar. */
+  const urut=normalizeMappingOrder(SUBJECTS_DEFAULT);
+  assert.equal(canReorderSubject(urut,urut[0].id,-1),false);
+  assert.equal(canReorderSubject(urut,urut.at(-1).id,1),false);
+  assert.deepEqual(reorderSubject(SUBJECTS_DEFAULT,urut[0].id,-1).map(item=>item.id),urut.map(item=>item.id));
 });
 
-test('Legacy crossed mapping is normalized back to contiguous groups',()=>{
-  const crossed=SUBJECTS_DEFAULT.map(item=>({...item}));
-  const batas=countOf('A');
-  [crossed[batas-1],crossed[batas]]=[crossed[batas],crossed[batas-1]];
-  const normalized=normalizeMappingGroups(crossed);
-  assert.deepEqual(normalized.slice(0,batas).map(item=>item.group),Array(batas).fill('A'));
-  assert.deepEqual(normalized.slice(batas).map(item=>item.group),Array(countOf('B')).fill('B'));
-  assert.deepEqual(normalized.filter(item=>item.group==='A').map(item=>item.order),sequence(batas));
-  assert.deepEqual(normalized.filter(item=>item.group==='B').map(item=>item.order),sequence(countOf('B')));
+test('Mapping lama bernomor per kelompok dinormalkan sekali menjadi satu deret',()=>{
+  /* Bentuk data rilis lama: Kelompok A bernomor 1..9, Kelompok B bernomor 1..3 sendiri. */
+  const lama=SUBJECTS_DEFAULT.map(item=>({...item,
+    order:item.group==='A'?item.order:item.order-countOf('A')}));
+  assert.ok(lama.filter(item=>item.group==='B')[0].order===1,'fixture memang bentuk lama');
+  const hasil=normalizeMappingOrder(lama);
+  /* Urutan yang selama ini dilihat guru dipertahankan, lalu dinomori ulang 1..N. */
+  assert.deepEqual(hasil.map(item=>item.id),SUBJECTS_DEFAULT.map(item=>item.id));
+  assert.deepEqual(hasil.map(item=>item.order),sequence(SUBJECTS_DEFAULT.length));
+  /* Status aktif dan id tidak disentuh sama sekali. */
+  assert.deepEqual(hasil.map(item=>item.active),lama.map(item=>item.active));
+  /* Normalisasi bersifat idempotent: memanggilnya lagi tidak mengubah apa pun. */
+  assert.deepEqual(normalizeMappingOrder(hasil),hasil);
+  /* Dan urutan yang SUDAH tunggal tidak pernah dikembalikan ke pengelompokan lama. */
+  const dipindah=reorderSubject(hasil,firstOf('B'),-1);
+  assert.deepEqual(normalizeMappingOrder(dipindah).map(item=>item.id),dipindah.map(item=>item.id),
+    'mapel yang sudah dipindah tidak terlempar balik ke kelompoknya');
 });
 
-test('Mata pelajaran dapat dipindahkan bebas ke Kelompok A atau B dengan nomor terpisah',()=>{const moved=moveSubjectToGroup(SUBJECTS_DEFAULT,'agama','B');assert.equal(moved.find(item=>item.id==='agama').group,'B');assert.deepEqual(moved.filter(item=>item.group==='A').map(item=>item.order),sequence(countOf('A')-1));assert.deepEqual(moved.filter(item=>item.group==='B').map(item=>item.order),sequence(countOf('B')+1));});
+test('moveSubjectToGroup hanya mengubah label kelompok, bukan urutan',()=>{
+  /* Fungsi ini dipertahankan untuk data lama. Kelompok bukan lagi penentu urutan, jadi
+     memindahkannya tidak boleh menggeser posisi mapel mana pun. */
+  const sebelum=normalizeMappingOrder(SUBJECTS_DEFAULT);
+  const sesudah=moveSubjectToGroup(SUBJECTS_DEFAULT,'agama','B');
+  assert.equal(sesudah.find(item=>item.id==='agama').group,'B');
+  assert.deepEqual(sesudah.map(item=>item.id),sebelum.map(item=>item.id),'urutan tidak bergeser');
+  assert.deepEqual(sesudah.map(item=>item.order),sequence(SUBJECTS_DEFAULT.length));
+});
 
 test('Mapping storage is isolated by class and semester scope',()=>{
   useMemoryStorage();

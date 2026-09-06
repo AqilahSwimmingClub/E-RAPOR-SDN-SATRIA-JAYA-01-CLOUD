@@ -180,8 +180,8 @@ html,body{max-width:100%;overflow-x:hidden}button,input,select,textarea{max-widt
 @media(max-width:767px){.reference-tabs{display:grid;grid-template-columns:1fr 1fr}.reference-tabs .tab{font-size:10px;padding:9px 5px}.reference-class-grid{grid-template-columns:1fr 1fr}.reference-period-list>article{align-items:flex-start;flex-direction:column}.reference-semester-tags{justify-content:flex-start}.cocurricular-filter,.intracurricular-filter,.admin-status-filter{grid-template-columns:1fr}.print-settings-form .form-grid{grid-template-columns:1fr 1fr}.cocurricular-table-card,.intracurricular-table-card{display:none}.cocurricular-card-list,.intracurricular-card-list{display:flex;flex-direction:column;gap:9px}.cocurricular-card-list p,.intracurricular-card-list p{font-size:11px;color:var(--muted);line-height:1.5}.cocurricular-card-list small,.intracurricular-card-list small{font-size:9.5px;color:var(--muted)}.cocurricular-card-list .row-actions,.intracurricular-card-list .row-actions{margin-top:12px}.admin-class-status-grid,.admin-subject-detail,.admin-report-students{grid-template-columns:1fr}.admin-status-summary{grid-template-columns:1fr 1fr}.admin-status-detail{padding:14px}.admin-subject-detail .completion-numbers{grid-template-columns:repeat(3,1fr)}}
 
 /* Tahap 12: komponen operasional tanpa mengubah baseline visual. */
-.reference-semester-toggle{display:flex!important;align-items:center;gap:6px;background:var(--soft);border-radius:9px;padding:7px 9px;font-size:10.5px}.reference-semester-toggle input{accent-color:var(--maroon)}.reference-period-list>article>div:first-child .btn{margin-top:9px}.mapping-group-select{width:125px;padding:7px;font-size:10.5px}.pie-summary-card,.progress-pie-wrap{display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:16px}.pie-summary-card>div:first-child{margin-right:auto}.pie-summary-card p{font-size:11px;color:var(--muted)}.pie-chart{--pie-value:0;width:132px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--success) calc(var(--pie-value)*1%),#eadfe1 0);position:relative;flex:none}.pie-chart:before{content:"";position:absolute;inset:22px;background:var(--card);border-radius:50%}.pie-chart strong{position:relative;font-size:20px;color:var(--maroon)}.pie-legend{display:grid;gap:8px;font-size:11px}.pie-legend span{display:flex;align-items:center;gap:7px}.pie-legend i{width:10px;height:10px;border-radius:50%}.pie-complete{background:var(--success)}.pie-pending{background:#eadfe1}.attitude-bulk-item{flex-direction:column;align-items:stretch;cursor:default}.attitude-bulk-item>label{display:flex;align-items:flex-start;gap:9px;cursor:pointer}.attitude-bulk-item>select{margin-top:8px;width:100%;padding:7px 9px;font-size:10.5px}.attitude-list{display:grid;gap:12px}.attitude-list article{border:1px solid var(--line);border-radius:12px;padding:14px}.attitude-list article>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.attitude-list strong{font-size:12px}.attitude-list .field{margin:0}.progress-pie-wrap{min-height:190px}
-@media(max-width:767px){.mapping-group-select{width:100%;grid-column:3}.pie-summary-card,.progress-pie-wrap{flex-direction:column;text-align:center}.pie-summary-card>div:first-child{margin-right:0}.pie-chart{width:115px}.attitude-list article{padding:12px}}
+.reference-semester-toggle{display:flex!important;align-items:center;gap:6px;background:var(--soft);border-radius:9px;padding:7px 9px;font-size:10.5px}.reference-semester-toggle input{accent-color:var(--maroon)}.reference-period-list>article>div:first-child .btn{margin-top:9px}.pie-summary-card,.progress-pie-wrap{display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:16px}.pie-summary-card>div:first-child{margin-right:auto}.pie-summary-card p{font-size:11px;color:var(--muted)}.pie-chart{--pie-value:0;width:132px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--success) calc(var(--pie-value)*1%),#eadfe1 0);position:relative;flex:none}.pie-chart:before{content:"";position:absolute;inset:22px;background:var(--card);border-radius:50%}.pie-chart strong{position:relative;font-size:20px;color:var(--maroon)}.pie-legend{display:grid;gap:8px;font-size:11px}.pie-legend span{display:flex;align-items:center;gap:7px}.pie-legend i{width:10px;height:10px;border-radius:50%}.pie-complete{background:var(--success)}.pie-pending{background:#eadfe1}.attitude-bulk-item{flex-direction:column;align-items:stretch;cursor:default}.attitude-bulk-item>label{display:flex;align-items:flex-start;gap:9px;cursor:pointer}.attitude-bulk-item>select{margin-top:8px;width:100%;padding:7px 9px;font-size:10.5px}.attitude-list{display:grid;gap:12px}.attitude-list article{border:1px solid var(--line);border-radius:12px;padding:14px}.attitude-list article>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.attitude-list strong{font-size:12px}.attitude-list .field{margin:0}.progress-pie-wrap{min-height:190px}
+@media(max-width:767px){.pie-summary-card,.progress-pie-wrap{flex-direction:column;text-align:center}.pie-summary-card>div:first-child{margin-right:0}.pie-chart{width:115px}.attitude-list article{padding:12px}}
 .document-print-heading{text-align:center;margin:0 auto 14px;padding:12px;max-width:1120px}.document-print-heading strong,.document-print-heading span,.document-print-heading small{display:block}.document-print-heading strong{font-size:15px}.document-print-heading span{font-size:11px;margin-top:4px}.document-print-heading small{font-size:9.5px;margin-top:3px;color:var(--muted)}.document-print-date{text-align:right;font-size:10px;margin:18px 0 6px}
 
 /* Tahap 14: komponen digital, cover A4, dan responsivitas tanpa mengubah baseline. */
@@ -1205,16 +1205,17 @@ textarea.input{color:var(--light-ink)}
 .attendance-manual .attendance-manual-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .attendance-manual .attendance-manual-input{-moz-appearance:textfield;appearance:textfield}
 
-/* ============================================ B. MAPPING MATA PELAJARAN - LIMA AREA */
-/* AKAR MASALAH: nomor urut dulu ditulis sebagai <span> di dalam blok nama, dan kolom tombol
-   urutan hanya 42px sementara isinya dua tombol. Tombolnya terukur menyusut sampai 20px -
-   jauh di bawah sasaran sentuh - dan pada perangkat sungguhan isinya meluber ke area nama.
+/* ========================================= B. MAPPING MATA PELAJARAN - EMPAT AREA */
+/* AKAR MASALAH 1.3.1: nomor urut ditulis sebagai <span> di dalam blok nama, dan kolom tombol
+   urutan hanya 42px sementara isinya dua tombol - tombolnya terukur menyusut sampai 20px dan
+   isinya meluber ke area nama.
 
-   Sekarang barisnya kisi lima area yang berdiri sendiri-sendiri. Nama mapel punya ruangnya
-   sendiri, boleh membungkus baris secara alami, dan tidak pernah berbagi sel dengan apa pun. */
+   1.3.2: kolom Kelompok dibuang seluruhnya. Mapping kini satu daftar mapel bernomor 1..N,
+   sehingga barisnya tinggal empat area yang berdiri sendiri-sendiri. Nama mapel punya
+   ruangnya sendiri dan tidak pernah berbagi sel dengan apa pun. */
 .subject-row{display:grid;
-  grid-template-columns:auto auto minmax(0,1fr) auto auto;
-  grid-template-areas:"urut nomor nama kelompok aktif";
+  grid-template-columns:auto auto minmax(0,1fr) auto;
+  grid-template-areas:"urut nomor nama aktif";
   align-items:center;gap:12px;padding:12px 14px}
 .subject-row>*{min-width:0}
 .order-actions{grid-area:urut;display:flex;gap:6px;flex:none}
@@ -1224,30 +1225,27 @@ textarea.input{color:var(--light-ink)}
 .subject-text{grid-area:nama;min-width:0}
 .subject-name{font-size:13px;font-weight:700;line-height:1.4;overflow-wrap:anywhere;hyphens:auto}
 .subject-parent{font-size:11px;line-height:1.4;margin-top:2px;overflow-wrap:anywhere}
-.mapping-group-select{grid-area:kelompok;width:132px;min-width:132px;flex:none;
-  padding:9px 10px;font-size:11px;min-height:40px}
 .subject-row .switch{grid-area:aktif;flex:none;justify-content:flex-end;white-space:nowrap;
   min-width:78px;gap:8px;font-size:11.5px;font-weight:700}
 .subject-row .switch input{width:20px;height:20px;flex:none}
+.mapping-note{margin:0 0 12px;font-size:11.5px;line-height:1.5;color:var(--teks-kedua,#2a6b7c)}
 
-/* Tablet dan layar menengah: kelompok dan aktif turun ke baris kedua, nama tetap utuh. */
+/* Tablet dan layar menengah: status aktif turun ke baris kedua, nama tetap utuh. */
 @media(max-width:1050px){
   .subject-row{grid-template-columns:auto auto minmax(0,1fr);
-    grid-template-areas:"urut nomor nama" ".  .    kelompok" ".  .    aktif";
+    grid-template-areas:"urut nomor nama" ".  .    aktif";
     row-gap:8px}
-  .mapping-group-select{width:100%;min-width:0;justify-self:start;max-width:220px}
   .subject-row .switch{justify-content:flex-start;justify-self:start}
 }
 /* Ponsel: tombol urutan berdampingan di baris sendiri supaya sasaran sentuhnya tetap penuh,
    nama mapel memakai selebar kartu, dan tidak ada satu pun bagian yang saling menindih. */
 @media(max-width:767px){
   .subject-row{grid-template-columns:auto minmax(0,1fr);
-    grid-template-areas:"nomor nama" "urut urut" "kelompok kelompok" "aktif aktif";
+    grid-template-areas:"nomor nama" "urut urut" "aktif aktif";
     gap:10px;padding:12px}
   .order-actions{justify-self:start}
   .order-actions .btn-icon{width:44px;min-width:44px;height:44px;min-height:44px}
   .subject-order{text-align:left;min-width:26px}
-  .mapping-group-select{max-width:none}
 }
 
 /* ================================== C-D. PERMUKAAN KARTU, PANEL, FORM, DAN TABEL GLOBAL */
@@ -1386,4 +1384,45 @@ select.input option{background:#fff;color:var(--light-ink)}
     background:#fff!important;border-color:#ddd!important;box-shadow:none!important;
     backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
   .data-table th,.data-table td,.data-table .cell-actions{background:#fff!important}
+}
+
+/* ==========================================================================================
+   ABSENSI MANUAL PADA LAYAR MENDATAR - TANPA GULIR MENDATAR (1.3.2)
+
+   POTRET TIDAK DISENTUH. Susunan potret yang sudah diperbaiki pada 1.3.1 tetap berlaku apa
+   adanya: tabel selebar isinya di dalam jendela gulir, kotak angka 88px, tombol Simpan mengalir
+   dalam baris.
+
+   Yang diperbaiki hanya layar MENDATAR dan pendek. Di sana .data-table memaksa lebar minimum
+   760px sementara area konten hanya tersisa sekitar 470px - sidebar 268px ikut memakan layar -
+   sehingga guru harus menggulir ke samping hanya untuk mengisi tiga angka.
+
+   Sekarang tabelnya dibuat mengikuti lebar yang tersedia: lebar minimum dilepas, kolom dijatah
+   tetap, dan kolom Sumber dilipat. Kolom Sumber memang tidak termasuk kolom yang harus terlihat
+   - keterangannya tetap tersedia pada potret dan pada layar yang lebih lapang. Kotak angka
+   tetap 44px tinggi dan tombol Simpan tetap sasaran sentuh penuh.
+   ========================================================================================== */
+/* Kartu Input Manual memakai SELURUH lebar konten, bukan setengah kisi rekap. Tabelnya
+   memang tabel terlebar di halaman ini - memaksanya berbagi kolom dengan kartu lain membuatnya
+   menggulir ke samping padahal layarnya masih lapang. Ketiga kartu rekap lain tidak diubah. */
+.attendance-manual-card{grid-column:1/-1}
+
+@media (max-height:560px) and (orientation:landscape){
+  /* Tabel mengikuti lebar kartu, bukan lebar minimum bawaan .data-table. */
+  .attendance-manual{min-width:0;width:100%;table-layout:fixed}
+  .attendance-manual .table-scroll,
+  .attendance-recap-card .table-scroll:has(.attendance-manual){overflow-x:hidden}
+  /* Jatah kolom: No sempit, Siswa mengambil sisa, tiga kolom angka tetap, Aksi secukupnya. */
+  .attendance-manual td:first-child,.attendance-manual th:first-child{width:34px;min-width:34px;padding-inline:6px}
+  .attendance-manual td:nth-child(2),.attendance-manual th:nth-child(2){min-width:0;max-width:none;padding-inline:8px}
+  .attendance-manual .attendance-manual-cell{width:70px;min-width:70px;padding-inline:4px}
+  /* Kolom Sumber dilipat: bukan bagian dari kolom yang harus terlihat pada layar mendatar. */
+  .attendance-manual .attendance-source{display:none}
+  .attendance-manual .cell-actions{width:92px;min-width:92px;padding-left:8px;padding-right:6px}
+  /* Kotak angka menyempit secukupnya, TETAPI tinggi sentuhnya tidak pernah dikurangi. */
+  .attendance-manual .attendance-manual-input{width:62px;min-width:62px;padding:9px 6px;min-height:44px}
+  .attendance-manual .cell-actions .btn-small{min-height:44px;padding:8px 10px;font-size:11px}
+  /* Nama siswa boleh membungkus supaya kolomnya tidak memaksa tabel melebar. */
+  .attendance-manual td:nth-child(2) strong{white-space:normal;overflow-wrap:anywhere;line-height:1.35}
+  .attendance-manual td,.attendance-manual th{padding-block:8px}
 }

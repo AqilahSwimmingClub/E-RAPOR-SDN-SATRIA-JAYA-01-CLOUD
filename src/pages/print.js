@@ -327,7 +327,9 @@ export function renderPrint(session,initialTab='ledger'){
      masing-masing menurut order Mapping - sehingga susunan yang sudah diatur Admin tidak
      berubah sama sekali. Yang hilang hanya sekatnya di atas kertas, bukan datanya. */
   function subjectRows(doc){
-    const rows=['A','B'].flatMap(group=>doc.subjects.filter(row=>(row.subject.group||'B')===group));
+    /* Baris mapel mengikuti urutan Mapping apa adanya. Pengelompokan A/B dibuang pada 1.3.2:
+       nomor urut Mapping sudah tunggal, dan Rapor wajib memakai urutan yang sama persis. */
+    const rows=doc.subjects.slice();
     return rows.map((row,index)=>`<tr><td class="subject-no-cell">${index+1}</td><td class="subject-name-cell">${escapeHtml(reportSubjectName(row.subject.name))}</td><td class="subject-score-cell">${row.score??'—'}</td><td class="subject-description-cell">${escapeHtml(row.description||'')}</td></tr>`).join('');
   }
 

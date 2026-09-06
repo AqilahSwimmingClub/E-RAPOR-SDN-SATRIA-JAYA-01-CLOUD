@@ -127,6 +127,31 @@ test('4f. Logo unggahan tetap di dalam slotnya pada layar sempit',()=>{
   assert.match(sempit,/\.report-cover-a4>\.cover-logo-region>img\{width:230px;height:230px;margin:-48\.1px 0 0 -55px\}/);
 });
 
+/* PERUBAHAN BASELINE KELIMA YANG DISENGAJA DAN DIMINTA.
+
+   Mapping Mata Pelajaran tidak lagi mengenal Kelompok A dan Kelompok B: sejak 1.3.2 ia satu
+   daftar mapel bernomor 1..N, dan nomor itulah sumber kebenaran urutan di seluruh aplikasi.
+
+   `subjectRows` dulu menyusun ulang barisnya sendiri dengan `['A','B'].flatMap(...)`, sehingga
+   Rapor diam-diam mengurutkan mapel menurut kelompok - bukan menurut urutan yang diatur Admin.
+   Aturan tersembunyi itu dibuang; Rapor kini memakai urutan Mapping apa adanya.
+
+   Yang berubah HANYA sumber urutannya. Kolom, kelas CSS, penomoran baris, nama mapel tanpa
+   singkatan kurung, dan seluruh markup lembarnya tidak disentuh sedikit pun. */
+test('4g. Rapor memakai urutan Mapping apa adanya, tanpa mengelompokkan A/B',()=>{
+  const sumber=read('src/pages/print.js');
+  const baris=extractFunctionSource(sumber,'subjectRows');
+  assert.equal(/\['A','B'\]/.test(baris),false,'tidak ada lagi pengelompokan A/B pada Rapor');
+  assert.match(baris,/const rows=doc\.subjects\.slice\(\)/,'baris mapel mengikuti urutan Mapping');
+  /* Kolom dan kelasnya tetap sama persis seperti baseline sebelumnya. */
+  for(const kelas of ['subject-no-cell','subject-name-cell','subject-score-cell','subject-description-cell'])
+    assert.ok(baris.includes(kelas),`kolom ${kelas} tetap ada`);
+  assert.match(baris,/reportSubjectName\(row\.subject\.name\)/,'nama mapel tetap tanpa singkatan kurung');
+  /* Dan tidak ada halaman lain yang masih mengurutkan mapel memakai kelompok. */
+  assert.equal(/\(a\.group==='A'\?0:1\)/.test(read('src/services/subjects.js')),false,
+    'daftar mapel Guru tidak lagi mendahulukan Kelompok A');
+});
+
 /* PERUBAHAN BASELINE KETIGA YANG DISENGAJA DAN DIMINTA.
 
    Panduan Pembelajaran dan Asesmen tidak mengenal sekat "Kelompok A" / "Kelompok B" pada

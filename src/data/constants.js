@@ -42,6 +42,11 @@ export function availableAcademicYears(date = new Date()){
 export const CLASSES = Array.from({length: 6}, (_, gi) => gi + 1)
   .flatMap(grade => ['A','B','C','D'].map(letter => `${grade}${letter}`));
 
+/* URUTAN TUNGGAL 1..12 sejak 1.3.2. Sampai 1.3.1 nomor dihitung ulang di dalam tiap kelompok
+   (A:1-9, B:1-3), sehingga ada dua mapel bernomor 1 dan urutan sebenarnya tidak pernah terbaca
+   dari `order` saja. Field `group` DIPERTAHANKAN apa adanya demi keterbacaan data lama, tetapi
+   ia tidak lagi menentukan urutan maupun tampilan di mana pun.
+   Tidak ada mapel yang dihapus, ditambah, atau diganti id-nya. */
 export const SUBJECTS_DEFAULT = [
   /* Mapel agama yang disediakan aplikasi hanya dua: PAI BP dan PAK BP. Agama lain tetap dapat
      tersimpan sebagai biodata siswa, tetapi tidak ditambahkan sebagai master mapel bawaan. */
@@ -54,12 +59,12 @@ export const SUBJECTS_DEFAULT = [
   { id:'pjok', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Pendidikan Jasmani, Olahraga, dan Kesehatan', active:true, order:7 },
   { id:'seni', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Seni dan Budaya', active:true, order:8 },
   { id:'seni_rupa', group:'A', groupLabel:'Kelompok Mata Pelajaran Wajib', name:'Seni Rupa', active:true, order:9 },
-  { id:'bing', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', name:'Bahasa Inggris', active:true, order:1 },
-  { id:'sunda', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', parent:'Muatan Lokal', name:'Bahasa Sunda', active:true, order:2 },
+  { id:'bing', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', name:'Bahasa Inggris', active:true, order:10 },
+  { id:'sunda', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', parent:'Muatan Lokal', name:'Bahasa Sunda', active:true, order:11 },
   /* Koding dan Kecerdasan Artifisial BUKAN muatan lokal: CP-nya ditetapkan secara nasional
      lewat Panduan Mata Pelajaran Koding dan Kecerdasan Artifisial. Ia mata pelajaran pilihan,
      dan pada jenjang SD baru berlaku mulai Fase C. */
-  { id:'koding', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', name:'Koding dan Kecerdasan Artifisial', active:true, order:3 },
+  { id:'koding', group:'B', groupLabel:'Kelompok Mata Pelajaran Pilihan', name:'Koding dan Kecerdasan Artifisial', active:true, order:12 },
 ];
 
 export const ASSESSMENT_DEFAULT = {

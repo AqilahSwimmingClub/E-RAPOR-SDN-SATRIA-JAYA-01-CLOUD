@@ -339,11 +339,18 @@ test('20. Build production menghasilkan /beli lengkap tanpa mengganggu bagian la
   const temp=bangunDiDirektoriSementara();
   try{
     assert.ok(existsSync(join(temp,'dist/beli/index.html')),'dist/beli/index.html wajib ada');
-    const sumber=readdirSync(join(rootPath,'public/beli')).sort();
-    assert.deepEqual(readdirSync(join(temp,'dist/beli')).sort(),sumber,'seluruh berkas halaman tersalin');
+    /* Halaman ini kini punya subdirektori aset (berkas QRIS), jadi pembandingannya menelusuri
+       isi folder sampai ke dalam - bukan hanya nama di tingkat pertama. Berkas biner
+       dibandingkan sebagai buffer, bukan sebagai teks. */
+    const telusuri=(akar,awalan='')=>readdirSync(join(akar,awalan),{withFileTypes:true})
+      .flatMap(entri=>entri.isDirectory()
+        ?telusuri(akar,join(awalan,entri.name))
+        :[join(awalan,entri.name)]).sort();
+    const sumber=telusuri(join(rootPath,'public/beli'));
+    assert.deepEqual(telusuri(join(temp,'dist/beli')),sumber,'seluruh berkas halaman tersalin');
     for(const berkas of sumber)
-      assert.equal(readFileSync(join(temp,'dist/beli',berkas),'utf8'),read(`public/beli/${berkas}`),
-        `${berkas} tersalin apa adanya`);
+      assert.ok(readFileSync(join(temp,'dist/beli',berkas))
+        .equals(readFileSync(join(rootPath,'public/beli',berkas))),`${berkas} tersalin apa adanya`);
     /* Seluruh aset dirujuk dengan alamat absolut dari akar situs, sehingga tersedia baik
        ketika halaman dibuka di /beli maupun /beli/. */
     for(const rujukan of [...halaman().matchAll(/(?:href|src)="([^"]+)"/g)].map(item=>item[1])){

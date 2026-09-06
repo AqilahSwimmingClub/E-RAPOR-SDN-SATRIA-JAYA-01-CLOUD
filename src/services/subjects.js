@@ -7,7 +7,10 @@ function assertTeacherSession(session){
   if(!session || session.role!=='teacher' || !session.classId) throw new Error('Session Guru tidak valid.');
 }
 
-function bySubjectOrder(a,b){return (a.group==='A'?0:1)-(b.group==='A'?0:1)||a.order-b.order;}
+/* URUTAN TUNGGAL. Sampai 1.3.1 fungsi ini mendahulukan Kelompok A lalu Kelompok B, sehingga
+   urutan mapel milik Guru bisa berbeda dari urutan yang diatur Admin pada Mapping. Sejak 1.3.2
+   nomor urut Mapping sudah tunggal 1..N, jadi ia satu-satunya penentu urutan di sini. */
+function bySubjectOrder(a,b){return (Number(a.order)||0)-(Number(b.order)||0);}
 
 /* SATU-SATUNYA PINTU MASUK daftar mapel milik Guru, sehingga penugasan Admin ikut berlaku pada
    penilaian, deskripsi, rapor, dan leger sekaligus — bukan sekadar menyembunyikan menu. Guru

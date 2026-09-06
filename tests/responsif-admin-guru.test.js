@@ -169,7 +169,9 @@ test('7. Kolom aksi pada tabel lebar dipakukan agar tidak terpotong penggulir',(
     ['users.js','<th>Mata Pelajaran Ditugaskan</th>'], // Akun Guru & Penugasan
     ['references.js','<th>Mata Pelajaran</th>'],       // Master Mata Pelajaran
     ['students.js','<th>Telepon</th>'],                // Data Siswa
-    ['attendance.js','<th>Sumber</th>'],               // Rekap absensi manual
+    /* Kolom Sumber diberi kelas `attendance-source` pada 1.3.2 supaya dapat dilipat di
+       landscape; penandanya berubah, kewajiban kolom aksinya tetap sama. */
+    ['attendance.js','<th class="attendance-source">Sumber</th>'], // Rekap absensi manual
     ['reports.js','<th>Status</th>'],                  // Input Nilai Rapor
   ];
   for(const [berkas,sebelum] of wajib){
