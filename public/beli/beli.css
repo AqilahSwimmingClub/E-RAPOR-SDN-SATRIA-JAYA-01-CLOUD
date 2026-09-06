@@ -433,6 +433,88 @@ input[aria-invalid="true"]{border-color:#c0392b;background:#fff7f6}
   .hero-trust{grid-template-columns:repeat(3,1fr);gap:10px}
   .kartu-form{padding:26px 24px 30px}
 }
+
+/* ======================================================= 1.3.2 PEMBAYARAN, UNDUH, PESANAN
+
+   Tiga bagian baru: pilihan metode pembayaran di dalam formulir, kartu metode pembayaran
+   resmi, dan daftar unduhan. Seluruhnya mobile-first satu kolom; kolom tambahan hanya muncul
+   pada layar yang memang cukup lebar, sehingga tidak pernah ada geser mendatar. */
+
+/* ----------------------------------------------------- Pilihan pembayaran dalam formulir */
+.pilih-bayar{margin:6px 0 4px;padding:14px 14px 12px;border:1px solid var(--garis);
+  border-radius:14px;background:#fbfcfe}
+.pilih-bayar legend{padding:0 6px;font-size:13.5px;font-weight:700;color:var(--tinta)}
+.pilih-bayar .opsional{font-weight:600;color:var(--redup)}
+.pilih-bayar-nota{margin:2px 0 10px;font-size:12.5px;color:var(--redup);line-height:1.5}
+.pilih-bayar-baris{display:grid;grid-template-columns:1fr;gap:8px}
+.pilih-bayar-opsi{display:flex;align-items:center;gap:10px;min-height:48px;padding:10px 12px;
+  border:1px solid var(--garis);border-radius:12px;background:#fff;cursor:pointer;
+  font-size:14px;font-weight:600}
+.pilih-bayar-opsi input{width:18px;height:18px;accent-color:var(--navy-2);flex:none;margin:0}
+.pilih-bayar-opsi:focus-within{border-color:var(--navy-2);box-shadow:0 0 0 3px rgba(18,50,92,.12)}
+.pilih-bayar-opsi.terpilih{border-color:var(--navy-2);background:#f2f6fc}
+
+/* ------------------------------------------------------------------ Hasil simpan pesanan */
+.hasil-pesanan{margin-top:14px;padding:14px 15px;border-radius:13px;font-size:14px;line-height:1.6}
+.hasil-pesanan.berhasil{border:1px solid #b7e3c8;background:#f0faf3;color:#13623a}
+.hasil-pesanan.gagal{border:1px solid #f0c2c2;background:#fdf3f3;color:var(--maroon)}
+.hasil-pesanan strong{display:block;font-size:15px}
+.hasil-pesanan .order-id{display:inline-block;margin-top:6px;padding:6px 12px;border-radius:9px;
+  background:#fff;border:1px dashed #9fc9b1;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  font-size:15px;font-weight:700;letter-spacing:.04em;word-break:break-all}
+
+/* --------------------------------------------------------------- Kartu metode pembayaran */
+.bayar-baris{display:grid;grid-template-columns:1fr;gap:14px;margin-top:8px}
+.kartu-bayar{display:flex;flex-direction:column;gap:10px;padding:20px 18px;border-radius:var(--radius);
+  background:var(--kartu);border:1px solid var(--garis);box-shadow:var(--bayang)}
+.kartu-bayar h3{font-size:17px}
+.kartu-bayar .bayar-nota{font-size:13.5px;color:var(--redup)}
+.bayar-nilai{display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:12px;
+  background:#f5f8fc;border:1px solid var(--garis)}
+.bayar-nomor{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:19px;font-weight:800;
+  letter-spacing:.06em;color:var(--navy);word-break:break-all}
+.bayar-atas-nama{font-size:13.5px;font-weight:700;color:var(--tinta)}
+.bayar-label-kecil{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--redup)}
+/* Gambar QRIS ditampilkan APA ADANYA: seluruh gambar tetap terlihat, tidak dipotong, tidak
+   ditarik, dan tidak diubah warnanya. object-fit:contain menjaga perbandingan sisinya. */
+.bayar-qris{width:100%;max-width:280px;margin:0 auto;aspect-ratio:1/1;object-fit:contain;
+  background:#fff;border:1px solid var(--garis);border-radius:12px;padding:8px}
+.btn-salin{align-self:flex-start;min-height:42px;padding:9px 16px;border-radius:11px;border:1px solid var(--garis);
+  background:#fff;color:var(--navy);font:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
+.btn-salin:hover{background:#f2f6fc}
+.btn-salin[data-tersalin="ya"]{border-color:#b7e3c8;background:#f0faf3;color:#13623a}
+
+.kartu-langkah-bayar{margin-top:16px;padding:20px 18px;border-radius:var(--radius);background:var(--kartu);
+  border:1px solid var(--garis);box-shadow:var(--bayang)}
+.kartu-langkah-bayar h3{font-size:17px;margin-bottom:10px}
+.langkah-bayar{display:grid;gap:9px;counter-reset:bayar}
+.langkah-bayar li{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start;font-size:14px}
+.langkah-bayar li::before{counter-increment:bayar;content:counter(bayar);display:grid;place-items:center;
+  width:26px;height:26px;border-radius:50%;background:var(--navy-2);color:#fff;font-size:12.5px;font-weight:800}
+.catatan-aman{margin-top:12px;padding-top:12px;border-top:1px solid var(--garis)}
+.catatan-tengah{margin-top:14px;text-align:center}
+
+/* ------------------------------------------------------------------------ Kartu unduhan */
+.unduh-baris{display:grid;grid-template-columns:1fr;gap:14px;margin-top:8px}
+.kartu-unduh{display:flex;flex-direction:column;gap:10px;padding:20px 18px;border-radius:var(--radius);
+  background:var(--kartu);border:1px solid var(--garis);box-shadow:var(--bayang)}
+.kartu-unduh h3{font-size:17px}
+.unduh-status{display:inline-flex;align-items:center;gap:7px;align-self:flex-start;padding:5px 12px;
+  border-radius:999px;font-size:12.5px;font-weight:700}
+.unduh-status.ada{background:#e9f7ef;color:#13623a}
+.unduh-status.belum{background:#f1f3f7;color:var(--redup)}
+.unduh-meta{font-size:13.5px;color:var(--redup)}
+/* Tombol yang belum punya berkas TIDAK disembunyikan: ia tetap terlihat, mati, dan berkata
+   apa adanya. Menyembunyikannya akan membuat pembeli mengira platformnya tidak didukung. */
+.btn-unduh[aria-disabled="true"]{background:#eef1f6;color:var(--redup);cursor:not-allowed;box-shadow:none}
+
+/* -------------------------------------------------------------------- Cakupan satu lisensi */
+.cakupan-daftar{display:grid;grid-template-columns:1fr;gap:10px;margin-top:8px}
+.cakupan-daftar li{display:grid;grid-template-columns:22px 1fr;gap:11px;align-items:start;
+  padding:14px 16px;border-radius:14px;background:var(--kartu);border:1px solid var(--garis);font-size:14.5px}
+.cakupan-daftar li::before{content:"";display:block;width:22px;height:22px;border-radius:50%;
+  background:#e9f7ef url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2313623a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7'/%3E%3C/svg%3E") center/13px 13px no-repeat}
+
 @media(min-width:900px){
   .hero-grid{padding:60px 20px 70px}
   .bagian{padding:64px 0}
@@ -442,6 +524,10 @@ input[aria-invalid="true"]{border-color:#c0392b;background:#fff7f6}
   .kaki-kredit{text-align:right;justify-items:end}
   .kartu-aman{grid-template-columns:1.25fr 1fr;align-items:center;padding:26px 26px}
   .aman-poin{grid-template-columns:1fr}
+  .pilih-bayar-baris{grid-template-columns:repeat(3,1fr)}
+  .bayar-baris{grid-template-columns:repeat(3,1fr);align-items:stretch}
+  .unduh-baris{grid-template-columns:repeat(2,1fr)}
+  .cakupan-daftar{grid-template-columns:repeat(2,1fr)}
 }
 @media(min-width:1060px){
   .nav-toggle{display:none}

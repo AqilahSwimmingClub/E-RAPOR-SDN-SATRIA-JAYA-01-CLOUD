@@ -46,6 +46,8 @@
         <li><a class="nav-tautan" href="#beranda" data-nav="beranda">Beranda</a></li>
         <li><a class="nav-tautan" href="#keunggulan" data-nav="keunggulan">Keunggulan</a></li>
         <li><a class="nav-tautan" href="#cara-pemesanan" data-nav="cara-pemesanan">Cara Pemesanan</a></li>
+        <li><a class="nav-tautan" href="#pembayaran" data-nav="pembayaran">Pembayaran</a></li>
+        <li><a class="nav-tautan" href="#unduh" data-nav="unduh">Unduh</a></li>
         <li><a class="nav-tautan" href="#tutorial" data-nav="tutorial">Tutorial</a></li>
       </ul>
       <a class="btn btn-emas btn-nav" id="tautan-developer" href="#" target="_blank" rel="noopener noreferrer">
@@ -281,6 +283,12 @@
             </div>
           </div>
 
+          <fieldset class="pilih-bayar">
+            <legend>Metode Pembayaran yang Anda rencanakan <span class="opsional">(opsional)</span></legend>
+            <p class="pilih-bayar-nota">Boleh dikosongkan. Nominal dan metode akhir dikonfirmasi Developer setelah pesanan Anda masuk.</p>
+            <div class="pilih-bayar-baris" id="pilihan-bayar"></div>
+          </fieldset>
+
           <label class="persetujuan">
             <input id="konfirmasi" name="konfirmasi" type="checkbox"/>
             <span>Saya memastikan data sekolah yang saya isi sudah benar.</span>
@@ -301,11 +309,17 @@
 
           <button class="btn btn-hijau btn-blok" id="tombol-pesan" type="submit" disabled>
             <svg class="ikon" width="20" height="20" aria-hidden="true"><use href="#ikon-wa"/></svg>
-            PESAN LISENSI e-RAPOR VIA WHATSAPP
+            KIRIM PESANAN LISENSI e-RAPOR
           </button>
           <p class="catatan" id="catatan-tombol">Centang pernyataan di atas dan lengkapi data wajib untuk mengaktifkan tombol.</p>
-          <p class="catatan">Tombol ini membuka WhatsApp. Pemesanan diproses manual oleh pengembang; halaman ini
-            tidak membuat License Key sendiri dan tidak mengaktifkan lisensi apa pun.</p>
+          <p class="catatan">Pesanan Anda DISIMPAN LEBIH DULU di server dan diberi Order ID. WhatsApp baru dibuka
+            sesudahnya, jadi pesanan Anda tetap tercatat walaupun pesan WhatsApp gagal terkirim.</p>
+          <p class="catatan">Halaman ini tidak membuat License Key sendiri dan tidak mengaktifkan lisensi apa pun.
+            License Key resmi diterbitkan Developer setelah pembayaran diverifikasi.</p>
+
+          <!-- Hasil penyimpanan pesanan. Tetap kosong sampai server benar-benar menjawab: Order ID
+               tidak pernah ditampilkan sebelum pesanannya sungguh tersimpan. -->
+          <div class="hasil-pesanan" id="hasil-pesanan" role="status" aria-live="polite" hidden></div>
         </form>
       </div>
     </div>
@@ -330,7 +344,7 @@
         <span class="langkah-no">02</span>
         <strong>Kirim Pemesanan</strong>
         <span class="langkah-visual hijau" aria-hidden="true"><svg width="26" height="26"><use href="#ikon-wa"/></svg></span>
-        <span class="langkah-teks">Kirim permintaan melalui WhatsApp ke developer.</span>
+        <span class="langkah-teks">Pesanan tersimpan di server dan Anda menerima Order ID, lalu WhatsApp terbuka membawa Order ID itu.</span>
       </li>
       <li class="langkah reveal">
         <span class="langkah-no">03</span>
@@ -360,6 +374,52 @@
   </div>
 </section>
 
+<!-- ------------------------------------------------------------------------- Pembayaran -->
+<!-- Seluruh isi pembayaran digambar dari src/data/payment-config.js. Tidak ada satu pun nomor
+     rekening, nomor GoPay, maupun gambar QRIS yang ditulis di markup ini, sehingga tidak ada
+     kemungkinan angka di halaman berbeda dengan angka di sumber resminya. -->
+<section class="bagian" id="pembayaran">
+  <div class="shell">
+    <div class="bagian-head reveal">
+      <h2><span class="head-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19"/><path d="M6 15h4"/></svg></span>Metode Pembayaran Resmi</h2>
+      <p id="catatan-nominal">Nominal pembayaran dikonfirmasi langsung oleh Developer.</p>
+    </div>
+    <div class="bayar-baris" id="daftar-bayar"></div>
+    <div class="kartu-langkah-bayar reveal">
+      <h3>Alur Pembayaran</h3>
+      <ol class="langkah-bayar" id="langkah-bayar"></ol>
+      <p class="catatan catatan-aman">Developer TIDAK PERNAH meminta password aplikasi, PIN,
+        OTP, License Key milik sekolah lain, maupun data siswa Anda. Bila ada yang memintanya
+        mengatasnamakan e-Rapor, abaikan dan konfirmasikan lewat nomor WhatsApp resmi di halaman ini.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------------------ Unduh aplikasi -->
+<section class="bagian bagian-alt" id="unduh">
+  <div class="shell">
+    <div class="bagian-head reveal">
+      <h2><span class="head-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7.5 11 4.5 4.5 4.5-4.5"/><path d="M4 20h16"/></svg></span>Unduh Aplikasi e-Rapor</h2>
+      <p>Berkas pemasang resmi untuk Android dan Windows. Aplikasi tetap memerlukan License Key
+        resmi untuk dapat digunakan.</p>
+    </div>
+    <div class="unduh-baris" id="daftar-unduh"></div>
+    <p class="catatan catatan-tengah">Alamat unduhan dikelola Developer. Platform yang belum
+      memiliki berkas pemasang ditampilkan apa adanya sebagai "Belum tersedia".</p>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------------- Cakupan satu lisensi -->
+<section class="bagian" id="cakupan-lisensi">
+  <div class="shell">
+    <div class="bagian-head reveal">
+      <h2><span class="head-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.2 8.3 8 9 4.8-.7 8-4.5 8-9V6Z"/><path d="m9 12 2 2 4-4"/></svg></span>Yang Anda Dapatkan dari Satu Lisensi</h2>
+      <p>Keterangan di bawah ini adalah aturan yang benar-benar berjalan di aplikasi, bukan janji fitur.</p>
+    </div>
+    <ul class="cakupan-daftar" id="cakupan-lisensi-daftar"></ul>
+  </div>
+</section>
+
 <!-- ---------------------------------------------------------------------------- Tutorial -->
 <section class="bagian" id="tutorial">
   <div class="shell">
@@ -375,7 +435,7 @@
           <div class="mini-form">
             <span class="mini-label">Nama Sekolah</span><span class="mini-kolom">SDN Maju Jaya 01</span>
             <span class="mini-label">NPSN</span><span class="mini-kolom">12345678</span>
-            <span class="mini-tombol hijau">Pesan via WhatsApp</span>
+            <span class="mini-tombol hijau">Kirim Pesanan</span>
           </div>
         </div>
         <ul class="tutorial-daftar">
@@ -383,8 +443,10 @@
           <li>Isi Nama Sekolah dan NPSN.</li>
           <li>Isi Nama Penanggung Jawab dan Nomor WhatsApp.</li>
           <li>Isi Kabupaten/Kota dan Provinsi.</li>
-          <li>Klik <strong>Pesan Lisensi e-Rapor via WhatsApp</strong>.</li>
-          <li>Periksa pesannya, lalu kirim kepada developer.</li>
+          <li>Pilih metode pembayaran yang Anda rencanakan (boleh dikosongkan).</li>
+          <li>Klik <strong>Kirim Pesanan Lisensi e-Rapor</strong>.</li>
+          <li>Pesanan Anda tersimpan di server dan <strong>Order ID</strong> langsung muncul. Simpan Order ID itu.</li>
+          <li>WhatsApp terbuka membawa Order ID tadi. Periksa pesannya, lalu kirim kepada developer.</li>
         </ul>
       </article>
 

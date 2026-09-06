@@ -5,14 +5,14 @@
    diperbarui WebView masih menjalankan JavaScript lama dari cache dan revisi baru tidak
    pernah muncul. Kini kode aplikasi diambil network-first supaya berkas dari APK terbaru
    selalu menang, sedangkan aset berat tetap cache-first agar offline tetap ringan. */
-const APP_CACHE_VERSION='1.3.1-23';
+const APP_CACHE_VERSION='1.3.2-24';
 const CACHE=`erapor-satria-${APP_CACHE_VERSION}`;
 const OFFLINE_SHELL='./index.html';
 const APP_SHELL=[
   './','./index.html','./manifest.webmanifest',
   './assets/app-icon-192.png','./assets/app-icon-512.png','./assets/fahmi-djawas.jpg','./assets/vendor/xlsx.mjs',
   './assets/logo-tut-wuri-handayani.png','./assets/logo-kabupaten-bekasi.png',
-  './src/styles/app.css','./src/app.js','./src/core/router.js','./src/data/constants.js','./src/data/navigation.js','./src/data/version.js','./src/data/activity-description.js','./src/data/app-identity.js','./src/data/license-config.js','./src/data/cocurricular.js','./src/data/extracurricular-defaults.js','./src/data/intracurricular-defaults.js','./src/data/curriculum-cp.js','./src/data/curriculum-cp-naskah.js','./src/data/cp-naskah-046-agama-pancasila.js','./src/data/cp-naskah-046-bahasa-matematika.js','./src/data/cp-naskah-046-lainnya.js','./src/data/cp-naskah-046-koding.js','./src/data/cp-naskah-sunda.js','./src/data/learning-objective-defaults.js','./src/data/version-compare.js','./src/data/update-config.js',
+  './src/styles/app.css','./src/app.js','./src/core/router.js','./src/data/constants.js','./src/data/navigation.js','./src/data/version.js','./src/data/activity-description.js','./src/data/app-identity.js','./src/data/license-config.js','./src/data/payment-config.js','./src/data/cocurricular.js','./src/data/extracurricular-defaults.js','./src/data/intracurricular-defaults.js','./src/data/curriculum-cp.js','./src/data/curriculum-cp-naskah.js','./src/data/cp-naskah-046-agama-pancasila.js','./src/data/cp-naskah-046-bahasa-matematika.js','./src/data/cp-naskah-046-lainnya.js','./src/data/cp-naskah-046-koding.js','./src/data/cp-naskah-sunda.js','./src/data/learning-objective-defaults.js','./src/data/version-compare.js','./src/data/update-config.js',
   './src/ui/dom.js','./src/ui/icons.js','./src/ui/layout.js','./src/ui/digital-gauge.js',
   './src/pages/assessment.js','./src/pages/attendance.js','./src/pages/class-overview.js','./src/pages/cocurricular-input.js','./src/pages/completeness.js','./src/pages/extracurricular-input.js','./src/pages/intracurricular-input.js',
   './src/pages/activation.js','./src/pages/admin-status.js','./src/pages/attitudes.js','./src/pages/cocurricular.js','./src/pages/intracurricular.js','./src/pages/dapodik.js',

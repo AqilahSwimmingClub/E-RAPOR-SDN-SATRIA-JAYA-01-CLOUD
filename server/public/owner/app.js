@@ -59,7 +59,8 @@ async function render(){
     </div>
     <div class="tabs">${[['dashboard','Dashboard'],['aktif','Lisensi Aktif'],['unused','Belum Digunakan'],
       ['suspended','Ditangguhkan'],['revoked','Lisensi Dicabut'],['developer','Lisensi Developer'],
-      ['customers','Sekolah/Pembeli'],['versions','Versi Aplikasi'],['events','Riwayat']]
+      ['orders','Pesanan Lisensi'],['customers','Sekolah/Pembeli'],
+      ['downloads','Tautan Unduhan'],['versions','Versi Aplikasi'],['events','Riwayat']]
       .map(([id,label])=>`<button class="tab ${tab===id?'active':''}" data-tab="${id}">${label}</button>`).join('')}</div>
     ${pesan?`<div class="msg ${pesan.jenis}">${esc(pesan.teks)}</div>`:''}
     <div data-isi><p class="loading">Memuat…</p></div>`;
@@ -81,6 +82,8 @@ async function render(){
       sub:'Dicabut permanen tetapi tidak dihapus; masih dapat dipulihkan bila diperlukan.'});
     else if(tab==='developer')await gambarLisensi(isi,{type:'DEVELOPER',judul:'Lisensi Developer',
       sub:'Lisensi resmi milik pemilik aplikasi untuk QA dan demo. Bukan penjualan, dan bukan jalan pintas: aktivasi, ikatan perangkat, dan auditnya sama seperti lisensi pembeli.',buatDeveloper:true});
+    else if(tab==='orders')await gambarPesanan(isi);
+    else if(tab==='downloads')await gambarUnduhan(isi);
     else if(tab==='customers')await gambarPelanggan(isi);
     else if(tab==='versions')await gambarVersi(isi);
     else await gambarRiwayat(isi);
@@ -209,6 +212,145 @@ async function gambarLisensi(host,{status='',type='',judul='Lisensi',sub='',buat
 
   host.querySelector('[data-cari]').onsubmit=event=>{event.preventDefault();muatTabel(host,{status,type});};
   await muatTabel(host,{status,type});
+}
+
+/* ------------------------------------------------------------------------- Pesanan
+
+   Pesanan datang dari Web Pembelian dan BUKAN lisensi. Ia hanya menjadi lisensi ketika Pemilik
+   menekan Buat Lisensi di sini - tidak pernah otomatis, dan tidak pernah oleh halaman publik.
+
+   NPSN yang sama boleh muncul berkali-kali. Itu bukan duplikat yang perlu diblokir: satu
+   sekolah wajar memesan lagi untuk perangkat kedua, untuk tahun berikutnya, atau karena
+   pesanan sebelumnya batal. Yang membedakan satu transaksi dari transaksi lain adalah Order ID. */
+
+const LABEL_STATUS_PESANAN=Object.freeze({BARU:'Baru',MENUNGGU_PEMBAYARAN:'Menunggu Pembayaran',
+  DIVERIFIKASI:'Diverifikasi',LISENSI_DITERBITKAN:'Lisensi Diterbitkan',DIBATALKAN:'Dibatalkan'});
+const LABEL_BAYAR=Object.freeze({BELUM_BAYAR:'Belum Bayar',MENUNGGU_KONFIRMASI:'Menunggu Konfirmasi',
+  LUNAS:'Lunas',DIBATALKAN:'Dibatalkan'});
+const LABEL_METODE=Object.freeze({qris:'QRIS',gopay:'GoPay',mandiri:'Bank Mandiri','belum-dipilih':'Belum dipilih'});
+
+async function gambarPesanan(host){
+  host.innerHTML=`<section class="card">
+      <h2>Pesanan Lisensi</h2>
+      <p class="sub">Pesanan yang masuk dari halaman pembelian. Pesanan disimpan lebih dulu di server,
+        jadi daftar ini tetap lengkap walaupun pesan WhatsApp pembeli tidak pernah terkirim.
+        Satu NPSN boleh memiliki beberapa pesanan; identitas transaksinya adalah Order ID.</p>
+      <div class="stats" data-ringkas style="margin-top:12px"></div>
+      <form class="row" data-cari-pesanan style="margin-top:12px">
+        <div><label>Cari</label><input name="q" placeholder="Order ID, sekolah, NPSN, pemesan, WhatsApp"/></div>
+        <div><label>Status Pesanan</label><select name="status"><option value="">Semua</option>
+          ${Object.entries(LABEL_STATUS_PESANAN).map(([id,label])=>`<option value="${id}">${label}</option>`).join('')}</select></div>
+        <div><label>Status Pembayaran</label><select name="payment_status"><option value="">Semua</option>
+          ${Object.entries(LABEL_BAYAR).map(([id,label])=>`<option value="${id}">${label}</option>`).join('')}</select></div>
+        <div><button class="btn ghost" type="submit">Terapkan</button></div>
+      </form>
+      <div class="scroll" data-tabel-pesanan style="margin-top:12px"></div>
+      <div data-hasil-pesanan></div>
+    </section>`;
+  host.querySelector('[data-cari-pesanan]').onsubmit=event=>{event.preventDefault();muatPesanan(host);};
+  await muatPesanan(host);
+}
+
+async function muatPesanan(host){
+  const form=host.querySelector('[data-cari-pesanan]');
+  const {orders,summary}=await api(`/owner/orders?q=${encodeURIComponent(form.q.value)}`
+    +`&status=${encodeURIComponent(form.status.value)}&payment_status=${encodeURIComponent(form.payment_status.value)}`);
+
+  host.querySelector('[data-ringkas]').innerHTML=[['Total Pesanan',summary.total],
+    ...Object.entries(LABEL_STATUS_PESANAN).map(([id,label])=>[label,summary.per_status[id]||0])]
+    .map(([label,nilai])=>`<div class="stat"><span>${esc(label)}</span><b>${nilai}</b></div>`).join('');
+
+  host.querySelector('[data-tabel-pesanan]').innerHTML=orders.length?`<table><thead><tr>
+      <th>Order ID</th><th>Sekolah &amp; Pemesan</th><th>Kontak</th><th>Status</th>
+      <th>Pembayaran</th><th>Masuk</th><th>Aksi</th>
+    </tr></thead><tbody>${orders.map(o=>`<tr>
+      <td><code>${esc(o.order_code)}</code>
+        ${o.license_id?`<br/><small style="color:var(--muted)">Lisensi ${esc(o.license_id)}</small>`:''}</td>
+      <td><strong>${esc(o.school_name)}</strong>
+        <br/><small style="color:var(--muted)">NPSN ${esc(o.npsn)}</small>
+        <br/><small>${esc(o.contact_name)}</small>
+        <br/><small style="color:var(--muted)">${esc(o.city||'—')}, ${esc(o.province||'—')}</small></td>
+      <td><small>${esc(o.whatsapp)}</small>${o.email?`<br/><small style="color:var(--muted)">${esc(o.email)}</small>`:''}
+        <br/><small style="color:var(--muted)">Metode: ${esc(LABEL_METODE[o.payment_method]||o.payment_method||'—')}</small></td>
+      <td><span class="pill ${o.status==='DIBATALKAN'?'REVOKED':o.status==='LISENSI_DITERBITKAN'?'ACTIVE':'UNUSED'}">${esc(LABEL_STATUS_PESANAN[o.status]||o.status)}</span></td>
+      <td><span class="pill ${o.payment_status==='LUNAS'?'ACTIVE':o.payment_status==='DIBATALKAN'?'REVOKED':'UNUSED'}">${esc(LABEL_BAYAR[o.payment_status]||o.payment_status)}</span></td>
+      <td><small>${waktu(o.created_at)}</small>
+        ${o.notes?`<br/><small style="color:var(--muted)">${esc(o.notes)}</small>`:''}</td>
+      <td><div class="actions">
+        ${o.status==='LISENSI_DITERBITKAN'?'<small style="color:var(--muted)">Selesai</small>':`
+          ${o.status!=='DIVERIFIKASI'&&o.status!=='DIBATALKAN'?`<button class="btn ghost" data-pesanan="verify" data-id="${esc(o.id)}">Verifikasi Data</button>`:''}
+          ${o.status!=='DIBATALKAN'&&o.payment_status!=='MENUNGGU_KONFIRMASI'&&o.payment_status!=='LUNAS'?`<button class="btn ghost" data-pesanan="await-payment" data-id="${esc(o.id)}">Menunggu Pembayaran</button>`:''}
+          ${o.status!=='DIBATALKAN'&&o.payment_status!=='LUNAS'?`<button class="btn ghost" data-pesanan="mark-paid" data-id="${esc(o.id)}">Tandai Lunas</button>`:''}
+          ${o.payment_status==='LUNAS'?`<button class="btn ghost" data-pesanan="mark-unpaid" data-id="${esc(o.id)}">Batalkan Lunas</button>`:''}
+          ${o.status==='DIBATALKAN'
+            ?`<button class="btn ghost" data-pesanan="reopen" data-id="${esc(o.id)}">Buka Kembali</button>`
+            :`<button class="btn danger" data-pesanan="cancel" data-id="${esc(o.id)}">Batalkan</button>`}
+          ${o.status!=='DIBATALKAN'?`<button class="btn" data-pesanan="issue-license" data-id="${esc(o.id)}">Buat Lisensi</button>`:''}`}
+      </div></td></tr>`).join('')}</tbody></table>`
+    :'<p class="sub">Belum ada pesanan yang masuk.</p>';
+
+  host.querySelectorAll('[data-pesanan]').forEach(btn=>btn.onclick=async()=>{
+    const aksi=btn.dataset.pesanan;
+    /* Penerbitan lisensi dan pembatalan dikonfirmasi lebih dulu: keduanya tidak dapat
+       dibatalkan begitu saja - lisensi yang sudah terbit tidak dihapus, dan pesanan yang
+       dibatalkan tidak lagi dapat diterbitkan tanpa dibuka kembali. */
+    const konfirmasi={'issue-license':'Terbitkan License Key untuk pesanan ini? Kunci utuh hanya ditampilkan SEKALI setelah ini.',
+      cancel:'Batalkan pesanan ini? Catatannya tetap tersimpan dan dapat dibuka kembali.'}[aksi];
+    if(konfirmasi&&!confirm(konfirmasi))return;
+    btn.disabled=true;
+    const hasilKotak=host.querySelector('[data-hasil-pesanan]');
+    try{
+      const hasil=await api(`/owner/orders/${btn.dataset.id}/${aksi}`,{method:'POST',body:{}});
+      hasilKotak.innerHTML=hasil.license
+        ? `<div class="msg ok">License Key untuk ${esc(hasil.order.order_code)} berhasil dibuat.</div>
+           <div class="keylist">${esc(hasil.license.key)}</div>
+           <p class="warn">Salin sekarang. Setelah halaman ditutup, kunci utuh hanya dapat diambil lewat tombol Lihat Key pada daftar lisensi.</p>`
+        : `<div class="msg ok">Pesanan ${esc(hasil.order.order_code)} diperbarui.</div>`;
+      await muatPesanan(host);
+    }catch(error){hasilKotak.innerHTML=`<div class="msg err">${esc(error.message)}</div>`;btn.disabled=false;}
+  });
+}
+
+/* ------------------------------------------------------------------- Tautan unduhan
+
+   Yang disimpan hanya ALAMAT berkas pemasang, bukan berkasnya. Alamat yang dikosongkan membuat
+   halaman pembelian berkata "Belum tersedia" apa adanya - tidak pernah diisi tautan karangan. */
+
+async function gambarUnduhan(host){
+  const {downloads}=await api('/owner/downloads');
+  host.innerHTML=`<section class="card">
+      <h2>Tautan Unduhan Resmi</h2>
+      <p class="sub">Alamat berkas pemasang yang ditampilkan di halaman pembelian. Berkasnya sendiri
+        tidak disimpan di server ini, sehingga penyimpanannya dapat berpindah tanpa merilis ulang
+        aplikasi. Kosongkan alamat bila platformnya memang belum tersedia — halaman pembelian akan
+        menyatakannya apa adanya, bukan menyembunyikannya.</p>
+      ${downloads.map(item=>`<form class="row" data-unduh="${esc(item.platform)}" style="margin-top:14px">
+        <div><label>Platform</label><input value="${item.platform==='android'?'Android (APK)':'Windows (Installer)'}" disabled/></div>
+        <div style="flex:2 1 320px"><label>Alamat unduhan (https://…)</label>
+          <input name="url" value="${esc(item.url)}" placeholder="Kosongkan bila belum tersedia"/></div>
+        <div><label>Versi</label><input name="version" value="${esc(item.version)}" placeholder="1.3.2"/></div>
+        <div><label>Ukuran berkas</label><input name="sizeText" value="${esc(item.size_text)}" placeholder="22 MB"/></div>
+        <div style="flex:2 1 260px"><label>Catatan</label><input name="notes" value="${esc(item.notes)}" placeholder="Opsional"/></div>
+        <div><button class="btn" type="submit">Simpan</button></div>
+        <div style="flex:1 1 100%"><small style="color:var(--muted)">
+          ${item.available?`Tersedia sejak ${waktu(item.updated_at)}`:'Belum tersedia — halaman pembelian menampilkan "Belum tersedia".'}</small></div>
+      </form>`).join('')}
+      <div data-hasil-unduh></div>
+    </section>`;
+
+  host.querySelectorAll('[data-unduh]').forEach(form=>form.onsubmit=async event=>{
+    event.preventDefault();
+    const tombol=form.querySelector('button');
+    tombol.disabled=true;
+    try{
+      await api('/owner/downloads',{method:'POST',body:{platform:form.dataset.unduh,
+        url:form.url.value,version:form.version.value,sizeText:form.sizeText.value,notes:form.notes.value}});
+      lapor(`Tautan unduhan ${form.dataset.unduh} disimpan.`,'ok');
+    }catch(error){
+      host.querySelector('[data-hasil-unduh]').innerHTML=`<div class="msg err">${esc(error.message)}</div>`;
+      tombol.disabled=false;
+    }
+  });
 }
 
 function barisIdentitas(l){

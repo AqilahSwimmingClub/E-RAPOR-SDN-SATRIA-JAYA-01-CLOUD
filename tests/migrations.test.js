@@ -34,29 +34,27 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.1 uses versionCode 23 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.1');
-  assert.equal(VERSION_CODE,23);
-  /* SCHEMA TETAP 5, walaupun rilis ini menambah koleksi `cpEvidenceScores`.
+test('release v1.3.2 uses versionCode 24 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.2');
+  assert.equal(VERSION_CODE,24);
+  /* SCHEMA TETAP 5.
 
-     Koleksi baru itu lahir dari bentuk bawaan database yang selalu digabungkan saat membaca,
-     jadi database lama langsung memilikinya dalam keadaan kosong tanpa satu pun catatan lama
-     disentuh. Bukti Butir CP yang sudah tersimpan pada rilis sebelumnya dipindahkan secara
-     non-destruktif dan idempotent oleh layanan Penilaian sendiri, tepat sebelum ia dapat
-     tertimpa.
+     Rilis ini menyentuh dua hal, dan tak satu pun mengubah bentuk database sekolah:
 
-     Rilis ini pun tidak menyentuh bentuk data sama sekali: isinya perbaikan kotak angka
-     Absensi manual, pemisahan lima area pada baris Mapping, dan penyelarasan warna permukaan
-     dengan latar global. Semuanya murni tampilan - tidak ada koleksi baru, tidak ada field
-     baru, dan tidak ada catatan lama yang ditulis ulang.
+     1. Mapping mata pelajaran memakai satu urutan tunggal 1..N. Field `group` TIDAK dihapus -
+        ia tetap tersimpan apa adanya supaya backup lama, mapping lama, dan penugasan Guru lama
+        tetap terbaca. Yang berubah hanya penomorannya, dan itu dilakukan sekali saat mapping
+        lama pertama kali dibaca oleh normalizeMappingOrder(), bukan oleh migration.
+     2. Pesanan lisensi dan tautan unduhan adalah tabel di database SERVER, bukan di database
+        sekolah. Keduanya tidak pernah menyentuh localStorage aplikasi.
 
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.1-TEMA-DAN-FORM-RESPONSIF');
-  /* Rilis sebelumnya bergeser ke 1.3.0 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.3.2-MAPPING-TUNGGAL-DAN-PEMBELIAN');
+  /* Rilis sebelumnya bergeser ke 1.3.1 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.0',versionCode:22});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.1',versionCode:23});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{

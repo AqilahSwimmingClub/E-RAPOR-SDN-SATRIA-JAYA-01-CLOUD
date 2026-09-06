@@ -32,7 +32,10 @@ th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertic
 th{color:var(--muted);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
 .scroll{overflow-x:auto}
 code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
-.pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.05em}
+/* Label status tidak boleh patah menjadi dua baris: sejak status pesanan masuk, beberapa
+   labelnya dua kata ("Belum Bayar", "Menunggu Konfirmasi") dan patah di tengah membuat
+   barisnya sulit dibaca sekilas. */
+.pill{display:inline-block;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.05em;white-space:nowrap}
 .UNUSED{background:rgba(147,170,198,.18);color:#cfe0f2}
 .ACTIVE{background:rgba(74,222,128,.16);color:var(--ok)}
 .SUSPENDED{background:rgba(255,201,61,.16);color:var(--amber)}

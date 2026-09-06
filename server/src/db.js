@@ -84,6 +84,49 @@ CREATE TABLE IF NOT EXISTS owner_sessions(
   expires_at TEXT NOT NULL
 );
 
+/* PESANAN LISENSI dari Web Pembelian. Tabel ini TIDAK memuat satu pun data akademik sekolah,
+   License Key, maupun Activation Token: isinya hanya keterangan pembelian yang diketikkan
+   pemesan sendiri. NPSN sengaja TIDAK unik - satu sekolah boleh memesan berkali-kali, dan
+   identitas transaksinya adalah order_code, bukan NPSN. */
+CREATE TABLE IF NOT EXISTS license_orders(
+  id TEXT PRIMARY KEY,
+  order_code TEXT NOT NULL UNIQUE,
+  school_name TEXT NOT NULL,
+  npsn TEXT NOT NULL,
+  contact_name TEXT NOT NULL,
+  whatsapp TEXT NOT NULL,
+  email TEXT,
+  city TEXT,
+  province TEXT,
+  payment_method TEXT,
+  status TEXT NOT NULL DEFAULT 'BARU',
+  payment_status TEXT NOT NULL DEFAULT 'BELUM_BAYAR',
+  license_id TEXT REFERENCES licenses(id),
+  message TEXT,
+  notes TEXT,
+  client_ref TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_orders_status ON license_orders(status, payment_status);
+CREATE INDEX IF NOT EXISTS ix_orders_npsn ON license_orders(npsn);
+CREATE INDEX IF NOT EXISTS ix_orders_created ON license_orders(created_at);
+/* Penjaga kiriman ganda. Dua permintaan dengan client_ref yang sama - tombol tertekan dua kali,
+   atau jaringan yang mengulang - tidak mungkin sama-sama membuat pesanan. */
+CREATE UNIQUE INDEX IF NOT EXISTS ux_orders_client_ref ON license_orders(client_ref) WHERE client_ref IS NOT NULL;
+
+/* Alamat unduhan resmi per platform. Berkasnya tidak disimpan di sini, hanya alamatnya, dan
+   hanya Pemilik yang boleh mengubahnya. Baris yang alamatnya kosong berarti "Belum tersedia". */
+CREATE TABLE IF NOT EXISTS release_downloads(
+  platform TEXT PRIMARY KEY,
+  url TEXT,
+  version TEXT,
+  size_text TEXT,
+  notes TEXT,
+  updated_at TEXT,
+  updated_by TEXT
+);
+
 /* Katalog rilis resmi e-Rapor. Hanya baris published yang pernah dilayani ke aplikasi
    sekolah. Tabel ini tidak pernah memuat data akademik sekolah mana pun. */
 CREATE TABLE IF NOT EXISTS app_versions(

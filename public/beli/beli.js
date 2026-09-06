@@ -1,12 +1,19 @@
 import { CONTACT_WHATSAPP, CONTACT_WHATSAPP_DISPLAY, SUPPORT_URL, whatsappUrl } from '../src/data/app-identity.js';
+import { LICENSE_SCOPE, PAYMENT_AMOUNT_NOTE, PAYMENT_METHODS, PAYMENT_STEPS } from '../src/data/payment-config.js';
 import { activeSectionId } from './nav.js';
-import { buildOrderMessage, REQUIRED_FIELDS, validateOrder } from './order-form.js';
+import { buildOrderMessage, buildOrderPayload, newClientRef, REQUIRED_FIELDS, validateOrder } from './order-form.js';
+import { fetchDownloads, orderErrorMessage, submitOrder } from './order-api.js';
+import { downloadMeta, downloadRows } from './unduhan.js';
 
 /* Perekat halaman publik pemesanan.
 
-   Halaman ini sengaja tidak mengenal apa pun dari aplikasi sekolah: tidak ada login, tidak ada
-   database, tidak ada Owner API, dan tidak ada satu pun permintaan jaringan. Yang dilakukannya
-   hanyalah menyusun pesan WhatsApp dari isian pengguna lalu membuka WhatsApp.
+   Halaman ini tidak mengenal apa pun dari aplikasi sekolah: tidak ada login, tidak ada database
+   sekolah, dan tidak ada Owner API. Dua permintaan jaringan yang dilakukannya keduanya publik
+   dan tanpa credential: MENYIMPAN PESANAN, dan membaca katalog unduhan resmi.
+
+   URUTANNYA PENTING. Pesanan disimpan ke server LEBIH DULU dan mendapat Order ID; WhatsApp baru
+   dibuka sesudahnya, membawa Order ID itu. WhatsApp bukan tempat penyimpanan pesanan - bila
+   pesannya tidak pernah terkirim, pesanannya tetap ada di server.
 
    Nomor WhatsApp tidak ditulis di berkas ini. Ia diambil dari src/data/app-identity.js, sumber
    kontak resmi yang sama dengan yang dipakai halaman Tentang & Pembaruan.
@@ -130,8 +137,34 @@ const persetujuan=document.querySelector('#konfirmasi');
 const KOLOM=[...REQUIRED_FIELDS,'email'];
 const kolom=nama=>form.elements[nama];
 
+const pilihanBayar=document.querySelector('#pilihan-bayar');
+const hasilPesanan=document.querySelector('#hasil-pesanan');
+
+/* Pilihan metode pembayaran digambar dari payment-config.js, bukan ditulis di markup, sehingga
+   tidak mungkin ada pilihan di halaman yang tidak dikenal server. */
+function gambarPilihanBayar(){
+  if(!pilihanBayar)return;
+  const daftar=[{id:'belum-dipilih',label:'Belum menentukan'},
+    ...PAYMENT_METHODS.map(item=>({id:item.id,label:item.label}))];
+  pilihanBayar.innerHTML=daftar.map((item,urutan)=>`
+    <label class="pilih-bayar-opsi${urutan===0?' terpilih':''}">
+      <input type="radio" name="paymentMethod" value="${item.id}"${urutan===0?' checked':''}/>
+      <span>${item.label}</span>
+    </label>`).join('');
+  pilihanBayar.addEventListener('change',()=>{
+    for(const opsi of pilihanBayar.querySelectorAll('.pilih-bayar-opsi'))
+      opsi.classList.toggle('terpilih',Boolean(opsi.querySelector('input')?.checked));
+    segarkan();
+  });
+}
+gambarPilihanBayar();
+
+function metodeTerpilih(){
+  return pilihanBayar?.querySelector('input[name="paymentMethod"]:checked')?.value||'belum-dipilih';
+}
+
 function bacaForm(){
-  const isi={konfirmasi:persetujuan.checked};
+  const isi={konfirmasi:persetujuan.checked,paymentMethod:metodeTerpilih()};
   for(const nama of KOLOM)isi[nama]=kolom(nama)?.value??'';
   return isi;
 }
@@ -140,6 +173,14 @@ function bacaForm(){
    Suntingan pengguna tidak pernah ditimpa. */
 let disuntingPengguna=false;
 kotakPesan.addEventListener('input',()=>{disuntingPengguna=true;});
+
+/* Order ID hasil penyimpanan terakhir. Kosong berarti pesanannya BELUM tersimpan, dan selama
+   kosong tidak ada satu pun nomor yang ditampilkan maupun dikirim ke WhatsApp. */
+let orderCodeTersimpan='';
+/* Satu penanda untuk satu isian formulir. Ia hanya diperbarui setelah pesanan benar-benar
+   tersimpan, sehingga menekan tombol dua kali pada isian yang sama mengembalikan pesanan yang
+   sama, bukan pesanan kedua. */
+let clientRef=newClientRef();
 
 function tampilkanGalat(errors){
   for(const nama of [...KOLOM,'konfirmasi']){
@@ -157,10 +198,10 @@ function tampilkanGalat(errors){
 function segarkan({tampilkan=false}={}){
   const isi=bacaForm();
   const {valid,errors}=validateOrder(isi);
-  if(!disuntingPengguna)kotakPesan.value=buildOrderMessage(isi);
+  if(!disuntingPengguna)kotakPesan.value=buildOrderMessage(isi,{orderCode:orderCodeTersimpan});
   tombol.disabled=!valid;
   catatan.textContent=valid
-    ? 'Data sudah lengkap. Tombol di atas membuka WhatsApp beserta pesan di atasnya.'
+    ? 'Data sudah lengkap. Tombol di atas menyimpan pesanan Anda ke server lebih dulu, lalu membuka WhatsApp.'
     : 'Centang pernyataan di atas dan lengkapi data wajib untuk mengaktifkan tombol.';
   if(tampilkan)tampilkanGalat(errors);
   else tampilkanGalat({});
@@ -177,10 +218,33 @@ kolom('npsn')?.addEventListener('input',event=>{
   if(bersih!==event.target.value)event.target.value=bersih;
 });
 
-form.addEventListener('submit',event=>{
+function tampilkanHasil({berhasil,judul,isi,orderCode=''}){
+  if(!hasilPesanan)return;
+  hasilPesanan.hidden=false;
+  hasilPesanan.className=`hasil-pesanan ${berhasil?'berhasil':'gagal'}`;
+  hasilPesanan.textContent='';
+  const kepala=document.createElement('strong');
+  kepala.textContent=judul;
+  hasilPesanan.append(kepala);
+  if(orderCode){
+    const kode=document.createElement('span');
+    kode.className='order-id';
+    kode.textContent=orderCode;
+    hasilPesanan.append(kode);
+  }
+  const keterangan=document.createElement('p');
+  keterangan.textContent=isi;
+  hasilPesanan.append(keterangan);
+}
+
+/* Penjaga tekan ganda di sisi halaman. Penjaga sebenarnya tetap ada di server lewat
+   client_ref; yang ini hanya mencegah dua permintaan berangkat bersamaan. */
+let sedangMengirim=false;
+
+form.addEventListener('submit',async event=>{
   event.preventDefault();
   /* Validasi diulang di sini, bukan sekadar mengandalkan atribut HTML: tombol boleh saja
-     diaktifkan lewat peralatan pengembang, tetapi pesan tetap tidak akan terkirim. */
+     diaktifkan lewat peralatan pengembang, tetapi pesanan tetap tidak akan terkirim. */
   const {valid,errors}=segarkan({tampilkan:true});
   if(!valid){
     const pertama=Object.keys(errors)[0];
@@ -188,8 +252,186 @@ form.addEventListener('submit',event=>{
     kendali?.focus?.();
     return;
   }
-  const teks=kotakPesan.value.trim()||buildOrderMessage(bacaForm());
+  if(sedangMengirim)return;
+
+  const isi=bacaForm();
+  sedangMengirim=true;
+  tombol.disabled=true;
+  const labelAsli=tombol.innerHTML;
+  tombol.textContent='Menyimpan pesanan…';
+
+  let kode='';
+  try{
+    /* LANGKAH 1: SIMPAN KE SERVER. Baru sesudah ini WhatsApp dibuka. */
+    const hasil=await submitOrder(buildOrderPayload(isi,clientRef));
+    kode=hasil.order.order_code;
+    orderCodeTersimpan=kode;
+    tampilkanHasil({berhasil:true,orderCode:kode,
+      judul:hasil.duplicate?'Pesanan Anda sudah tersimpan sebelumnya.':'Pesanan Anda berhasil tersimpan.',
+      isi:'Simpan Order ID di atas. Itulah identitas transaksi Anda, dan sebutkan pada setiap komunikasi berikutnya. WhatsApp akan terbuka membawa Order ID ini.'});
+  }catch(galat){
+    /* KEGAGALAN TIDAK DISEMBUNYIKAN dan WhatsApp TIDAK dibuka: membuka WhatsApp di sini akan
+       membuat pembeli mengira pesanannya sudah tercatat padahal belum. */
+    tampilkanHasil({berhasil:false,judul:'Pesanan belum tersimpan.',isi:orderErrorMessage(galat)});
+    hasilPesanan?.scrollIntoView?.({behavior:'smooth',block:'nearest'});
+    return;
+  }finally{
+    sedangMengirim=false;
+    tombol.disabled=false;
+    tombol.innerHTML=labelAsli;
+  }
+
+  /* LANGKAH 2: buka WhatsApp membawa Order ID. Bila pesan ini tidak pernah terkirim, pesanan
+     tadi tetap ada di server - itulah gunanya urutan ini. */
+  if(!disuntingPengguna)kotakPesan.value=buildOrderMessage(isi,{orderCode:kode});
+  const teks=kotakPesan.value.trim()||buildOrderMessage(isi,{orderCode:kode});
+  /* Isian berikutnya adalah pesanan yang berbeda, jadi penandanya diperbarui. */
+  clientRef=newClientRef();
   window.open(whatsappUrl(teks,CONTACT_WHATSAPP),'_blank','noopener,noreferrer');
 });
 
 segarkan();
+
+/* ------------------------------------------------------------------ Metode pembayaran
+
+   Seluruh nomor dan gambar berasal dari payment-config.js. Tidak satu pun ditulis di berkas
+   ini maupun di markup, sehingga tidak ada kemungkinan angka di halaman berbeda dengan angka
+   di sumber resminya. */
+
+const catatanNominal=document.querySelector('#catatan-nominal');
+if(catatanNominal)catatanNominal.textContent=PAYMENT_AMOUNT_NOTE;
+
+const daftarBayar=document.querySelector('#daftar-bayar');
+function kartuBayar(metode){
+  const kartu=document.createElement('article');
+  kartu.className='kartu-bayar reveal tampil';
+  kartu.dataset.metode=metode.id;
+
+  const judul=document.createElement('h3');
+  judul.textContent=metode.label;
+  const nota=document.createElement('p');
+  nota.className='bayar-nota';
+  nota.textContent=metode.subtitle;
+  kartu.append(judul,nota);
+
+  if(metode.kind==='qris'){
+    /* Gambar QRIS asli, ditampilkan apa adanya. Tidak digambar ulang, tidak diubah warnanya,
+       dan tidak dipotong: CSS-nya memakai object-fit:contain. */
+    const gambar=document.createElement('img');
+    gambar.className='bayar-qris';
+    gambar.src=metode.image;
+    gambar.alt=metode.imageAlt;
+    gambar.loading='lazy';
+    gambar.decoding='async';
+    kartu.append(gambar);
+  }
+  if(metode.accountNumber){
+    const kotak=document.createElement('div');
+    kotak.className='bayar-nilai';
+    const label=document.createElement('span');
+    label.className='bayar-label-kecil';
+    label.textContent=metode.kind==='rekening'?'Nomor Rekening':'Nomor';
+    const nomor=document.createElement('span');
+    nomor.className='bayar-nomor';
+    nomor.textContent=metode.accountNumber;
+    kotak.append(label,nomor);
+    kartu.append(kotak);
+  }
+  const atasNama=document.createElement('p');
+  atasNama.className='bayar-atas-nama';
+  atasNama.textContent=`a.n. ${metode.accountName}`;
+  kartu.append(atasNama);
+
+  if(metode.accountNumber&&navigator.clipboard?.writeText){
+    const salin=document.createElement('button');
+    salin.type='button';
+    salin.className='btn-salin';
+    salin.textContent='Salin nomor';
+    salin.addEventListener('click',async()=>{
+      try{
+        await navigator.clipboard.writeText(metode.accountNumber);
+        salin.textContent='Tersalin';
+        salin.dataset.tersalin='ya';
+        setTimeout(()=>{salin.textContent='Salin nomor';delete salin.dataset.tersalin;},2000);
+      }catch{
+        /* Peramban yang menolak akses papan klip tidak dibiarkan diam: nomornya tetap
+           terbaca di layar dan dapat disalin manual. */
+        salin.textContent='Salin manual dari layar';
+      }
+    });
+    kartu.append(salin);
+  }
+  return kartu;
+}
+if(daftarBayar)for(const metode of PAYMENT_METHODS)daftarBayar.append(kartuBayar(metode));
+
+const langkahBayar=document.querySelector('#langkah-bayar');
+if(langkahBayar)for(const langkah of PAYMENT_STEPS){
+  const item=document.createElement('li');
+  item.textContent=langkah;
+  langkahBayar.append(item);
+}
+
+const cakupanDaftar=document.querySelector('#cakupan-lisensi-daftar');
+if(cakupanDaftar)for(const baris of LICENSE_SCOPE){
+  const item=document.createElement('li');
+  item.textContent=baris;
+  cakupanDaftar.append(item);
+}
+
+/* ---------------------------------------------------------------------------- Unduhan
+
+   Alamat unduhan dibaca dari server, bukan ditanam di halaman. Selama belum ada jawabannya -
+   dan bila jawabannya gagal dimuat - kedua platform tetap digambar dalam keadaan
+   "Belum tersedia". Tidak ada satu pun tautan karangan dan tidak ada tautan ke GitHub. */
+
+const daftarUnduh=document.querySelector('#daftar-unduh');
+function kartuUnduh(baris){
+  const kartu=document.createElement('article');
+  kartu.className='kartu-unduh reveal tampil';
+  kartu.dataset.platform=baris.platform;
+
+  const judul=document.createElement('h3');
+  judul.textContent=baris.label;
+  const status=document.createElement('span');
+  status.className=`unduh-status ${baris.available?'ada':'belum'}`;
+  status.textContent=baris.statusText;
+  kartu.append(judul,status);
+
+  const meta=downloadMeta(baris);
+  if(meta){
+    const keterangan=document.createElement('p');
+    keterangan.className='unduh-meta';
+    keterangan.textContent=meta;
+    kartu.append(keterangan);
+  }
+  if(baris.notes){
+    const catatanBaris=document.createElement('p');
+    catatanBaris.className='unduh-meta';
+    catatanBaris.textContent=baris.notes;
+    kartu.append(catatanBaris);
+  }
+
+  const tautan=document.createElement('a');
+  tautan.className='btn btn-hijau btn-blok btn-unduh';
+  tautan.textContent=baris.buttonText;
+  if(baris.available){
+    tautan.href=baris.url;
+    tautan.rel='noopener noreferrer';
+    tautan.target='_blank';
+  }else{
+    /* Tombol yang belum punya berkas tetap terlihat, tetapi tidak dapat ditekan dan tidak
+       membawa alamat apa pun. */
+    tautan.setAttribute('aria-disabled','true');
+    tautan.removeAttribute('href');
+  }
+  kartu.append(tautan);
+  return kartu;
+}
+function gambarUnduhan(daftar){
+  if(!daftarUnduh)return;
+  daftarUnduh.textContent='';
+  for(const baris of downloadRows(daftar))daftarUnduh.append(kartuUnduh(baris));
+}
+gambarUnduhan(null);
+fetchDownloads().then(daftar=>{if(daftar)gambarUnduhan(daftar);}).catch(()=>{});

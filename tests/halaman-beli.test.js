@@ -90,7 +90,11 @@ test('4. Formulir memuat seluruh field wajib beserta persetujuan',()=>{
   assert.match(teks,/Saya memastikan data sekolah yang saya isi sudah benar\./);
   assert.match(teks,/id="konfirmasi" name="konfirmasi" type="checkbox"/);
   assert.match(teks,/id="tombol-pesan" type="submit" disabled/,'tombol mati sebelum data sah');
-  assert.match(teks,/PESAN LISENSI e-RAPOR VIA WHATSAPP/);
+  /* LABEL TOMBOL BERUBAH DI 1.3.2. Tombol ini tidak lagi sekadar membuka WhatsApp: ia
+     menyimpan pesanan ke server lebih dulu, baru membuka WhatsApp membawa Order ID-nya.
+     Label lamanya - "PESAN ... VIA WHATSAPP" - akan menyesatkan tentang apa yang sebenarnya
+     terjadi, jadi harapannya diperbarui mengikuti perilaku yang baru. */
+  assert.match(teks,/KIRIM PESANAN LISENSI e-RAPOR/);
   for(const label of ['Nama Sekolah','NPSN','Nama Pemesan/Penanggung Jawab','Nomor WhatsApp',
     'Kabupaten/Kota','Provinsi'])
     assert.ok(teks.includes(label),`label ${label} tampil`);
@@ -192,7 +196,10 @@ test('13. Pengguna dapat memeriksa dan mengubah pesan sebelum dikirim',()=>{
   assert.match(teks,/<textarea id="pesan" name="pesan"/);
   const skrip=read('public/beli/beli.js');
   assert.match(skrip,/kotakPesan\.addEventListener\('input',\(\)=>\{disuntingPengguna=true;\}\)/);
-  assert.match(skrip,/if\(!disuntingPengguna\)kotakPesan\.value=buildOrderMessage\(isi\)/,
+  /* Sejak 1.3.2 pesan membawa Order ID hasil penyimpanan, jadi pemanggilannya bertambah satu
+     argumen. Yang dijaga tetap sama persis: pesan hanya disusun ulang selama pengguna belum
+     menyuntingnya sendiri. */
+  assert.match(skrip,/if\(!disuntingPengguna\)kotakPesan\.value=buildOrderMessage\(isi,\{orderCode:/,
     'suntingan pengguna tidak pernah ditimpa');
   assert.match(skrip,/const teks=kotakPesan\.value\.trim\(\)/,'yang dikirim adalah pesan yang terlihat');
 });
@@ -283,7 +290,10 @@ test('18. Isi promosi, alur pembelian, dan identitas pengembang tampil',()=>{
   assert.match(teks,/Proses mudah dan jelas untuk menggunakan e-Rapor di sekolah Anda\./);
   for(const [no,judul,teksLangkah] of [
     ['01','Isi Data Sekolah','Isi formulir pemesanan dengan data sekolah Anda.'],
-    ['02','Kirim Pemesanan','Kirim permintaan melalui WhatsApp ke developer.'],
+    /* KETERANGAN LANGKAH 02 DIPERBARUI DI 1.3.2. Alurnya memang berubah: pesanan disimpan ke
+       server lebih dulu dan diberi Order ID, baru WhatsApp dibuka membawa Order ID itu.
+       Kalimat lamanya menggambarkan alur yang sudah tidak berlaku. */
+    ['02','Kirim Pemesanan','Pesanan tersimpan di server dan Anda menerima Order ID, lalu WhatsApp terbuka membawa Order ID itu.'],
     ['03','Developer Memverifikasi','Data sekolah akan diverifikasi oleh developer.'],
     ['04','License Key Diberikan','Anda akan menerima License Key resmi.'],
     ['05','Aktivasi e-Rapor','Masukkan License Key pada aplikasi e-Rapor.'],
@@ -466,7 +476,9 @@ test('27. Menu bekerja tanpa memuat ulang halaman dan menutup sendiri di ponsel'
   const skrip=read('public/beli/beli.js');
   /* Seluruh tautan menu hanyalah jangkar dalam halaman yang sama. */
   const tujuan=[...halaman().matchAll(/class="nav-tautan" href="([^"]+)"/g)].map(item=>item[1]);
-  assert.deepEqual(tujuan,['#beranda','#keunggulan','#cara-pemesanan','#tutorial']);
+  /* Dua bagian baru pada 1.3.2 - Pembayaran dan Unduh - ikut masuk menu. Keduanya tetap
+     jangkar dalam halaman yang sama, jadi janji "tanpa memuat ulang halaman" tidak berubah. */
+  assert.deepEqual(tujuan,['#beranda','#keunggulan','#cara-pemesanan','#pembayaran','#unduh','#tutorial']);
   for(const jejak of ['location.href','location.assign','location.reload','window.location='])
     assert.equal(skrip.includes(jejak),false,`navigasi tidak memuat ulang halaman (${jejak})`);
   assert.match(skrip,/menu\?\.classList\.remove\('buka'\)/,'menu dapat ditutup');

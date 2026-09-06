@@ -316,7 +316,17 @@ test('17. Nomor WhatsApp hanya ditulis di satu berkas',()=>{
       else walk(awal);
     }catch{}
   }
-  assert.deepEqual(temuan,['src/data/app-identity.js'],
+  /* DUA FAKTA YANG BERBEDA, KEBETULAN ANGKANYA SAMA.
+
+     app-identity.js menyimpan NOMOR KONTAK WhatsApp - sumber tunggal seluruh tautan "hubungi
+     developer" dan "beli lisensi". payment-config.js menyimpan NOMOR AKUN GOPAY, salah satu
+     metode pembayaran resmi. Keduanya hari ini merupakan nomor telepon yang sama, tetapi
+     bukan hal yang sama: mengganti nomor kontak tidak dengan sendirinya mengganti akun
+     pembayaran, dan sebaliknya. Menurunkan yang satu dari yang lain justru akan membuat
+     penggantian salah satunya diam-diam mengubah yang lain.
+
+     Yang dijaga test ini tetap sama: nomor kontak tidak boleh ditulis ulang tersebar. */
+  assert.deepEqual(temuan,['src/data/app-identity.js','src/data/payment-config.js'],
     `nomor WhatsApp hanya boleh ada di satu berkas, ditemukan di: ${temuan.join(', ')}`);
 });
 

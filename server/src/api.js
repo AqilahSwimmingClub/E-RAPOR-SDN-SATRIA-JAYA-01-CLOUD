@@ -4,6 +4,8 @@ import { hashPassword, maskLicense, newId, publicJwkFromPrivatePem, sessionToken
 import * as lisensi from './licenses.js';
 import { LicenseError } from './licenses.js';
 import * as pembaruan from './updates.js';
+import * as pesanan from './orders.js';
+import * as unduhan from './downloads.js';
 
 /* Lapisan HTTP. Tidak ada keputusan lisensi di sini: seluruhnya didelegasikan ke licenses.js.
    Endpoint pemilik selalu menuntut sesi pemilik yang sah; endpoint sekolah tidak pernah bisa
@@ -32,10 +34,16 @@ export function createRateLimiter({windowMs=60_000,max=10}={}){
 }
 
 /* Aplikasi sekolah berjalan dari origin lain (WebView Android, Electron, atau domain sekolah),
-   sehingga dua endpoint publik perlu izin lintas origin. Izin ini TIDAK diberikan pada endpoint
-   pemilik: panel disajikan dari origin yang sama dan memakai sesi Bearer, jadi membukanya
-   lintas origin hanya memperluas permukaan serangan tanpa manfaat. */
-const PUBLIC_CORS_PATHS=new Set(['/api/v1/activate','/api/v1/check','/api/v1/public-key','/api/v1/health','/api/v1/updates/latest']);
+   sehingga endpoint publiknya perlu izin lintas origin. Halaman pembelian pun dapat dibuka dari
+   domain pemasaran lain, jadi pembuatan pesanan dan katalog unduhan ikut masuk daftar ini:
+   keduanya tidak pernah membaca maupun mengembalikan rahasia apa pun, dan keduanya tetap
+   dibatasi laju per IP.
+
+   Izin ini TIDAK diberikan pada endpoint pemilik: panel disajikan dari origin yang sama dan
+   memakai sesi Bearer, jadi membukanya lintas origin hanya memperluas permukaan serangan
+   tanpa manfaat. */
+const PUBLIC_CORS_PATHS=new Set(['/api/v1/activate','/api/v1/check','/api/v1/public-key','/api/v1/health',
+  '/api/v1/updates/latest','/api/v1/orders','/api/v1/downloads']);
 function corsHeaders(pathname){
   if(!PUBLIC_CORS_PATHS.has(pathname))return {};
   return {'access-control-allow-origin':'*','access-control-allow-headers':'content-type',
@@ -72,6 +80,9 @@ function ringkasUntukLog(body){
 export function createApi({store,secrets,logger=()=>{},publicDir=null}){
   const batasAktivasi=createRateLimiter({windowMs:60_000,max:8});
   const batasLogin=createRateLimiter({windowMs:60_000,max:6});
+  /* Pemesanan dibatasi lebih longgar daripada aktivasi - satu sekolah wajar mengirim ulang
+     setelah salah ketik - tetapi tetap dibatasi supaya daftar pesanan tidak dapat dibanjiri. */
+  const batasPesanan=createRateLimiter({windowMs:60_000,max:6});
 
   async function ownerDariRequest(req){
     const header=String(req.headers.authorization||'');
@@ -136,6 +147,45 @@ export function createApi({store,secrets,logger=()=>{},publicDir=null}){
       await lisensi.logEvent(store,{type:'APP_VERSION_CREATED',actor:owner.username,
         detail:`${versi.platform} ${versi.version}`});
       return {version:versi};
+    },
+
+    /* ------------------------------------------------------- publik: pemesanan lisensi
+
+       PESANAN DISIMPAN DI SERVER LEBIH DULU. Halaman pembelian baru membuka WhatsApp setelah
+       endpoint ini menjawab, sehingga pesanan tidak pernah bergantung pada terkirimnya pesan.
+
+       Endpoint ini tidak membuat lisensi, tidak menyentuh lisensi yang sudah ada, dan tidak
+       pernah mengembalikan rahasia apa pun: jawabannya hanya Order ID, status, dan data yang
+       diketikkan pemesan sendiri. */
+    'POST /api/v1/orders':async(req,res,body)=>{
+      if(!batasPesanan(`ip:${ip(req)}`))
+        throw new LicenseError('RATE_LIMITED','Terlalu banyak pemesanan dari jaringan ini. Coba lagi beberapa menit lagi.',429);
+      const hasil=await pesanan.createOrder(store,body);
+      return {order:pesanan.ringkasUntukPemesan(hasil.order),duplicate:hasil.duplicate};
+    },
+
+    /* Katalog unduhan resmi. Hanya alamat berkas pemasang; tidak ada lisensi, tidak ada data
+       sekolah, dan tidak ada rahasia. Platform yang belum diisi tetap dikembalikan dengan
+       available:false supaya halaman pembelian dapat berkata "Belum tersedia" apa adanya. */
+    'GET /api/v1/downloads':async()=>({downloads:await unduhan.listDownloads(store)}),
+
+    'GET /api/v1/owner/downloads':async req=>{
+      await wajibOwner(req);
+      return {downloads:await unduhan.listDownloads(store)};
+    },
+    'POST /api/v1/owner/downloads':async(req,res,body)=>{
+      const owner=await wajibOwner(req);
+      return {download:await unduhan.setDownload(store,body,{actor:owner.username})};
+    },
+
+    /* ------------------------------------------------------------- owner: daftar pesanan */
+    'GET /api/v1/owner/orders':async(req,res,body,url)=>{
+      await wajibOwner(req);
+      return {
+        orders:await pesanan.listOrders(store,{q:url.searchParams.get('q')||'',
+          status:url.searchParams.get('status')||'',paymentStatus:url.searchParams.get('payment_status')||''}),
+        summary:await pesanan.ringkasanPesanan(store),
+      };
     },
 
     /* ------------------------------------------------------------------- owner: sesi */
@@ -216,6 +266,32 @@ export function createApi({store,secrets,logger=()=>{},publicDir=null}){
     delete:async(owner,id)=>({version:await pembaruan.deleteAppVersion(store,id)}),
   };
 
+  /* ------------------------------------------------------------------ owner: pesanan
+
+     Setiap aksi hanya mengubah status pesanan. Yang menerbitkan lisensi hanya 'issue-license',
+     dan ia memakai jalur pembuatan lisensi yang sama dengan tombol manual di Owner Panel,
+     sehingga aturan identitas dan pencatatan peristiwanya tidak mungkin berbeda. */
+  const aksiPesanan={
+    'verify':async(owner,id,body)=>({order:await pesanan.setOrderStatus(store,id,
+      {status:'DIVERIFIKASI',actor:owner.username,reason:body?.reason,notes:body?.notes??null})}),
+    'await-payment':async(owner,id,body)=>({order:await pesanan.setOrderStatus(store,id,
+      {status:'MENUNGGU_PEMBAYARAN',paymentStatus:'MENUNGGU_KONFIRMASI',actor:owner.username,notes:body?.notes??null})}),
+    'mark-paid':async(owner,id,body)=>({order:await pesanan.setOrderStatus(store,id,
+      {paymentStatus:'LUNAS',actor:owner.username,reason:body?.reason,notes:body?.notes??null})}),
+    'mark-unpaid':async(owner,id,body)=>({order:await pesanan.setOrderStatus(store,id,
+      {paymentStatus:'BELUM_BAYAR',actor:owner.username,reason:body?.reason,notes:body?.notes??null})}),
+    'cancel':async(owner,id,body)=>({order:await pesanan.setOrderStatus(store,id,
+      {status:'DIBATALKAN',paymentStatus:'DIBATALKAN',actor:owner.username,reason:body?.reason,notes:body?.notes??null})}),
+    'reopen':async(owner,id,body)=>({order:await pesanan.setOrderStatus(store,id,
+      {status:'BARU',paymentStatus:'BELUM_BAYAR',actor:owner.username,reason:body?.reason,notes:body?.notes??null})}),
+    'notes':async(owner,id,body)=>({order:await pesanan.setOrderStatus(store,id,
+      {notes:String(body?.notes??''),actor:owner.username})}),
+    /* Kunci utuh hanya dikembalikan sekali, di sini, kepada Pemilik - sama seperti pembuatan
+       lisensi manual. Ia tidak pernah disimpan pada baris pesanan. */
+    'issue-license':async(owner,id,body)=>pesanan.issueLicenseForOrder(store,id,
+      {actor:owner.username,notes:body?.notes,createLicenses:lisensi.createLicenses},secrets),
+  };
+
   function sajikanStatis(req,res,pathname){
     if(!publicDir)return false;
     const relatif=pathname==='/'||pathname==='/owner'||pathname==='/owner/'?'/owner/index.html':pathname;
@@ -262,6 +338,21 @@ export function createApi({store,secrets,logger=()=>{},publicDir=null}){
         await lisensi.logEvent(store,{type:`APP_VERSION_${versi[2].toUpperCase()}`,actor:owner.username,
           detail:`${hasil.version.platform} ${hasil.version.version}`});
         return kirim(res,200,hasil,pathname);
+      }
+      /* Aksi per pesanan memakai pola yang sama dengan aksi per lisensi: aksinya dibaca dari
+         ALAMAT, bukan dari badan permintaan, sehingga badan permintaan tidak punya jalan untuk
+         memperluas cakupannya. Seluruhnya melewati wajibOwner() yang sama. */
+      const aksiPesananCocok=pathname.match(/^\/api\/v1\/owner\/orders\/([A-Za-z0-9_-]+)\/([a-z-]+)$/);
+      if(aksiPesananCocok&&req.method==='POST'){
+        const aksi=aksiPesanan[aksiPesananCocok[2]];
+        if(!aksi)throw new LicenseError('NOT_FOUND','Aksi pesanan tidak dikenal.',404);
+        const owner=await wajibOwner(req);
+        return kirim(res,200,await aksi(owner,aksiPesananCocok[1],body),pathname);
+      }
+      const pesananDetail=pathname.match(/^\/api\/v1\/owner\/orders\/([A-Za-z0-9_-]+)$/);
+      if(pesananDetail&&req.method==='GET'){
+        await wajibOwner(req);
+        return kirim(res,200,await pesanan.orderDetail(store,pesananDetail[1]),pathname);
       }
       const detail=pathname.match(/^\/api\/v1\/owner\/licenses\/([A-Za-z0-9_]+)$/);
       if(detail&&req.method==='GET'){
