@@ -34,9 +34,9 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.2.8 uses versionCode 20 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.2.8');
-  assert.equal(VERSION_CODE,20);
+test('release v1.2.9 uses versionCode 21 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.2.9');
+  assert.equal(VERSION_CODE,21);
   /* SCHEMA TETAP 5, walaupun rilis ini menambah koleksi `cpEvidenceScores`.
 
      Koleksi baru itu lahir dari bentuk bawaan database yang selalu digabungkan saat membaca,
@@ -45,21 +45,19 @@ test('release v1.2.8 uses versionCode 20 and schema 5',()=>{
      non-destruktif dan idempotent oleh layanan Penilaian sendiri, tepat sebelum ia dapat
      tertimpa.
 
-     Rilis ini pun tidak mengubah bentuk data sama sekali. Predikat kokurikuler lama TETAP
-     tersimpan apa adanya dan hanya diterjemahkan saat dibaca - tidak ada penulisan ulang
-     massal, dan catatan berpindah istilah hanya ketika guru sendiri menyimpannya. Koleksi
-     `reportDateDefaults` lahir dari bentuk bawaan database yang selalu digabungkan saat
-     membaca, jadi database lama langsung memilikinya dalam keadaan kosong, dan tanggal bawaan
-     lama pada master sekolah tetap dibaca sebagai cadangan bagi periode yang belum diatur.
-     Ketiga logo pun sekadar field yang memang sudah ada pada master sekolah.
+     Rilis ini pun tidak menyentuh bentuk data sama sekali: isinya tampilan halaman Masuk dan
+     Dashboard beserta dua berkas latar, dan perbaikan pemilihan kata pada penyusun deskripsi
+     Intrakurikuler. Tidak ada koleksi baru, tidak ada field baru, dan tidak ada catatan lama
+     yang ditulis ulang - deskripsi yang sudah tersimpan pun tetap apa adanya karena penyusun
+     hanya dipanggil ketika guru menekan Generate.
 
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.2.8-BRANDING-P5-TANGGAL');
-  /* Rilis sebelumnya bergeser ke 1.2.7 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.2.9-TEMA-LOGIN-DASHBOARD');
+  /* Rilis sebelumnya bergeser ke 1.2.8 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.7',versionCode:19});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.8',versionCode:20});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
