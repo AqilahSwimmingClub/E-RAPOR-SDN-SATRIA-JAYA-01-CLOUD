@@ -81,8 +81,15 @@ test('5. Angka kolom No pada tabel mapel center mendatar dan tegak',()=>{
   const sel=prop('.report-learning-table .subject-no-cell','text-align');
   assert.equal(sel,'center','angka No center mendatar');
   assert.equal(prop('.report-learning-table .subject-no-cell','vertical-align'),'middle','angka No center tegak');
-  /* Baris "Kelompok A" dan "Kelompok B" tidak ikut terpengaruh aturan kolom nomor. */
-  assert.match(cetak,/<tr class="subject-group-row"><td colspan="4">/,'baris kelompok tetap satu sel penuh');
+  /* HARAPAN INI DIPERBARUI DENGAN SENGAJA.
+
+     Dulu baris "Kelompok A" dan "Kelompok B" dikecualikan dari aturan kolom nomor karena ia
+     satu sel penuh selebar tabel. Panduan Pembelajaran dan Asesmen tidak mengenal sekat itu
+     pada lembar rapor, jadi barisnya dihapus dan seluruh mapel berbaris dalam satu daftar.
+     Yang diperiksa sekarang adalah akibatnya: tidak ada lagi sel yang menyeberangi empat
+     kolom di tabel mapel, sehingga aturan perataan kolom nomor berlaku untuk semua baris. */
+  assert.doesNotMatch(cetak,/<tr class="subject-group-row">/,'baris pemisah kelompok sudah tidak dicetak');
+  assert.doesNotMatch(cetak,/<td colspan="4">Kelompok/,'tidak ada sel selebar tabel pada tabel mapel');
 });
 
 test('6. Angka No tabel kegiatan berada di tengah tinggi gabungan dua baris',()=>{

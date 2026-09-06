@@ -163,8 +163,14 @@ test('15. Perubahan typography tidak mengubah struktur maupun pemisah halaman ra
   assert.match(t,/\.report-a4 \.document-table tr,\.report-a4 \.subject-group-row\{break-inside:avoid\}/,'baris tabel tidak terpotong');
   assert.match(t,/\.report-a4 \.report-lower-grid,\.report-a4 \.response-box,\.report-a4 \.report-signatures\{break-inside:avoid\}/);
   assert.match(t,/\.report-a4 \.report-learning-table thead\{display:table-header-group\}/,'header tabel diulang di halaman berikutnya');
-  /* Struktur isi rapor tidak berubah. */
-  for(const bagian of ['A. Sikap','B. Pengetahuan dan Keterampilan','Kelompok \\$\\{group\\}','Ketidakhadiran','Catatan Wali Kelas','Tanggapan Orang Tua/Wali Murid']){
+  /* Struktur isi rapor tidak berubah, KECUALI satu bagian yang memang diminta hilang.
+
+     "Kelompok ${group}" dicoret dari daftar ini karena baris pemisah Kelompok A/B memang
+     dihapus dari lembar rapor mengikuti Panduan Pembelajaran dan Asesmen - bukan karena
+     harapannya dilonggarkan. Ketiadaannya diperiksa secara eksplisit di bawah, dan bagian
+     rapor lainnya tetap dijaga sama ketatnya seperti sebelumnya. */
+  assert.doesNotMatch(cetak,/Kelompok \$\{group\}/,'sekat Kelompok A/B tidak lagi dicetak di rapor');
+  for(const bagian of ['A. Sikap','B. Pengetahuan dan Keterampilan','Ketidakhadiran','Catatan Wali Kelas','Tanggapan Orang Tua/Wali Murid']){
     assert.match(cetak,new RegExp(bagian),`bagian ${bagian} tetap ada`);
   }
   assert.match(t,/\.document-table th\{text-align:center;background:#f3f0ed\}/,'arsiran header tabel tetap');

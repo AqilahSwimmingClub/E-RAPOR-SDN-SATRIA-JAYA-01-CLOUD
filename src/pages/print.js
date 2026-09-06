@@ -1,6 +1,7 @@
 import { CLASSES } from '../data/constants.js';
 import { assertReportPrintable, getDocumentIdentity, getLeger, getReportCompleteness, getReportDocument, legerWorkbookBytes } from '../services/documents.js';
 import { listStudents } from '../services/students.js';
+import { reportSubjectName } from '../services/subjects.js';
 import { saveFile } from '../services/file-io.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
@@ -317,17 +318,30 @@ export function renderPrint(session,initialTab='ledger'){
 
   /* ------------------------------------------------------------- Rapor */
 
+  /* SATU DAFTAR MATA PELAJARAN, BERNOMOR TERUS DARI 1.
+     Panduan Pembelajaran dan Asesmen tidak mengenal sekat "Kelompok A" / "Kelompok B" pada
+     lembar rapor: PJOK, Seni Budaya, dan Muatan Lokal berbaris bersama mapel lain. Baris
+     pemisah dan penomoran yang mengulang dari 1 di tiap kelompok karena itu dihapus.
+
+     Metadata group TIDAK dihapus. Urutan tetap dibaca darinya - Kelompok A lebih dulu, lalu B,
+     masing-masing menurut order Mapping - sehingga susunan yang sudah diatur Admin tidak
+     berubah sama sekali. Yang hilang hanya sekatnya di atas kertas, bukan datanya. */
   function subjectRows(doc){
-    return ['A','B'].map(group=>{
-      const rows=doc.subjects.filter(row=>(row.subject.group||'B')===group);
-      if(!rows.length)return '';
-      return `<tr class="subject-group-row"><td colspan="4">Kelompok ${group}</td></tr>${rows.map((row,index)=>`<tr><td class="subject-no-cell">${index+1}</td><td class="subject-name-cell">${escapeHtml(row.subject.name)}</td><td class="subject-score-cell">${row.score??'—'}</td><td class="subject-description-cell">${escapeHtml(row.description||'')}</td></tr>`).join('')}`;
-    }).join('');
+    const rows=['A','B'].flatMap(group=>doc.subjects.filter(row=>(row.subject.group||'B')===group));
+    return rows.map((row,index)=>`<tr><td class="subject-no-cell">${index+1}</td><td class="subject-name-cell">${escapeHtml(reportSubjectName(row.subject.name))}</td><td class="subject-score-cell">${row.score??'—'}</td><td class="subject-description-cell">${escapeHtml(row.description||'')}</td></tr>`).join('');
   }
 
+  /* SATU DIMENSI, SATU BARIS.
+     Deskripsi sikap dicetak sebagai daftar berbutir, bukan satu paragraf gabungan: orang tua
+     bisa menghitung dimensi yang dinilai, dan tanda baca antar kalimat tidak saling menempel.
+
+     Yang tercetak HANYA dimensi yang benar-benar disimpan guru. Tidak ada pengisian cadangan
+     ke enam dimensi: dokumen rapor sudah membuang catatan berstatus EMPTY, dan bagian ini
+     tidak menambahkan apa pun di luar itu. Dimensi yang belum punya deskripsi - termasuk
+     catatan lama tanpa bukti perilaku - tetap terbaca lewat label dan capaiannya. */
   function attitudeBlock(doc){
     const body=doc.attitudes?.length
-      ? doc.attitudes.map(item=>`<p>${escapeHtml(item.description||`${item.dimensionLabel}: ${item.level}`)}</p>`).join('')
+      ? `<ul class="attitude-points">${doc.attitudes.map(item=>`<li>${escapeHtml(item.description||`${item.dimensionLabel}: ${item.level}`)}</li>`).join('')}</ul>`
       : '<p class="document-empty">Deskripsi capaian profil lulusan belum tersedia.</p>';
     return `<h3 class="document-section">A. Sikap</h3><section class="document-box"><div class="document-box-head">Deskripsi Capaian Profil Lulusan</div><div class="document-box-body attitude-body">${body}</div></section>`;
   }

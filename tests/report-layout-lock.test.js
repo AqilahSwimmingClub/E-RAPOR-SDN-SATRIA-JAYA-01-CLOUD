@@ -15,6 +15,8 @@ import { saveSubjectMapping } from './helpers/penugasan.js';
 import { activityTable, cocurricularTable, extracurricularTable, intracurricularTable } from '../src/pages/print.js';
 import { extractReportLayout } from './helpers/report-layout.js';
 import { extractFunctionSource } from './helpers/report-markup.js';
+import { escapeHtml } from '../src/ui/dom.js';
+import { reportSubjectName } from '../src/services/subjects.js';
 
 /* KUNCI TAMPILAN RAPOR.
 
@@ -30,6 +32,14 @@ import { extractFunctionSource } from './helpers/report-markup.js';
 const root=new URL('../',import.meta.url);
 const read=path=>readFileSync(new URL(path,root),'utf8');
 const readJson=path=>JSON.parse(read(path));
+
+/* `subjectRows` adalah fungsi dalam renderPrint dan tidak diekspor. Sumbernya diambil apa
+   adanya lalu dijalankan dengan dua ketergantungannya yang asli, sehingga yang diuji benar-benar
+   kode yang dipakai rapor - bukan salinannya. */
+function extractSubjectRows(doc){
+  const sumber=extractFunctionSource(read('src/pages/print.js'),'subjectRows');
+  return new Function('escapeHtml','reportSubjectName',`${sumber}\nreturn subjectRows;`)(escapeHtml,reportSubjectName)(doc);
+}
 
 function useMemoryStorage(){
   const values=new Map();
@@ -92,6 +102,52 @@ test('4. Penyusun markup rapor identik dengan baseline d093b99',()=>{
   const sumber=read('src/pages/print.js');
   for(const [nama,teks] of Object.entries(baseline))
     assert.equal(extractFunctionSource(sumber,nama),teks,`fungsi ${nama} berubah dari baseline`);
+});
+
+/* PERUBAHAN BASELINE KETIGA YANG DISENGAJA DAN DIMINTA.
+
+   Panduan Pembelajaran dan Asesmen tidak mengenal sekat "Kelompok A" / "Kelompok B" pada
+   lembar rapor, dan meminta deskripsi sikap dicetak per baris sebagai daftar berbutir. Dua
+   hal itulah yang menggeser baseline `subjectRows` dan `attitudeBlock`:
+
+     1. Baris pemisah kelompok dihapus dan penomoran mengalir terus dari 1 sampai mapel
+        terakhir, tidak lagi mengulang dari 1 di tiap kelompok.
+     2. Nama mapel dicetak lewat lapisan tampilan yang melepas singkatan dalam kurung.
+     3. Deskripsi sikap menjadi <ul>/<li>, bukan deretan <p>.
+
+   Sisanya tidak berubah: kolom, lebar, huruf, perataan, urutan bagian, dan pemisah halaman
+   tetap seperti baseline d093b99 - dan test 1 sampai 5 di atas masih menjaganya. Karena
+   baseline tidak lagi bisa menjaga bagian ini sendirian, bentuk barunya dikunci di sini. */
+test('4d. Tabel mapel rapor satu daftar bernomor tanpa sekat Kelompok A/B',()=>{
+  const doc={subjects:[
+    {subject:{id:'agama',group:'A',name:'Pendidikan Agama Islam dan Budi Pekerti'},score:88,description:'a'},
+    {subject:{id:'ipas',group:'A',name:'Ilmu Pengetahuan Alam dan Sosial (IPAS)'},score:81,description:'b'},
+    {subject:{id:'bing',group:'B',name:'Bahasa Inggris'},score:79,description:'c'},
+    {subject:{id:'sunda',group:'B',name:'Bahasa Sunda'},score:77,description:'d'},
+  ]};
+  const html=extractSubjectRows(doc);
+  assert.doesNotMatch(html,/subject-group-row/,'tidak ada baris pemisah kelompok');
+  assert.doesNotMatch(html,/Kelompok [AB]/,'tidak ada label Kelompok A maupun Kelompok B');
+  const nomor=[...html.matchAll(/<td class="subject-no-cell">(\d+)<\/td>/g)].map(item=>Number(item[1]));
+  assert.deepEqual(nomor,[1,2,3,4],'nomor mengalir terus dan tidak diulang per kelompok');
+  /* Urutannya tetap mengikuti metadata group yang tidak dihapus: A lebih dulu, lalu B. */
+  const nama=[...html.matchAll(/<td class="subject-name-cell">([^<]*)<\/td>/g)].map(item=>item[1]);
+  assert.deepEqual(nama,['Pendidikan Agama Islam dan Budi Pekerti','Ilmu Pengetahuan Alam dan Sosial',
+    'Bahasa Inggris','Bahasa Sunda'],'singkatan dalam kurung dilepas, urutan tidak berubah');
+});
+
+test('4e. Deskripsi sikap dicetak per baris sebagai daftar berbutir',()=>{
+  const sumber=read('src/pages/print.js');
+  const blok=extractFunctionSource(sumber,'attitudeBlock');
+  assert.match(blok,/<ul class="attitude-points">/,'memakai daftar berbutir');
+  assert.match(blok,/<li>\$\{escapeHtml\(item\.description/,'satu dimensi satu butir');
+  assert.doesNotMatch(blok,/map\(item=>`<p>/,'bukan lagi deretan paragraf');
+  assert.match(blok,/A\. Sikap/,'judul bagian A tidak berubah');
+  /* Butirnya diberi ruang agar bulatannya tidak terpotong tepi kotak, dan tidak terbelah halaman. */
+  const gaya=read('src/styles/app.css');
+  assert.match(gaya,/\.attitude-points\{margin:0;padding:0 0 0 15px;list-style:disc outside\}/);
+  assert.match(gaya,/\.report-a4 \.attitude-points\{padding-left:14px\}/);
+  assert.match(gaya,/\.report-a4 \.attitude-points li,\.report-a4 \.attitude-points\{break-inside:avoid\}/);
 });
 
 /* PERUBAHAN BASELINE KEDUA YANG DISENGAJA DAN DIMINTA.

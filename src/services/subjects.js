@@ -80,3 +80,33 @@ export function listSubjectsForStudent(session,student){
 }
 
 export { isReligionSubject };
+
+/* NAMA MATA PELAJARAN UNTUK LEMBAR RAPOR.
+   Panduan Pembelajaran dan Asesmen meminta nama resmi ditulis utuh tanpa singkatan dalam
+   tanda kurung: "Ilmu Pengetahuan Alam dan Sosial (IPAS)" dicetak "Ilmu Pengetahuan Alam
+   dan Sosial". Ini SEMATA lapisan tampilan. Id mapel, key database, mapping, penugasan Guru,
+   dan master nama tidak ikut berubah, sehingga tidak ada migrasi apa pun di sini.
+
+   Kurung hanya dilepas bila isinya benar-benar singkatan dari namanya sendiri: huruf besar,
+   dan setiap hurufnya muncul berurutan pada inisial kata-kata nama itu. Keterangan yang
+   bermakna lain - misalnya "Bahasa Sunda (Muatan Lokal)" - tetap utuh, karena membuang
+   kurung secara membabi buta akan menghapus informasi, bukan merapikan. */
+const KATA_SAMBUNG=new Set(['dan','atau','serta','yang','pada','di','ke','dari','untuk','bagi','the','of']);
+export function reportSubjectName(name){
+  const teks=String(name??'').trim();
+  const cocok=teks.match(/^(.+?)\s*\(([^()]+)\)$/);
+  if(!cocok)return teks;
+  const dasar=cocok[1].trim();
+  const singkatan=cocok[2].trim().replace(/\./g,'');
+  if(!dasar||!/^[A-Z]{2,10}$/.test(singkatan))return teks;
+  const inisial=dasar.split(/[\s,]+/).filter(Boolean)
+    .filter(kata=>!KATA_SAMBUNG.has(kata.toLowerCase()))
+    .map(kata=>kata[0].toUpperCase()).join('');
+  let posisi=0;
+  for(const huruf of singkatan){
+    posisi=inisial.indexOf(huruf,posisi);
+    if(posisi<0)return teks;
+    posisi+=1;
+  }
+  return dasar;
+}

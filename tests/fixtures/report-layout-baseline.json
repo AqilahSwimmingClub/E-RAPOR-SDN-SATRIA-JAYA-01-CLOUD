@@ -132,5 +132,9 @@
   "@media print :: .activity-table+.activity-table": "margin-top:10px",
   "@media screen and (max-width:767px) :: .report-a4": "padding:16px 12px",
   "@media screen and (max-width:767px) :: .print-workspace .report-a4": "overflow-x:auto;overflow-y:hidden",
-  "@page": "size:A4 portrait;margin:10mm | size:A4 portrait;margin:10mm"
+  "@page": "size:A4 portrait;margin:10mm | size:A4 portrait;margin:10mm",
+  ".report-a4 .attitude-points": "padding-left:14px",
+  ".report-a4 .attitude-points li": "margin-bottom:2px",
+  "@media print :: .report-a4 .attitude-points li": "break-inside:avoid",
+  "@media print :: .report-a4 .attitude-points": "break-inside:avoid"
 }
