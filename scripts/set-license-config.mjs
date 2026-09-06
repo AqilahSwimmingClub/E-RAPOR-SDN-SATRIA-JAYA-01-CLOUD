@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /* Menyuntikkan konfigurasi lisensi produksi ke src/data/license-config.js sebelum build.
 
@@ -44,7 +44,18 @@ export function terapkanKonfigurasi(env=process.env,berkas=target){
   return {base:base||null,jwk:jwk?'terpasang':'tidak diubah'};
 }
 
-if(import.meta.url===`file://${process.argv[1]}`){
+/* DIJALANKAN LANGSUNG ATAU HANYA DIIMPOR?
+
+   Perbandingannya WAJIB lewat pathToFileURL, bukan dengan merangkai `file://` + argv[1].
+   Di Linux kedua cara kebetulan menghasilkan teks yang sama, tetapi di Windows argv[1]
+   berbentuk D:\a\repo\scripts\set-license-config.mjs sementara import.meta.url berbentuk
+   file:///D:/a/repo/scripts/set-license-config.mjs - keduanya tidak akan pernah sama.
+
+   Akibatnya nyata dan pernah terjadi: pada runner Windows blok ini tidak pernah berjalan,
+   sehingga LICENSE_PUBLIC_JWK tidak pernah disuntikkan dan langkah verify:production
+   menghentikan build installer. Build APK di Linux lolos, build Windows gagal - padahal
+   perintahnya sama persis. */
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   const hasil=terapkanKonfigurasi();
   console.log(`Konfigurasi lisensi: base=${hasil.base||'(tidak diubah)'} kunci publik=${hasil.jwk}`);
 }

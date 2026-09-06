@@ -481,6 +481,38 @@ test('34. Skema pesanan dan unduhan bersifat menambah, tidak pernah membuang tab
   assert.deepEqual(kolom(read('server/src/db.js')),kolom(read('server/src/pg.js')));
 });
 
+/* ================================================ G-bis. PARITAS ANDROID DAN WINDOWS */
+
+test('34b. Deteksi "dijalankan langsung" pada skrip build bekerja di Windows, bukan hanya Linux',()=>{
+  /* KEGAGALAN NYATA YANG PERNAH TERJADI. scripts/set-license-config.mjs memakai
+     `import.meta.url===\`file://${process.argv[1]}\``. Di Linux kedua teks itu kebetulan
+     sama, tetapi di runner Windows argv[1] berbentuk D:\\a\\repo\\scripts\\... sementara
+     import.meta.url berbentuk file:///D:/a/repo/scripts/... - keduanya tidak akan pernah sama.
+
+     Akibatnya konfigurasi lisensi tidak pernah disuntikkan pada build Windows, dan
+     verify:production menghentikan build installer sementara build APK di Linux lolos. */
+  const skrip=read('scripts/set-license-config.mjs');
+  assert.match(skrip,/pathToFileURL/,'perbandingannya lewat pathToFileURL');
+  assert.equal(/import\.meta\.url===`file:\/\/\$\{process\.argv\[1\]\}`/.test(skrip),false,
+    'tidak lagi merangkai file:// dengan argv[1] mentah');
+  /* Skrip lain memakai endsWith pada nama berkas, yang benar di kedua sistem karena
+     pemisah jalurnya tidak ikut dibandingkan. */
+  for(const berkas of ['scripts/generate-icons.mjs','server/src/server.js'])
+    assert.match(read(berkas),/process\.argv\[1\]&&process\.argv\[1\]\.endsWith\(/,
+      `${berkas} memakai pemeriksaan yang netral terhadap sistem berkas`);
+});
+
+test('34c. Workflow rilis membangun Android DAN Windows dari perintah yang sama',()=>{
+  const alur=read('.github/workflows/rilis.yml');
+  assert.match(alur,/name: APK Android/);
+  assert.match(alur,/name: Installer Windows/);
+  /* Keduanya menyiapkan konfigurasi lisensi produksi lebih dulu, sehingga .exe tidak pernah
+     terkirim dengan LICENSE_PUBLIC_JWK kosong seperti yang pernah terjadi. */
+  assert.equal((alur.match(/npm run verify:production/g)||[]).length,2,
+    'Android dan Windows sama-sama memverifikasi konfigurasi produksi');
+  assert.match(alur,/if-no-files-found: error/,'artifact kosong dianggap gagal, bukan sukses');
+});
+
 test('35. Owner Panel punya halaman Pesanan dan Tautan Unduhan yang benar-benar terhubung',()=>{
   const panel=read('server/public/owner/app.js');
   assert.match(panel,/\['orders','Pesanan Lisensi'\]/);
