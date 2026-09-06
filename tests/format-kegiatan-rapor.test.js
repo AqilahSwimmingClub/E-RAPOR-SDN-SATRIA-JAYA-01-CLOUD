@@ -117,10 +117,13 @@ test('11. Kokurikuler pilihan guru tampil persis seperti contoh format',()=>{
   useMemoryStorage();
   const session=guru('5B');aktifkan(session,['pai','bindo']);
   const murid=siswa(session,'KOKU',{name:'Bayu Saputra'});
+  /* Kokurikuler memakai domain predikatnya sendiri sejak 1.2.8. Predikat lama tetap diterima
+     dan tersimpan sebagai istilah barunya, sehingga rapor mencetak istilah itu. Bentuk selnya -
+     nama kegiatan di atas, predikat huruf besar di bawah - tidak berubah sedikit pun. */
   saveStudentCocurricular(session,murid.id,{activity:'Proyek Peduli Lingkungan',predicate:'Baik',description:CONTOH});
   const isi=barisTabel(cocurricularTable(getReportDocument(session,murid.id)))[2];
   assert.equal(isi[0],'1');
-  assert.equal(isi[1],'<span class="activity-name">Proyek Peduli Lingkungan</span><span class="activity-predicate">BAIK</span>');
+  assert.equal(isi[1],'<span class="activity-name">Proyek Peduli Lingkungan</span><span class="activity-predicate">BERKEMBANG SESUAI HARAPAN</span>');
   assert.equal(isi[2],'Ananda Bayu mampu menjelaskan dampak menjaga kebersihan bagi kesehatan dan kenyamanan bersama.');
 });
 

@@ -20,12 +20,20 @@ function bagianPanel(){
   assert.ok(mulai>-1,'kolom form kanan tetap ada');
   return source.slice(mulai);
 }
-/* Dua lambang pertama adalah lambang nasional dan daerah yang memang aset aplikasi.
-   Lambang ketiga adalah logo sekolah pengguna, dibaca dari identitas sekolah. */
+/* HARAPAN INI DIPERBARUI DENGAN SENGAJA.
+
+   URUTAN KETIGANYA TIDAK BERUBAH: Tut Wuri, lambang daerah, lalu logo sekolah - dan itulah
+   yang tetap dijaga di bawah. Yang berubah HANYA sumber gambarnya.
+
+   Dua lambang pertama dulu ditulis mati ke berkas bawaan aplikasi. Akibatnya unggahan Admin
+   tidak pernah terpakai, dan setiap sekolah - di mana pun ia berada - memasang lambang
+   Kabupaten Bekasi. Sekarang ketiganya membaca master Admin, dengan berkas bawaan sebagai
+   cadangan. Teks alternatif lambang daerah pun menjadi netral, karena penggunanya bisa
+   berasal dari kabupaten, kota, atau provinsi mana saja. */
 const LOGO=[
-  ['./assets/logo-tut-wuri-handayani.png','Tut Wuri Handayani'],
-  ['./assets/logo-kabupaten-bekasi.png','Kabupaten Bekasi'],
-  ['${escapeHtml(crest)}',null],
+  ['src="${escapeHtml(ministryLogo)}"','Tut Wuri Handayani'],
+  ['src="${escapeHtml(regionLogo)}"','Kabupaten/Kota/Provinsi'],
+  ['src="${escapeHtml(crest)}"',null],
 ];
 
 test('Tiga lambang tampil berurutan tepat di atas judul Masuk ke e-Rapor',()=>{
@@ -47,6 +55,15 @@ test('Tiga lambang tampil berurutan tepat di atas judul Masuk ke e-Rapor',()=>{
     if(nama)assert.match(panel,new RegExp(`alt="Logo ${nama}"`),`${nama} punya teks alternatif`);
   assert.match(panel,/alt="\$\{escapeHtml\(crestAlt\)\}"/,'logo sekolah punya teks alternatif dinamis');
   assert.doesNotMatch(panel,/data:image\/(png|jpe?g|webp);base64/,'lambang diambil dari berkas aset, bukan base64');
+  /* Ketiganya membaca master Admin lebih dulu, dengan berkas bawaan aplikasi sebagai cadangan. */
+  const sumber=login();
+  assert.match(sumber,/const ministryUpload=String\(school\.ministryLogo\|\|''\)\.trim\(\);/);
+  assert.match(sumber,/const regionUpload=String\(school\.regionLogo\|\|''\)\.trim\(\);/);
+  assert.match(sumber,/const ministryLogo=ministryUpload\|\|'\.\/assets\/logo-tut-wuri-handayani\.png';/);
+  assert.match(sumber,/const regionLogo=regionUpload\|\|'\.\/assets\/logo-kabupaten-bekasi\.png';/);
+  assert.match(sumber,/const crest=schoolLogo\|\|'\.\/assets\/app-icon-192\.png';/);
+  /* Tidak ada lagi lambang yang ditulis mati di dalam markup panel. */
+  assert.doesNotMatch(panel,/src="\.\/assets\/logo-/,'panel tidak memasang berkas lambang secara langsung');
 });
 
 test('Kelompok lambang rapat dan center, tidak melebar mengikuti panel',()=>{

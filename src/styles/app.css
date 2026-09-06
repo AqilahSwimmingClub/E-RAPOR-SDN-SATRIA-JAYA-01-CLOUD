@@ -249,7 +249,7 @@ html,body{max-width:100%;overflow-x:hidden}button,input,select,textarea{max-widt
 /* Cover pada layar kecil. Sengaja memakai "screen and" supaya TIDAK ikut aktif saat cetak:
    lebar layout cetak A4 potret adalah 190mm (718px) sehingga akan salah memicu aturan mobile
    dan membuat hasil PDF berbeda dari tampilan layar. */
-@media screen and (max-width:767px){.report-cover-a4{min-height:auto;padding:20px}.report-cover-a4>.cover-logo{margin-top:20px}.report-cover-a4>.cover-logo-ministry{width:132px;height:132px}.report-cover-a4>.cover-logo-ministry>img{width:136px;height:136px;margin:-2px 0 0 -2px}.report-cover-a4>.cover-logo-region{width:120px;height:132px;margin-top:32px}.report-cover-a4>.cover-logo-region>img{width:230px;height:230px;margin:-48.1px 0 0 -55px}.report-cover-a4>.cover-logo-custom{width:132px;height:132px}.cover-title{margin-top:21px}.cover-title strong,.cover-title span{font-size:19px;line-height:26px}.cover-fields{width:min(317px,100%);margin-top:36px}.cover-field+.cover-field{margin-top:31px}.cover-field span{font-size:15px;line-height:18px;margin-bottom:5px}.cover-box{font-size:15px;height:30px;line-height:28px;padding:0 10px}.cover-ministry{margin-top:36px}.cover-ministry strong{font-size:17px;line-height:30px}}
+@media screen and (max-width:767px){.report-cover-a4{min-height:auto;padding:20px}.report-cover-a4>.cover-logo{margin-top:20px}.report-cover-a4>.cover-logo-ministry{width:132px;height:132px}.report-cover-a4>.cover-logo-ministry>img{width:136px;height:136px;margin:-2px 0 0 -2px}.report-cover-a4>.cover-logo-region{width:120px;height:132px;margin-top:32px}.report-cover-a4>.cover-logo-region>img{width:230px;height:230px;margin:-48.1px 0 0 -55px}.report-cover-a4>.cover-logo-custom{width:132px;height:132px}/* Aturan gambar bawaan untuk slot Tut Wuri dan lambang daerah di atas berlaku pada selektor yang sama kuatnya dan berdiri lebih belakang, sehingga logo UNGGAHAN ikut memakai ukuran kanvas berkas bawaan - 136px di dalam slot 132px, meleset 4px keluar kotaknya. Ukuran unggahan karena itu ditegaskan kembali di sini: gambar menyesuaikan slotnya, bukan slot yang menyesuaikan gambar. */.report-cover-a4>.cover-logo-custom>img{width:100%;height:100%;object-fit:contain;margin:0}.cover-title{margin-top:21px}.cover-title strong,.cover-title span{font-size:19px;line-height:26px}.cover-fields{width:min(317px,100%);margin-top:36px}.cover-field+.cover-field{margin-top:31px}.cover-field span{font-size:15px;line-height:18px;margin-bottom:5px}.cover-box{font-size:15px;height:30px;line-height:28px;padding:0 10px}.cover-ministry{margin-top:36px}.cover-ministry strong{font-size:17px;line-height:30px}}
 /* Bobot penilaian massal: seluruh mapel dan lima komponennya dalam satu tabel. */
 .weights-tabs{margin-bottom:16px}.weights-bulk-card{padding:0}.weights-bulk-card>.section-head{padding:18px;border-bottom:1px solid var(--line)}.weights-bulk-card>.actions{padding:16px 18px;border-top:1px solid var(--line);justify-content:flex-end}.weights-bulk-table{min-width:900px}.weights-bulk-table th{text-align:center}.weights-bulk-table th:first-child{text-align:left;min-width:210px}.weights-bulk-table td{text-align:center}.weights-bulk-table td:first-child{text-align:left}.weights-bulk-table .score-input{max-width:82px;margin:0 auto;text-align:center;padding:7px}
 @media(max-width:767px){.weights-tabs{display:grid;grid-template-columns:1fr 1fr}.weights-bulk-card>.actions .btn{width:100%}}
@@ -637,7 +637,7 @@ textarea.input{color:var(--light-ink)}
    bukan lebar panel, sehingga layar selebar apa pun tidak pernah menjauhkan ketiganya.
    Tingginya tetap dalam piksel agar tidak ikut membesar di layar besar. */
 .login-crest-row{display:flex;justify-content:center;align-items:center;gap:9px;margin:0 auto 14px}
-.login-crest{height:44px;width:auto;flex:none;object-fit:contain;display:block;filter:drop-shadow(0 2px 8px rgba(4,18,34,.4))}
+.login-crest{height:44px;width:auto;flex:none;object-fit:contain;display:block;filter:drop-shadow(0 2px 8px rgba(4,18,34,.4))}.login-crest-upload{width:44px;height:44px;margin:0}
 /* Lambang Kabupaten Bekasi hanya mengisi 57% tinggi bingkainya, sedangkan dua lambang lain
    mengisi 97%. Tanpa penyeimbang ia tampak jauh lebih kecil. Kotaknya dibesarkan lalu ruang
    kosong di dalam bingkai ditarik kembali dengan margin negatif, sehingga gambarnya tampak
@@ -720,7 +720,7 @@ textarea.input{color:var(--light-ink)}
   .login-credit-role{font-size:10.5px}
   .login-credit-copy{font-size:9.5px}
   .login-shell{width:min(100%,380px);padding:22px 18px 18px;border-radius:18px}
-  .login-crest{height:36px}
+  .login-crest{height:36px}.login-crest-upload{width:36px;height:36px;margin:0}
   .login-crest-region{height:62px;margin:-13px -15px}
   .login-crest-row{gap:8px;margin-bottom:12px}
   .login-brand-text strong{font-size:15px}
@@ -731,7 +731,7 @@ textarea.input{color:var(--light-ink)}
   .login-logo,.login-logo-fallback{width:40px;height:40px}
   .login-photo-caption{display:none}
   .login-panel{padding-top:16px}
-  .login-crest{height:32px}
+  .login-crest{height:32px}.login-crest-upload{width:32px;height:32px;margin:0}
   .login-crest-region{height:55px;margin:-12px -13px}
   .login-crest-row{gap:8px;margin-bottom:10px}
 }

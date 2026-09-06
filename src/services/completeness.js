@@ -1,5 +1,6 @@
-import { COCURRICULAR_ACTIVITY_PRESETS, cocurricularActivityNames, findCocurricularPreset,
-  findDimensiProfil } from '../data/cocurricular.js';
+import { COCURRICULAR_ACTIVITY_PRESETS, DEFAULT_PREDIKAT_KOKURIKULER, PREDIKAT_KOKURIKULER,
+  PREDIKAT_KOKURIKULER_LABEL, cocurricularActivityNames, findCocurricularPreset,
+  findDimensiProfil, predikatKokurikuler } from '../data/cocurricular.js';
 import { listStudents } from './students.js';
 import { loadDb, scopeKey, updateDb } from './storage.js';
 import { requireActiveSubject } from './subjects.js';
@@ -22,6 +23,13 @@ export const DEFAULT_ACTIVITY_PREDICATE='Baik';
 /* Tidak ada lagi predikat lama di luar daftar: keempatnya sudah tercakup di atas. */
 export const LEGACY_ACTIVITY_PREDICATES=[];
 function knownPredicate(value){return ACTIVITY_PREDICATES.includes(value)||LEGACY_ACTIVITY_PREDICATES.includes(value);}
+/* KOKURIKULER MEMAKAI DOMAINNYA SENDIRI - lihat src/data/cocurricular.js. Diekspor ulang di
+   sini supaya halaman Kokurikuler tetap punya satu pintu masuk, sama seperti menu lainnya.
+   Intrakurikuler dan Ekstrakurikuler TIDAK ikut: keduanya tetap memakai ACTIVITY_PREDICATES. */
+export const COCURRICULAR_PREDICATES=Object.freeze([...PREDIKAT_KOKURIKULER_LABEL]);
+export const DEFAULT_COCURRICULAR_PREDICATE=DEFAULT_PREDIKAT_KOKURIKULER;
+export { PREDIKAT_KOKURIKULER, predikatKokurikuler };
+function knownCocurricularPredicate(value){return Boolean(predikatKokurikuler(value));}
 export const ACTIVITY_DESCRIPTIONS={
   'Sangat Baik':'Menunjukkan partisipasi, kedisiplinan, dan tanggung jawab yang sangat baik dalam kegiatan.',
   'Baik':'Menunjukkan partisipasi dan tanggung jawab yang baik dalam kegiatan.',
@@ -41,7 +49,7 @@ export function listCocurricularActivities(){return cocurricularActivityNames();
 export function cocurricularPresets(){return COCURRICULAR_ACTIVITY_PRESETS;}
 function predicatePrefix(predicate){return {'Cukup':'Cukup','Baik':'Baik','Sangat Baik':'Sangat baik','Perlu Bimbingan':'Masih memerlukan bimbingan'}[predicate]||'Baik';}
 export function pramukaDescriptionTemplates(classId,predicate){if(!knownPredicate(predicate))throw new Error('Predikat ekstrakurikuler tidak valid.');return pramukaDescriptionsForClass(classId).map(text=>`${predicatePrefix(predicate)} dalam ${text.charAt(0).toLowerCase()}${text.slice(1)}`);}
-export function cocurricularDescriptionTemplates(classId,predicate,activity){if(!knownPredicate(predicate))throw new Error('Predikat kokurikuler tidak valid.');return cocurricularDescriptionsForClass(classId,activity);}
+export function cocurricularDescriptionTemplates(classId,predicate,activity){if(!knownCocurricularPredicate(predicate))throw new Error('Predikat kokurikuler tidak valid.');return cocurricularDescriptionsForClass(classId,activity);}
 
 function clone(value){return JSON.parse(JSON.stringify(value));}
 function newId(prefix){return globalThis.crypto?.randomUUID?.()||`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,10)}`;}
@@ -128,7 +136,12 @@ function normalizeCocurricular(input){
   const record={activity:clean(input?.activity||input?.projectTitle||input?.theme,180),
     predicate:clean(input?.predicate,50),description:clean(input?.description,1200)};
   if(!record.activity)throw new Error('Kegiatan kokurikuler wajib diisi.');
-  if(!knownPredicate(record.predicate))throw new Error('Predikat kokurikuler tidak valid.');
+  /* Predikat versi lama tetap DITERIMA supaya catatan yang sudah ada bisa dibuka dan disimpan
+     kembali tanpa ditolak. Yang tersimpan sesudahnya adalah istilah baru - perpindahannya
+     terjadi satu per satu saat guru menyimpan, bukan lewat penulisan ulang massal. */
+  const kategori=predikatKokurikuler(record.predicate);
+  if(!kategori)throw new Error('Predikat kokurikuler tidak valid.');
+  record.predicate=kategori.label;
   if(!record.description)throw new Error('Deskripsi kokurikuler wajib diisi.');
   /* DIMENSI PROFIL PELAJAR PANCASILA - indikator penilaian kokurikuler menurut panduan.
 
@@ -168,29 +181,35 @@ function predikatKegiatan(nilai,bawaan){
   const teks=clean(nilai,50);
   return ACTIVITY_PREDICATES.find(item=>item.toLowerCase()===teks.toLowerCase())||bawaan;
 }
+/* Versi Kokurikuler: menerima istilah baru maupun predikat lama, dan selalu mengembalikan
+   istilah baru sehingga layar dan penyimpanan tidak pernah berbeda. */
+function predikatKegiatanKokurikuler(nilai,bawaan){
+  return predikatKokurikuler(clean(nilai,50))?.label||bawaan;
+}
 
 /* Menyusun hasil Kokurikuler seluruh murid untuk SATU kegiatan. Tidak menyimpan apa pun. */
-export function previewAllCocurricular(session,{activity,predicate=DEFAULT_ACTIVITY_PREDICATE,
+export function previewAllCocurricular(session,{activity,predicate=DEFAULT_COCURRICULAR_PREDICATE,
   predicates={},describe,dimension=''}={}){
   assertTeacher(session);
   const kegiatan=clean(activity,180);
   if(!kegiatan)throw new Error('Pilih kegiatan kokurikuler terlebih dahulu.');
-  if(!knownPredicate(predicate))throw new Error('Predikat kokurikuler tidak valid.');
+  const bawaan=predikatKokurikuler(predicate);
+  if(!bawaan)throw new Error('Predikat kokurikuler tidak valid.');
   if(typeof describe!=='function')throw new Error('Penyusun deskripsi kokurikuler tidak tersedia.');
   const students=listStudents(session,{classId:session.classId});
   const rows=students.map(student=>{
     const tersimpan=loadDb().cocurricularScores?.[cocurricularKey(session,student.id)];
     /* Predikat milik murid masing-masing: yang sudah ditentukan guru tidak diseragamkan. */
-    const predikat=predikatKegiatan(predicates?.[student.id],null)
-      ||(String(tersimpan?.activity||'')===kegiatan?predikatKegiatan(tersimpan?.predicate,null):null)
-      ||predicate;
+    const predikat=predikatKegiatanKokurikuler(predicates?.[student.id],null)
+      ||(String(tersimpan?.activity||'')===kegiatan?predikatKegiatanKokurikuler(tersimpan?.predicate,null):null)
+      ||bawaan.label;
     /* Dimensi ikut dibawa ke penyusun kalimat DAN ke baris hasilnya, sehingga dimensi yang
        dilihat guru pada layar adalah dimensi yang benar-benar tersimpan. */
     return {studentId:student.id,name:student.name,activity:kegiatan,predicate:predikat,
       ...(dimension?{dimension}:{}),
       description:clean(describe({student,activity:kegiatan,predicate:predikat,dimension}),1200)};
   });
-  return {activity:kegiatan,predicate,dimension,total:students.length,rows};
+  return {activity:kegiatan,predicate:bawaan.label,dimension,total:students.length,rows};
 }
 
 /* Menyimpan hasil Kokurikuler yang sedang ditampilkan. */

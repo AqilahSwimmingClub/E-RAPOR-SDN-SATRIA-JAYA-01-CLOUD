@@ -106,11 +106,47 @@ test('6. Daftar capaian lama tidak digeser urutannya',()=>{
 
 /* ------------------------------------------------------------- Bank kalimat bukti perilaku */
 
-test('7. Bank bukti berisi 18 kalimat, tiga untuk setiap dimensi',()=>{
-  const semua=ATTITUDE_DIMENSIONS.flatMap(item=>attitudeEvidenceOptions(item.id));
-  assert.equal(semua.length,18,'tiga bukti untuk enam dimensi');
+/* HARAPAN INI DIPERBARUI DENGAN SENGAJA.
+
+   Bank dimulai dengan 18 kalimat dari panduan, tiga untuk tiap dimensi. Penambahan berikutnya
+   bersifat ADDITIVE, jadi jumlahnya tidak lagi dikunci pada angka 18 - yang dikunci adalah
+   jaminannya: setiap dimensi tetap punya minimal tiga pilihan, dan kedelapan belas kalimat
+   awal masih ada semuanya. Menghapus atau mengubah salah satunya akan membuat catatan yang
+   sudah memilih bukti itu menjadi tidak sah, dan test ini menangkapnya. */
+const BUKTI_ASAL=Object.freeze({
+  'faith':['konsistensinya dalam berdoa sebelum belajar serta menghormati perbedaan agama teman',
+    'ketaatannya dalam menjalankan ibadah harian dan menjaga kebersihan lingkungan kelas',
+    'tutur katanya yang santun terhadap guru serta sikap peduli pada sesama makhluk hidup'],
+  'mutual-cooperation':['kerelaannya berbagi tugas dan aktif membantu teman saat kegiatan diskusi kelompok',
+    'inisiatifnya dalam menjaga kebersihan kelas bersama dan menyukseskan kegiatan sekolah',
+    'kemampuannya bekerja sama secara harmonis dalam menyelesaikan tugas kelompok'],
+  'independent':['kesadarannya dalam menyiapkan peralatan belajar sendiri tanpa perlu diingatkan guru',
+    'tanggung jawabnya untuk menyelesaikan tugas-tugas kelas tepat waktu secara mandiri',
+    'kemampuannya mengatur waktu belajar dan mengelola emosi dengan baik saat menghadapi kesulitan'],
+  'critical-reasoning':['keberaniannya mengajukan pertanyaan kritis dan mengolah informasi menjadi gagasan baru',
+    'kemampuannya menganalisis masalah sederhana di kelas dan memberikan solusi yang logis',
+    'kebiasaannya mengidentifikasi fakta secara objektif sebelum mengambil keputusan belajar'],
+  'creative':['kemampuannya menghasilkan gagasan orisinal saat memecahkan masalah dalam tugas seni',
+    'antusiasmenya dalam memodifikasi karya seni atau produk tugas menjadi lebih menarik',
+    'keluwesannya dalam mencari alternatif solusi ketika rencana belajarnya mengalami hambatan'],
+  'global-diversity':['keterbukaannya dalam berteman dengan siapa saja tanpa membedakan suku maupun latar belakang',
+    'minatnya yang besar untuk mempelajari ragam budaya daerah lain melalui materi pelajaran',
+    'kemampuannya menyelesaikan perselisihan dengan teman secara damai dan toleran'],
+});
+test('7. Setiap dimensi punya minimal tiga bukti, dan 18 kalimat awal tidak pernah hilang',()=>{
   for(const item of ATTITUDE_DIMENSIONS)
-    assert.equal(attitudeEvidenceOptions(item.id).length,3,`dimensi ${item.label} punya tiga bukti`);
+    assert.ok(attitudeEvidenceOptions(item.id).length>=3,`dimensi ${item.label} punya minimal tiga bukti`);
+  let asal=0;
+  for(const [dimensionId,kalimat] of Object.entries(BUKTI_ASAL)){
+    const bank=attitudeEvidenceOptions(dimensionId);
+    for(const teks of kalimat){
+      assert.ok(bank.includes(teks),`bukti awal "${teks.slice(0,40)}..." masih ada`);
+      asal+=1;
+    }
+  }
+  assert.equal(asal,18,'seluruh 18 kalimat awal diperiksa');
+  /* Penambahan bersifat additive: yang bertambah selalu di atas 18, tidak pernah menggantikan. */
+  assert.ok(ATTITUDE_DIMENSIONS.flatMap(item=>attitudeEvidenceOptions(item.id)).length>=18);
 });
 
 test('8. Bank terstruktur per dimensionId, bukan daftar teks lepas',()=>{
@@ -137,16 +173,20 @@ test('9. Bukti satu dimensi tidak pernah muncul pada dimensi lain',()=>{
     'dropdown Gotong Royong tidak memuat bukti Kreatif');
 });
 
-test('10. Seluruh 18 kalimat bukti berbeda satu sama lain',()=>{
+test('10. Seluruh kalimat bukti berbeda satu sama lain',()=>{
   const semua=ATTITUDE_DIMENSIONS.flatMap(item=>attitudeEvidenceOptions(item.id));
-  assert.equal(new Set(semua).size,18,'tidak ada kalimat yang diulang');
+  assert.equal(new Set(semua).size,semua.length,'tidak ada kalimat yang diulang di seluruh bank');
+  /* Tidak ada pula dua kalimat yang hanya berbeda tanda baca atau besar-kecil hurufnya. */
+  const rata=semua.map(teks=>teks.toLowerCase().replace(/[^a-z]/g,''));
+  assert.equal(new Set(rata).size,rata.length,'tidak ada kalimat kembar yang hanya beda ejaan');
 });
 
 test('11. Pembaca bank aman terhadap dimensi asing dan tidak bisa diubah dari luar',()=>{
   assert.deepEqual(attitudeEvidenceOptions('bukan-dimensi'),[],'dimensi asing tidak menghasilkan bukti');
   assert.deepEqual(attitudeEvidenceOptions(''),[]);
+  const jumlah=attitudeEvidenceOptions('creative').length;
   const salinan=attitudeEvidenceOptions('creative');salinan.push('bukti karangan');
-  assert.equal(attitudeEvidenceOptions('creative').length,3,'bank tidak ikut berubah');
+  assert.equal(attitudeEvidenceOptions('creative').length,jumlah,'bank tidak ikut berubah');
   assert.equal(isAttitudeEvidenceOf('creative','bukti karangan'),false);
 });
 

@@ -137,12 +137,14 @@ test('9. Kokurikuler dapat diterapkan ke semua siswa dan tetap dapat diedit satu
   const daftar=[siswa(session,'A'),siswa(session,'B')];
   const kegiatan='Bakti Sosial';
   const deskripsi=cocurricularDescriptionsForClass('5B',kegiatan)[1];
+  /* Predikat lama yang dikirim di sini tetap DITERIMA dan tersimpan dalam istilah kokurikuler
+     yang baru - Kokurikuler kini memakai domain predikatnya sendiri. */
   const hasil=saveCocurricularBulk(session,{activity:kegiatan,predicate:'Baik',description:deskripsi});
   assert.equal(hasil.studentCount,2);
   for(const anak of daftar){
     const record=getStudentCocurricular(session,anak.id);
     assert.equal(record.activity,kegiatan);
-    assert.equal(record.predicate,'Baik');
+    assert.equal(record.predicate,'Berkembang Sesuai Harapan');
     assert.equal(record.description,deskripsi);
   }
   /* Edit satuan setelah generate massal tetap berlaku. */

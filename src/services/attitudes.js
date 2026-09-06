@@ -33,10 +33,21 @@ export const ATTITUDE_ACCEPTED_LEVELS=Object.freeze([
 export function isAttitudeLevel(level){return ATTITUDE_ACCEPTED_LEVELS.includes(String(level||'').trim());}
 export function attitudeLevelCode(level){return ATTITUDE_DEVELOPMENT_LEVELS.find(item=>item.label===String(level||'').trim())?.code||'';}
 
-/* BANK KALIMAT BUKTI PERILAKU - TIGA PILIHAN UNTUK TIAP DIMENSI.
+/* BANK KALIMAT BUKTI PERILAKU - PILIHAN SIAP PAKAI UNTUK TIAP DIMENSI.
    Terstruktur per dimensionId, bukan sekadar deretan teks di DOM, supaya dropdown Gotong Royong
    tidak pernah menawarkan bukti milik Kreatif. Kalimatnya sengaja dibiarkan berhuruf kecil di
-   awal karena selalu menempel di tengah kalimat, setelah "yang ditunjukkan melalui". */
+   awal karena selalu menempel di tengah kalimat, setelah "yang ditunjukkan melalui".
+
+   PENAMBAHAN 1.2.8 - BERSIFAT ADDITIVE. Lima kalimat ditambahkan tanpa mengubah atau membuang
+   satu pun kalimat yang sudah ada, sehingga catatan yang sudah memilih bukti lama tetap sah.
+
+   Satu usulan TIDAK ditambahkan: bukti Beriman "konsistensi berdoa sebelum belajar dan
+   menghormati perbedaan agama teman" sudah ada kata demi kata sebagai pilihan pertama dimensi
+   itu. Menambahkannya hanya akan memberi guru dua baris dropdown yang berbunyi sama.
+
+   Kalimat yang ditambahkan dijadikan frasa benda ("sikapnya yang ...", "kemampuannya ...")
+   mengikuti bentuk seluruh isi bank, karena semuanya menempel di tengah kalimat sesudah
+   "yang ditunjukkan melalui". Maknanya tidak diubah. */
 export const ATTITUDE_EVIDENCE_BANK=Object.freeze({
   'faith':Object.freeze([
     'konsistensinya dalam berdoa sebelum belajar serta menghormati perbedaan agama teman',
@@ -47,26 +58,31 @@ export const ATTITUDE_EVIDENCE_BANK=Object.freeze({
     'kerelaannya berbagi tugas dan aktif membantu teman saat kegiatan diskusi kelompok',
     'inisiatifnya dalam menjaga kebersihan kelas bersama dan menyukseskan kegiatan sekolah',
     'kemampuannya bekerja sama secara harmonis dalam menyelesaikan tugas kelompok',
+    'sikapnya yang aktif dan komunikatif saat melaksanakan kerja kelompok serta ringan tangan membantu teman',
   ]),
   'independent':Object.freeze([
     'kesadarannya dalam menyiapkan peralatan belajar sendiri tanpa perlu diingatkan guru',
     'tanggung jawabnya untuk menyelesaikan tugas-tugas kelas tepat waktu secara mandiri',
     'kemampuannya mengatur waktu belajar dan mengelola emosi dengan baik saat menghadapi kesulitan',
+    'kesadarannya menyiapkan peralatan belajarnya sendiri dan tanggung jawabnya menyelesaikan tugas tepat waktu',
   ]),
   'critical-reasoning':Object.freeze([
     'keberaniannya mengajukan pertanyaan kritis dan mengolah informasi menjadi gagasan baru',
     'kemampuannya menganalisis masalah sederhana di kelas dan memberikan solusi yang logis',
     'kebiasaannya mengidentifikasi fakta secara objektif sebelum mengambil keputusan belajar',
+    'kemampuannya menyampaikan ide gagasan yang logis saat berdiskusi dan keberaniannya bertanya di dalam kelas',
   ]),
   'creative':Object.freeze([
     'kemampuannya menghasilkan gagasan orisinal saat memecahkan masalah dalam tugas seni',
     'antusiasmenya dalam memodifikasi karya seni atau produk tugas menjadi lebih menarik',
     'keluwesannya dalam mencari alternatif solusi ketika rencana belajarnya mengalami hambatan',
+    'kemampuannya memodifikasi karya seni atau menghasilkan solusi alternatif ketika menemui kendala praktik',
   ]),
   'global-diversity':Object.freeze([
     'keterbukaannya dalam berteman dengan siapa saja tanpa membedakan suku maupun latar belakang',
     'minatnya yang besar untuk mempelajari ragam budaya daerah lain melalui materi pelajaran',
     'kemampuannya menyelesaikan perselisihan dengan teman secara damai dan toleran',
+    'sikapnya menghargai keragaman latar belakang teman saat bergaul tanpa membeda-bedakan',
   ]),
 });
 export function attitudeEvidenceOptions(dimensionId){return [...(ATTITUDE_EVIDENCE_BANK[String(dimensionId||'')]||[])];}

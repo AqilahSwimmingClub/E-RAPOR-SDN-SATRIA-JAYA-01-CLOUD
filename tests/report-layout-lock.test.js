@@ -104,6 +104,29 @@ test('4. Penyusun markup rapor identik dengan baseline d093b99',()=>{
     assert.equal(extractFunctionSource(sumber,nama),teks,`fungsi ${nama} berubah dari baseline`);
 });
 
+/* PERUBAHAN BASELINE KEEMPAT YANG DISENGAJA DAN DIMINTA.
+
+   Sejak Admin dapat mengunggah lambangnya sendiri, slot Cover memakai kelas tambahan
+   `cover-logo-custom` yang menampilkan gambar utuh di dalam kotak berukuran tetap. Pada layar
+   sempit, aturan gambar bawaan untuk slot Tut Wuri berdiri lebih belakang dengan kekuatan
+   selektor yang sama, sehingga logo unggahan ikut memakai ukuran kanvas berkas bawaan - 136px
+   di dalam slot 132px - dan meleset empat piksel keluar kotaknya di setiap HP.
+
+   Satu aturan ditambahkan untuk menegaskan kembali ukuran gambar unggahan pada layar sempit.
+   Slot, posisi, jarak, dan seluruh tampilan berkas bawaan tidak berubah sedikit pun; yang
+   diperbaiki hanya gambar unggahan yang tadinya lebih besar daripada kotaknya. */
+test('4f. Logo unggahan tetap di dalam slotnya pada layar sempit',()=>{
+  const gaya=read('src/styles/app.css');
+  const sempit=gaya.slice(gaya.indexOf('@media screen and (max-width:767px)'));
+  assert.match(sempit,/\.report-cover-a4>\.cover-logo-custom\{width:132px;height:132px\}/,
+    'slotnya tetap mengecil seperti sebelumnya');
+  assert.match(sempit,/\.report-cover-a4>\.cover-logo-custom>img\{width:100%;height:100%;object-fit:contain;margin:0\}/,
+    'gambarnya mengikuti slot, bukan kanvas berkas bawaan');
+  /* Tampilan berkas bawaan tidak ikut berubah. */
+  assert.match(sempit,/\.report-cover-a4>\.cover-logo-ministry>img\{width:136px;height:136px;margin:-2px 0 0 -2px\}/);
+  assert.match(sempit,/\.report-cover-a4>\.cover-logo-region>img\{width:230px;height:230px;margin:-48\.1px 0 0 -55px\}/);
+});
+
 /* PERUBAHAN BASELINE KETIGA YANG DISENGAJA DAN DIMINTA.
 
    Panduan Pembelajaran dan Asesmen tidak mengenal sekat "Kelompok A" / "Kelompok B" pada

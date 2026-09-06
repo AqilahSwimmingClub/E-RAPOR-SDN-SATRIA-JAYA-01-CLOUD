@@ -56,7 +56,9 @@ test('2. Kokurikuler dapat langsung diisi tanpa konfigurasi tambahan',()=>{
   assert.deepEqual(loadDb().cocurricularScores,{});
   const saved=saveStudentCocurricular(session,student.id,{activity:'Proyek Peduli Lingkungan',predicate:'Cukup',description:'Ikut menjaga kebersihan.'});
   assert.equal(saved.activity,'Proyek Peduli Lingkungan');
-  assert.equal(getStudentCocurricular(session,student.id).predicate,'Cukup');
+  /* Kokurikuler memakai domain predikatnya sendiri: "Cukup" tetap diterima sebagai istilah
+     lama, lalu tersimpan sebagai Mulai Berkembang. */
+  assert.equal(getStudentCocurricular(session,student.id).predicate,'Mulai Berkembang');
 });
 
 test('3. Predikat menyediakan empat pilihan, urut dari yang tertinggi',()=>{

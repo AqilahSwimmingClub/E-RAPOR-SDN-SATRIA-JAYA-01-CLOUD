@@ -1,7 +1,7 @@
 import { DIMENSI_PROFIL_PELAJAR_PANCASILA, dimensiKokurikuler,
   generateCocurricularDescription } from '../data/cocurricular.js';
-import { ACTIVITY_PREDICATES, DEFAULT_ACTIVITY_PREDICATE, getStudentCocurricular,
-  hapusSemuaCocurricular, listCocurricularActivities, previewAllCocurricular,
+import { COCURRICULAR_PREDICATES, DEFAULT_COCURRICULAR_PREDICATE, getStudentCocurricular,
+  hapusSemuaCocurricular, listCocurricularActivities, predikatKokurikuler, previewAllCocurricular,
   saveAllCocurricular } from '../services/completeness.js';
 import { listStudents } from '../services/students.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
@@ -28,8 +28,12 @@ import { icon } from '../ui/icons.js';
 function studentOptions(students,selected=''){
   return students.map(student=>`<option value="${escapeHtml(student.id)}" ${student.id===selected?'selected':''}>${escapeHtml(student.name)} · ${escapeHtml(student.nis)}</option>`).join('');
 }
+/* KOKURIKULER MEMAKAI PREDIKAT PERKEMBANGAN, bukan predikat penguasaan materi. Istilah versi
+   lama tidak lagi ditawarkan untuk catatan baru; yang sudah tersimpan diterjemahkan lebih dulu
+   oleh layanan, sehingga pilihan yang terlihat guru selalu salah satu dari empat ini. */
 function predicateOptions(selected){
-  return ACTIVITY_PREDICATES.map(value=>`<option value="${escapeHtml(value)}" ${value===selected?'selected':''}>${escapeHtml(value)}</option>`).join('');
+  const nilai=predikatKokurikuler(selected)?.label||DEFAULT_COCURRICULAR_PREDICATE;
+  return COCURRICULAR_PREDICATES.map(value=>`<option value="${escapeHtml(value)}" ${value===nilai?'selected':''}>${escapeHtml(value)}</option>`).join('');
 }
 /* Indikator penilaian kokurikuler adalah Dimensi Profil Pelajar Pancasila. Daftarnya tetap dan
    diambil dari data aplikasi, sehingga rapor tidak pernah menyebut dimensi yang diketik bebas. */
@@ -41,7 +45,7 @@ function dimensiOptions(selected){
 export function renderCocurricularInput(session){
   let selectedStudentId='';
   let kegiatan='';
-  let predicate=DEFAULT_ACTIVITY_PREDICATE;
+  let predicate=DEFAULT_COCURRICULAR_PREDICATE;
   let dimensi='';
   /* Dimensi yang DIPILIH SENDIRI oleh guru, disimpan per kegiatan.
 

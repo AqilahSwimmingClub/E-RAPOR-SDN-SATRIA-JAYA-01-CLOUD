@@ -1,8 +1,8 @@
 import { getSchoolMaster, getTeacherProfile, saveSchoolMaster } from '../services/master.js';
-import { formatIndonesianPrintDate } from '../services/print-settings.js';
+import { getReportDateDefault, saveReportDateDefault } from '../services/print-settings.js';
 import { getSubjectMapping } from '../services/storage.js';
 import { getTeacherAssignment } from '../services/teacher-assignments.js';
-import { copyAcademicYearData, createAcademicYear, getReferenceOverview, setSemesterReferenceActive, updateReferenceSubject } from '../services/references.js';
+import { copyAcademicYearData, createAcademicYear, getReferenceOverview, listLoginSemesters, resolveSemesterAcademicYear, setSemesterReferenceActive, updateReferenceSubject } from '../services/references.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 
@@ -38,7 +38,7 @@ export function renderReferences(session,section='school'){
      menulis ke master sekolah yang sama supaya tidak ada store kedua. */
   function drawBranding(){
     const school=getSchoolMaster();
-    view.innerHTML=`<form class="card reference-school-form" data-branding><div class="section-head"><div><h3>Logo dan Tanda Tangan</h3><p>Logo dan nama penanda tangan dipakai pada cover, rapor, transkrip, dan leger.</p></div><span class="badge badge-active">Master Aktif</span></div><div class="school-logo-grid">${logoField('schoolLogo','Logo Sekolah',school.schoolLogo)}${logoField('ministryLogo','Logo Tut Wuri Handayani',school.ministryLogo)}${logoField('regionLogo','Lambang Kota/Kabupaten',school.regionLogo)}</div><div class="form-grid"><div class="field"><label>Nama Kepala Sekolah</label><input class="input" name="principalName" value="${escapeHtml(school.principalName||'')}" required/></div><div class="field"><label>NIP Kepala Sekolah</label><input class="input" name="principalNip" value="${escapeHtml(school.principalNip||'')}" required/></div></div><div class="actions"><button class="btn btn-primary" type="submit">${icon('save',16)} Simpan Logo dan Tanda Tangan</button></div></form>`;
+    view.innerHTML=`<form class="card reference-school-form" data-branding><div class="section-head"><div><h3>Logo dan Tanda Tangan</h3><p>Logo dan nama penanda tangan dipakai pada cover, rapor, transkrip, dan leger.</p></div><span class="badge badge-active">Master Aktif</span></div><div class="school-logo-grid">${logoField('schoolLogo','Logo Sekolah',school.schoolLogo)}${logoField('ministryLogo','Logo Tut Wuri Handayani',school.ministryLogo)}${logoField('regionLogo','Logo Kabupaten/Kota/Provinsi',school.regionLogo)}</div><div class="form-grid"><div class="field"><label>Nama Kepala Sekolah</label><input class="input" name="principalName" value="${escapeHtml(school.principalName||'')}" required/></div><div class="field"><label>NIP Kepala Sekolah</label><input class="input" name="principalNip" value="${escapeHtml(school.principalNip||'')}" required/></div></div><div class="actions"><button class="btn btn-primary" type="submit">${icon('save',16)} Simpan Logo dan Tanda Tangan</button></div></form>`;
     const logos={ministryLogo:school.ministryLogo||'',regionLogo:school.regionLogo||'',schoolLogo:school.schoolLogo||''};
     bindLogoFields(logos);
     view.querySelector('[data-branding]').onsubmit=event=>{
@@ -55,14 +55,28 @@ export function renderReferences(session,section='school'){
     });
     view.querySelectorAll('[data-logo-clear]').forEach(button=>button.onclick=()=>{const key=button.dataset.logoClear;logos[key]='';view.querySelector(`[data-logo-preview="${key}"]`).innerHTML='<span>Belum ada logo</span>';});
   }
-  /* Tanggal dan kota bawaan disimpan pada master sekolah lalu dipakai getPrintSettings
-     sebagai nilai awal bagi setiap rombel yang belum menyimpan pengaturan cetaknya sendiri. */
+  /* TANGGAL RAPOR RESMI SEKOLAH, PER TAHUN PELAJARAN DAN SEMESTER.
+
+     Admin adalah sumbernya; seluruh rombel membacanya tanpa perlu mengisi ulang. Rombel yang
+     memang butuh tanggal sendiri masih boleh menimpanya lewat Pengaturan Cetak, dan hanya
+     rombel itu yang lepas dari tanggal sekolah.
+
+     Periodenya dipilih di sini karena rapor Ganjil dan Genap memang dibagikan pada hari yang
+     berbeda. Periode yang belum pernah diatur membaca tanggal bawaan lama pada master sekolah,
+     sehingga sekolah yang sudah mengisinya tidak kehilangan apa pun. */
+  let periodeTanggal='';
   function drawReportDate(){
-    const school=getSchoolMaster();
-    view.innerHTML=`<form class="card reference-school-form" data-report-date><div class="section-head"><div><h3>Tanggal Rapor</h3><p>Dipakai sebagai nilai awal Tanggal Rapor pada seluruh rombel yang belum mengatur sendiri.</p></div></div><div class="form-grid"><div class="field"><label>Tanggal Rapor</label><input class="input" type="date" name="reportDate" value="${escapeHtml(school.reportDate||'')}"/></div><div class="field"><label>Kota Penandatanganan</label><input class="input" name="reportCity" value="${escapeHtml(school.reportCity||school.city||'Bekasi')}"/></div></div><p class="muted">${school.reportDate?escapeHtml(formatIndonesianPrintDate(school.reportDate,school.reportCity||school.city||'Bekasi')):'Belum ada tanggal bawaan.'}</p><div class="actions"><button class="btn btn-primary" type="submit">${icon('save',16)} Simpan Tanggal Rapor</button></div></form>`;
+    const daftar=listLoginSemesters();
+    if(!periodeTanggal)periodeTanggal=daftar.includes(session.semester)?session.semester:(daftar[0]||'');
+    const scope={...session,semester:periodeTanggal,academicYear:resolveSemesterAcademicYear(periodeTanggal)||session.academicYear};
+    const nilai=getReportDateDefault(scope);
+    view.innerHTML=`<form class="card reference-school-form" data-report-date><div class="section-head"><div><h3>Tanggal Rapor</h3><p>Tanggal resmi sekolah untuk satu tahun pelajaran dan semester. Seluruh rombel memakainya kecuali yang sengaja menimpanya sendiri.</p></div><span class="badge ${nilai.scoped?'badge-active':'badge-inactive'}">${nilai.scoped?'Diatur periode ini':'Memakai tanggal bawaan lama'}</span></div><div class="form-grid"><div class="field"><label>Tahun Pelajaran dan Semester</label><select class="input" data-periode>${daftar.map(item=>`<option value="${escapeHtml(item)}" ${item===periodeTanggal?'selected':''}>${escapeHtml(item)}</option>`).join('')}</select></div><div class="field"><label>Tanggal Rapor</label><input class="input" type="date" name="reportDate" value="${escapeHtml(nilai.reportDate)}"/></div><div class="field"><label>Kota Penandatanganan</label><input class="input" name="reportCity" value="${escapeHtml(nilai.reportCity)}"/></div></div><p class="muted" data-report-date-label>${nilai.reportDateLabel?escapeHtml(nilai.reportDateLabel):'Belum ada tanggal untuk periode ini.'}</p><div class="actions"><button class="btn btn-primary" type="submit">${icon('save',16)} Simpan Tanggal Rapor</button></div></form>`;
+    view.querySelector('[data-periode]').onchange=event=>{periodeTanggal=event.target.value;drawReportDate();};
     view.querySelector('[data-report-date]').onsubmit=event=>{
       event.preventDefault();const fields=event.currentTarget.elements;
-      try{saveSchoolMaster(session,{...school,reportDate:fields.reportDate.value,reportCity:fields.reportCity.value});drawReportDate();toast('Tanggal rapor bawaan berhasil disimpan.');}
+      try{saveReportDateDefault(session,{academicYear:scope.academicYear,semester:scope.semester,
+        reportDate:fields.reportDate.value,reportCity:fields.reportCity.value});
+        drawReportDate();toast(`Tanggal rapor ${scope.semester} berhasil disimpan.`);}
       catch(error){toast(error.message,'error');}
     };
   }

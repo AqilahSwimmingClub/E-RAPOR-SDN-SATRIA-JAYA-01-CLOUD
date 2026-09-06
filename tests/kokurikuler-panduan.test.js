@@ -9,7 +9,7 @@ import {
 import { ACTIVITY_PREDICATES, getStudentCocurricular, hapusSemuaCocurricular,
   previewAllCocurricular, saveAllCocurricular } from '../src/services/completeness.js';
 import { setTeacherAssignment } from '../src/services/teacher-assignments.js';
-import { invalidateDbCache, loadDb, saveSubjectMapping } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb, saveSubjectMapping, scopeKey, updateDb } from '../src/services/storage.js';
 import { createStudent } from '../src/services/students.js';
 import { getReportDocument } from '../src/services/documents.js';
 import { readFileSync } from 'node:fs';
@@ -92,21 +92,53 @@ test('5. Predikat aplikasi TIDAK diganti oleh istilah panduan',()=>{
     'empat predikat lama tetap menjadi nilai yang disimpan dan dipilih guru');
 });
 
+/* HARAPAN INI DIPERBARUI DENGAN SENGAJA.
+
+   Kode capaian tertinggi ditulis SB, bukan SAB. Sejak Kokurikuler memakai domain predikatnya
+   sendiri, kode itu tidak lagi sekadar keterangan internal: ia adalah singkatan resmi yang
+   dibaca guru pada layar bersama MB, BSH, dan BB. Menulisnya SAB akan membuat satu dari empat
+   singkatan berbeda sendiri dari panduan. Pemetaan predikat lama tidak berubah sama sekali. */
 test('6. Keempat predikat diterjemahkan ke kategori capaian panduan',()=>{
   assert.deepEqual(kategoriCapaianKokurikuler('Perlu Bimbingan'),{kode:'BB',label:'Belum Berkembang'});
   assert.deepEqual(kategoriCapaianKokurikuler('Cukup'),{kode:'MB',label:'Mulai Berkembang'});
   assert.deepEqual(kategoriCapaianKokurikuler('Baik'),{kode:'BSH',label:'Berkembang Sesuai Harapan'});
-  assert.deepEqual(kategoriCapaianKokurikuler('Sangat Baik'),{kode:'SAB',label:'Sangat Berkembang'});
+  assert.deepEqual(kategoriCapaianKokurikuler('Sangat Baik'),{kode:'SB',label:'Sangat Berkembang'});
   assert.equal(kategoriCapaianKokurikuler('Entah'),null);
+  /* Istilah barunya pun dikenali oleh pintu yang sama. */
+  assert.deepEqual(kategoriCapaianKokurikuler('Belum Berkembang'),{kode:'BB',label:'Belum Berkembang'});
+  assert.deepEqual(kategoriCapaianKokurikuler('Sangat Berkembang'),{kode:'SB',label:'Sangat Berkembang'});
 });
 
-test('7. Data kokurikuler lama dengan predikat lama tetap tersimpan apa adanya',()=>{
+/* HARAPAN INI DIPERBARUI DENGAN SENGAJA.
+
+   Dulu predikat lama sengaja disimpan apa adanya karena Kokurikuler masih berbagi domain
+   predikat dengan Intrakurikuler dan Ekstrakurikuler. Sekarang Kokurikuler punya domainnya
+   sendiri, jadi predikat lama tetap DITERIMA - catatan lama masih bisa dibuka dan disimpan
+   ulang tanpa ditolak - lalu tersimpan dalam istilah barunya.
+
+   Yang dijaga tetap sama dan justru diperiksa lebih ketat di sini: tidak ada penulisan ulang
+   massal. Catatan yang tidak disentuh guru tidak berubah sedikit pun di dalam database, dan
+   deskripsinya tidak pernah ikut diubah. */
+test('7. Predikat lama tetap diterima dan tersimpan dalam istilah kokurikuler yang baru',()=>{
   const {sesi,siswa}=panggung();
   saveAllCocurricular(sesi,{activity:'Bakti Sosial',rows:[{studentId:siswa[0].id,
     name:siswa[0].name,predicate:'Cukup',description:'Deskripsi kokurikuler lama.'}]});
   const tersimpan=getStudentCocurricular(sesi,siswa[0].id);
-  assert.equal(tersimpan.predicate,'Cukup','predikat lama tidak diterjemahkan saat disimpan');
-  assert.equal(tersimpan.description,'Deskripsi kokurikuler lama.');
+  assert.equal(tersimpan.predicate,'Mulai Berkembang','predikat lama diterima dan diterjemahkan');
+  assert.equal(tersimpan.description,'Deskripsi kokurikuler lama.','deskripsi guru tidak ikut diubah');
+
+  /* Catatan lama yang TIDAK disentuh guru tetap utuh di dalam database. */
+  const kunci=`${scopeKey(sesi)}|${siswa[1].id}`;
+  updateDb(db=>{db.cocurricularScores[kunci]={classId:sesi.classId,studentId:siswa[1].id,
+    semester:sesi.semester,academicYear:sesi.academicYear,activity:'Bakti Sosial',
+    predicate:'Perlu Bimbingan',description:'Catatan versi lama.',
+    createdAt:'2025-01-01T00:00:00.000Z',updatedAt:'2025-01-01T00:00:00.000Z'};return db;});
+  invalidateDbCache();
+  getStudentCocurricular(sesi,siswa[1].id);
+  invalidateDbCache();
+  const mentah=loadDb().cocurricularScores[kunci];
+  assert.equal(mentah.predicate,'Perlu Bimbingan','membaca tidak menulis ulang catatan lama');
+  assert.equal(mentah.updatedAt,'2025-01-01T00:00:00.000Z');
 });
 
 /* ------------------------------------------------------- §4 POLA KALIMAT DESKRIPSI */
@@ -224,7 +256,9 @@ test('19. Simpan Semua menyimpan dimensi bersama catatannya',()=>{
     description:`Ananda ${item.name} Berkembang Sesuai Harapan dalam dimensi Gotong Royong.`}))});
   const tersimpan=getStudentCocurricular(sesi,siswa[0].id);
   assert.equal(tersimpan.dimension,'gotong-royong');
-  assert.equal(tersimpan.predicate,'Baik','predikat aplikasi yang disimpan, bukan istilah panduan');
+  /* Sejak Kokurikuler memakai domainnya sendiri, istilah panduan ITULAH predikat yang
+     disimpan. Predikat lama yang dikirim di sini diterjemahkan, bukan ditolak. */
+  assert.equal(tersimpan.predicate,'Berkembang Sesuai Harapan');
 });
 
 test('20. Dimensi bersifat opsional: catatan tanpa dimensi tetap sah',()=>{

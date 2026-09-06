@@ -25,6 +25,28 @@ export function renderLogin({onSuccess,onActivate,onLicenseBlocked}){
   const schoolLogo=String(school.schoolLogo||'').trim();
   const crest=schoolLogo||'./assets/app-icon-192.png';
   const crestAlt=schoolName?`Logo ${schoolName}`:'Lambang sekolah belum diunggah';
+  /* TIGA LOGO PADA FORM MASUK, URUTANNYA TETAP: Tut Wuri, lambang daerah, lalu logo sekolah.
+     Yang berubah pada 1.2.8 HANYA sumber gambarnya. Dua logo pertama dulu ditulis mati ke
+     berkas bawaan, sehingga unggahan Admin tidak pernah terpakai dan sekolah di luar Kabupaten
+     Bekasi terpaksa memasang lambang daerah yang bukan miliknya. Sekarang ketiganya membaca
+     master Admin lebih dulu, dan berkas bawaan hanya menjadi cadangan bila Admin belum
+     mengunggah - atau menghapus unggahannya. Ukuran, jarak, posisi, dan urutannya tidak
+     disentuh sama sekali. */
+  const ministryUpload=String(school.ministryLogo||'').trim();
+  const regionUpload=String(school.regionLogo||'').trim();
+  const ministryLogo=ministryUpload||'./assets/logo-tut-wuri-handayani.png';
+  const regionLogo=regionUpload||'./assets/logo-kabupaten-bekasi.png';
+  /* BERKAS UNGGAHAN MENYESUAIKAN SLOT, BUKAN SEBALIKNYA.
+
+     Ketiga lambang bawaan aplikasi berbentuk hampir persegi, dan slot lambang daerah bahkan
+     sengaja dibuat lebih tinggi dengan margin negatif untuk mengimbangi ruang kosong pada
+     berkas bawaannya. Kompensasi itu hanya benar untuk berkas itu: logo unggahan yang melebar
+     atau memanjang akan tumbuh melewati tetangganya dan barisnya berantakan.
+
+     Karena itu unggahan dipasang pada kotak berukuran tetap dengan object-fit: contain. Tinggi
+     area, jarak, posisi, dan urutan barisnya sama persis berapa pun rasio berkas yang diunggah
+     sekolah - yang menyesuaikan adalah gambarnya. */
+  const kelasUnggahan=nilai=>nilai?' login-crest-upload':'';
   const root=el(`<main class="login-stage">
     <section class="login-photo">
       <div class="login-photo-overlay" aria-hidden="true"></div>
@@ -52,9 +74,9 @@ export function renderLogin({onSuccess,onActivate,onLicenseBlocked}){
       <div class="login-shell">
         <div class="login-shell-head">
           <div class="login-crest-row">
-            <img class="login-crest" src="./assets/logo-tut-wuri-handayani.png" alt="Logo Tut Wuri Handayani"/>
-            <img class="login-crest login-crest-region" src="./assets/logo-kabupaten-bekasi.png" alt="Logo Kabupaten Bekasi"/>
-            <img class="login-crest" src="${escapeHtml(crest)}" alt="${escapeHtml(crestAlt)}"/>
+            <img class="login-crest${kelasUnggahan(ministryUpload)}" src="${escapeHtml(ministryLogo)}" alt="Logo Tut Wuri Handayani" data-crest="ministry"/>
+            <img class="login-crest ${regionUpload?'login-crest-upload':'login-crest-region'}" src="${escapeHtml(regionLogo)}" alt="Logo Kabupaten/Kota/Provinsi" data-crest="region"/>
+            <img class="login-crest${kelasUnggahan(schoolLogo)}" src="${escapeHtml(crest)}" alt="${escapeHtml(crestAlt)}" data-crest="school"/>
           </div>
           <h2>Masuk ke e-Rapor</h2>
           <p>Pilih peran, semester, lalu masukkan akun Anda.</p>
@@ -137,6 +159,21 @@ export function renderLogin({onSuccess,onActivate,onLicenseBlocked}){
   };
   const logo=root.querySelector('[data-login-logo]');
   if(logo)logo.onerror=()=>{logo.classList.add('hidden');root.querySelector('.login-logo-fallback')?.classList.remove('hidden');};
+  /* GAMBAR RUSAK TIDAK BOLEH SAMPAI KE LAYAR. Unggahan yang gagal dimuat jatuh kembali ke
+     berkas bawaan aplikasi sekali saja; bila yang bawaan pun tidak ada, slotnya disembunyikan
+     sehingga barisnya tetap rapi - bukan menampilkan ikon gambar patah. Slot yang disembunyikan
+     tidak mengubah urutan dua logo lainnya. */
+  const CADANGAN_CREST={ministry:'./assets/logo-tut-wuri-handayani.png',
+    region:'./assets/logo-kabupaten-bekasi.png',school:'./assets/app-icon-192.png'};
+  root.querySelectorAll('[data-crest]').forEach(image=>{
+    image.onerror=()=>{
+      const cadangan=CADANGAN_CREST[image.dataset.crest];
+      if(cadangan&&!image.dataset.fallbackDipakai&&!image.src.endsWith(cadangan.replace('./',''))){
+        image.dataset.fallbackDipakai='1';image.src=cadangan;return;
+      }
+      image.classList.add('hidden');
+    };
+  });
   refreshStatus();
   return root;
 }

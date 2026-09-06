@@ -24,26 +24,57 @@ export function findDimensiProfil(value){
     item.id===teks||item.label.toLowerCase()===teks||item.penuh.toLowerCase()===teks)||null;
 }
 
-/* KATEGORI CAPAIAN KOKURIKULER.
+/* PREDIKAT KOKURIKULER — DOMAIN SENDIRI, TERPISAH DARI MENU LAIN.
 
-   Panduan memakai istilah Belum Berkembang, Mulai Berkembang, Berkembang Sesuai Harapan, dan
-   Sangat Berkembang. Aplikasi ini sudah lama memakai empat predikat sendiri yang dipakai
-   BERSAMA oleh Intrakurikuler, Kokurikuler, dan Ekstrakurikuler, dan predikat itu sudah
-   tersimpan pada data sekolah yang berjalan.
+   Panduan kegiatan kokurikuler menilai PERKEMBANGAN karakter, bukan penguasaan materi, dan
+   istilahnya memang berbeda: Belum Berkembang, Mulai Berkembang, Berkembang Sesuai Harapan,
+   dan Sangat Berkembang. Menyebut anak "Cukup" pada sebuah projek karakter tidak pernah
+   berarti apa pun bagi orang tua.
 
-   Karena itu predikat tersimpan TIDAK diganti - menggantinya berarti membatalkan makna setiap
-   catatan lama sekaligus memecah tiga menu yang selama ini sejalan. Yang dilakukan hanyalah
-   MENERJEMAHKAN keempatnya ke istilah panduan pada saat kalimat rapor disusun. Urutan dan
-   maknanya sejajar satu lawan satu, jadi tidak ada penafsiran yang hilang di antaranya. */
-export const KATEGORI_CAPAIAN_KOKURIKULER=Object.freeze({
-  'Perlu Bimbingan':Object.freeze({kode:'BB',label:'Belum Berkembang'}),
-  'Cukup':Object.freeze({kode:'MB',label:'Mulai Berkembang'}),
-  'Baik':Object.freeze({kode:'BSH',label:'Berkembang Sesuai Harapan'}),
-  'Sangat Baik':Object.freeze({kode:'SAB',label:'Sangat Berkembang'}),
+   Karena itu Kokurikuler kini memakai domainnya sendiri. Intrakurikuler, Ekstrakurikuler, dan
+   Nilai Sikap TIDAK ikut berubah - ketiganya tetap memakai predikatnya masing-masing, dan
+   perubahan di sini tidak menyentuh satu pun di antaranya.
+
+   CATATAN LAMA TIDAK DIMIGRASI. Predikat versi sebelumnya tetap tersimpan apa adanya di dalam
+   database dan diterjemahkan saat DIBACA - satu lawan satu, urutan dan maknanya sejajar:
+
+     Perlu Bimbingan -> BB   Belum Berkembang
+     Cukup           -> MB   Mulai Berkembang
+     Baik            -> BSH  Berkembang Sesuai Harapan
+     Sangat Baik     -> SB   Sangat Berkembang
+
+   Tidak ada penulisan ulang massal: catatan lama baru berpindah istilah ketika guru sendiri
+   menyimpannya kembali. */
+export const PREDIKAT_KOKURIKULER=Object.freeze([
+  Object.freeze({kode:'SB',label:'Sangat Berkembang'}),
+  Object.freeze({kode:'BSH',label:'Berkembang Sesuai Harapan'}),
+  Object.freeze({kode:'MB',label:'Mulai Berkembang'}),
+  Object.freeze({kode:'BB',label:'Belum Berkembang'}),
+]);
+export const PREDIKAT_KOKURIKULER_LABEL=Object.freeze(PREDIKAT_KOKURIKULER.map(item=>item.label));
+export const DEFAULT_PREDIKAT_KOKURIKULER='Berkembang Sesuai Harapan';
+/* Predikat versi lama, hanya untuk MEMBACA catatan yang sudah tersimpan. */
+export const PREDIKAT_KOKURIKULER_LAMA=Object.freeze({
+  'Perlu Bimbingan':'BB',
+  'Cukup':'MB',
+  'Baik':'BSH',
+  'Sangat Baik':'SB',
 });
-export function kategoriCapaianKokurikuler(predicate){
-  return KATEGORI_CAPAIAN_KOKURIKULER[String(predicate||'').trim()]||null;
+/* Menerima label baru, kodenya, maupun predikat versi lama. Mengembalikan null untuk apa pun
+   yang bukan salah satu di antaranya, sehingga istilah karangan tidak pernah lolos. */
+export function predikatKokurikuler(value){
+  const teks=String(value||'').trim();
+  if(!teks)return null;
+  const kode=PREDIKAT_KOKURIKULER_LAMA[teks]
+    ||PREDIKAT_KOKURIKULER.find(item=>item.label.toLowerCase()===teks.toLowerCase()||item.kode===teks.toUpperCase())?.kode;
+  return PREDIKAT_KOKURIKULER.find(item=>item.kode===kode)||null;
 }
+/* Nama lama dipertahankan supaya pemanggil yang sudah ada tetap berjalan: keduanya menjawab
+   pertanyaan yang sama - kategori capaian kokurikuler untuk sebuah predikat. */
+export const KATEGORI_CAPAIAN_KOKURIKULER=Object.freeze(Object.fromEntries(
+  [...Object.keys(PREDIKAT_KOKURIKULER_LAMA),...PREDIKAT_KOKURIKULER_LABEL]
+    .map(nama=>[nama,predikatKokurikuler(nama)])));
+export function kategoriCapaianKokurikuler(predicate){return predikatKokurikuler(predicate);}
 
 /* Kegiatan kokurikuler bawaan beserta pilihan deskripsi rapor.
    Setiap kegiatan punya 5 deskripsi kelas rendah (1-3) dan 5 deskripsi kelas tinggi (4-6),
@@ -364,21 +395,41 @@ export function findCocurricularPreset(activity){
    sudah berlaku pada Intrakurikuler. Aspek itu pun bukan dimensi lain yang tidak pernah
    dinilai guru, melainkan penguatan pada dimensi yang sedang dinilai itu sendiri. */
 const NADA_KOKURIKULER=Object.freeze({
-  'Sangat Baik':['terlibat aktif dan konsisten','menunjukkan keterlibatan yang sangat baik','berpartisipasi aktif dan konsisten'],
-  'Baik':['terlibat dengan baik','menunjukkan keterlibatan yang baik','berpartisipasi dengan baik'],
-  'Cukup':['terlibat dengan cukup baik','menunjukkan keterlibatan yang cukup'],
+  SB:['terlibat aktif dan konsisten','menunjukkan keterlibatan yang sangat baik','berpartisipasi aktif dan konsisten'],
+  BSH:['terlibat dengan baik','menunjukkan keterlibatan yang baik','berpartisipasi dengan baik'],
+  MB:['terlibat dengan cukup baik','menunjukkan keterlibatan yang cukup'],
   /* Tidak memakai kata sambung "dan" di awal supaya kalimatnya tetap enak dibaca ketika
      didahului kategori capaian. */
-  'Perlu Bimbingan':['masih memerlukan bimbingan untuk terlibat secara konsisten','memerlukan pendampingan untuk terlibat secara konsisten'],
+  BB:['masih memerlukan bimbingan untuk terlibat secara konsisten','memerlukan pendampingan untuk terlibat secara konsisten'],
 });
-/* Kalimat penguatan untuk capaian yang belum tertinggi. Isinya hanya menyatakan kembali apa
-   yang sudah dipilih guru - bahwa capaian pada dimensi itu masih dapat berkembang - sehingga
-   tidak ada penilaian baru yang muncul entah dari mana. */
-const PENGUATAN_KOKURIKULER=Object.freeze({
-  'Baik':'masih dapat ditingkatkan menjadi lebih konsisten',
-  'Cukup':'masih perlu dibiasakan agar lebih konsisten',
-  'Perlu Bimbingan':'masih memerlukan pendampingan guru secara rutin',
+/* REKOMENDASI PER TINGKAT PERKEMBANGAN.
+
+   Satu kalimat penutup untuk setiap predikat, termasuk yang tertinggi - dan pada yang
+   tertinggi kalimatnya memang APRESIASI, bukan kekurangan yang dikarang. Isinya tetap hanya
+   menyatakan kembali apa yang sudah dipilih guru, sehingga tidak ada penilaian baru yang
+   muncul entah dari mana. */
+const REKOMENDASI_KOKURIKULER=Object.freeze({
+  BB:'memerlukan bimbingan agar perkembangannya meningkat sesuai konteks kegiatan',
+  MB:'dapat ditingkatkan melalui pendampingan/stimulus yang lebih terarah',
+  BSH:'masih dapat ditingkatkan agar lebih konsisten pada kegiatan berikutnya',
+  SB:'sangat baik dan dapat menjadi contoh positif sesuai konteks kegiatan',
 });
+/* PROJEK P5 HANYA DISEBUT PADA KEGIATAN P5.
+
+   "sesuai konteks kegiatan" berlaku untuk kegiatan apa pun. Hanya ketika kegiatannya memang
+   Projek Penguatan Profil Pelajar Pancasila, frasa itu menyebut projeknya. Kegiatan lain -
+   Bakti Sosial, Kunjungan Edukasi, dan seterusnya - tidak pernah disebut sebagai Projek P5,
+   karena menyebutnya begitu berarti menuliskan kegiatan yang tidak pernah terjadi. */
+export const ID_PRESET_P5='projek-profil-pelajar';
+export function adalahKegiatanP5(activity){
+  const preset=findCocurricularPreset(String(activity?.name||activity||''));
+  return preset?.id===ID_PRESET_P5;
+}
+function rekomendasiKokurikuler(kode,activity){
+  const teks=REKOMENDASI_KOKURIKULER[kode];
+  if(!teks)return '';
+  return adalahKegiatanP5(activity)?teks.replace('konteks kegiatan','konteks Projek P5'):teks;
+}
 /* Redaksi berganti-ganti supaya satu rombel tidak berbunyi seragam, tetapi TETAP untuk masukan
    yang sama: kalimat yang sama harus lahir lagi ketika guru menekan Generate untuk kedua
    kalinya. Indeksnya karena itu diturunkan dari isi masukannya, bukan dari Math.random. */
@@ -402,31 +453,33 @@ export function dimensiKokurikuler(activity,dimension){
   return utama?findDimensiProfil(utama):null;
 }
 
-export function generateCocurricularDescription({studentName='',activity,predicate='Baik',classId='',
-  dimension=''}={}){
+export function generateCocurricularDescription({studentName='',activity,predicate=DEFAULT_PREDIKAT_KOKURIKULER,
+  classId='',dimension=''}={}){
   const activityName=String(activity?.name||activity||'').trim();
   const preset=findCocurricularPreset(activityName);
   const grade=Number.parseInt(String(classId||'').trim(),10);
   const daftar=preset?(grade&&grade<=3?preset.lower:preset.upper):[];
   const nama=String(studentName||'Siswa').trim()||'Siswa';
   const kegiatan=activityName||'kegiatan kokurikuler';
-  const nada=pilihNada(NADA_KOKURIKULER[predicate]||NADA_KOKURIKULER.Baik,`${nama}|${kegiatan}|${predicate}`);
-  const kategori=kategoriCapaianKokurikuler(predicate);
+  /* Predikat versi lama tetap dikenali di sini, sehingga catatan lama yang belum pernah
+     disimpan ulang tetap menghasilkan kalimat yang benar - bukan kalimat cadangan. */
+  const kategori=predikatKokurikuler(predicate)||predikatKokurikuler(DEFAULT_PREDIKAT_KOKURIKULER);
+  const nada=pilihNada(NADA_KOKURIKULER[kategori.kode],`${nama}|${kegiatan}|${kategori.kode}`);
   const dimensi=dimensiKokurikuler(activity,dimension);
   /* KALIMATNYA TERIKAT PADA KEGIATAN YANG SEDANG DIPILIH. Nama kegiatan selalu ikut, sehingga
      deskripsi yang lahir untuk satu kegiatan tidak pernah dapat dibaca sebagai deskripsi
      kegiatan lain. */
   /* Kategori capaian dan dimensi berdiri di depan, lalu keterlibatan nyatanya menyusul setelah
      koma - susunan yang sama dengan contoh pada panduan. */
-  const capaian=kategori&&dimensi
+  const capaian=dimensi
     ? `${kategori.label} dalam dimensi ${dimensi.label}, ${nada}`
-    : nada;
+    : `${kategori.label}, ${nada}`;
   const inti=`Ananda ${nama} ${capaian} pada kegiatan kokurikuler ${kegiatan}.`;
   /* Keterangan preset menerangkan KEGIATANNYA, bukan capaian anak. Ia disebut sebagai fokus
      kegiatan - bukan sebagai prestasi yang tidak pernah dinilai guru. */
   const fokus=tanpaTitik(daftar[0]||'');
   const badan=fokus?`${inti} Kegiatan ini mencakup ${hurufKecilAwal(fokus)}.`:inti;
-  const penguatan=PENGUATAN_KOKURIKULER[predicate];
-  if(!penguatan||!dimensi)return badan;
-  return `${badan} Capaian dimensi ${dimensi.label} Ananda ${nama} ${penguatan}.`;
+  const rekomendasi=rekomendasiKokurikuler(kategori.kode,activity);
+  if(!rekomendasi||!dimensi)return badan;
+  return `${badan} Capaian dimensi ${dimensi.label} Ananda ${nama} ${rekomendasi}.`;
 }

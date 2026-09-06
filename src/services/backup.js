@@ -16,8 +16,11 @@ const SCOPED_COLLECTIONS=[
   'learningObjectives','assessmentScores','cpEvidenceScores','reportScores','reportDescriptions',
   'extracurricularScores','cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'
 ];
-const LATER_COLLECTIONS=['manualAttendance','cpButir','cpButirScores','cpEvidenceScores','cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
-const GLOBAL_COLLECTIONS=['masterData','userAccounts','security','dapodikSyncState','dapodikSyncLogs','dapodikMappings'];
+const LATER_COLLECTIONS=['reportDateDefaults','manualAttendance','cpButir','cpButirScores','cpEvidenceScores','cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
+/* Tanggal rapor bawaan sekolah per tahun pelajaran dan semester ditetapkan Admin dan berlaku
+   untuk seluruh rombel, jadi ia data global - bukan data satu rombel. Backup Guru karena itu
+   tidak membawanya, sama seperti akun dan pengaturan keamanan. */
+const GLOBAL_COLLECTIONS=['masterData','userAccounts','security','reportDateDefaults','dapodikSyncState','dapodikSyncLogs','dapodikMappings'];
 const DATA_KEYS=new Set(['schemaVersion','appSchemaVersion','appVersion','createdAt','updatedAt',...GLOBAL_COLLECTIONS,...SCOPED_COLLECTIONS,'backupHistory','migrationHistory']);
 const DANGEROUS_KEYS=new Set(['__proto__','prototype','constructor']);
 

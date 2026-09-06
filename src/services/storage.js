@@ -63,7 +63,7 @@ function baseDb(){
     students: {}, attendance: {}, manualAttendance: {}, learningObjectives: {}, cpButir: {}, cpButirScores: {}, assessmentScores: {}, cpEvidenceScores: {},
     reportScores: {}, reportDescriptions: {}, extracurricularScores: {}, cocurricularActivities: {}, cocurricularScores: {},
     intracurricularActivities: {}, intracurricularScores: {}, dapodikSyncState: {}, dapodikSyncLogs: {}, dapodikMappings: {}, publishedReports: {},
-    attitudeProfiles: {}, printSettings: {}, homeroomNotes: {}, promotionStatus: {}, graduationStatus: {}, transcriptScores: {},
+    attitudeProfiles: {}, printSettings: {}, reportDateDefaults: {}, homeroomNotes: {}, promotionStatus: {}, graduationStatus: {}, transcriptScores: {},
     backupHistory: [], migrationHistory: []
   };
 }
