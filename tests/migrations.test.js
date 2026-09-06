@@ -34,9 +34,9 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.2.6 uses versionCode 18 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.2.6');
-  assert.equal(VERSION_CODE,18);
+test('release v1.2.7 uses versionCode 19 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.2.7');
+  assert.equal(VERSION_CODE,19);
   /* SCHEMA TETAP 5, walaupun rilis ini menambah koleksi `cpEvidenceScores`.
 
      Koleksi baru itu lahir dari bentuk bawaan database yang selalu digabungkan saat membaca,
@@ -45,18 +45,20 @@ test('release v1.2.6 uses versionCode 18 and schema 5',()=>{
      non-destruktif dan idempotent oleh layanan Penilaian sendiri, tepat sebelum ia dapat
      tertimpa.
 
-     Rilis ini pun tidak mengubah bentuk data sama sekali: dimensi Profil Pelajar Pancasila
-     adalah field OPSIONAL pada catatan kokurikuler yang sudah ada, ragam kegiatan bertambah
-     pada data bawaan aplikasi - bukan pada database pengguna - dan predikat tersimpan tidak
-     disentuh sedikit pun.
+     Rilis ini pun tidak mengubah bentuk data sama sekali. `behaviorEvidence` adalah field
+     OPSIONAL pada catatan sikap yang sudah ada: catatan lama yang belum memilikinya dibaca
+     sebagai bukti kosong, tidak ditulis ulang, dan tidak dikarangkan bukti apa pun. Nama mapel
+     untuk lembar rapor adalah lapisan TAMPILAN - id mapel, key database, nama master, mapping,
+     dan penugasan Guru tidak berubah - dan metadata group tetap tersimpan seperti sebelumnya
+     walau sekatnya tidak lagi dicetak.
 
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.2.6-KOKURIKULER-PANDUAN');
-  /* Rilis sebelumnya bergeser ke 1.2.5 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.2.7-RAPOR-MERDEKA-SIKAP');
+  /* Rilis sebelumnya bergeser ke 1.2.6 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.5',versionCode:17});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.2.6',versionCode:18});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
