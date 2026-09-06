@@ -232,9 +232,20 @@ jobs:
           LICENSE_API_BASE: ${{ vars.LICENSE_API_BASE || 'https://e-rapor-sdn-satria-jaya-01-cloud.vercel.app' }}
           LICENSE_PUBLIC_JWK: ${{ vars.LICENSE_PUBLIC_JWK }}
         run: npm run desktop:win
+      # Isi folder keluaran dicetak apa adanya sebelum diunggah, supaya log rilis selalu
+      # menunjukkan berkas apa saja yang sebenarnya dihasilkan electron-builder.
+      - name: Tunjukkan isi folder keluaran
+        run: Get-ChildItem release/windows -File | Select-Object Name,Length | Format-Table -AutoSize
+      # HANYA installer yang diunggah, dinamai persis seperti artifactName pada
+      # electron-builder.yml. Sebelumnya pola release/windows/*.exe ikut menjaring berkas
+      # antara milik electron-builder - antara lain *.__uninstaller.exe - sehingga artifact
+      # memuat EMPAT berkas .exe berukuran total 419 MB, dan pembeli tidak punya cara tahu
+      # mana yang harus dijalankan. if-no-files-found: error menjaga: bila kelak artifactName
+      # berubah dan nama ini tidak lagi cocok, build gagal terang-terangan, bukan mengunggah
+      # artifact kosong.
       - uses: actions/upload-artifact@v4
         with:
           name: installer-windows-v${{ needs.periksa.outputs.versi }}
-          path: release/windows/*.exe
+          path: release/windows/E-RAPOR-SDN-SATRIA-JAYA-01-Setup-${{ needs.periksa.outputs.versi }}.exe
           retention-days: 30
           if-no-files-found: error

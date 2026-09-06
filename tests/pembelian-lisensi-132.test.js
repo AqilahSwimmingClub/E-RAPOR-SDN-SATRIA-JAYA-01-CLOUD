@@ -510,7 +510,19 @@ test('34c. Workflow rilis membangun Android DAN Windows dari perintah yang sama'
      terkirim dengan LICENSE_PUBLIC_JWK kosong seperti yang pernah terjadi. */
   assert.equal((alur.match(/npm run verify:production/g)||[]).length,2,
     'Android dan Windows sama-sama memverifikasi konfigurasi produksi');
-  assert.match(alur,/if-no-files-found: error/,'artifact kosong dianggap gagal, bukan sukses');
+  /* Dihitung dari baris YAML-nya sendiri, bukan dari kemunculan teksnya di mana saja -
+     komentar yang menjelaskan aturan ini juga menyebut namanya. */
+  assert.equal((alur.match(/^\s+if-no-files-found: error$/gm)||[]).length,2,
+    'artifact kosong dianggap gagal, bukan sukses, pada kedua platform');
+  /* SATU BERKAS, BUKAN EMPAT. Pola release/windows/*.exe ikut menjaring berkas antara milik
+     electron-builder - antara lain *.__uninstaller.exe - sehingga artifact rilis pertama
+     memuat empat .exe berukuran total 419 MB dan pembeli tidak punya cara tahu mana yang
+     harus dijalankan. Namanya kini dipatok persis ke artifactName electron-builder. */
+  assert.match(alur,/path: release\/windows\/E-RAPOR-SDN-SATRIA-JAYA-01-Setup-\$\{\{ needs\.periksa\.outputs\.versi \}\}\.exe/);
+  assert.equal(alur.includes('path: release/windows/*.exe'),false,'pola menyapu semua .exe tidak dipakai lagi');
+  /* Nama yang dipatok di workflow WAJIB sama dengan yang benar-benar dihasilkan builder. */
+  assert.match(read('electron-builder.yml'),
+    /artifactName: E-RAPOR-SDN-SATRIA-JAYA-01-Setup-\$\{version\}\.\$\{ext\}/);
 });
 
 test('35. Owner Panel punya halaman Pesanan dan Tautan Unduhan yang benar-benar terhubung',()=>{

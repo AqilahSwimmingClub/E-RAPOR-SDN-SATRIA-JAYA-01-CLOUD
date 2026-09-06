@@ -62,7 +62,11 @@ test('8c. gradlew dapat dijalankan di runner Linux',()=>{const mode=execFileSync
 
 test('9. APK diperiksa tanda tangan dan versinya, lalu diunggah dengan nama berversi',()=>{const t=alur();assert.match(t,/apksigner" verify --print-certs/);assert.match(t,/aapt" dump badging/);assert.match(t,/E-RAPOR-SDN-SATRIA-JAYA-01-v\$VERSI\.apk/);assert.match(t,/if-no-files-found: error/);});
 
-test('10. Installer Windows dibangun dari perintah proyek yang sudah ada',()=>{const t=alur();assert.match(t,/runs-on: windows-latest/);assert.match(t,/run: npm run desktop:win/);assert.match(JSON.parse(read('package.json')).scripts['desktop:win'],/^npm run build:production &&/);assert.match(t,/path: release\/windows\/\*\.exe/);});
+test('10. Installer Windows dibangun dari perintah proyek yang sudah ada',()=>{const t=alur();assert.match(t,/runs-on: windows-latest/);assert.match(t,/run: npm run desktop:win/);assert.match(JSON.parse(read('package.json')).scripts['desktop:win'],/^npm run build:production &&/);/* DIPERBARUI DI 1.3.2. Pola menyapu semua .exe ikut menjaring berkas antara milik
+  electron-builder (antara lain *.__uninstaller.exe), sehingga artifact rilis Windows yang
+  pertama kali berhasil memuat EMPAT berkas berukuran total 419 MB. Yang diunggah sekarang
+  hanya installer-nya, dinamai persis seperti artifactName pada electron-builder.yml. */
+assert.match(t,/path: release\/windows\/E-RAPOR-SDN-SATRIA-JAYA-01-Setup-\$\{\{ needs\.periksa\.outputs\.versi \}\}\.exe/);});
 
 test('11. Panduan build otomatis tersedia dan menyebut keempat secret',()=>{const doc=read('docs/BUILD-OTOMATIS.md');for(const kunci of ['ANDROID_KEYSTORE_BASE64','ANDROID_KEYSTORE_PASSWORD','ANDROID_KEY_ALIAS','ANDROID_KEY_PASSWORD'])assert.ok(doc.includes(kunci));assert.match(doc,/keystore \*\*yang sama\*\*/);assert.match(doc,/BUILD VERIFIKASI/);});
 
