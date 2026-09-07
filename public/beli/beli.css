@@ -463,24 +463,55 @@ input[aria-invalid="true"]{border-color:#c0392b;background:#fff7f6}
   background:#fff;border:1px dashed #9fc9b1;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;
   font-size:15px;font-weight:700;letter-spacing:.04em;word-break:break-all}
 
-/* --------------------------------------------------------------- Kartu metode pembayaran */
-.bayar-baris{display:grid;grid-template-columns:1fr;gap:14px;margin-top:8px}
-.kartu-bayar{display:flex;flex-direction:column;gap:10px;padding:20px 18px;border-radius:var(--radius);
-  background:var(--kartu);border:1px solid var(--garis);box-shadow:var(--bayang)}
-.kartu-bayar h3{font-size:17px}
-.kartu-bayar .bayar-nota{font-size:13.5px;color:var(--redup)}
-.bayar-nilai{display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:12px;
+/* --------------------------------------------------------------- Kartu metode pembayaran
+
+   COMPACT. Tiap kartu setinggi ISINYA sendiri, tidak diregangkan menyamai kartu tertinggi.
+   align-items:start itulah kuncinya: sebelumnya grid meregangkan ketiga kartu setinggi kartu
+   QRIS - yang memang paling tinggi karena berisi kartu QRIS potret - sehingga kartu GoPay dan
+   Mandiri menyisakan ruang kosong yang sangat lebar di bawahnya.
+
+   Jarak antar elemen sengaja kecil dan berjenjang: judul rapat ke keterangan, keterangan rapat
+   ke detail pembayaran, detail rapat ke nama pemilik. Yang dijaga tetap nyaman dibaca, bukan
+   sekadar dikecilkan. */
+.bayar-baris{display:grid;grid-template-columns:1fr;gap:14px;margin-top:8px;align-items:start}
+.kartu-bayar{display:flex;flex-direction:column;gap:8px;padding:16px 16px 14px;
+  border-radius:var(--radius);background:var(--kartu);border:1px solid var(--garis);
+  box-shadow:var(--bayang);
+  /* Garis aksen tipis berwarna merek di tepi atas: identitas visual tanpa lambang karangan. */
+  border-top:3px solid var(--warna-metode,var(--navy-2))}
+
+/* Kepala kartu: lambang dan nama metode berdampingan, rapat. */
+.bayar-kepala{display:flex;align-items:center;gap:9px;min-height:30px}
+.bayar-logo{width:auto;height:26px;max-width:104px;object-fit:contain;flex:none}
+/* Nama metode memakai warna mereknya sendiri. Inilah identitas visual kartu selama berkas
+   lambang resminya belum tersedia: QRIS merah, GoPay cyan, Mandiri navy - langsung terbedakan
+   sekilas, dan tidak satu pun lambang dikarang. */
+.kartu-bayar h3{font-size:16.5px;line-height:1.2;letter-spacing:-.01em;color:var(--warna-metode,var(--navy))}
+.kartu-bayar .bayar-nota{margin-top:-4px;font-size:13px;line-height:1.45;color:var(--redup)}
+
+/* Bingkai QRIS mengikuti bentuk gambarnya, bukan kotak persegi. Atribut width/height pada
+   gambar memberi perbandingan sisi aslinya, jadi tidak ada pita kosong di atas dan di bawah. */
+.bayar-qris-bingkai{margin-top:2px;padding:6px;border:1px solid var(--garis);border-radius:12px;
+  background:#fff;display:flex;justify-content:center;cursor:zoom-in}
+.bayar-qris-bingkai:hover{border-color:var(--warna-metode,var(--navy-2))}
+.bayar-qris-bingkai:focus-visible{outline:2px solid var(--warna-metode,var(--navy-2));outline-offset:2px}
+.bayar-qris-petunjuk{margin-top:-2px;font-size:11.5px;color:var(--redup);text-align:center}
+.bayar-qris{display:block;width:100%;height:auto;max-width:230px;object-fit:contain;
+  border-radius:6px}
+
+.bayar-nilai{display:flex;flex-direction:column;gap:1px;padding:9px 12px;border-radius:11px;
   background:#f5f8fc;border:1px solid var(--garis)}
-.bayar-nomor{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:19px;font-weight:800;
-  letter-spacing:.06em;color:var(--navy);word-break:break-all}
-.bayar-atas-nama{font-size:13.5px;font-weight:700;color:var(--tinta)}
-.bayar-label-kecil{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--redup)}
-/* Gambar QRIS ditampilkan APA ADANYA: seluruh gambar tetap terlihat, tidak dipotong, tidak
-   ditarik, dan tidak diubah warnanya. object-fit:contain menjaga perbandingan sisinya. */
-.bayar-qris{width:100%;max-width:280px;margin:0 auto;aspect-ratio:1/1;object-fit:contain;
-  background:#fff;border:1px solid var(--garis);border-radius:12px;padding:8px}
-.btn-salin{align-self:flex-start;min-height:42px;padding:9px 16px;border-radius:11px;border:1px solid var(--garis);
-  background:#fff;color:var(--navy);font:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
+.bayar-nomor{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:18px;font-weight:800;
+  letter-spacing:.04em;line-height:1.3;color:var(--navy);word-break:break-all}
+.bayar-label-kecil{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--redup)}
+
+/* Kaki: nama pemilik dan tombol Salin berdampingan, membungkus sendiri bila sempit. */
+.bayar-kaki{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  gap:8px;margin-top:auto;padding-top:2px}
+.bayar-atas-nama{font-size:13px;font-weight:700;color:var(--tinta)}
+.btn-salin{min-height:38px;padding:7px 14px;border-radius:10px;border:1px solid var(--garis);
+  background:#fff;color:var(--navy);font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+  white-space:nowrap}
 .btn-salin:hover{background:#f2f6fc}
 .btn-salin[data-tersalin="ya"]{border-color:#b7e3c8;background:#f0faf3;color:#13623a}
 
@@ -515,6 +546,16 @@ input[aria-invalid="true"]{border-color:#c0392b;background:#fff7f6}
 .cakupan-daftar li::before{content:"";display:block;width:22px;height:22px;border-radius:50%;
   background:#e9f7ef url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2313623a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7'/%3E%3C/svg%3E") center/13px 13px no-repeat}
 
+/* Kolom kartu pembayaran punya titik pindah sendiri, tidak menumpang breakpoint umum.
+   Kartunya kini padat, jadi dua kolom sudah nyaman jauh sebelum lebar tablet - inilah yang
+   membuat HP landscape memakai ruang mendatarnya, bukan menyisakan satu kolom kurus. */
+@media(min-width:560px){
+  .bayar-baris{grid-template-columns:repeat(2,1fr)}
+}
+@media(min-width:860px){
+  .bayar-baris{grid-template-columns:repeat(3,1fr)}
+}
+
 @media(min-width:900px){
   .hero-grid{padding:60px 20px 70px}
   .bagian{padding:64px 0}
@@ -525,7 +566,6 @@ input[aria-invalid="true"]{border-color:#c0392b;background:#fff7f6}
   .kartu-aman{grid-template-columns:1.25fr 1fr;align-items:center;padding:26px 26px}
   .aman-poin{grid-template-columns:1fr}
   .pilih-bayar-baris{grid-template-columns:repeat(3,1fr)}
-  .bayar-baris{grid-template-columns:repeat(3,1fr);align-items:stretch}
   .unduh-baris{grid-template-columns:repeat(2,1fr)}
   .cakupan-daftar{grid-template-columns:repeat(2,1fr)}
 }

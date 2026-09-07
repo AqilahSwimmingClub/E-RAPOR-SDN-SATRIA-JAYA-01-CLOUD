@@ -302,29 +302,90 @@ const catatanNominal=document.querySelector('#catatan-nominal');
 if(catatanNominal)catatanNominal.textContent=PAYMENT_AMOUNT_NOTE;
 
 const daftarBayar=document.querySelector('#daftar-bayar');
+
+/* ALAMAT ASET DISELESAIKAN TERHADAP MODUL INI, BUKAN TERHADAP ALAMAT HALAMAN.
+
+   Inilah akar masalah QRIS rusak di produksi. `img.src='./assets/x.jpg'` diselesaikan browser
+   terhadap URL DOKUMEN. Vercel menyajikan halaman ini lewat rewrite /beli -> /beli/index.html
+   TANPA redirect, sehingga URL dokumennya tetap "/beli" tanpa garis miring. Basis untuk
+   alamat relatif karena itu menjadi "/" dan './assets/qris-fahmi-djawas.jpg' berubah menjadi
+   /assets/qris-fahmi-djawas.jpg - berkas yang tidak ada. Berkas yang sebenarnya ada di
+   /beli/assets/qris-fahmi-djawas.jpg.
+
+   Secara lokal hal ini tidak pernah terlihat karena halaman dibuka sebagai /beli/ (dengan
+   garis miring), dan berkas CSS serta JS di index.html memang sudah memakai alamat absolut
+   sehingga keduanya tidak ikut rusak - hanya gambar inilah yang dipasang lewat JavaScript.
+
+   import.meta.url selalu menunjuk berkas modul ini (/beli/beli.js), jadi alamat yang
+   dihasilkannya benar apa pun bentuk URL halaman: dengan garis miring maupun tanpa. */
+const asetBeli=alamat=>new URL(alamat,import.meta.url).href;
+
+/* Lambang metode. Berkas yang belum ada TIDAK pernah menjadi gambar rusak: elemennya dibuang
+   dan kartu tetap tampil rapi dengan nama metode serta warna aksennya. */
+function lambangMetode(metode){
+  if(!metode.logo)return null;
+  const gambar=document.createElement('img');
+  gambar.className='bayar-logo';
+  gambar.src=asetBeli(metode.logo);
+  gambar.alt=metode.logoAlt||`Logo ${metode.label}`;
+  gambar.loading='lazy';
+  gambar.decoding='async';
+  gambar.addEventListener('error',()=>gambar.remove());
+  return gambar;
+}
+
 function kartuBayar(metode){
   const kartu=document.createElement('article');
   kartu.className='kartu-bayar reveal tampil';
   kartu.dataset.metode=metode.id;
+  if(metode.brandColor)kartu.style.setProperty('--warna-metode',metode.brandColor);
 
+  /* KEPALA: lambang, nama, dan keterangan singkat menjadi SATU kelompok yang rapat. */
+  const kepala=document.createElement('div');
+  kepala.className='bayar-kepala';
+  const lambang=lambangMetode(metode);
+  if(lambang)kepala.append(lambang);
   const judul=document.createElement('h3');
   judul.textContent=metode.label;
+  kepala.append(judul);
+  kartu.append(kepala);
+
   const nota=document.createElement('p');
   nota.className='bayar-nota';
   nota.textContent=metode.subtitle;
-  kartu.append(judul,nota);
+  kartu.append(nota);
 
   if(metode.kind==='qris'){
-    /* Gambar QRIS asli, ditampilkan apa adanya. Tidak digambar ulang, tidak diubah warnanya,
-       dan tidak dipotong: CSS-nya memakai object-fit:contain. */
+    /* Kartu QRIS resmi, ditampilkan UTUH: tidak dipotong, tidak diregangkan, dan tidak
+       dipaksa masuk kotak persegi. Perbandingan sisi aslinya dipakai apa adanya lewat
+       atribut width/height, sehingga ruang yang dipesan browser persis sebesar gambarnya
+       dan tidak ada pita kosong di atas maupun di bawah. */
+    /* Gambarnya dibungkus tautan ke berkas aslinya sendiri, sehingga kartu QRIS dapat dibuka
+       pada resolusi penuh (1135x1600) untuk dipindai atau dibaca dari layar. Ini hanya sebuah
+       anchor - tidak ada komponen baru, tidak ada JavaScript tambahan, dan alamatnya pun
+       berkas yang sama persis. */
+    const bingkai=document.createElement('a');
+    bingkai.className='bayar-qris-bingkai';
+    bingkai.href=asetBeli(metode.image);
+    bingkai.target='_blank';
+    bingkai.rel='noopener noreferrer';
+    bingkai.title='Buka kartu QRIS ukuran penuh';
     const gambar=document.createElement('img');
     gambar.className='bayar-qris';
-    gambar.src=metode.image;
+    gambar.src=asetBeli(metode.image);
     gambar.alt=metode.imageAlt;
+    gambar.width=1135;
+    gambar.height=1600;
     gambar.loading='lazy';
     gambar.decoding='async';
-    kartu.append(gambar);
+    bingkai.append(gambar);
+    kartu.append(bingkai);
+    const petunjuk=document.createElement('p');
+    petunjuk.className='bayar-qris-petunjuk';
+    petunjuk.textContent='Ketuk kode untuk membukanya ukuran penuh';
+    kartu.append(petunjuk);
   }
+
   if(metode.accountNumber){
     const kotak=document.createElement('div');
     kotak.className='bayar-nilai';
@@ -337,10 +398,15 @@ function kartuBayar(metode){
     kotak.append(label,nomor);
     kartu.append(kotak);
   }
+
+  /* Kaki kartu: nama pemilik dan tombol salin duduk berdampingan supaya tidak ada ruang
+     kosong menganga di bawah kartu GoPay dan Mandiri. */
+  const kaki=document.createElement('div');
+  kaki.className='bayar-kaki';
   const atasNama=document.createElement('p');
   atasNama.className='bayar-atas-nama';
   atasNama.textContent=`a.n. ${metode.accountName}`;
-  kartu.append(atasNama);
+  kaki.append(atasNama);
 
   if(metode.accountNumber&&navigator.clipboard?.writeText){
     const salin=document.createElement('button');
@@ -359,8 +425,9 @@ function kartuBayar(metode){
         salin.textContent='Salin manual dari layar';
       }
     });
-    kartu.append(salin);
+    kaki.append(salin);
   }
+  kartu.append(kaki);
   return kartu;
 }
 if(daftarBayar)for(const metode of PAYMENT_METHODS)daftarBayar.append(kartuBayar(metode));

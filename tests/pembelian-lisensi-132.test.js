@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { openDatabase } from '../server/src/db.js';
 import { createSqliteStore } from '../server/src/store.js';
 import { createApi, ensureOwnerAccount } from '../server/src/api.js';
@@ -290,6 +290,76 @@ test('18. Berkas QRIS adalah berkas asli, tidak digambar ulang menjadi SVG',()=>
   /* Tidak ada satu pun QRIS tiruan yang dibuat dengan kode. */
   const gaya=read('public/beli/beli.css');
   assert.match(gaya,/\.bayar-qris\{[^}]*object-fit:contain/,'gambar QRIS tidak pernah dipotong atau ditarik');
+});
+
+test('18a. Aset kartu QRIS diselesaikan terhadap MODUL, bukan terhadap alamat halaman',()=>{
+  /* KEGAGALAN NYATA DI PRODUKSI. `img.src='./assets/x.jpg'` diselesaikan browser terhadap URL
+     DOKUMEN. Vercel menyajikan halaman lewat rewrite /beli -> /beli/index.html TANPA redirect,
+     jadi URL dokumennya tetap "/beli" tanpa garis miring, basisnya menjadi "/", dan alamatnya
+     berubah menjadi /assets/qris-fahmi-djawas.jpg - berkas yang tidak ada. Berkas aslinya ada
+     di /beli/assets/qris-fahmi-djawas.jpg.
+
+     Lokal tidak pernah memperlihatkannya karena halaman dibuka sebagai /beli/ (dengan garis
+     miring). CSS dan JS ikut selamat karena index.html memakai alamat absolut; hanya gambar
+     inilah yang dipasang lewat JavaScript. */
+  const skrip=read('public/beli/beli.js');
+  assert.match(skrip,/const asetBeli=alamat=>new URL\(alamat,import\.meta\.url\)\.href;/,
+    'alamat aset diselesaikan terhadap import.meta.url');
+  assert.match(skrip,/gambar\.src=asetBeli\(metode\.image\)/,'kartu QRIS memakai penyelesai itu');
+  assert.match(skrip,/gambar\.src=asetBeli\(metode\.logo\)/,'lambang metode memakai penyelesai yang sama');
+  /* Pola lama - memasang alamat relatif apa adanya - dilarang muncul kembali. */
+  assert.equal(/\.src=metode\.(image|logo)\b/.test(skrip),false,
+    'tidak ada lagi alamat relatif yang dipasang mentah ke .src');
+  /* Berkasnya memang berada di bawah public/beli/, sejajar dengan modul yang menggambarnya. */
+  assert.ok(existsSync(new URL('public/beli/assets/qris-fahmi-djawas.jpg',root)),
+    'berkas QRIS ada tepat di tempat yang ditunjuk alamat relatifnya');
+});
+
+test('18b. Kartu pembayaran padat: tinggi mengikuti isi, bukan diregangkan',()=>{
+  const gaya=read('public/beli/beli.css');
+  /* INI AKAR RUANG KOSONG. Grid meregangkan ketiga kartu setinggi kartu QRIS yang memang
+     paling tinggi, sehingga GoPay dan Mandiri menyisakan ruang menganga di bawahnya. */
+  assert.match(gaya,/\.bayar-baris\{[^}]*align-items:start/,
+    'kartu setinggi isinya sendiri, tidak diregangkan');
+  assert.equal(/\.bayar-baris\{[^}]*align-items:stretch/.test(gaya),false);
+  /* Bingkai QRIS mengikuti bentuk gambarnya, bukan kotak persegi yang menyisakan pita kosong. */
+  assert.equal(/\.bayar-qris\{[^}]*aspect-ratio:1\/1/.test(gaya),false,
+    'kotak persegi paksa sudah dibuang');
+  assert.match(gaya,/\.bayar-qris\{[^}]*height:auto/,'tinggi gambar mengikuti lebarnya');
+  assert.match(gaya,/\.bayar-qris\{[^}]*object-fit:contain/,'gambar tidak pernah diregangkan');
+  /* Dua titik pindah kolom sendiri supaya HP landscape memakai ruang mendatarnya. */
+  assert.match(gaya,/@media\(min-width:560px\)\{\s*\.bayar-baris\{grid-template-columns:repeat\(2,1fr\)\}/);
+  assert.match(gaya,/@media\(min-width:860px\)\{\s*\.bayar-baris\{grid-template-columns:repeat\(3,1fr\)\}/);
+});
+
+test('18c. Tiap metode punya identitas visual, dan lambang TIDAK pernah dikarang',()=>{
+  /* Warna merek menjadi identitas yang membedakan ketiga kartu sekilas. */
+  const warna=PAYMENT_METHODS.map(item=>item.brandColor);
+  assert.equal(new Set(warna).size,3,'ketiga metode berwarna berbeda');
+  assert.ok(warna.every(nilai=>/^#[0-9a-f]{6}$/i.test(nilai)),'warnanya nilai heks yang sah');
+  const skrip=read('public/beli/beli.js');
+  assert.match(skrip,/kartu\.style\.setProperty\('--warna-metode',metode\.brandColor\)/);
+  assert.match(read('public/beli/beli.css'),/\.kartu-bayar h3\{[^}]*color:var\(--warna-metode/);
+
+  /* LAMBANG YANG BELUM ADA TIDAK DIKARANG dan tidak menghasilkan gambar rusak: nilainya null,
+     bukan alamat menggantung yang akan menjadi 404 di konsol. */
+  for(const metode of PAYMENT_METHODS)
+    assert.equal(metode.logo,null,`${metode.id} belum punya berkas lambang resmi, jadi null`);
+  assert.match(skrip,/if\(!metode\.logo\)return null;/,'lambang kosong tidak pernah digambar');
+  assert.match(skrip,/gambar\.addEventListener\('error',\(\)=>gambar\.remove\(\)\)/,
+    'lambang yang gagal dimuat dibuang, bukan dibiarkan menjadi ikon rusak');
+  /* Tidak ada lambang yang ditarik dari internet. */
+  const konfigurasi=read('src/data/payment-config.js');
+  assert.equal(/https?:\/\//.test(konfigurasi),false,'tidak ada satu pun tautan luar di konfigurasi pembayaran');
+});
+
+test('18d. Kartu QRIS dapat dibuka ukuran penuh, dan tetap berkas yang sama',()=>{
+  const skrip=read('public/beli/beli.js');
+  assert.match(skrip,/bingkai\.href=asetBeli\(metode\.image\)/,
+    'tautannya menunjuk berkas QRIS yang sama, bukan salinan atau QR baru');
+  assert.match(skrip,/bingkai\.rel='noopener noreferrer'/);
+  assert.match(skrip,/gambar\.width=1135;/,'perbandingan sisi asli dipesan lebih dulu');
+  assert.match(skrip,/gambar\.height=1600;/);
 });
 
 test('19a. Pilihan metode di formulir sama persis dengan metode pembayaran resmi',()=>{
