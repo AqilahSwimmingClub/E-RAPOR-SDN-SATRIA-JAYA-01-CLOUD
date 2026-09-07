@@ -34,16 +34,16 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.3 uses versionCode 25 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.3');
-  assert.equal(VERSION_CODE,25);
+test('release v1.3.4 uses versionCode 26 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.4');
+  assert.equal(VERSION_CODE,26);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.3 tidak mengubah satu pun kode fitur. Tujuannya hanya membawa source terbaru
-     dari main - perbaikan perataan nama mata pelajaran pada 29b2fb6 - ke dalam APK dan
-     installer Windows, yang sebelumnya dibangun dari 6e886ec sehingga belum memuatnya.
-     Nama berkas rilis ikut dirapikan, tanpa menyentuh applicationId, penandatanganan,
-     identitas aplikasi Windows, maupun letak data pengguna.
+     Rilis 1.3.4 membawa modul TRANSKRIP-SKL-SKKB beserta cetak satu siswa dan satu rombel
+     penuh, Fase otomatis pada Rapor, dan huruf Times New Roman untuk ketiga dokumen resmi.
+     Seluruhnya menambah koleksi baru dan mengubah tampilan; tak satu pun mengubah bentuk
+     catatan lama. `graduationDocuments` dan `graduationSettings` muncul sendiri lewat
+     penggabungan baseDb saat database dibaca, jadi tidak ada migrasi yang perlu dijalankan.
 
      Alasan 1.3.2 sebelumnya, yang juga masih berlaku, dua hal berikut dan tak satu pun
      mengubah bentuk database sekolah:
@@ -58,10 +58,10 @@ test('release v1.3.3 uses versionCode 25 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.3-PERATAAN-MAPEL-DAN-NAMA-RILIS');
-  /* Rilis sebelumnya bergeser ke 1.3.2 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.3.4-TRANSKRIP-SKL-SKKB-TIMES');
+  /* Rilis sebelumnya bergeser ke 1.3.3 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.2',versionCode:24});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.3',versionCode:25});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
