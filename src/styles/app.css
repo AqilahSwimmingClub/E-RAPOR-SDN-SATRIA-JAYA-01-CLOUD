@@ -1444,76 +1444,89 @@ select.input option{background:#fff;color:var(--light-ink)}
 
 /* ============================================ LEMBAR TRANSKRIP - SKL - SKKB (A4 POTRET)
 
-   Ketiganya adalah SURAT, bukan formulir: tata tulisnya rapat dan formal seperti surat dinas
-   yang dijadikan acuan. Karena itu tidak ada satu pun min-height besar, tidak ada gap longgar
-   antarparagraf, dan jarak label ke isi dikunci lewat kolom titik dua - bukan lewat spasi.
-   Ruang tanda tangan sengaja 52px: cukup untuk dibubuhi, jauh dari memakan setengah halaman. */
-.letter-a4{font-size:11.5px;line-height:1.38}
-.letter-head{display:flex;align-items:center;gap:14px;border-bottom:3px double #222;padding-bottom:8px;margin-bottom:14px}
+   Ketiganya adalah SURAT DINAS, bukan formulir aplikasi. Dua hal karena itu dikunci di sini:
+
+   HURUF TIMES NEW ROMAN. Surat resmi sekolah ditulis dengan huruf berkait, bukan dengan huruf
+   antarmuka. Aturannya ditulis untuk lembar DAN seluruh isinya (`.letter-a4 *`) supaya elemen
+   bersarang - span, strong, p, th, td - tidak dapat kembali memakai huruf aplikasi karena
+   aturan lain di berkas ini. Lembar Rapor tidak ikut: ia tetap memakai hurufnya sendiri.
+
+   UKURAN DALAM POINT, BUKAN PIKSEL. Yang diminta adalah 12pt, dan itu ukuran kertas - bukan
+   ukuran layar. Ditulis dalam pt, angka yang tercetak benar-benar 12 point di atas kertas
+   berapa pun kerapatan layarnya. Tabel nilai memakai 11pt supaya sepuluh baris mata pelajaran
+   tetap muat wajar dalam satu halaman tanpa mengecilkan isi surat.
+
+   Tata tulisnya tetap rapat seperti sebelumnya: tidak ada min-height besar, tidak ada gap
+   longgar antarparagraf, dan jarak label ke isi dikunci lewat kolom titik dua - bukan spasi. */
+.letter-a4,.letter-a4 *{font-family:"Times New Roman",Times,serif}
+.letter-a4{font-size:12pt;line-height:1.32}
+.letter-head{display:flex;align-items:center;gap:14px;border-bottom:3px double #222;padding-bottom:8px;margin-bottom:12px}
 /* Tinggi lambang dikunci, lebarnya mengikuti rasio berkasnya sendiri, sehingga lambang daerah
    mana pun tidak pernah gepeng, teregang, maupun terpotong. */
 .letter-crest{flex:none;width:66px;height:66px;display:flex;align-items:center;justify-content:center}
 .letter-crest img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
-.letter-head-text{flex:1;text-align:center;display:flex;flex-direction:column;gap:1px;min-width:0}
-.letter-head-text span{font-size:13.5px;font-weight:700}
-.letter-head-text strong{font-size:17px;font-weight:800}
-.letter-head-text small{font-size:9.5px;font-weight:400;line-height:1.3}
-.letter-title{text-align:center;margin:0 0 11px}
-.letter-title h1{margin:0;font-size:16px;font-weight:800;line-height:1.24;letter-spacing:.02em;text-decoration:underline;text-underline-offset:3px}
-.letter-title p{margin:3px 0 0;font-size:11.5px}
-.letter-title .letter-year{margin-top:2px;font-weight:700}
-.letter-lead{margin:0 0 7px;text-align:justify}
-.letter-identity{width:100%;border-collapse:collapse;margin:0 0 10px}
-.letter-identity td{border:0;padding:1px 0;font-size:11.5px;line-height:1.38;vertical-align:top}
-.letter-label{width:196px}
-.letter-colon{width:13px}
-.letter-value{font-weight:600}
-.letter-body{margin:0 0 7px;text-align:justify}
-.letter-verdict{margin:9px 0;text-align:center;font-size:17px;font-weight:800;letter-spacing:.16em}
-.letter-table{width:100%;border-collapse:collapse;margin:0 0 12px}
-.letter-table th,.letter-table td{border:1px solid #333;padding:4px 7px;font-size:11px;vertical-align:middle}
+.letter-head-text{flex:1;text-align:center;display:flex;flex-direction:column;gap:0;min-width:0}
+.letter-head-text span{font-size:12pt;font-weight:700}
+.letter-head-text strong{font-size:15pt;font-weight:700;line-height:1.16}
+.letter-head-text small{font-size:9pt;font-weight:400;line-height:1.25}
+.letter-title{text-align:center;margin:0 0 9px}
+.letter-title h1{margin:0;font-size:14pt;font-weight:700;line-height:1.2;letter-spacing:.01em;text-decoration:underline;text-underline-offset:3px}
+.letter-title p{margin:2px 0 0;font-size:12pt}
+.letter-title .letter-year{margin-top:1px;font-weight:700}
+.letter-lead{margin:0 0 6px;text-align:justify}
+.letter-identity{width:100%;border-collapse:collapse;margin:0 0 8px}
+.letter-identity td{border:0;padding:0;font-size:12pt;line-height:1.32;vertical-align:top}
+.letter-label{width:210px}
+.letter-colon{width:14px}
+.letter-value{font-weight:700}
+.letter-body{margin:0 0 6px;text-align:justify}
+.letter-verdict{margin:8px 0;text-align:center;font-size:16pt;font-weight:700;letter-spacing:.16em}
+.letter-table{width:100%;border-collapse:collapse;margin:0 0 10px}
+.letter-table th,.letter-table td{border:1px solid #333;padding:2px 7px;font-size:11pt;vertical-align:middle}
 .letter-table thead th{background:#f3f0ed;text-align:center;font-weight:700}
 .letter-table .letter-no{width:38px;text-align:center}
-.letter-table .letter-score{width:72px;text-align:center}
+.letter-table .letter-score{width:74px;text-align:center}
 .letter-table .letter-subject{text-align:left}
 .letter-table .letter-average{text-align:right;font-weight:700}
-.letter-sign{display:flex;justify-content:flex-end;margin-top:14px}
-.letter-sign-block{width:252px;display:flex;flex-direction:column;gap:1px;text-align:center;font-size:11.5px}
-.letter-sign-block strong{margin-top:52px;font-weight:700;text-decoration:underline;text-underline-offset:2px}
-.letter-sign-block small{font-size:11px}
+.letter-sign{display:flex;justify-content:flex-end;margin-top:12px}
+.letter-sign-block{width:330px;display:flex;flex-direction:column;gap:0;text-align:center;font-size:12pt;line-height:1.3}
+.letter-sign-block strong{margin-top:50px;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.letter-sign-block small{font-size:12pt}
+/* Layar sempit hanya MENGECILKAN tampilan supaya lembar A4 utuh tetap terbaca di HP. Ukuran
+   kertasnya sendiri tidak berubah - blok @media print di bawah mengembalikan seluruh point. */
 @media(max-width:767px){
-  .letter-a4{font-size:9px;line-height:1.35}
-  .letter-head{gap:9px;margin-bottom:10px}
+  .letter-a4{font-size:7.5pt;line-height:1.3}
+  .letter-head{gap:9px;margin-bottom:9px}
   .letter-crest{width:44px;height:44px}
-  .letter-head-text span{font-size:10px}
-  .letter-head-text strong{font-size:12px}
-  .letter-head-text small{font-size:7.5px}
-  .letter-title h1{font-size:12px}
-  .letter-title p,.letter-identity td,.letter-sign-block{font-size:9px}
-  .letter-label{width:118px}
-  .letter-table th,.letter-table td{font-size:8.5px;padding:3px 4px}
+  .letter-head-text span{font-size:7.5pt}
+  .letter-head-text strong{font-size:9.5pt}
+  .letter-head-text small{font-size:5.5pt}
+  .letter-title h1{font-size:9pt}
+  .letter-title p,.letter-identity td,.letter-sign-block,.letter-sign-block small{font-size:7.5pt}
+  .letter-label{width:132px}
+  .letter-table th,.letter-table td{font-size:7pt;padding:1px 4px}
   .letter-table .letter-score{width:52px}
-  .letter-verdict{font-size:13px}
+  .letter-verdict{font-size:10pt}
   .letter-sign-block{width:180px}
-  .letter-sign-block strong{margin-top:40px}
+  .letter-sign-block strong{margin-top:38px}
 }
 @media print{
   /* Margin kiri-kanan kertas dibawa lembarnya sendiri, sama seperti Rapor, karena sistem cetak
      Android tidak menerapkan margin @page. Ukuran huruf dikembalikan utuh: lebar area cetak A4
      hanya 718px sehingga aturan layar sempit di atas ikut terpakai saat mencetak. */
-  .letter-a4{padding:0 13mm!important;font-size:11.5px;line-height:1.38}
+  .letter-a4{padding:0 13mm!important;font-size:12pt;line-height:1.32}
   .letter-crest{width:66px;height:66px}
-  .letter-head-text span{font-size:13.5px}
-  .letter-head-text strong{font-size:17px}
-  .letter-head-text small{font-size:9.5px}
-  .letter-title h1{font-size:16px}
-  .letter-title p,.letter-identity td,.letter-sign-block{font-size:11.5px}
-  .letter-label{width:196px}
-  .letter-table th,.letter-table td{font-size:11px;padding:4px 7px}
-  .letter-table .letter-score{width:72px}
-  .letter-verdict{font-size:17px}
-  .letter-sign-block{width:252px}
-  .letter-sign-block strong{margin-top:52px}
+  .letter-head-text span{font-size:12pt}
+  .letter-head-text strong{font-size:15pt}
+  .letter-head-text small{font-size:9pt}
+  .letter-title h1{font-size:14pt}
+  .letter-title p,.letter-identity td,.letter-sign-block,.letter-sign-block small{font-size:12pt}
+  .letter-label{width:210px}
+  .letter-table th,.letter-table td{font-size:11pt;padding:2px 7px}
+  .letter-table .letter-score{width:74px}
+  .letter-verdict{font-size:16pt}
+  .letter-sign-block{width:330px}
+  .letter-sign-block strong{margin-top:50px}
   .letter-a4 .letter-table tr{break-inside:avoid}
   .letter-a4 .letter-table thead{display:table-header-group}
   .letter-a4 .letter-sign{break-inside:avoid}

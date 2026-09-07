@@ -269,3 +269,75 @@ test('C12. Jenis dokumen yang tidak dikenal ditolak, bukan menghasilkan lembar k
   siapkan();
   assert.throws(()=>buildClassDocuments(admin,'6A','IJAZAH'),/tidak dikenal/);
 });
+
+/* ===================================================== HURUF DOKUMEN RESMI: TIMES NEW ROMAN
+
+   Surat dinas sekolah ditulis dengan huruf berkait, bukan dengan huruf antarmuka aplikasi.
+   Yang dijaga di sini bukan sekadar "aturannya tertulis", melainkan tiga hal yang mudah
+   rusak diam-diam: aturannya mencakup elemen bersarang, ukurannya dinyatakan dalam POINT
+   (satuan kertas, bukan satuan layar), dan lembar Rapor tidak ikut terbawa. */
+
+const gayaAplikasi=()=>read('src/styles/app.css');
+/* Ambil isi satu blok aturan berdasarkan selektornya, apa adanya. */
+function deklarasi(css,selektor){
+  const pola=new RegExp(`(?:^|[};])\\s*${selektor.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\s*\\{([^}]*)\\}`,'m');
+  return pola.exec(css)?.[1]||null;
+}
+/* Blok @media print milik lembar surat - yang benar-benar berlaku saat mencetak. */
+function blokCetakSurat(css){
+  const kunci='.letter-a4{padding:0 13mm!important';
+  const mulai=css.lastIndexOf('@media print{',css.indexOf(kunci));
+  return css.slice(mulai,css.indexOf('\n}',mulai));
+}
+
+test('C13. Dokumen memakai Times New Roman, termasuk seluruh elemen bersarangnya',()=>{
+  const gaya=gayaAplikasi();
+  assert.match(gaya,/\.letter-a4,\.letter-a4 \*\{font-family:"Times New Roman",Times,serif\}/,
+    'aturan berlaku untuk lembar DAN turunannya, sehingga span, strong, p, th, dan td tidak dapat kembali ke huruf aplikasi');
+  /* Tidak boleh ada aturan lain yang mengembalikan lembar surat ke huruf tanpa kait. */
+  for(const cocok of gaya.matchAll(/([^{}]*\.letter-[^{}]*)\{([^}]*font-family:[^};]*)/g))
+    assert.match(cocok[2],/Times/,`aturan "${cocok[1].trim()}" tidak boleh memakai huruf selain Times`);
+});
+
+test('C14. Lembar Rapor tidak ikut berubah huruf',()=>{
+  const gaya=gayaAplikasi();
+  const dokumen=deklarasi(gaya,'.document-a4');
+  assert.match(dokumen,/font-family:Arial,"Liberation Sans"/,'Rapor tetap memakai hurufnya sendiri');
+  assert.equal(dokumen.includes('Times'),false);
+  /* Aturan Times dipatok pada kelas surat, bukan pada wadah A4 yang dipakai bersama. */
+  assert.equal(/\.document-a4[^{,]*\{[^}]*Times/.test(gaya),false,
+    'huruf Times tidak boleh dipasang pada wadah A4 yang juga dipakai Rapor');
+});
+
+test('C15. Ukuran isi dokumen dinyatakan dalam point: 12pt, tabel 11pt',()=>{
+  const gaya=gayaAplikasi();
+  const cetak=blokCetakSurat(gaya);
+  /* Layar lebar dan media cetak sama-sama diperiksa: keduanya yang dilihat dan dicetak. */
+  for(const [nama,sumber] of [['layar',gaya],['cetak',cetak]]){
+    assert.match(deklarasi(sumber,'.letter-a4'),/font-size:12pt/,`${nama}: isi surat 12pt`);
+    assert.match(deklarasi(sumber,'.letter-table th,.letter-table td'),/font-size:11pt/,`${nama}: tabel nilai 11pt`);
+    assert.match(deklarasi(sumber,'.letter-title h1'),/font-size:14pt/,`${nama}: judul lebih besar sesuai hierarki`);
+  }
+  /* Identitas, nomor surat, dan tanda tangan ikut 12pt lewat satu aturan bersama. */
+  assert.match(cetak,/\.letter-title p,\.letter-identity td,\.letter-sign-block,\.letter-sign-block small\{font-size:12pt\}/);
+  /* Tidak ada bagian isi yang diam-diam turun di bawah 11pt saat mencetak. */
+  const ukuranCetak=[...cetak.matchAll(/font-size:([\d.]+)pt/g)].map(item=>Number(item[1]));
+  assert.ok(ukuranCetak.length>=6,'ukuran cetak memang dinyatakan ulang, bukan diwarisi aturan layar sempit');
+  const isi=ukuranCetak.filter(nilai=>nilai<14);
+  assert.ok(Math.min(...isi)>=9,`bagian terkecil pada kertas ${Math.min(...isi)}pt masih wajar untuk alamat kop`);
+  assert.ok(isi.filter(nilai=>nilai>=11).length>=4,'bagian isi utama berada pada 11-12pt');
+  /* Tidak ada satu pun ukuran piksel tersisa pada aturan huruf lembar surat. */
+  assert.equal(/\.letter-[a-z-]*[^{}]*\{[^}]*font-size:[\d.]+px/.test(gaya),false,
+    'ukuran huruf surat seluruhnya dalam point, bukan piksel');
+});
+
+test('C16. Spacing tetap rapat setelah pergantian huruf',()=>{
+  const gaya=gayaAplikasi();
+  assert.match(deklarasi(gaya,'.letter-a4'),/line-height:1\.32/,'jarak antarbaris tetap rapat');
+  assert.match(deklarasi(gaya,'.letter-identity td'),/padding:0/,'baris identitas tidak diberi jarak tambahan');
+  assert.match(deklarasi(gaya,'.letter-body'),/margin:0 0 6px/,'jarak antarparagraf tetap kecil');
+  assert.match(deklarasi(gaya,'.letter-sign'),/margin-top:12px/,'tanda tangan tidak dijauhkan dari isi');
+  assert.match(deklarasi(gaya,'.letter-sign-block strong'),/margin-top:50px/,'ruang bubuh tanda tangan tetap secukupnya');
+  /* Tidak ada tinggi minimum besar yang dipakai sekadar memenuhi halaman. */
+  assert.equal(/\.letter-[a-z-]*[^{}]*\{[^}]*min-height:\s*[2-9]\d\dpx/.test(gaya),false);
+});
