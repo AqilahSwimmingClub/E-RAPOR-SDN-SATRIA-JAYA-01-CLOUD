@@ -34,16 +34,15 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.4 uses versionCode 26 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.4');
-  assert.equal(VERSION_CODE,26);
+test('release v1.3.5 uses versionCode 27 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.5');
+  assert.equal(VERSION_CODE,27);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.4 membawa modul TRANSKRIP-SKL-SKKB beserta cetak satu siswa dan satu rombel
-     penuh, Fase otomatis pada Rapor, dan huruf Times New Roman untuk ketiga dokumen resmi.
-     Seluruhnya menambah koleksi baru dan mengubah tampilan; tak satu pun mengubah bentuk
-     catatan lama. `graduationDocuments` dan `graduationSettings` muncul sendiri lewat
-     penggabungan baseDb saat database dibaca, jadi tidak ada migrasi yang perlu dijalankan.
+     Rilis 1.3.5 hanya mengubah tata letak baris Nilai Rata-rata pada SKL dan Transkrip:
+     murni presentasi, tanpa menyentuh satu pun bentuk data maupun rumus. Koleksi
+     TRANSKRIP-SKL-SKKB yang diperkenalkan 1.3.4 tetap muncul sendiri lewat penggabungan
+     baseDb saat database dibaca, jadi tidak ada migrasi yang perlu dijalankan.
 
      Alasan 1.3.2 sebelumnya, yang juga masih berlaku, dua hal berikut dan tak satu pun
      mengubah bentuk database sekolah:
@@ -58,10 +57,10 @@ test('release v1.3.4 uses versionCode 26 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.4-TRANSKRIP-SKL-SKKB-TIMES');
-  /* Rilis sebelumnya bergeser ke 1.3.3 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.3.5-REKAP-NILAI-RATA-RATA');
+  /* Rilis sebelumnya bergeser ke 1.3.4 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.3',versionCode:25});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.4',versionCode:26});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
