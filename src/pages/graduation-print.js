@@ -47,12 +47,19 @@ function tabelIdentitas(rows){
 }
 
 /* Tabel mata pelajaran dipakai Transkrip dan SKL dengan bentuk yang sama persis, sehingga
-   keduanya tidak mungkin memakai urutan atau penomoran yang berbeda. */
+   keduanya tidak mungkin memakai urutan atau penomoran yang berbeda.
+
+   BARIS REKAP NILAI RATA-RATA. Sebelumnya labelnya rata kanan sehingga menempel ke garis
+   kolom Nilai dan terbaca seperti catatan kecil, bukan seperti rekap. Sekarang ia menjadi
+   baris tersendiri sesudah mata pelajaran terakhir: satu sel menggabungkan kolom No dan Mata
+   Pelajaran dengan labelnya di TENGAH, dan angkanya tetap berdiri pada kolom Nilai, juga di
+   tengah. Yang berubah hanya tata letaknya - angkanya dihitung oleh penyusun dokumen dan
+   tidak disentuh sama sekali di sini. */
 export function subjectScoreTable(doc){
   const rows=Array.isArray(doc.rows)?doc.rows:[];
   return `<table class="letter-table"><thead><tr><th class="letter-no">No.</th><th class="letter-subject">Mata Pelajaran</th><th class="letter-score">Nilai</th></tr></thead><tbody>${
     rows.map(row=>`<tr><td class="letter-no">${row.number}.</td><td class="letter-subject">${teks(row.name)}</td><td class="letter-score">${nilai(row.score)}</td></tr>`).join('')
-  }</tbody>${rows.length?`<tfoot><tr><th class="letter-average" colspan="2">Nilai Rata-rata</th><th class="letter-score">${nilai(doc.average)}</th></tr></tfoot>`:''}</table>`;
+  }</tbody>${rows.length?`<tfoot><tr class="letter-average-row"><th class="letter-average" colspan="2">NILAI RATA-RATA</th><th class="letter-score letter-average-score">${nilai(doc.average)}</th></tr></tfoot>`:''}</table>`;
 }
 
 /* Blok tanda tangan Kepala Sekolah. Nama dan NIP datang dari Data Sekolah; tempat dan tanggal

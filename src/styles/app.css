@@ -1487,7 +1487,11 @@ select.input option{background:#fff;color:var(--light-ink)}
 .letter-table .letter-no{width:38px;text-align:center}
 .letter-table .letter-score{width:74px;text-align:center}
 .letter-table .letter-subject{text-align:left}
-.letter-table .letter-average{text-align:right;font-weight:700}
+/* Baris rekap: label di tengah area No + Mata Pelajaran, angka di tengah kolom Nilai.
+   Keduanya juga di tengah secara tegak supaya baris rekap terbaca sebagai satu kesatuan. */
+.letter-table .letter-average{text-align:center;vertical-align:middle;font-weight:700;letter-spacing:.04em}
+.letter-table .letter-average-score{text-align:center;vertical-align:middle;font-weight:700}
+.letter-table .letter-average-row th{padding-top:3px;padding-bottom:3px}
 .letter-sign{display:flex;justify-content:flex-end;margin-top:12px}
 .letter-sign-block{width:330px;display:flex;flex-direction:column;gap:0;text-align:center;font-size:12pt;line-height:1.3}
 .letter-sign-block strong{margin-top:50px;font-weight:700;text-decoration:underline;text-underline-offset:2px}
@@ -1524,6 +1528,8 @@ select.input option{background:#fff;color:var(--light-ink)}
   .letter-label{width:210px}
   .letter-table th,.letter-table td{font-size:11pt;padding:2px 7px}
   .letter-table .letter-score{width:74px}
+  .letter-table .letter-average{text-align:center;vertical-align:middle}
+  .letter-table .letter-average-score{text-align:center;vertical-align:middle}
   .letter-verdict{font-size:16pt}
   .letter-sign-block{width:330px}
   .letter-sign-block strong{margin-top:50px}
