@@ -118,12 +118,24 @@ export function sklSheet(doc){
     ${principalSignature(doc)}</section>`;
 }
 
+/* JUDUL SKKB DITULIS SEBAGAI SATU BARIS, DAN HANYA DARI SATU SUMBER.
+
+   Akar masalahnya bukan sekadar <br/>. Penyusun dokumen sudah lama menetapkan judulnya utuh
+   satu baris - buildSkkbDocument mengembalikan title:'SURAT KETERANGAN KELAKUAN BAIK' - tetapi
+   lembar ini MENGABAIKAN doc.title dan menuliskan salinannya sendiri dengan <br/> tertanam di
+   dalamnya. Dua sumber untuk satu judul, dan yang dicetak justru salinan yang patah.
+
+   Sekarang judulnya dibaca dari doc.title, persis seperti Transkrip. Salinan kedua itu hilang,
+   jadi judul SKKB tidak mungkin lagi berbeda antara data dan cetakan.
+
+   "BAIK" di sini adalah bagian dari NAMA DOKUMEN, bukan predikat. Predikat kelakuan tetap
+   dibaca per siswa dari doc.predicate dan dicetak terpisah pada .letter-verdict di bawah. */
 export function skkbSheet(doc){
   const school=doc.school||{};
   const daerah=[String(school.district||'').trim()&&`Kecamatan ${String(school.district).trim()}`,String(school.city||'').trim()]
     .filter(Boolean).join(' ');
   return `<section class="document-a4 letter-a4 skkb-letter">${letterHead(doc)}
-    <div class="letter-title"><h1>SURAT KETERANGAN KELAKUAN<br/>BAIK</h1><p>Nomor: ${isi(doc.number)}</p></div>
+    <div class="letter-title"><h1>${teks(doc.title)}</h1><p>Nomor: ${isi(doc.number)}</p></div>
     <p class="letter-lead">Kepala ${teks(school.name)}${daerah?` ${teks(daerah)}`:''} dengan ini menerangkan bahwa:</p>
     ${tabelIdentitas([
       ['N A M A',doc.student?.name],

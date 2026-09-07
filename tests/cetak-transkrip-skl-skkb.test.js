@@ -9,7 +9,7 @@ import { saveTranscriptScores } from '../src/services/transcript.js';
 import { saveDiplomaNumbers } from '../src/services/transcript-admin.js';
 import { invalidateDbCache } from '../src/services/storage.js';
 import { saveSubjectMapping } from './helpers/penugasan.js';
-import { buildClassDocuments, saveGraduationSettings, saveStudentDocuments } from '../src/services/graduation-documents.js';
+import { CONDUCT_PREDICATES, buildClassDocuments, saveGraduationSettings, saveStudentDocuments } from '../src/services/graduation-documents.js';
 import { sklSheet, skkbSheet, transcriptSheet } from '../src/pages/graduation-print.js';
 
 /* CETAK TRANSKRIP-SKL-SKKB: SATU SISWA DAN SATU ROMBEL PENUH.
@@ -550,11 +550,105 @@ test('C30. Tiga lembar resmi tidak memuat komentar HTML apa pun',()=>{
   assert.equal(kode.includes('<!--'),false,'komentar HTML tidak ditulis di renderer lembar');
 });
 
-test('C29. SKKB dan Transkrip tidak ikut terpengaruh',()=>{
+/* ==================================================== JUDUL SKKB SATU BARIS
+
+   Akar masalahnya bukan sekadar <br/>: lembar SKKB dulu MENGABAIKAN doc.title dan menulis
+   salinan judulnya sendiri, sehingga judul yang dicetak dapat berbeda dari judul yang
+   ditetapkan penyusun dokumen. Test di bawah mengunci keduanya - bentuk judulnya, dan
+   kenyataan bahwa judul itu hanya punya satu sumber. */
+
+function judulSkkb(html){return /<div class="letter-title"><h1>(.*?)<\/h1>/s.exec(html)?.[1]||'';}
+
+test('C31. Judul SKKB berisi tepat "SURAT KETERANGAN KELAKUAN BAIK" sebagai satu heading',()=>{
   siapkan();
-  /* SKKB memang punya pemenggalan sendiri dan sengaja TIDAK diubah pada pekerjaan ini. */
+  for(const doc of buildClassDocuments(admin,'6A','SKKB')){
+    const html=skkbSheet(doc);
+    assert.equal(judulSkkb(html),'SURAT KETERANGAN KELAKUAN BAIK','judul utuh tanpa pemenggalan');
+    assert.equal((html.match(/<h1>/g)||[]).length,1,'hanya satu heading pada lembar SKKB');
+  }
+});
+
+test('C32. Tidak ada pemenggalan maupun node kedua di dalam judul SKKB',()=>{
+  siapkan();
+  const html=skkbSheet(buildClassDocuments(admin,'6A','SKKB')[0]);
+  const judul=judulSkkb(html);
+  for(const pemisah of ['<br>','<br/>','<br />','</h1>','<span','<div','\n'])
+    assert.equal(judul.includes(pemisah),false,`judul SKKB tidak boleh memuat ${pemisah.trim()||'baris baru'}`);
+  /* Tidak ada heading kedua khusus untuk kata BAIK. */
+  assert.equal(/<h1>[^<]*<\/h1>\s*<h1>/.test(html),false,'BAIK tidak boleh menjadi heading tersendiri');
+  /* Sumbernya pun tidak boleh lagi memuat pola lama itu. */
+  assert.equal(/SURAT KETERANGAN KELAKUAN<br\/>BAIK/.test(read('src/pages/graduation-print.js')),false);
+});
+
+test('C33. Judul SKKB hanya punya SATU sumber, yaitu doc.title',()=>{
+  siapkan();
+  const doc=buildClassDocuments(admin,'6A','SKKB')[0];
+  assert.equal(doc.title,'SURAT KETERANGAN KELAKUAN BAIK','penyusun dokumen menetapkan judulnya');
+  assert.equal(judulSkkb(skkbSheet(doc)),doc.title,'lembar mencetak judul dari doc.title');
+  /* Bukti bahwa lembar benar-benar membacanya, bukan kebetulan sama: ubah title, lembar ikut. */
+  assert.equal(judulSkkb(skkbSheet({...doc,title:'JUDUL UJI'})),'JUDUL UJI');
+  /* Renderer tidak boleh lagi menyimpan salinan judul SKKB sebagai teks mati. */
+  const kode=read('src/pages/graduation-print.js');
+  assert.equal(/<h1>SURAT KETERANGAN KELAKUAN/.test(kode),false,
+    'judul SKKB tidak ditulis ulang di dalam renderer');
+});
+
+test('C34. Cetak Semua: setiap siswa memakai judul satu baris yang sama',()=>{
+  const {siswa}=siapkan();
+  const potongan=buildClassDocuments(admin,'6A','SKKB').map(skkbSheet);
+  assert.equal(potongan.length,siswa.length);
+  for(const html of potongan)
+    assert.equal(judulSkkb(html),'SURAT KETERANGAN KELAKUAN BAIK','judul sama pada setiap lembar');
+  /* Preview satu siswa memakai penyusun yang sama, jadi tidak mungkin berbeda. */
+  assert.equal(judulSkkb(skkbSheet(buildClassDocuments(admin,'6A','SKKB')[0])),judulSkkb(potongan[0]));
+});
+
+test('C35. Kata BAIK pada judul adalah nama dokumen, bukan predikat siswa',()=>{
+  const {siswa}=siapkan();
+  const olehId=new Map(siswa.map(item=>[item.id,item]));
+  const terlihat=new Set();
+  for(const doc of buildClassDocuments(admin,'6A','SKKB')){
+    const diri=olehId.get(doc.student.id);
+    assert.equal(doc.predicate,diri.predikat,'predikat tetap dibaca dari data siswa');
+    const html=skkbSheet(doc);
+    assert.equal(judulSkkb(html),'SURAT KETERANGAN KELAKUAN BAIK');
+    const putusan=/<p class="letter-verdict">([^<]*)<\/p>/.exec(html)?.[1];
+    assert.equal(putusan,diri.predikat.toUpperCase(),'putusan mengikuti predikat siswa sendiri');
+    terlihat.add(putusan);
+  }
+  /* Ketiga predikat masih muncul apa adanya - tidak ada yang berubah menjadi BAIK gara-gara judul. */
+  assert.deepEqual([...terlihat].sort(),['BAIK','CUKUP','SANGAT BAIK']);
+  /* Daftar predikat resmi tetap tiga, tidak bertambah maupun berkurang oleh perubahan judul. */
+  assert.deepEqual([...CONDUCT_PREDICATES],['Sangat Baik','Baik','Cukup']);
+});
+
+test('C36. Judul SKKB tetap tengah, tebal, Times, dan berukuran sama dengan dua dokumen lain',()=>{
+  const gaya=read('src/styles/app.css');
+  const konteks={tag:'h1',kelas:[],nthChild:1,lastChild:false,
+    leluhur:['document-a4','letter-a4','skkb-letter','letter-title'],leluhurTag:['section','div']};
+  for(const keadaan of [null,CETAK]){
+    assert.equal(nilaiMenang(gaya,konteks,'font-size',{mediaAktif:keadaan})?.nilai,'14pt',
+      'ukuran judul tidak dikecilkan - lebar A4 memang cukup');
+    assert.equal(nilaiMenang(gaya,konteks,'font-weight',{mediaAktif:keadaan})?.nilai,'700','judul tetap tebal');
+  }
+  assert.match(gaya,/\.letter-title\{text-align:center/,'judul tetap rata tengah');
+  assert.match(gaya,/\.letter-a4,\.letter-a4 \*\{font-family:"Times New Roman",Times,serif\}/);
+  /* Tidak ada aturan khusus SKKB yang memaksa judul membungkus atau dipersempit. */
+  assert.equal(/\.skkb-letter[^{]*\.letter-title[^}]*(white-space|max-width|font-size)/.test(gaya),false);
+});
+
+test('C29. SKKB dan Transkrip memakai judul dari doc.title',()=>{
+  siapkan();
+  /* HARAPAN LAMA DIPERBARUI, BUKAN DILONGGARKAN.
+
+     Sebelumnya baris ini mengunci <h1>SURAT KETERANGAN KELAKUAN<br/>BAIK</h1>, karena saat
+     itu judul SKKB memang sengaja dibiarkan dua baris. Persyaratannya kemudian diubah resmi:
+     judul SKKB harus satu baris utuh. Harapannya karena itu digeser ke bentuk yang sekarang
+     benar - dan tetap KETAT: bentuk lamanya justru dilarang muncul kembali di bawah. */
   const skkb=skkbSheet(buildClassDocuments(admin,'6A','SKKB')[0]);
-  assert.match(skkb,/<h1>SURAT KETERANGAN KELAKUAN<br\/>BAIK<\/h1>/,'SKKB tetap seperti sebelumnya');
+  assert.match(skkb,/<h1>SURAT KETERANGAN KELAKUAN BAIK<\/h1>/,'judul SKKB satu baris utuh');
+  assert.equal(/SURAT KETERANGAN KELAKUAN\s*<br\s*\/?>\s*BAIK/i.test(skkb),false,
+    'pemenggalan lama tidak boleh kembali');
   const transkrip=transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0]);
   assert.match(transkrip,/<h1>TRANSKRIP NILAI<\/h1>/,'judul Transkrip tetap dari doc.title');
   /* Baris rekap Nilai Rata-rata tetap utuh pada keduanya yang memilikinya. */
