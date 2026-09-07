@@ -34,13 +34,14 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.6 uses versionCode 28 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.6');
-  assert.equal(VERSION_CODE,28);
+test('release v1.3.7 uses versionCode 29 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.7');
+  assert.equal(VERSION_CODE,29);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.6 hanya membuang <br/> yang tertanam di dalam judul SKL sehingga judulnya
-     tercetak satu baris. Murni presentasi: tidak ada bentuk data, rumus, maupun status
+     Rilis 1.3.7 membuat lembar SKKB membaca judulnya dari doc.title - judul yang memang
+     sudah lama ditetapkan penyusun dokumen - menggantikan salinan mati yang membawa <br/>
+     di dalamnya. Murni presentasi: tidak ada bentuk data, rumus, predikat, maupun status
      kelulusan yang tersentuh. Koleksi TRANSKRIP-SKL-SKKB yang diperkenalkan 1.3.4 tetap
      muncul sendiri lewat penggabungan baseDb saat database dibaca, jadi tidak ada migrasi
      yang perlu dijalankan.
@@ -58,10 +59,10 @@ test('release v1.3.6 uses versionCode 28 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.6-JUDUL-SKL-SATU-BARIS');
-  /* Rilis sebelumnya bergeser ke 1.3.5 - yang memang sudah terbit lewat workflow #43 -
+  assert.equal(BUILD_TAG,'1.3.7-JUDUL-SKKB-SATU-BARIS');
+  /* Rilis sebelumnya bergeser ke 1.3.6 - yang memang sudah terbit lewat workflow #44 -
      supaya APK baru tetap dapat dipasang menimpanya tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.5',versionCode:27});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.6',versionCode:28});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
