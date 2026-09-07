@@ -266,8 +266,8 @@ tidak dibuat — jadi tidak mungkin keluar rilis dari kode yang rusak.
 Setelah build hijau (tanda centang), buka halaman run tersebut lalu gulir ke bawah ke bagian
 **Artifacts**. Akan ada:
 
-- `apk-android-v1.2.0` → berisi `E-RAPOR-SDN-SATRIA-JAYA-01-v1.2.0.apk`
-- `installer-windows-v1.2.0` → berisi `E-RAPOR-SDN-SATRIA-JAYA-01-Setup-1.2.0.exe`
+- `apk-android-v1.3.3` → berisi `E-Rapor-SD-v1.3.3.apk`
+- `installer-windows-v1.3.3` → berisi `E-Rapor-SD-v1.3.3-Setup.exe`
 
 Klik namanya untuk mengunduh (berbentuk `.zip`, tinggal diekstrak). Artifact disimpan 30 hari.
 

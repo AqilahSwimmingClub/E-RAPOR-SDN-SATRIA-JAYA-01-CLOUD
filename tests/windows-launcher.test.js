@@ -91,7 +91,10 @@ test('9. Identitas installer tidak berubah sehingga update tidak perlu uninstall
   assert.match(builder,/^productName: e-Rapor SDN Satria Jaya 01$/m);
   assert.match(builder,/guid: 9a3f0d21-6c4b-5e88-9d17-2f6a1b7c4e30/);
   assert.match(builder,/deleteAppDataOnUninstall: false/);
-  assert.match(builder,/artifactName: E-RAPOR-SDN-SATRIA-JAYA-01-Setup-\$\{version\}\.\$\{ext\}/);
+  /* Nama berkas installer dirapikan pada 1.3.3 atas permintaan. Yang menentukan identitas
+     aplikasi - appId, productName, dan guid NSIS - tidak ikut berubah, dan itulah yang
+     dijaga oleh pemeriksaan lain pada test ini. */
+  assert.match(builder,/artifactName: E-Rapor-SD-v\$\{version\}-Setup\.\$\{ext\}/);
   assert.equal(JSON.parse(read('package.json')).version,APP_VERSION,'versi installer mengikuti versi aplikasi');
 });
 

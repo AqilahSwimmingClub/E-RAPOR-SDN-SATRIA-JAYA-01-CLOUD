@@ -28,7 +28,10 @@ win:
     - target: nsis
       arch:
         - x64
-  artifactName: E-RAPOR-SDN-SATRIA-JAYA-01-Setup-${version}.${ext}
+  # Nama berkas installer saja. appId, productName, dan guid di atas TIDAK ikut berubah,
+  # sehingga Windows tetap mengenali instalasi lama dan memperbaruinya di tempat, dan
+  # %APPDATA%/e-Rapor SDN Satria Jaya 01 tetap menjadi tempat data guru.
+  artifactName: E-Rapor-SD-v${version}-Setup.${ext}
   # Tanpa signing: sesuai permintaan, tidak ada sertifikat yang dibuat pada tahap ini.
   signAndEditExecutable: false
 

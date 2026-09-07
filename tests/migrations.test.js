@@ -34,12 +34,19 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.2 uses versionCode 24 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.2');
-  assert.equal(VERSION_CODE,24);
+test('release v1.3.3 uses versionCode 25 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.3');
+  assert.equal(VERSION_CODE,25);
   /* SCHEMA TETAP 5.
 
-     Rilis ini menyentuh dua hal, dan tak satu pun mengubah bentuk database sekolah:
+     Rilis 1.3.3 tidak mengubah satu pun kode fitur. Tujuannya hanya membawa source terbaru
+     dari main - perbaikan perataan nama mata pelajaran pada 29b2fb6 - ke dalam APK dan
+     installer Windows, yang sebelumnya dibangun dari 6e886ec sehingga belum memuatnya.
+     Nama berkas rilis ikut dirapikan, tanpa menyentuh applicationId, penandatanganan,
+     identitas aplikasi Windows, maupun letak data pengguna.
+
+     Alasan 1.3.2 sebelumnya, yang juga masih berlaku, dua hal berikut dan tak satu pun
+     mengubah bentuk database sekolah:
 
      1. Mapping mata pelajaran memakai satu urutan tunggal 1..N. Field `group` TIDAK dihapus -
         ia tetap tersimpan apa adanya supaya backup lama, mapping lama, dan penugasan Guru lama
@@ -51,10 +58,10 @@ test('release v1.3.2 uses versionCode 24 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.2-MAPPING-TUNGGAL-DAN-PEMBELIAN');
-  /* Rilis sebelumnya bergeser ke 1.3.1 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.3.3-PERATAAN-MAPEL-DAN-NAMA-RILIS');
+  /* Rilis sebelumnya bergeser ke 1.3.2 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.1',versionCode:23});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.2',versionCode:24});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{

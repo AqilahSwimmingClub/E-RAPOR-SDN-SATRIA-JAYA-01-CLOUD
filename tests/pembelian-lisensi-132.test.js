@@ -600,11 +600,11 @@ test('34c. Workflow rilis membangun Android DAN Windows dari perintah yang sama'
      electron-builder - antara lain *.__uninstaller.exe - sehingga artifact rilis pertama
      memuat empat .exe berukuran total 419 MB dan pembeli tidak punya cara tahu mana yang
      harus dijalankan. Namanya kini dipatok persis ke artifactName electron-builder. */
-  assert.match(alur,/path: release\/windows\/E-RAPOR-SDN-SATRIA-JAYA-01-Setup-\$\{\{ needs\.periksa\.outputs\.versi \}\}\.exe/);
+  assert.match(alur,/path: release\/windows\/E-Rapor-SD-v\$\{\{ needs\.periksa\.outputs\.versi \}\}-Setup\.exe/);
   assert.equal(alur.includes('path: release/windows/*.exe'),false,'pola menyapu semua .exe tidak dipakai lagi');
   /* Nama yang dipatok di workflow WAJIB sama dengan yang benar-benar dihasilkan builder. */
   assert.match(read('electron-builder.yml'),
-    /artifactName: E-RAPOR-SDN-SATRIA-JAYA-01-Setup-\$\{version\}\.\$\{ext\}/);
+    /artifactName: E-Rapor-SD-v\$\{version\}-Setup\.\$\{ext\}/);
 });
 
 test('35. Owner Panel punya halaman Pesanan dan Tautan Unduhan yang benar-benar terhubung',()=>{

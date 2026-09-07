@@ -180,15 +180,15 @@ jobs:
         run: |
           mkdir -p keluaran
           cp android/app/build/outputs/apk/release/app-release.apk \
-             "keluaran/E-RAPOR-SDN-SATRIA-JAYA-01-v$VERSI.apk"
+             "keluaran/E-Rapor-SD-v$VERSI.apk"
           ls -lh keluaran
 
       # Bukti bahwa APK benar-benar tertandatangani dan versinya naik, bukan sekadar berkas jadi.
       - name: Periksa tanda tangan dan versi APK
         run: |
           BUILD_TOOLS="$(ls -d "${ANDROID_HOME:-$ANDROID_SDK_ROOT}"/build-tools/* | sort -V | tail -1)"
-          "$BUILD_TOOLS/apksigner" verify --print-certs "keluaran/E-RAPOR-SDN-SATRIA-JAYA-01-v$VERSI.apk"
-          "$BUILD_TOOLS/aapt" dump badging "keluaran/E-RAPOR-SDN-SATRIA-JAYA-01-v$VERSI.apk" | head -1
+          "$BUILD_TOOLS/apksigner" verify --print-certs "keluaran/E-Rapor-SD-v$VERSI.apk"
+          "$BUILD_TOOLS/aapt" dump badging "keluaran/E-Rapor-SD-v$VERSI.apk" | head -1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -246,6 +246,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: installer-windows-v${{ needs.periksa.outputs.versi }}
-          path: release/windows/E-RAPOR-SDN-SATRIA-JAYA-01-Setup-${{ needs.periksa.outputs.versi }}.exe
+          path: release/windows/E-Rapor-SD-v${{ needs.periksa.outputs.versi }}-Setup.exe
           retention-days: 30
           if-no-files-found: error
