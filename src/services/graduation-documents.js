@@ -238,6 +238,27 @@ export function buildSkkbDocument(session,classId,studentId){
     predicate:doc.record.conductPredicate};
 }
 
+/* ------------------------------------------------------- SATU ROMBEL PENUH: CETAK SEMUA
+
+   Penyusun tunggal untuk mode Cetak Semua. Ia memanggil penyusun satu siswa BERULANG dengan
+   studentId masing-masing, jadi tidak ada satu pun nilai, nomor, status, atau predikat yang
+   dapat menyeberang dari siswa yang tadi dipratinjau ke siswa berikutnya - satu-satunya jalan
+   masuk ke tiap dokumen adalah id siswanya sendiri.
+
+   Urutan siswa mengikuti listStudents, urutan yang sama dengan seluruh halaman lain. */
+export const DOCUMENT_BUILDERS=Object.freeze({
+  TRANSKRIP:buildTranscriptDocument,
+  SKL:buildSklDocument,
+  SKKB:buildSkkbDocument,
+});
+
+export function buildClassDocuments(session,classId,type){
+  const builder=DOCUMENT_BUILDERS[type];
+  if(!builder)throw new Error('Jenis dokumen kelulusan tidak dikenal.');
+  const scope=teacherScope(session,classId);
+  return listStudents(scope,{classId:scope.classId}).map(student=>builder(session,scope.classId,student.id));
+}
+
 /* =================================================== TEMPLATE DAN IMPORT SATU BARIS PER SISWA
 
    TEMPLATE TIDAK MEMINTA GURU MENGETIK ULANG APA PUN YANG SUDAH ADA DI DATABASE.

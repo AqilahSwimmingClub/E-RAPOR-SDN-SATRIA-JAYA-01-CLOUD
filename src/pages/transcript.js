@@ -1,10 +1,11 @@
 import { CLASSES } from '../data/constants.js';
 import { getTranscriptRows, saveTranscriptScores } from '../services/transcript.js';
-import { buildSklDocument, buildSkkbDocument, buildTranscriptDocument, commitDocumentImport, documentImportTemplate, previewDocumentImport } from '../services/graduation-documents.js';
+import { buildClassDocuments, buildSklDocument, buildSkkbDocument, buildTranscriptDocument, commitDocumentImport, documentImportTemplate, previewDocumentImport } from '../services/graduation-documents.js';
 import { listStudents, parseCsv } from '../services/students.js';
 import { createWorkbookBytes, readWorkbookRows } from '../services/excel.js';
 import { pickFile, saveFile } from '../services/file-io.js';
 import { printCurrentDocument } from '../services/print-service.js';
+import { setPrintPageSize } from './print.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { sklSheet, skkbSheet, transcriptSheet } from './graduation-print.js';
@@ -21,14 +22,14 @@ const TRANSCRIPT_MODES=Object.freeze({
 /* Tiga dokumen, satu pratinjau. Yang berpindah hanyalah lembar yang dirakit; sumber datanya
    sama sehingga tidak mungkin ada identitas berbeda antar dokumen milik siswa yang sama. */
 const DOCUMENT_TABS=Object.freeze([
-  ['transkrip','Transkrip Nilai',buildTranscriptDocument,transcriptSheet],
-  ['skl','SKL',buildSklDocument,sklSheet],
-  ['skkb','SKKB',buildSkkbDocument,skkbSheet],
+  ['transkrip','Transkrip Nilai','TRANSKRIP',buildTranscriptDocument,transcriptSheet],
+  ['skl','SKL','SKL',buildSklDocument,sklSheet],
+  ['skkb','SKKB','SKKB',buildSkkbDocument,skkbSheet],
 ]);
 
 export function renderTranscript(session,mode='input'){
   const tab=Object.hasOwn(TRANSCRIPT_MODES,mode)?mode:'input';const halaman=TRANSCRIPT_MODES[tab];
-  let classId=session.role==='teacher'?session.classId:CLASSES[0];let scope={...session,role:'teacher',classId};let studentId='';let dokumen='transkrip';
+  let classId=session.role==='teacher'?session.classId:CLASSES[0];let scope={...session,role:'teacher',classId};let studentId='';let dokumen='transkrip';let previewed=false;let bulkMode=false;
   const root=el(`<div><div class="page-head no-print"><div><h1>${escapeHtml(halaman.title)}</h1><p>${escapeHtml(halaman.lead)}</p></div><div class="actions" data-actions></div></div>${session.role==='admin'?`<section class="card module-filter no-print"><div class="field compact-field"><label for="transcriptClass">Rombel</label><select class="input" id="transcriptClass" data-class>${classOptions(classId)}</select></div><div class="scope-note">TRANSKRIP-SKL-SKKB<span>${escapeHtml(session.academicYear)}</span></div></section>`:''}<div data-view></div></div>`);
   const view=root.querySelector('[data-view]');const actions=root.querySelector('[data-actions]');
   function refreshScope(){scope={...session,role:'teacher',classId};const students=listStudents(scope,{classId});if(!students.some(student=>student.id===studentId))studentId=students[0]?.id||'';return students;}
@@ -82,26 +83,60 @@ export function renderTranscript(session,mode='input'){
     };
   }
 
+  /* ================================================== CETAK: MODEL YANG SAMA DENGAN RAPOR
+
+     Yang dipakai ulang dari Cetak Rapor adalah SISTEM CETAKNYA, bukan isi dokumennya:
+     pemilih siswa, tombol Preview, saklar Semua Siswa, ukuran kertas A4 lewat
+     setPrintPageSize, dan pemisahan tiap siswa menjadi lembar sendiri. Isi TRANSKRIP, SKL,
+     dan SKKB tetap milik masing-masing.
+
+     SETIAP LEMBAR DIBANGUN ULANG DARI studentId-NYA SENDIRI. Tidak ada satu pun nilai, nomor,
+     status, atau predikat yang diwariskan dari siswa yang tadi dipratinjau: builder dipanggil
+     terpisah per siswa, dan hasilnya hanya bergantung pada id yang diberikan. */
+  function documentBuilder(){return DOCUMENT_TABS.find(item=>item[0]===dokumen)||DOCUMENT_TABS[0];}
+  function sheetFor(studentId,pilihan=documentBuilder()){
+    try{return pilihan[4](pilihan[3](session,classId,studentId));}
+    catch(error){return `<section class="document-a4 letter-a4"><p class="letter-body">Dokumen tidak dapat disusun: ${escapeHtml(error.message)}</p></section>`;}
+  }
+  /* Cetak Semua memakai buildClassDocuments: satu penyusun yang membangun ulang tiap dokumen
+     dari studentId-nya sendiri, dengan urutan siswa yang sama seperti halaman lain. */
+  function bulkSheets(){const pilihan=documentBuilder();return buildClassDocuments(session,classId,pilihan[2]).map(pilihan[4]).join('');}
+
+  /* Kertas A4 potret ditetapkan lewat mekanisme yang sama dengan Rapor: margin atas-bawah dari
+     @page, margin kiri-kanan dibawa lembarnya sendiri supaya cetak dari Android - yang
+     mengabaikan margin @page - tetap tidak menempel ke tepi kertas. */
+  function applyPageSize(){setPrintPageSize('portrait','10mm 0');}
   function printDocument(savePdf=false){
-    const nama=DOCUMENT_TABS.find(item=>item[0]===dokumen)?.[1]||'Dokumen';
-    return printCurrentDocument({title:`${nama}-${classId}-${session.academicYear.replace('/','-')}`,savePdf:savePdf===true});
+    applyPageSize();
+    const nama=documentBuilder()[1];
+    const berkas=bulkMode?`${nama}-SEMUA-${classId}`:`${nama}-${classId}`;
+    return printCurrentDocument({title:`${berkas}-${session.academicYear.replace('/','-')}`,savePdf:savePdf===true});
   }
 
   function drawPreview(){
-    const students=refreshScope();actions.innerHTML='';
+    const students=refreshScope();applyPageSize();actions.innerHTML='';
     if(!students.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan siswa pada rombel ini terlebih dahulu.</p></section>';return;}
-    const pilihan=DOCUMENT_TABS.find(item=>item[0]===dokumen)||DOCUMENT_TABS[0];
-    let lembar='';
-    try{lembar=studentId?pilihan[3](pilihan[2](session,classId,studentId)):'';}
-    catch(error){lembar=`<section class="card empty-state"><h3>Dokumen belum dapat disusun</h3><p>${escapeHtml(error.message)}</p></section>`;}
-    view.innerHTML=`${selection(students,'Pilih Siswa untuk Preview')}<nav class="print-tabs no-print" data-tabs>${DOCUMENT_TABS.map(([id,label])=>`<button class="btn ${id===dokumen?'btn-primary':'btn-light'}" data-doc="${id}">${escapeHtml(label)}</button>`).join('')}</nav><div class="print-toolbar no-print"><span>${escapeHtml(pilihan[1])} · Kelas ${escapeHtml(classId)}</span><div class="actions"><button class="btn btn-light" data-print>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-pdf>${icon('download',16)} Download PDF</button></div></div>${lembar||'<section class="card empty-state"><h3>Pilih siswa terlebih dahulu</h3></section>'}`;
-    view.querySelector('[data-student]').onchange=event=>{studentId=event.target.value;drawPreview();};
+    const pilihan=documentBuilder();
+    const tabs=`<nav class="print-tabs no-print" data-tabs>${DOCUMENT_TABS.map(([id,label])=>`<button class="btn ${id===dokumen?'btn-primary':'btn-light'}" data-doc="${id}">${escapeHtml(label)}</button>`).join('')}</nav>`;
+    if(bulkMode){
+      view.innerHTML=`${tabs}<section class="card report-print-control bulk-print-control no-print"><span>Cetak Semua ${escapeHtml(pilihan[1])} · ${students.length} siswa</span><button class="btn btn-light" data-bulk-toggle>Kembali ke Satu Siswa</button><button class="btn btn-light" data-print>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-pdf>${icon('download',16)} Simpan PDF</button></section>${bulkSheets()}`;
+    }else{
+      const lembar=previewed&&studentId?sheetFor(studentId,pilihan):'<section class="card empty-state no-print"><h3>Preview belum dibuka</h3><p>Pilih siswa lalu klik Preview untuk menampilkan lembar A4.</p></section>';
+      view.innerHTML=`${tabs}<section class="card report-print-control no-print"><div class="field compact-field"><label>Pilih Siswa</label><select class="input" data-student>${students.map(item=>`<option value="${escapeHtml(item.id)}" ${item.id===studentId?'selected':''}>${escapeHtml(item.name)} · ${escapeHtml(item.nisn||item.nis||'')}</option>`).join('')}</select></div><button class="btn btn-light" data-bulk-toggle>Semua Siswa</button><button class="btn btn-light" data-preview>${icon('file',16)} Preview</button><button class="btn btn-light" data-print ${previewed?'':'disabled'}>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-pdf ${previewed?'':'disabled'}>${icon('download',16)} Simpan PDF</button></section>${lembar}`;
+    }
     view.querySelectorAll('[data-doc]').forEach(button=>{button.onclick=()=>{dokumen=button.dataset.doc;drawPreview();};});
-    view.querySelector('[data-print]').onclick=()=>printDocument(false);
-    view.querySelector('[data-pdf]').onclick=()=>printDocument(true);
+    const pemilih=view.querySelector('[data-student]');
+    if(pemilih)pemilih.onchange=event=>{studentId=event.target.value;previewed=false;drawPreview();};
+    view.querySelector('[data-preview]')?.addEventListener('click',()=>{previewed=true;drawPreview();});
+    view.querySelector('[data-bulk-toggle]')?.addEventListener('click',()=>{bulkMode=!bulkMode;previewed=bulkMode;drawPreview();});
+    view.querySelector('[data-print]')?.addEventListener('click',()=>printDocument(false));
+    view.querySelector('[data-pdf]')?.addEventListener('click',()=>printDocument(true));
   }
 
   function draw(){if(tab==='input')drawInput();if(tab==='import')drawImport();if(tab==='preview')drawPreview();}
-  if(session.role==='admin')root.querySelector('[data-class]').onchange=event=>{classId=event.target.value;studentId='';draw();};
+  if(session.role==='admin')root.querySelector('[data-class]').onchange=event=>{classId=event.target.value;studentId='';previewed=false;bulkMode=false;draw();};
+  /* Aturan @page dilepas saat meninggalkan halaman supaya dokumen lain tidak ikut terpengaruh,
+     sama seperti yang dilakukan halaman Cetak Rapor. */
+  globalThis.addEventListener?.('hashchange',()=>setPrintPageSize(null),{once:true});
   draw();return root;
 }

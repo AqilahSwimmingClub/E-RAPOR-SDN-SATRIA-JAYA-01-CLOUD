@@ -11,19 +11,37 @@ import { runAppMigrations } from './migrations.js';
 const SCHEMA_VERSION=1;
 const BACKUP_VERSION='1.0';
 const SCOPED_COLLECTIONS=[
-  'settings','subjectMappings','assessmentSettings','students','attendance','manualAttendance',
+  'subjectMappings','assessmentSettings','students','attendance','manualAttendance',
   'cpButir','cpButirScores',
   'learningObjectives','assessmentScores','cpEvidenceScores','reportScores','reportDescriptions',
   'extracurricularScores','cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'
 ];
-const LATER_COLLECTIONS=['teacherAssignments','reportDateDefaults','graduationDocuments','graduationSettings','manualAttendance','cpButir','cpButirScores','cpEvidenceScores','cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
+const LATER_COLLECTIONS=['settings','teacherAssignments','reportDateDefaults','graduationDocuments','graduationSettings','manualAttendance','cpButir','cpButirScores','cpEvidenceScores','cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
 /* Tanggal rapor bawaan sekolah per tahun pelajaran dan semester ditetapkan Admin dan berlaku
    untuk seluruh rombel, jadi ia data global - bukan data satu rombel. Backup Guru karena itu
    tidak membawanya, sama seperti akun dan pengaturan keamanan. */
 /* Nomor surat, nomor peserta ujian, predikat SKKB, dan tanggal kelulusan TRANSKRIP-SKL-SKKB
    ditetapkan Admin untuk satu tahun pelajaran dan berlaku lintas rombel, jadi keduanya masuk
    koleksi global - bersama tanggal rapor - bukan koleksi milik satu rombel. */
-/* CACAT LAMA YANG DITEMUKAN SAAT MENGUJI BACKUP MODUL INI, DAN DIPERBAIKI DI SINI.
+/* `settings` DIPINDAH DARI KOLEKSI ROMBEL KE KOLEKSI GLOBAL, DAN ITU MEMANG TEMPATNYA.
+
+   Isinya hanya dua hal, keduanya milik Admin dan berlaku untuk seluruh sekolah:
+   `settings.diplomaNumbers` (Nomor Ijazah, berkunci `tahunPelajaran|studentId`) dan
+   `settings.transcript` (tata letak cetak transkrip). Tak satu pun berkunci scope rombel.
+
+   Selama ia terdaftar sebagai koleksi rombel, penyaring backup Guru membandingkan kunci
+   `diplomaNumbers` dengan scope `2026/2027|Genap 2026/2027|6A` - perbandingan yang tidak akan
+   pernah cocok - sehingga `settings` selalu menjadi objek kosong pada backup Guru. Perilakunya
+   kebetulan benar (Nomor Ijazah memang data Admin dan tidak seharusnya dapat ditimpa lewat
+   restore Guru), tetapi benarnya karena kebetulan, bukan karena dinyatakan.
+
+   Sesudah dipindah, keadaan itu menjadi eksplisit dan diperiksa: backup Admin tetap membawa
+   seluruh Nomor Ijazah apa adanya, backup Guru dilarang membawanya oleh pemeriksaan koleksi
+   global, dan restore Guru tidak lagi menyentuh `db.settings` sama sekali. Ia juga masuk
+   LATER_COLLECTIONS sehingga berkas backup lama yang belum memuat `settings` tetap dapat
+   dipulihkan tanpa menghapus apa pun.
+
+   CACAT LAMA YANG DITEMUKAN SAAT MENGUJI BACKUP MODUL INI, DAN DIPERBAIKI DI SINI.
 
    `teacherAssignments` ditulis Admin lewat menu Akun Guru & Penugasan dan merupakan satu-satunya
    sumber otorisasi Guru, tetapi ia tidak pernah terdaftar sebagai koleksi backup. Akibatnya
@@ -32,7 +50,7 @@ const LATER_COLLECTIONS=['teacherAssignments','reportDateDefaults','graduationDo
    tidak dikenal", sehingga tidak dapat dipulihkan sama sekali. Ia global seperti akun dan
    penugasan lain, dan berada pula di LATER_COLLECTIONS supaya berkas backup lama yang belum
    memuatnya tetap dapat dipulihkan. */
-const GLOBAL_COLLECTIONS=['masterData','userAccounts','security','teacherAssignments','reportDateDefaults','graduationDocuments','graduationSettings','dapodikSyncState','dapodikSyncLogs','dapodikMappings'];
+const GLOBAL_COLLECTIONS=['masterData','userAccounts','security','settings','teacherAssignments','reportDateDefaults','graduationDocuments','graduationSettings','dapodikSyncState','dapodikSyncLogs','dapodikMappings'];
 const DATA_KEYS=new Set(['schemaVersion','appSchemaVersion','appVersion','createdAt','updatedAt',...GLOBAL_COLLECTIONS,...SCOPED_COLLECTIONS,'backupHistory','migrationHistory']);
 const DANGEROUS_KEYS=new Set(['__proto__','prototype','constructor']);
 

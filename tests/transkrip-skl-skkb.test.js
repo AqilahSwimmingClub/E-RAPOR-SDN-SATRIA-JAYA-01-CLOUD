@@ -451,3 +451,128 @@ test('F3. Guru tidak pernah diminta memilih Fase',()=>{
     assert.equal(/name="phase"|data-phase|Pilih Fase/.test(isi),false,`${path} tidak menyediakan pilihan Fase manual`);
   }
 });
+
+/* =============================================== §30-§31 NOMOR IJAZAH IKUT BACKUP/RESTORE
+
+   TEMUAN AUDIT YANG PERLU DICATAT APA ADANYA. Laporan sebelumnya menyebut Nomor Ijazah tidak
+   ikut backup. Pengujian langsung membuktikan sebaliknya untuk BACKUP ADMIN: ia memang ikut
+   dan pulih utuh, karena backup Admin membawa seluruh database tanpa penyaringan scope. Yang
+   memang tidak membawanya adalah backup GURU, dan itu benar - Nomor Ijazah hanya dapat ditulis
+   Admin, sehingga restore Guru tidak boleh dapat menimpanya.
+
+   Keadaan itu sebelumnya tidak pernah diuji sama sekali, dan `settings` masih terdaftar sebagai
+   koleksi rombel padahal isinya global. Suite ini mengunci perilakunya supaya tidak dapat
+   berubah diam-diam. */
+
+const IJAZAH=Object.freeze({a:'DN-01 Dx-1112026001',b:'DN-01 Dx-1112026002',c:'DN-01 Dx-1112026003'});
+
+function siapkanDuaRombel(){
+  useMemoryStorage();
+  saveSchoolMaster(admin,SEKOLAH_A);
+  const enamA=guru('6A'),enamB=guru('6B');
+  for(const scope of [enamA,enamB])
+    saveSubjectMapping(scope,SUBJECTS_DEFAULT.map((item,index)=>({...item,active:MAPEL_AKTIF.includes(item.id),order:index+1})));
+  const a1=createStudent(enamA,{classId:'6A',nis:'601',nisn:'6001',name:'Siswa 6A Satu',gender:'P',birthPlace:'Bekasi',birthDate:'2013-01-01',religion:'Islam',parentName:'Wali A1'});
+  const a2=createStudent(enamA,{classId:'6A',nis:'602',nisn:'6002',name:'Siswa 6A Dua',gender:'L',birthPlace:'Bekasi',birthDate:'2013-02-02',religion:'Islam',parentName:'Wali A2'});
+  const b1=createStudent(enamB,{classId:'6B',nis:'603',nisn:'6003',name:'Siswa 6B Satu',gender:'P',birthPlace:'Bogor',birthDate:'2013-03-03',religion:'Islam',parentName:'Wali B1'});
+  saveDiplomaNumbers(admin,[{studentId:a1.id,number:IJAZAH.a},{studentId:a2.id,number:IJAZAH.b},{studentId:b1.id,number:IJAZAH.c}]);
+  return {enamA,enamB,a1,a2,b1};
+}
+const nomorIjazah=studentId=>loadDb().settings?.diplomaNumbers?.[`${ACADEMIC_YEAR}|${studentId}`]?.number||null;
+
+test('J1. TEST A: Nomor Ijazah kembali identik setelah backup lalu restore pada state kosong',()=>{
+  const {a1,a2,b1}=siapkanDuaRombel();
+  const backup=buildBackup(admin);
+  assert.equal(Object.keys(backup.data.settings.diplomaNumbers).length,3,'ketiga nomor ikut ke berkas backup');
+
+  useMemoryStorage();
+  assert.equal(nomorIjazah(a1.id),null,'state benar-benar kosong sebelum restore');
+  restoreBackup(backup,admin);
+  assert.equal(nomorIjazah(a1.id),IJAZAH.a);
+  assert.equal(nomorIjazah(a2.id),IJAZAH.b);
+  assert.equal(nomorIjazah(b1.id),IJAZAH.c);
+  assert.equal(Object.keys(loadDb().settings.diplomaNumbers).length,3,'tidak ada nomor yang hilang maupun berlipat');
+});
+
+test('J2. TEST B: dua rombel, Nomor Ijazah tidak tertukar dan tidak berpindah rombel',()=>{
+  const {enamA,enamB,a1,a2,b1}=siapkanDuaRombel();
+  const backup=buildBackup(admin);
+  useMemoryStorage();
+  restoreBackup(backup,admin);
+  /* Setiap nomor tetap melekat pada siswanya, dan siswanya tetap pada rombelnya. */
+  const di6A=listStudents(enamA,{classId:'6A'}).map(item=>item.id);
+  const di6B=listStudents(enamB,{classId:'6B'}).map(item=>item.id);
+  assert.deepEqual([...di6A].sort(),[a1.id,a2.id].sort());
+  assert.deepEqual(di6B,[b1.id]);
+  assert.equal(nomorIjazah(a1.id),IJAZAH.a);
+  assert.equal(nomorIjazah(a2.id),IJAZAH.b);
+  assert.equal(nomorIjazah(b1.id),IJAZAH.c);
+  /* Tidak ada satu nomor pun yang dipegang dua siswa. */
+  const nomor=Object.values(loadDb().settings.diplomaNumbers).map(item=>item.number);
+  assert.equal(new Set(nomor).size,nomor.length,'tidak ada nomor ijazah duplikat setelah restore');
+  /* Dan nomor rombel B benar-benar milik siswa rombel B. */
+  const pemilik=Object.values(loadDb().settings.diplomaNumbers).find(item=>item.number===IJAZAH.c);
+  assert.equal(pemilik.studentId,b1.id);
+});
+
+test('J3. TEST C: backup lama tanpa diplomaNumbers tetap dapat direstore',()=>{
+  const {a1}=siapkanDuaRombel();
+  const backup=buildBackup(admin);
+  /* Berkas rilis lama tidak mengenal koleksi ini sama sekali. */
+  delete backup.data.settings;
+  useMemoryStorage();
+  restoreBackup(backup,admin);
+  assert.deepEqual(loadDb().settings,{},'restore berhasil dan koleksinya kosong, bukan galat');
+  assert.equal(nomorIjazah(a1.id),null);
+  assert.ok(listStudents(guru('6A'),{classId:'6A'}).length,'data lain tetap pulih seperti biasa');
+});
+
+test('J4. TEST D: payload tanpa diplomaNumbers tidak menghapus data di luar semantics restore',()=>{
+  /* Restore Admin memang mengganti seluruh database - itulah semantics-nya, dan berkas tanpa
+     settings tidak boleh membuatnya gagal. Yang diperiksa di sini: restore GURU, yang memang
+     bersifat menimpa sebagian, TIDAK BOLEH menyentuh Nomor Ijazah milik Admin sama sekali. */
+  const {enamA,a1,a2,b1}=siapkanDuaRombel();
+  const backupGuru=buildBackup(enamA);
+  assert.deepEqual(backupGuru.data.settings,{},'backup Guru tidak membawa data Admin');
+  restoreBackup(backupGuru,enamA);
+  assert.equal(nomorIjazah(a1.id),IJAZAH.a,'nomor rombel yang direstore tetap utuh');
+  assert.equal(nomorIjazah(a2.id),IJAZAH.b);
+  assert.equal(nomorIjazah(b1.id),IJAZAH.c,'nomor rombel lain sama sekali tidak tersentuh');
+});
+
+test('J5. settings adalah koleksi global, dan backup Guru dilarang membawanya',()=>{
+  const sumber=read('src/services/backup.js');
+  assert.match(sumber,/const GLOBAL_COLLECTIONS=\[[^\]]*'settings'/,'settings terdaftar sebagai koleksi global');
+  assert.equal(/const SCOPED_COLLECTIONS=\[\n\s*'settings'/.test(sumber),false,'settings tidak lagi dianggap koleksi rombel');
+  assert.match(sumber,/const LATER_COLLECTIONS=\['settings'/,'berkas backup lama tanpa settings tetap diterima');
+  /* Penjaga yang membuat larangan itu berlaku juga untuk settings. */
+  const {enamA}=siapkanDuaRombel();
+  const backupGuru=buildBackup(enamA);
+  backupGuru.data.settings={diplomaNumbers:{[`${ACADEMIC_YEAR}|palsu`]:{studentId:'palsu',number:'X',academicYear:ACADEMIC_YEAR}}};
+  assert.throws(()=>restoreBackup(backupGuru,enamA),/tidak boleh memuat data global settings/i,
+    'Guru tidak dapat menyelundupkan Nomor Ijazah lewat berkas backup yang disunting');
+});
+
+test('J6. Empat koleksi TRANSKRIP-SKL-SKKB lain tetap terlindungi backup dan restore',()=>{
+  const {enamA,a1}=siapkanDuaRombel();
+  saveTranscriptScores(enamA,a1.id,{[MAPEL_AKTIF[0]]:88},{partial:true});
+  saveGraduationStatus(enamA,a1.id,'GRADUATED');
+  saveStudentDocuments(admin,[{studentId:a1.id,transcriptNumber:'TR-J6',sklNumber:'SKL-J6',
+    skkbNumber:'SKKB-J6',examNumber:'UJI-J6',conductPredicate:'Baik'}]);
+  saveGraduationSettings(admin,{graduationDate:'2026-05-02',documentDate:'2026-06-02',documentCity:'Kota J6'});
+
+  const backup=buildBackup(admin);
+  for(const koleksi of ['teacherAssignments','graduationDocuments','graduationSettings','transcriptScores','graduationStatus','settings'])
+    assert.ok(Object.keys(backup.data[koleksi]||{}).length,`${koleksi} ikut ke dalam berkas backup`);
+
+  useMemoryStorage();
+  restoreBackup(backup,admin);
+  const db=loadDb();
+  assert.ok(Object.keys(db.teacherAssignments).length,'penugasan Guru pulih');
+  assert.equal(getStudentDocument(admin,a1.id).transcriptNumber,'TR-J6');
+  assert.equal(getStudentDocument(admin,a1.id).conductPredicate,'Baik');
+  assert.equal(getGraduationSettings(admin).documentCity,'Kota J6');
+  assert.equal(nomorIjazah(a1.id),IJAZAH.a);
+  assert.equal(buildTranscriptDocument(admin,'6A',a1.id).rows[0].score,88);
+  assert.equal(buildSklDocument(admin,'6A',a1.id).statusLabel,'LULUS');
+});
