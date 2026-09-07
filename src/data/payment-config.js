@@ -45,12 +45,10 @@ export const PAYMENT_METHODS=Object.freeze([
     subtitle:'Kirim ke nomor GoPay berikut',
     accountName:PAYMENT_ACCOUNT_NAME,
     accountNumber:'087776015915',
-    /* BERKAS LAMBANG BELUM ADA DI PROYEK INI. Nilainya sengaja null, bukan menunjuk berkas
-       yang tidak ada - alamat yang menggantung hanya akan menghasilkan gambar rusak dan galat
-       404 di konsol. Begitu berkas lambang resmi disimpan di
-       public/beli/assets/logo-gopay.svg, cukup ganti null menjadi './assets/logo-gopay.svg'
-       dan lambangnya langsung tampil tanpa perubahan kode lain. */
-    logo:null,
+    /* Berkas lambang resmi yang dikirim pemilik aplikasi, disimpan sebagai aset lokal.
+       Latar putihnya dijadikan transparan supaya tidak ada kotak warna ketika dipakai sebagai
+       ikon; bentuk, warna, dan perbandingan sisi lambangnya sendiri TIDAK diubah. */
+    logo:'./assets/logo-gopay.png',
     logoAlt:'Logo GoPay',
     brandColor:'#00aed6',
   }),
@@ -61,9 +59,11 @@ export const PAYMENT_METHODS=Object.freeze([
     subtitle:'Transfer ke rekening berikut',
     accountName:PAYMENT_ACCOUNT_NAME,
     accountNumber:'1560024948665',
-    /* Sama seperti GoPay: isi dengan './assets/logo-bank-mandiri.svg' setelah berkas
-       lambang resminya disimpan di public/beli/assets/. */
-    logo:null,
+    /* Berkas lambang resmi dari pemilik aplikasi. Bidang navy-nya IKUT DIPERTAHANKAN karena
+       wordmark "mandiri" berwarna putih - tanpa bidang itu tulisannya hilang di atas kartu
+       putih. Yang dibuang hanya kanvas putih di sekelilingnya, sehingga tidak ada kotak putih
+       yang tersisa saat lambang ini dipakai sebagai ikon. */
+    logo:'./assets/logo-bank-mandiri.png',
     logoAlt:'Logo Bank Mandiri',
     brandColor:'#003d79',
   }),

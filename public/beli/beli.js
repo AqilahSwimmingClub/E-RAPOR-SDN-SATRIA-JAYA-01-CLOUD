@@ -340,7 +340,8 @@ function kartuBayar(metode){
   kartu.dataset.metode=metode.id;
   if(metode.brandColor)kartu.style.setProperty('--warna-metode',metode.brandColor);
 
-  /* KEPALA: lambang, nama, dan keterangan singkat menjadi SATU kelompok yang rapat. */
+  /* KEPALA: lambang di barisnya sendiri, lalu nama metode tepat di bawahnya, lalu keterangan
+     singkat - ketiganya rapat sehingga terbaca sebagai satu kelompok. */
   const kepala=document.createElement('div');
   kepala.className='bayar-kepala';
   const lambang=lambangMetode(metode);

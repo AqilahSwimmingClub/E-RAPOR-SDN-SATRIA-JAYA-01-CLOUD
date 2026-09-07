@@ -341,10 +341,22 @@ test('18c. Tiap metode punya identitas visual, dan lambang TIDAK pernah dikarang
   assert.match(skrip,/kartu\.style\.setProperty\('--warna-metode',metode\.brandColor\)/);
   assert.match(read('public/beli/beli.css'),/\.kartu-bayar h3\{[^}]*color:var\(--warna-metode/);
 
-  /* LAMBANG YANG BELUM ADA TIDAK DIKARANG dan tidak menghasilkan gambar rusak: nilainya null,
-     bukan alamat menggantung yang akan menjadi 404 di konsol. */
-  for(const metode of PAYMENT_METHODS)
-    assert.equal(metode.logo,null,`${metode.id} belum punya berkas lambang resmi, jadi null`);
+  /* LAMBANG RESMI DARI PEMILIK APLIKASI, disimpan sebagai aset lokal - bukan digambar ulang
+     dan bukan ditarik dari internet. Berkasnya wajib benar-benar ada supaya tidak pernah
+     menjadi ikon rusak atau 404 di konsol. */
+  assert.equal(findPaymentMethod('gopay').logo,'./assets/logo-gopay.png');
+  assert.equal(findPaymentMethod('mandiri').logo,'./assets/logo-bank-mandiri.png');
+  /* QRIS tidak punya berkas lambang terpisah: lambang QRIS dan GPN sudah menjadi bagian dari
+     kartu QRIS resminya sendiri. */
+  assert.equal(findPaymentMethod('qris').logo,null);
+  for(const berkas of ['public/beli/assets/logo-gopay.png','public/beli/assets/logo-bank-mandiri.png']){
+    assert.ok(existsSync(new URL(berkas,root)),`${berkas} benar-benar ada`);
+    const isi=readFileSync(new URL(berkas,root));
+    /* PNG sungguhan, dan bertipe RGBA sehingga latarnya transparan - tidak ada kotak warna
+       yang ikut terbawa ketika lambang dipakai sebagai ikon. */
+    assert.equal(isi.subarray(1,4).toString('ascii'),'PNG','berkasnya PNG sungguhan');
+    assert.equal(isi[25],6,'PNG bertipe warna 6 (RGBA), jadi punya kanal transparansi');
+  }
   assert.match(skrip,/if\(!metode\.logo\)return null;/,'lambang kosong tidak pernah digambar');
   assert.match(skrip,/gambar\.addEventListener\('error',\(\)=>gambar\.remove\(\)\)/,
     'lambang yang gagal dimuat dibuang, bukan dibiarkan menjadi ikon rusak');

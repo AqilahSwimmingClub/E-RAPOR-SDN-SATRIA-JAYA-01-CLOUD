@@ -480,9 +480,16 @@ input[aria-invalid="true"]{border-color:#c0392b;background:#fff7f6}
   /* Garis aksen tipis berwarna merek di tepi atas: identitas visual tanpa lambang karangan. */
   border-top:3px solid var(--warna-metode,var(--navy-2))}
 
-/* Kepala kartu: lambang dan nama metode berdampingan, rapat. */
-.bayar-kepala{display:flex;align-items:center;gap:9px;min-height:30px}
-.bayar-logo{width:auto;height:26px;max-width:104px;object-fit:contain;flex:none}
+/* Kepala kartu: lambang di baris sendiri, nama metode tepat di bawahnya. Keduanya rapat
+   supaya tetap terbaca sebagai satu kelompok. */
+.bayar-kepala{display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+/* Kedua lambang SENGAJA tidak dipaksa selebar sama: perbandingan sisinya jauh berbeda
+   (GoPay 4.3:1 memanjang, Mandiri 1.4:1 membentuk blok). Batas tinggi DAN lebar dipakai
+   bersama supaya masing-masing berhenti pada sisi yang tepat dan bobot visualnya seimbang -
+   GoPay berhenti karena lebar, Mandiri karena tinggi. object-fit:contain menjaga keduanya
+   tidak pernah gepeng maupun terpotong. */
+.bayar-logo{width:auto;height:auto;max-height:42px;max-width:120px;object-fit:contain;flex:none;
+  border-radius:4px}
 /* Nama metode memakai warna mereknya sendiri. Inilah identitas visual kartu selama berkas
    lambang resminya belum tersedia: QRIS merah, GoPay cyan, Mandiri navy - langsung terbedakan
    sekilas, dan tidak satu pun lambang dikarang. */

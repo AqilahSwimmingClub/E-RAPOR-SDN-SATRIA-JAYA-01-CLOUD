@@ -137,5 +137,6 @@
   ".report-a4 .attitude-points li": "margin-bottom:2px",
   "@media print :: .report-a4 .attitude-points li": "break-inside:avoid",
   "@media print :: .report-a4 .attitude-points": "break-inside:avoid",
-  "@media screen and (max-width:767px) :: .report-cover-a4>.cover-logo-custom>img": "width:100%;height:100%;object-fit:contain;margin:0"
+  "@media screen and (max-width:767px) :: .report-cover-a4>.cover-logo-custom>img": "width:100%;height:100%;object-fit:contain;margin:0",
+  ".report-learning-table .subject-name-cell": "vertical-align:middle"
 }

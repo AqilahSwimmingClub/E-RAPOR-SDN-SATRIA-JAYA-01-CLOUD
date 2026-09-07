@@ -302,6 +302,21 @@ html,body{max-width:100%;overflow-x:hidden}button,input,select,textarea{max-widt
    rata tengah tegak menempatkannya di tengah tinggi gabungan kedua baris itu. Baris
    Kelompok A dan Kelompok B memakai satu sel penuh dan tidak tersentuh aturan ini. */
 .report-learning-table .subject-no-cell,.document-table td.activity-no{text-align:center;vertical-align:middle}
+/* NAMA MATA PELAJARAN: RATA KIRI, TETAPI DI TENGAH SECARA VERTIKAL.
+
+   Akar masalahnya ada di aturan dasar `.document-table th,.document-table td` yang memberi
+   vertical-align:top kepada SELURUH sel lembar rapor. Kolom No dan Nilai Akhir sudah punya
+   penimpanya sendiri menjadi middle, tetapi `.subject-name-cell` hanya menimpa text-align -
+   vertical-align-nya tidak pernah disentuh, sehingga nama mapel menempel ke atas sel dan
+   tidak sejajar dengan angka di kiri dan kanannya.
+
+   Yang diubah HANYA sumbu vertikal. Rata kiri mendatarnya tetap, dan pembungkusan baris tetap
+   aktif: nama mapel yang panjang tetap boleh turun dua atau tiga baris, dan SELURUH bloknya
+   yang berada di tengah tinggi baris.
+
+   Ditulis dengan dua kelas (.report-learning-table .subject-name-cell) supaya kekhususannya
+   0,2,0 - lebih tinggi daripada .document-table td yang 0,1,1 - jadi tidak perlu !important. */
+.report-learning-table .subject-name-cell{vertical-align:middle}
 /* Branding pembuat e-Rapor pada sidebar: foto di atas, lalu "e-Rapor" dan nama sekolah.
    Foto ini milik aplikasi, bukan foto profil guru, sehingga tidak pernah ikut berubah. */
 .sidebar .brand{flex-direction:column;align-items:center;gap:9px;text-align:center;padding:8px 8px 20px}

@@ -63,6 +63,17 @@ function siapkan(){
 
 /* --------------------------------------------------------------------- Gaya lembar rapor */
 
+/* BASELINE DIPERBARUI SEKALI, DENGAN ALASAN.
+
+   Satu aturan ditambahkan ke baseline: `.report-learning-table .subject-name-cell`
+   -> vertical-align:middle. Penambahan itu DIMINTA secara eksplisit: nama mata pelajaran
+   sebelumnya menempel ke atas sel sehingga tidak sejajar dengan angka pada kolom No dan
+   Nilai Akhir yang keduanya sudah middle.
+
+   Yang membuktikan ini bukan redesign: pembaruan baseline dilakukan dengan memeriksa selisih
+   lebih dulu, dan hasilnya TEPAT SATU aturan baru dengan NOL aturan lama yang berubah. Huruf,
+   ukuran, margin, lebar kolom, dan border lembar rapor seluruhnya tetap seperti semula, dan
+   test 2 sampai 16 di bawah tetap menjaganya. */
 test('1. Seluruh aturan gaya lembar rapor identik dengan baseline d093b99',()=>{
   const baseline=readJson('tests/fixtures/report-layout-baseline.json');
   const sekarang=extractReportLayout(read('src/styles/app.css'));
@@ -373,4 +384,59 @@ test('9. Penyusun deskripsi tidak menyentuh berkas tampilan rapor',()=>{
   }
   assert.equal(composeIntracurricularDescription({studentName:'Siswa 1',subjectName:'Matematika',
     objectives:[],predicate:'Baik'}).includes('<'),false);
+});
+
+/* ============================ POSISI NAMA MATA PELAJARAN PADA TABEL NILAI RAPOR
+
+   AKAR MASALAHNYA. Aturan dasar `.document-table th,.document-table td` memberi
+   vertical-align:top kepada SELURUH sel lembar rapor. Kolom No dan Nilai Akhir punya
+   penimpanya sendiri menjadi middle, tetapi `.subject-name-cell` hanya menimpa text-align -
+   vertical-align-nya tidak pernah disentuh. Akibatnya nama mata pelajaran menempel ke atas
+   sel dan tidak sejajar dengan angka di kiri dan kanannya, paling terlihat pada mapel yang
+   namanya turun dua baris.
+
+   YANG DIJAGA DI SINI ADALAH KOMBINASINYA, bukan salah satunya. Menguji "center" saja justru
+   berbahaya: itu dapat lolos ketika seseorang keliru membuat nama mapel rata tengah mendatar,
+   padahal yang diminta tetap RATA KIRI. */
+
+test('Nama mata pelajaran rata KIRI sekaligus TENGAH secara vertikal',()=>{
+  const gaya=read('src/styles/app.css');
+
+  /* 1. Rata kirinya tetap. */
+  assert.match(gaya,/\.subject-name-cell\{text-align:left!important\}/,
+    'nama mapel tetap rata kiri, bukan rata tengah');
+
+  /* 2. Sumbu vertikalnya kini middle, ditulis dengan dua kelas supaya kekhususannya (0,2,0)
+        mengalahkan .document-table td (0,1,1) tanpa perlu !important. */
+  assert.match(gaya,/\.report-learning-table \.subject-name-cell\{vertical-align:middle\}/,
+    'nama mapel di tengah tinggi baris');
+
+  /* 3. Aturan dasar yang menjadi sumber masalah memang masih ada - perbaikannya berupa
+        penimpaan yang tepat sasaran, bukan mengubah perilaku seluruh lembar rapor. */
+  assert.match(gaya,/\.document-table th,\.document-table td\{[^}]*vertical-align:top/,
+    'sel lembar rapor lain tetap rata atas seperti semula');
+
+  /* 4. Nama mapel TIDAK BOLEH dibuat rata tengah mendatar. Penjaga arah sebaliknya. */
+  assert.equal(/\.subject-name-cell\{[^}]*text-align:center/.test(gaya),false,
+    'nama mapel tidak pernah dibuat rata tengah mendatar');
+  assert.equal(/\.report-learning-table \.subject-name-cell\{[^}]*text-align:center/.test(gaya),false);
+
+  /* 5. Tiga kolom yang harus sejajar secara vertikal: No, Mata Pelajaran, Nilai Akhir. */
+  assert.match(gaya,/\.report-learning-table \.subject-no-cell[^{]*\{text-align:center;vertical-align:middle\}/,
+    'No rata tengah dan di tengah vertikal');
+  assert.match(gaya,/\.report-learning-table th:nth-child\(3\),\.report-learning-table \.subject-score-cell\{text-align:center;vertical-align:middle\}/,
+    'Nilai Akhir rata tengah dan di tengah vertikal');
+
+  /* 6. Capaian Kompetensi tetap rata kiri dan tidak ikut diubah. */
+  assert.match(gaya,/\.subject-description-cell\{text-align:left!important;line-height:1\.45\}/);
+
+  /* 7. Pembungkusan baris tetap aktif: tidak ada nowrap yang memaksa nama mapel satu baris. */
+  assert.equal(/\.subject-name-cell\{[^}]*white-space:nowrap/.test(gaya),false,
+    'nama mapel panjang tetap boleh turun beberapa baris');
+
+  /* 8. Aturannya berlaku untuk layar DAN cetak. Dijamin dengan menghitung: deklarasi
+        vertical-align untuk sel nama mapel hanya ADA SATU di seluruh stylesheet, sehingga
+        tidak mungkin ada versi cetak yang berbeda dari versi layar. */
+  assert.equal((gaya.match(/\.subject-name-cell\{vertical-align/g)||[]).length,1,
+    'hanya ada satu deklarasi vertical-align untuk nama mapel, dipakai layar maupun cetak');
 });
