@@ -1,44 +1,107 @@
 import { CLASSES } from '../data/constants.js';
-import { commitTranscriptImport, getTranscriptRows, previewTranscriptImport, previewTranscriptWorkbookImport, saveTranscriptScores, transcriptTemplateWorkbook } from '../services/transcript.js';
-import { listStudents } from '../services/students.js';
+import { getTranscriptRows, saveTranscriptScores } from '../services/transcript.js';
+import { buildSklDocument, buildSkkbDocument, buildTranscriptDocument, commitDocumentImport, documentImportTemplate, previewDocumentImport } from '../services/graduation-documents.js';
+import { listStudents, parseCsv } from '../services/students.js';
+import { createWorkbookBytes, readWorkbookRows } from '../services/excel.js';
 import { pickFile, saveFile } from '../services/file-io.js';
 import { printCurrentDocument } from '../services/print-service.js';
-import { getSchoolMaster, getTeacherProfile } from '../services/master.js';
-import { getPrintSettings } from '../services/print-settings.js';
 import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
+import { sklSheet, skkbSheet, transcriptSheet } from './graduation-print.js';
 
 function classOptions(selected){return CLASSES.map(item=>`<option value="${item}" ${item===selected?'selected':''}>Kelas ${item}</option>`).join('');}
-function studentOptions(students,selected){return students.map(student=>`<option value="${escapeHtml(student.id)}" ${student.id===selected?'selected':''}>${escapeHtml(student.name)} · ${escapeHtml(student.nisn)}</option>`).join('');}
+function studentOptions(students,selected){return students.map(student=>`<option value="${escapeHtml(student.id)}" ${student.id===selected?'selected':''}>${escapeHtml(student.name)} · ${escapeHtml(student.nisn||student.nis||'')}</option>`).join('');}
 
 const TRANSCRIPT_MODES=Object.freeze({
-  input:{title:'Input Nilai Transkrip',lead:'Nilai transkrip tahunan terpisah dari Nilai Rapor semester.'},
-  import:{title:'Import Nilai Transkrip',lead:'Unggah berkas nilai transkrip lalu periksa pratinjaunya sebelum disimpan.'},
-  preview:{title:'Cetak Transkrip Nilai',lead:'Pratinjau dan cetak transkrip per siswa.'}
+  input:{title:'Input Nilai TRANSKRIP-SKL',lead:'Nilai transkrip tahunan terpisah dari Nilai Rapor semester.'},
+  import:{title:'Import Data & Nilai TRANSKRIP-SKL-SKKB',lead:'Unggah satu berkas untuk nomor surat, status, predikat, dan nilai sekaligus.'},
+  preview:{title:'Cetak TRANSKRIP-SKL-SKKB',lead:'Pratinjau dan cetak Transkrip Nilai, Surat Keterangan Lulus, dan Surat Keterangan Kelakuan Baik.'}
 });
 
-/* Kop transkrip mengikuti daerah sekolah pengguna. Kata PEMERINTAH tidak diulang bila kolom
-   Kabupaten/Kota sudah memuatnya, dan barisnya kosong bila daerah belum diisi Admin. */
-function regionHeading(school){
-  const daerah=String(school?.city||'').trim();
-  if(!daerah)return '';
-  return /^pemerintah\b/i.test(daerah)?daerah.toUpperCase():`PEMERINTAH ${daerah.toUpperCase()}`;
-}
+/* Tiga dokumen, satu pratinjau. Yang berpindah hanyalah lembar yang dirakit; sumber datanya
+   sama sehingga tidak mungkin ada identitas berbeda antar dokumen milik siswa yang sama. */
+const DOCUMENT_TABS=Object.freeze([
+  ['transkrip','Transkrip Nilai',buildTranscriptDocument,transcriptSheet],
+  ['skl','SKL',buildSklDocument,sklSheet],
+  ['skkb','SKKB',buildSkkbDocument,skkbSheet],
+]);
 
 export function renderTranscript(session,mode='input'){
   const tab=Object.hasOwn(TRANSCRIPT_MODES,mode)?mode:'input';const halaman=TRANSCRIPT_MODES[tab];
-  let classId=session.role==='teacher'?session.classId:CLASSES[0];let scope={...session,role:'teacher',classId};let studentId='';
-  const root=el(`<div><div class="page-head no-print"><div><h1>${escapeHtml(halaman.title)}</h1><p>${escapeHtml(halaman.lead)}</p></div><div class="actions" data-actions></div></div>${session.role==='admin'?`<section class="card module-filter no-print"><div class="field compact-field"><label for="transcriptClass">Rombel</label><select class="input" id="transcriptClass" data-class>${classOptions(classId)}</select></div><div class="scope-note">Transkrip Tahunan<span>${escapeHtml(session.academicYear)}</span></div></section>`:''}<div data-view></div><input type="file" accept=".csv,text/csv" class="hidden" data-file/></div>`);const view=root.querySelector('[data-view]');const actions=root.querySelector('[data-actions]');const fileInput=root.querySelector('[data-file]');
+  let classId=session.role==='teacher'?session.classId:CLASSES[0];let scope={...session,role:'teacher',classId};let studentId='';let dokumen='transkrip';
+  const root=el(`<div><div class="page-head no-print"><div><h1>${escapeHtml(halaman.title)}</h1><p>${escapeHtml(halaman.lead)}</p></div><div class="actions" data-actions></div></div>${session.role==='admin'?`<section class="card module-filter no-print"><div class="field compact-field"><label for="transcriptClass">Rombel</label><select class="input" id="transcriptClass" data-class>${classOptions(classId)}</select></div><div class="scope-note">TRANSKRIP-SKL-SKKB<span>${escapeHtml(session.academicYear)}</span></div></section>`:''}<div data-view></div></div>`);
+  const view=root.querySelector('[data-view]');const actions=root.querySelector('[data-actions]');
   function refreshScope(){scope={...session,role:'teacher',classId};const students=listStudents(scope,{classId});if(!students.some(student=>student.id===studentId))studentId=students[0]?.id||'';return students;}
   function selection(students,label='Siswa'){return `<section class="card module-filter no-print"><div class="field compact-field"><label>${label}</label><select class="input" data-student><option value="">${students.length?'Pilih siswa':'Belum ada siswa'}</option>${studentOptions(students,studentId)}</select></div><div class="scope-note">Kelas ${escapeHtml(classId)}<span>${escapeHtml(session.academicYear)} · tanpa scope semester</span></div></section>`;}
-  function drawInput(){const students=refreshScope();actions.innerHTML='';if(!students.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan siswa pada rombel aktif terlebih dahulu.</p></section>';return;}const rows=getTranscriptRows(scope,studentId);view.innerHTML=`${selection(students)}<section class="card transcript-input-card"><div class="section-head"><div><h3>Nilai Transkrip</h3><p>Urutan mengikuti Mapping Mata Pelajaran aktif.</p></div><button class="btn btn-primary" data-save>${icon('save',16)} Simpan Transkrip</button></div><div class="table-scroll"><table class="data-table transcript-input-table"><thead><tr><th>No.</th><th>Mata Pelajaran</th><th>Nilai 0–100</th><th>Status</th></tr></thead><tbody>${rows.map((row,index)=>`<tr><td>${index+1}</td><td><strong>${escapeHtml(row.subject.name)}</strong><span>Kelompok ${escapeHtml(row.subject.group)}</span></td><td><input class="input score-input" type="number" min="0" max="100" step="0.01" value="${row.score??''}" data-score="${escapeHtml(row.subject.id)}"/></td><td><span class="badge ${row.saved?'badge-active':'badge-inactive'}">${row.saved?'Tersimpan':'Belum diisi'}</span></td></tr>`).join('')}</tbody></table></div></section>`;view.querySelector('[data-student]').onchange=event=>{studentId=event.target.value;drawInput();};view.querySelector('[data-save]').onclick=()=>{const values={};view.querySelectorAll('[data-score]').forEach(input=>{values[input.dataset.score]=input.value;});try{saveTranscriptScores(scope,studentId,values);drawInput();toast('Nilai transkrip berhasil disimpan.');}catch(error){toast(error.message,'error');}};}
-  async function downloadTemplate(){await saveFile({name:`TEMPLATE-TRANSKRIP-${classId}-${session.academicYear.replace('/','-')}.xlsx`,mime:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',data:transcriptTemplateWorkbook(scope)});}
-  function openImportPreview(preview,fileName){const modal=el(`<div class="modal-backdrop"><div class="modal-card modal-extra-wide"><div class="modal-head"><div><h3>Preview Import Transkrip</h3><p>${escapeHtml(fileName)} · ${preview.validCount} valid · ${preview.invalidCount} bermasalah</p></div><button class="btn btn-light btn-icon" data-close>${icon('x',17)}</button></div><div class="table-scroll import-preview-table"><table class="data-table"><thead><tr><th>Baris</th><th>Siswa</th><th>Mapel</th><th>Nilai</th><th>Validasi</th></tr></thead><tbody>${preview.rows.map(row=>`<tr><td>${row.rowNumber}</td><td>${escapeHtml(row.student?.name||row.raw.nisn||row.raw.nis)}</td><td>${escapeHtml(row.subject?.name||row.raw.subjectId)}</td><td>${row.score??'—'}</td><td>${row.valid?'<span class="status-ok">Valid</span>':`<span class="status-error">${escapeHtml(row.errors.join(' '))}</span>`}</td></tr>`).join('')}</tbody></table></div><div class="modal-actions"><button class="btn btn-light" data-cancel>Batal</button><button class="btn btn-primary" data-commit ${preview.canCommit?'':'disabled'}>Simpan ${preview.validCount} Nilai</button></div></div></div>`);document.body.append(modal);const close=()=>modal.remove();modal.querySelector('[data-close]').onclick=close;modal.querySelector('[data-cancel]').onclick=close;modal.querySelector('[data-commit]').onclick=async()=>{if(!preview.canCommit)return;if(!await confirmDialog({title:'Konfirmasi Import Transkrip',message:`Simpan ${preview.validCount} nilai setelah preview tervalidasi?`,confirmText:'Simpan Import'}))return;try{const count=commitTranscriptImport(scope,preview);close();toast(`${count} nilai transkrip berhasil disimpan.`);}catch(error){toast(error.message,'error');}};}
-  function drawImport(){refreshScope();actions.innerHTML=`<button class="btn btn-light" data-template>${icon('download',16)} Download Template</button>`;view.innerHTML=`<section class="card import-report-card"><div class="placeholder-icon">${icon('upload',25)}</div><h2>Import Nilai Transkrip</h2><p>Upload XLSX/XLS/CSV tidak langsung menyimpan. Data harus melalui Preview dan Validasi sebelum konfirmasi Simpan.</p><div class="actions"><button class="btn btn-light" data-template-inline>${icon('download',16)} Template XLSX</button><button class="btn btn-primary" data-upload>${icon('upload',16)} Upload File</button></div></section>`;actions.querySelector('[data-template]').onclick=()=>downloadTemplate().catch(error=>toast(error.message,'error'));view.querySelector('[data-template-inline]').onclick=()=>downloadTemplate().catch(error=>toast(error.message,'error'));view.querySelector('[data-upload]').onclick=async()=>{try{const file=await pickFile({accept:'.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'});if(!file)return;openImportPreview(/\.csv$/i.test(file.name)?previewTranscriptImport(scope,file.text):previewTranscriptWorkbookImport(scope,file.arrayBuffer),file.name);}catch(error){toast(error.message,'error');}};}
-  function transcriptDocument(rows,student){const school=getSchoolMaster(),teacher=getTeacherProfile(classId);return `<section class="document-a4 transcript-a4"><div class="document-school">${escapeHtml(regionHeading(school))}<br/><strong>${escapeHtml(school.name)}</strong><span>TRANSKRIP NILAI PESERTA DIDIK</span></div><table class="document-identity"><tbody><tr><th>Nama</th><td>${escapeHtml(student.name)}</td><th>NISN</th><td>${escapeHtml(student.nisn)}</td></tr><tr><th>NIS</th><td>${escapeHtml(student.nis)}</td><th>Tahun Pelajaran</th><td>${escapeHtml(session.academicYear)}</td></tr><tr><th>Rombel</th><td>${escapeHtml(classId)}</td><th>Jenis Kelamin</th><td>${student.gender==='L'?'Laki-laki':'Perempuan'}</td></tr></tbody></table><table class="document-table"><thead><tr><th>No.</th><th>Mata Pelajaran</th><th>Nilai</th></tr></thead><tbody>${rows.map((row,index)=>`<tr><td>${index+1}</td><td>${escapeHtml(row.subject.name)}</td><td>${row.score??'—'}</td></tr>`).join('')}</tbody></table><div class="document-signatures"><div><span>Orang Tua/Wali</span><strong>(....................................)</strong></div><div><span>Wali Kelas ${escapeHtml(classId)}</span><strong>${escapeHtml(teacher.name||'(....................................)')}</strong><small>NIP ${escapeHtml(teacher.nip||'—')}</small></div><div><span>Kepala Sekolah</span><strong>${escapeHtml(school.principalName||'(....................................)')}</strong><small>NIP ${escapeHtml(school.principalNip||'—')}</small></div></div></section>`;}
-  function printDocument(savePdf=false){return printCurrentDocument({title:`Transkrip-${classId}-${session.academicYear.replace('/','-')}`,savePdf:savePdf===true});}
-  function drawPreview(){const students=refreshScope();actions.innerHTML='';if(!students.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3></section>';return;}const student=students.find(item=>item.id===studentId);const rows=getTranscriptRows(scope,studentId);view.innerHTML=`${selection(students,'Pilih Siswa untuk Preview')}<div class="print-toolbar no-print"><span>${rows.filter(row=>row.saved).length}/${rows.length} nilai tersimpan</span><div class="actions"><button class="btn btn-light" data-print>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-pdf>${icon('download',16)} Download PDF</button></div></div>${transcriptDocument(rows,student)}`;view.querySelector('[data-student]').onchange=event=>{studentId=event.target.value;drawPreview();};view.querySelector('[data-print]').onclick=()=>printDocument(false);view.querySelector('[data-pdf]').onclick=()=>printDocument(true);}
-  function enhanceTranscriptDocument(){const document=view.querySelector('.transcript-a4');if(!document)return;const settings=getPrintSettings(scope);const signatures=document.querySelectorAll('.document-signatures>div');if(signatures[1])signatures[1].innerHTML=`<span>Wali Kelas ${escapeHtml(classId)}</span><strong>${escapeHtml(settings.teacherName||'(....................................)')}</strong><small>NIP ${escapeHtml(settings.teacherNip||'—')}</small>`;if(signatures[2])signatures[2].innerHTML=`<span>Kepala Sekolah</span><strong>${escapeHtml(settings.principalName||'(....................................)')}</strong><small>NIP ${escapeHtml(settings.principalNip||'—')}</small>`;if(settings.printDateLabel)document.querySelector('.document-signatures')?.insertAdjacentHTML('beforebegin',`<p class="document-print-date">${escapeHtml(settings.printDateLabel)}</p>`);}
-  function draw(){if(tab==='input')drawInput();if(tab==='import')drawImport();if(tab==='preview'){drawPreview();enhanceTranscriptDocument();}}
-  if(session.role==='admin')root.querySelector('[data-class]').onchange=event=>{classId=event.target.value;studentId='';draw();};fileInput.onchange=async()=>{const file=fileInput.files?.[0];if(!file)return;try{openImportPreview(previewTranscriptImport(scope,await file.text()),file.name);}catch(error){toast(error.message,'error');}};draw();return root;
+
+  /* Daftar mapel pada input nilai adalah SATU urutan 1..N mengikuti Mapping aktif. Label
+     "Kelompok A/B" sengaja tidak ditampilkan: pengelompokan itu tidak lagi dipakai di mana pun,
+     dan menampilkannya di sini akan bertentangan dengan Rapor, Transkrip, dan SKL. */
+  function drawInput(){
+    const students=refreshScope();actions.innerHTML='';
+    if(!students.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan siswa pada rombel aktif terlebih dahulu.</p></section>';return;}
+    const rows=getTranscriptRows(scope,studentId);
+    view.innerHTML=`${selection(students)}<section class="card transcript-input-card"><div class="section-head"><div><h3>Nilai TRANSKRIP-SKL</h3><p>Urutan mengikuti Mapping Mata Pelajaran aktif, satu daftar tanpa pengelompokan.</p></div><button class="btn btn-primary" data-save>${icon('save',16)} Simpan Nilai</button></div><div class="table-scroll"><table class="data-table transcript-input-table"><thead><tr><th>No.</th><th>Mata Pelajaran</th><th>Nilai 0–100</th><th>Status</th></tr></thead><tbody>${rows.map((row,index)=>`<tr><td>${index+1}</td><td><strong>${escapeHtml(row.subject.name)}</strong></td><td><input class="input score-input" type="number" min="0" max="100" step="0.01" value="${row.score??''}" data-score="${escapeHtml(row.subject.id)}"/></td><td><span class="badge ${row.saved?'badge-active':'badge-inactive'}">${row.saved?'Tersimpan':'Belum diisi'}</span></td></tr>`).join('')}</tbody></table></div></section>`;
+    view.querySelector('[data-student]').onchange=event=>{studentId=event.target.value;drawInput();};
+    view.querySelector('[data-save]').onclick=()=>{const values={};view.querySelectorAll('[data-score]').forEach(input=>{values[input.dataset.score]=input.value;});try{saveTranscriptScores(scope,studentId,values);drawInput();toast('Nilai transkrip berhasil disimpan.');}catch(error){toast(error.message,'error');}};
+  }
+
+  async function downloadTemplate(){
+    const template=documentImportTemplate(session,classId);
+    await saveFile({name:`TEMPLATE-TRANSKRIP-SKL-SKKB-${classId}-${session.academicYear.replace('/','-')}.xlsx`,
+      mime:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      data:createWorkbookBytes(template.sheetName,template.rows,{columnWidths:template.columnWidths})});
+  }
+
+  function openImportPreview(preview,fileName){
+    const modal=el(`<div class="modal-backdrop"><div class="modal-card modal-extra-wide"><div class="modal-head"><div><h3>Preview Import TRANSKRIP-SKL-SKKB</h3><p>${escapeHtml(fileName)} · ${preview.validCount} valid · ${preview.invalidCount} bermasalah</p></div><button class="btn btn-light btn-icon" data-close aria-label="Tutup">${icon('x',17)}</button></div><div class="table-scroll import-preview-table"><table class="data-table"><thead><tr><th>Baris</th><th>Siswa</th><th>Ijazah</th><th>Transkrip</th><th>SKL</th><th>SKKB</th><th>Status</th><th>Predikat</th><th>Nilai</th><th>Validasi</th></tr></thead><tbody>${preview.rows.map(row=>`<tr><td>${row.rowNumber}</td><td>${escapeHtml(row.studentName||row.nisn||row.nis||'—')}</td><td>${escapeHtml(row.diplomaNumber||'—')}</td><td>${escapeHtml(row.transcriptNumber||'—')}</td><td>${escapeHtml(row.sklNumber||'—')}</td><td>${escapeHtml(row.skkbNumber||'—')}</td><td>${escapeHtml(row.graduationStatus||'—')}</td><td>${escapeHtml(row.conductPredicate||'—')}</td><td>${row.scoreCount}</td><td>${row.valid?'<span class="status-ok">Valid</span>':`<span class="status-error">${escapeHtml(row.errors.join(' '))}</span>`}</td></tr>`).join('')}</tbody></table></div><div class="modal-actions"><button class="btn btn-light" data-cancel>Batal</button><button class="btn btn-primary" data-commit ${preview.canCommit?'':'disabled'}>Simpan ${preview.validCount} Baris</button></div></div></div>`);
+    document.body.append(modal);const close=()=>modal.remove();
+    modal.querySelector('[data-close]').onclick=close;modal.querySelector('[data-cancel]').onclick=close;
+    modal.querySelector('[data-commit]').onclick=async()=>{
+      if(!preview.canCommit)return;
+      if(!await confirmDialog({title:'Konfirmasi Import',message:`Simpan ${preview.validCount} baris setelah preview tervalidasi?`,confirmText:'Simpan Import'}))return;
+      try{const ringkas=commitDocumentImport(session,classId,preview);close();toast(`${ringkas.students} siswa diperbarui · ${ringkas.scores} nilai · ${ringkas.diplomas} nomor ijazah · ${ringkas.statuses} status kelulusan.`);}
+      catch(error){toast(error.message,'error');}
+    };
+  }
+
+  function drawImport(){
+    refreshScope();
+    actions.innerHTML=`<button class="btn btn-light" data-template>${icon('download',16)} Download Template</button>`;
+    view.innerHTML=`<section class="card import-report-card"><div class="placeholder-icon">${icon('upload',25)}</div><h2>Import Data & Nilai TRANSKRIP-SKL-SKKB</h2><p>Template hanya meminta data yang belum ada di database: nomor surat, nomor peserta ujian, status kelulusan, predikat SKKB, dan nilai. Identitas sekolah dan siswa tidak perlu diketik ulang. Kolom mata pelajaran mengikuti Mapping aktif rombel ini.</p><p>Upload XLSX/XLS/CSV tidak langsung menyimpan. Data harus melalui Preview dan Validasi sebelum konfirmasi Simpan.</p><div class="actions"><button class="btn btn-light" data-template-inline>${icon('download',16)} Template XLSX</button><button class="btn btn-primary" data-upload>${icon('upload',16)} Upload File</button></div></section>`;
+    const unduh=()=>downloadTemplate().catch(error=>toast(error.message,'error'));
+    actions.querySelector('[data-template]').onclick=unduh;
+    view.querySelector('[data-template-inline]').onclick=unduh;
+    view.querySelector('[data-upload]').onclick=async()=>{
+      try{
+        const file=await pickFile({accept:'.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'});
+        if(!file)return;
+        const matrix=/\.csv$/i.test(file.name)?parseCsv(file.text):readWorkbookRows(file.arrayBuffer);
+        openImportPreview(previewDocumentImport(session,classId,matrix),file.name);
+      }catch(error){toast(error.message,'error');}
+    };
+  }
+
+  function printDocument(savePdf=false){
+    const nama=DOCUMENT_TABS.find(item=>item[0]===dokumen)?.[1]||'Dokumen';
+    return printCurrentDocument({title:`${nama}-${classId}-${session.academicYear.replace('/','-')}`,savePdf:savePdf===true});
+  }
+
+  function drawPreview(){
+    const students=refreshScope();actions.innerHTML='';
+    if(!students.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan siswa pada rombel ini terlebih dahulu.</p></section>';return;}
+    const pilihan=DOCUMENT_TABS.find(item=>item[0]===dokumen)||DOCUMENT_TABS[0];
+    let lembar='';
+    try{lembar=studentId?pilihan[3](pilihan[2](session,classId,studentId)):'';}
+    catch(error){lembar=`<section class="card empty-state"><h3>Dokumen belum dapat disusun</h3><p>${escapeHtml(error.message)}</p></section>`;}
+    view.innerHTML=`${selection(students,'Pilih Siswa untuk Preview')}<nav class="print-tabs no-print" data-tabs>${DOCUMENT_TABS.map(([id,label])=>`<button class="btn ${id===dokumen?'btn-primary':'btn-light'}" data-doc="${id}">${escapeHtml(label)}</button>`).join('')}</nav><div class="print-toolbar no-print"><span>${escapeHtml(pilihan[1])} · Kelas ${escapeHtml(classId)}</span><div class="actions"><button class="btn btn-light" data-print>${icon('printer',16)} Cetak</button><button class="btn btn-primary" data-pdf>${icon('download',16)} Download PDF</button></div></div>${lembar||'<section class="card empty-state"><h3>Pilih siswa terlebih dahulu</h3></section>'}`;
+    view.querySelector('[data-student]').onchange=event=>{studentId=event.target.value;drawPreview();};
+    view.querySelectorAll('[data-doc]').forEach(button=>{button.onclick=()=>{dokumen=button.dataset.doc;drawPreview();};});
+    view.querySelector('[data-print]').onclick=()=>printDocument(false);
+    view.querySelector('[data-pdf]').onclick=()=>printDocument(true);
+  }
+
+  function draw(){if(tab==='input')drawInput();if(tab==='import')drawImport();if(tab==='preview')drawPreview();}
+  if(session.role==='admin')root.querySelector('[data-class]').onchange=event=>{classId=event.target.value;studentId='';draw();};
+  draw();return root;
 }

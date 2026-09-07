@@ -127,10 +127,21 @@ test('8. Rapor, cover, leger, dan transkrip memakai identitas sekolah yang tersi
   assert.equal(identity.school.name,SEKOLAH);
   assert.equal(identity.school.city,'Kabupaten Contoh');
   assert.equal(getLeger(session).school.name,SEKOLAH);
-  /* Kop transkrip mengikuti daerah sekolah, bukan daerah yang ditanam di kode. */
-  const transkrip=read('src/pages/transcript.js');
-  assert.match(transkrip,/regionHeading\(school\)/);
-  assert.equal(transkrip.includes('PEMERINTAH KABUPATEN BEKASI'),false);
+  /* Kop transkrip mengikuti daerah sekolah, bukan daerah yang ditanam di kode.
+
+     LOKASI PEMERIKSAAN BERPINDAH, MAKSUDNYA TIDAK. Sejak modul berkembang menjadi
+     TRANSKRIP-SKL-SKKB, kop dipakai bersama oleh ketiga dokumen sehingga penyusunnya pindah ke
+     graduation-documents.js dan pemakainya ke graduation-print.js. Yang dijaga tetap sama dan
+     kini bahkan lebih ketat: kop dihitung dari Data Sekolah, dan tidak satu pun dari ketiga
+     berkas itu boleh memuat nama daerah contoh. */
+  const layanan=read('src/services/graduation-documents.js');
+  const lembar=read('src/pages/graduation-print.js');
+  assert.match(layanan,/export function regionHeading\(school\)/);
+  assert.match(lembar,/regionHeading/);
+  for(const [nama,teks] of [['transcript.js',read('src/pages/transcript.js')],['graduation-documents.js',layanan],['graduation-print.js',lembar]]){
+    assert.equal(teks.includes('PEMERINTAH KABUPATEN BEKASI'),false,`${nama} tidak boleh memuat daerah contoh`);
+    assert.equal(teks.includes('Satria Jaya'),false,`${nama} tidak boleh memuat nama sekolah contoh`);
+  }
   /* Kota tanda tangan juga tidak lagi literal. */
   assert.equal(read('src/services/print-settings.js').includes("'Bekasi'"),false);
 });

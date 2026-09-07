@@ -108,6 +108,17 @@ test('3. Aturan pemisah halaman dan pengulangan header tabel tidak berubah',()=>
 
 /* ------------------------------------------------------------------ Penyusun markup rapor */
 
+/* PERUBAHAN BASELINE reportA4 YANG DISENGAJA DAN DIMINTA.
+
+   Identitas Rapor kini memuat Fase tepat di bawah Kelas. Fase tidak pernah dipilih guru: ia
+   diturunkan dari tingkat rombel lewat phaseForClassId yang sudah dipakai CP dan Butir CP,
+   sehingga Fase yang tercetak tidak mungkin berbeda dari fase yang dipakai menilai.
+
+   Yang membuktikan ini bukan redesign: dari sepuluh fungsi yang dikunci baseline, HANYA
+   reportA4 yang diperbarui - sembilan lainnya tetap identik. Di dalam reportA4 sendiri yang
+   berubah hanya isi kolom kanan tabel identitas; jumlah baris, jumlah kolom, kelas CSS, dan
+   seluruh bagian lain lembar rapor tidak bergeser. Test 1 sampai 3 dan 5 ke bawah tetap
+   menjaganya, dan perataan nama mata pelajaran dijaga suite perataan-rapor-render. */
 test('4. Penyusun markup rapor identik dengan baseline d093b99',()=>{
   const baseline=readJson('tests/fixtures/report-markup-baseline.json');
   const sumber=read('src/pages/print.js');

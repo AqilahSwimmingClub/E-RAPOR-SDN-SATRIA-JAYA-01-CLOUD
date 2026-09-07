@@ -16,11 +16,23 @@ const SCOPED_COLLECTIONS=[
   'learningObjectives','assessmentScores','cpEvidenceScores','reportScores','reportDescriptions',
   'extracurricularScores','cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'
 ];
-const LATER_COLLECTIONS=['reportDateDefaults','manualAttendance','cpButir','cpButirScores','cpEvidenceScores','cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
+const LATER_COLLECTIONS=['teacherAssignments','reportDateDefaults','graduationDocuments','graduationSettings','manualAttendance','cpButir','cpButirScores','cpEvidenceScores','cocurricularActivities','cocurricularScores','intracurricularActivities','intracurricularScores','dapodikSyncState','dapodikSyncLogs','dapodikMappings','publishedReports','attitudeProfiles','printSettings','homeroomNotes','promotionStatus','graduationStatus','transcriptScores'];
 /* Tanggal rapor bawaan sekolah per tahun pelajaran dan semester ditetapkan Admin dan berlaku
    untuk seluruh rombel, jadi ia data global - bukan data satu rombel. Backup Guru karena itu
    tidak membawanya, sama seperti akun dan pengaturan keamanan. */
-const GLOBAL_COLLECTIONS=['masterData','userAccounts','security','reportDateDefaults','dapodikSyncState','dapodikSyncLogs','dapodikMappings'];
+/* Nomor surat, nomor peserta ujian, predikat SKKB, dan tanggal kelulusan TRANSKRIP-SKL-SKKB
+   ditetapkan Admin untuk satu tahun pelajaran dan berlaku lintas rombel, jadi keduanya masuk
+   koleksi global - bersama tanggal rapor - bukan koleksi milik satu rombel. */
+/* CACAT LAMA YANG DITEMUKAN SAAT MENGUJI BACKUP MODUL INI, DAN DIPERBAIKI DI SINI.
+
+   `teacherAssignments` ditulis Admin lewat menu Akun Guru & Penugasan dan merupakan satu-satunya
+   sumber otorisasi Guru, tetapi ia tidak pernah terdaftar sebagai koleksi backup. Akibatnya
+   backup Admin dari sekolah mana pun yang sudah menugaskan gurunya - yaitu setiap sekolah yang
+   benar-benar dipakai - ditolak saat divalidasi dengan pesan "Bagian data.teacherAssignments
+   tidak dikenal", sehingga tidak dapat dipulihkan sama sekali. Ia global seperti akun dan
+   penugasan lain, dan berada pula di LATER_COLLECTIONS supaya berkas backup lama yang belum
+   memuatnya tetap dapat dipulihkan. */
+const GLOBAL_COLLECTIONS=['masterData','userAccounts','security','teacherAssignments','reportDateDefaults','graduationDocuments','graduationSettings','dapodikSyncState','dapodikSyncLogs','dapodikMappings'];
 const DATA_KEYS=new Set(['schemaVersion','appSchemaVersion','appVersion','createdAt','updatedAt',...GLOBAL_COLLECTIONS,...SCOPED_COLLECTIONS,'backupHistory','migrationHistory']);
 const DANGEROUS_KEYS=new Set(['__proto__','prototype','constructor']);
 

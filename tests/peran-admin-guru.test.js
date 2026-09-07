@@ -72,8 +72,11 @@ test('2. Admin tetap memegang seluruh fungsi sistem',()=>{
     'backup','account-settings','about-updates',
   ]) assert.ok(menu.includes(route),`Admin memiliki ${route}`);
   const grup=navigationForRole('admin').map(item=>item.label);
+  /* Nama grup berubah karena modulnya memang berubah: ia kini menerbitkan tiga dokumen -
+     Transkrip Nilai, SKL, dan SKKB - bukan transkrip ijazah saja. Route id-nya sengaja tidak
+     ikut berubah, dan daftar route di atas membuktikan tak satu pun fungsi Admin hilang. */
   assert.deepEqual(grup,['UTAMA','DAPODIK','DATA PENGGUNA','DATA REFERENSI','MONITORING',
-    'TRANSKRIP IJAZAH','BACKUP & RESTORE','AKUN']);
+    'TRANSKRIP-SKL-SKKB','BACKUP & RESTORE','AKUN']);
 });
 
 /* --------------------------------------------------------------- Menu Guru (§F) */

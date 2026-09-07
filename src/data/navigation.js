@@ -48,13 +48,16 @@ export const NAVIGATION=Object.freeze({
       item('admin-progress','Perkembangan Nilai','chart','admin-progress'),
       item('admin-progress-graph','Grafik Nilai','chart','admin-progress-graph')
     ]),
-    group('admin-transcript','TRANSKRIP IJAZAH','file',[
-      item('transcript-number-import','Import Nomor Ijazah','upload','transcript-number-import'),
-      item('transcript-settings','Setting Transkrip','settings','transcript-settings'),
+    /* Modul ini menerbitkan TIGA dokumen kelulusan dari satu kumpulan data yang sama, jadi
+       namanya menyebut ketiganya. Route id lama dipertahankan supaya tautan, pintasan, dan
+       data yang sudah tersimpan tidak putus - yang berubah adalah nama yang dibaca pengguna. */
+    group('admin-transcript','TRANSKRIP-SKL-SKKB','file',[
+      item('transcript-settings','Pengaturan TRANSKRIP-SKL-SKKB','settings','transcript-settings'),
+      item('transcript-number-import','Nomor & Status Dokumen','edit','transcript-number-import'),
       item('transcript-mapping','Mapping Mapel','shuffle','transcript-mapping'),
-      item('transcript-input','Input Nilai Transkrip','edit','transcript-input'),
-      item('transcript-import','Import Nilai Transkrip','upload','transcript-import'),
-      item('transcript-print','Cetak Transkrip Nilai','printer','transcript-print')
+      item('transcript-input','Input Nilai TRANSKRIP-SKL','edit','transcript-input'),
+      item('transcript-import','Import Data & Nilai','upload','transcript-import'),
+      item('transcript-print','Cetak TRANSKRIP-SKL-SKKB','printer','transcript-print')
     ]),
     group('admin-backup','BACKUP & RESTORE','database',[
       item('backup','Backup & Restore','database','backup')

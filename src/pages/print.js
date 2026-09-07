@@ -1,4 +1,5 @@
 import { CLASSES } from '../data/constants.js';
+import { phaseForClassId } from '../data/learning-objective-defaults.js';
 import { assertReportPrintable, getDocumentIdentity, getLeger, getReportCompleteness, getReportDocument, legerWorkbookBytes } from '../services/documents.js';
 import { listStudents } from '../services/students.js';
 import { reportSubjectName } from '../services/subjects.js';
@@ -355,7 +356,11 @@ export function renderPrint(session,initialTab='ledger'){
 
   function reportA4(doc){
     const student=doc.student,school=doc.master.school,teacher=doc.master.teacher,settings=doc.printSettings;
-    const head=`<table class="report-head-table"><tbody><tr><td>Nama Murid</td><td>:</td><td>${escapeHtml(student.name)}</td><td>Kelas</td><td>:</td><td>${escapeHtml(doc.classLabel)}</td></tr><tr><td>NIS/NISN</td><td>:</td><td>${escapeHtml(student.nis)} / ${escapeHtml(student.nisn)}</td><td>Semester</td><td>:</td><td>${doc.semesterNumber}</td></tr><tr><td>Sekolah</td><td>:</td><td>${escapeHtml(school.name)}</td><td>Tahun Ajaran</td><td>:</td><td>${escapeHtml(doc.academicYear)}</td></tr><tr><td>Alamat</td><td>:</td><td colspan="4">${blank(school.address)}</td></tr></tbody></table>`;
+    /* FASE DITURUNKAN DARI TINGKAT KELAS, TIDAK PERNAH DIPILIH GURU. Sumbernya phaseForClassId
+       yang sudah dipakai CP dan Butir CP, sehingga Fase pada Rapor tidak mungkin berbeda dari
+       fase yang dipakai menilai: kelas 1-2 Fase A, 3-4 Fase B, 5-6 Fase C. Yang dibaca adalah
+       ANGKA tingkatnya, bukan nama rombel, jadi 5A sampai 5D sama-sama Fase C. */
+    const head=`<table class="report-head-table"><tbody><tr><td>Nama Murid</td><td>:</td><td>${escapeHtml(student.name)}</td><td>Kelas</td><td>:</td><td>${escapeHtml(doc.classLabel)}</td></tr><tr><td>NIS/NISN</td><td>:</td><td>${escapeHtml(student.nis)} / ${escapeHtml(student.nisn)}</td><td>Fase</td><td>:</td><td>${blank(phaseForClassId(doc.classId))}</td></tr><tr><td>Sekolah</td><td>:</td><td>${escapeHtml(school.name)}</td><td>Semester</td><td>:</td><td>${doc.semesterNumber}</td></tr><tr><td>Alamat</td><td>:</td><td>${blank(school.address)}</td><td>Tahun Ajaran</td><td>:</td><td>${escapeHtml(doc.academicYear)}</td></tr></tbody></table>`;
     /* TIGA BLOK TANDA TANGAN YANG SEJAJAR.
 
        Sebelumnya hanya kolom Wali Kelas yang membawa baris tanggal "Kab. Bekasi, ......",

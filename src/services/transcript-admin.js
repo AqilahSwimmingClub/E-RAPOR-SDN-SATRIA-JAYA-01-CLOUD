@@ -34,10 +34,17 @@ export function saveTranscriptSettings(session,input){
 
 function diplomaRecords(){const saved=loadDb().settings?.diplomaNumbers;return saved&&typeof saved==='object'?saved:{};}
 
+/* Pembacaan tanpa pemeriksaan peran, dipakai penyusun dokumen TRANSKRIP-SKL-SKKB yang berjalan
+   pada scope berbentuk guru setelah otorisasi Admin dilakukan router. Penulisnya tetap hanya
+   saveDiplomaNumbers di bawah, sehingga nomor ijazah tetap punya satu sumber. */
+export function readDiplomaNumber(academicYear,studentId){
+  const record=diplomaRecords()[diplomaKey(clean(academicYear,40),clean(studentId,120))];
+  return record?clone(record):null;
+}
+
 export function getDiplomaNumber(session,studentId){
   assertAdmin(session);
-  const record=diplomaRecords()[diplomaKey(session.academicYear,clean(studentId,120))];
-  return record?clone(record):null;
+  return readDiplomaNumber(session.academicYear,studentId);
 }
 
 export function listDiplomaNumbers(session){

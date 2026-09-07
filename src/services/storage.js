@@ -64,6 +64,11 @@ function baseDb(){
     reportScores: {}, reportDescriptions: {}, extracurricularScores: {}, cocurricularActivities: {}, cocurricularScores: {},
     intracurricularActivities: {}, intracurricularScores: {}, dapodikSyncState: {}, dapodikSyncLogs: {}, dapodikMappings: {}, publishedReports: {},
     attitudeProfiles: {}, printSettings: {}, reportDateDefaults: {}, homeroomNotes: {}, promotionStatus: {}, graduationStatus: {}, transcriptScores: {},
+    /* TRANSKRIP-SKL-SKKB. `graduationDocuments` menyimpan nomor surat, nomor peserta ujian, dan
+       predikat kelakuan per siswa per tahun pelajaran; `graduationSettings` menyimpan tanggal
+       kelulusan dan tanggal penerbitan per tahun pelajaran. Status LULUS/TIDAK LULUS TIDAK
+       disalin ke sini - ia tetap milik `graduationStatus` supaya sumbernya tetap satu. */
+    graduationDocuments: {}, graduationSettings: {},
     backupHistory: [], migrationHistory: []
   };
 }
