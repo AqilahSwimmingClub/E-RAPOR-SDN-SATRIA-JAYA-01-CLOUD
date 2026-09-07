@@ -87,11 +87,23 @@ export function transcriptSheet(doc){
     ${principalSignature(doc)}</section>`;
 }
 
+/* JUDUL SKL DITULIS SEBAGAI SATU BARIS.
+
+   Sebelumnya judulnya berisi <br/> di dalam h1, yang memaksa "LULUS" turun ke baris kedua.
+   Pemenggalan itu bukan hasil aturan tata letak melainkan pemisah yang ditanam di markup,
+   sehingga selalu terjadi berapa pun lebar kertasnya. Lebar A4 lebih dari mencukupi untuk
+   "SURAT KETERANGAN LULUS", jadi <br/>-nya dibuang dan judulnya dibiarkan mengalir sendiri -
+   tanpa positioning absolut, transform, maupun pengecilan huruf.
+
+   Penjelasan ini sengaja berada di sumber, bukan sebagai komentar HTML di dalam lembar:
+   apa pun yang ditulis di dalam template ikut terbawa ke dokumen yang dicetak.
+
+   SKKB TIDAK IKUT BERUBAH - judulnya tetap dua baris seperti format aslinya. */
 export function sklSheet(doc){
   const school=doc.school||{};
   const keputusan=String(doc.number||'').trim();
   return `<section class="document-a4 letter-a4 skl-letter">${letterHead(doc)}
-    <div class="letter-title"><h1>SURAT KETERANGAN<br/>LULUS</h1><p class="letter-year">TAHUN AJARAN ${teks(doc.academicYear)}</p><p>Nomor: ${isi(keputusan)}</p></div>
+    <div class="letter-title"><h1>SURAT KETERANGAN LULUS</h1><p class="letter-year">TAHUN AJARAN ${teks(doc.academicYear)}</p><p>Nomor: ${isi(keputusan)}</p></div>
     <p class="letter-lead">Yang bertanda tangan di bawah ini Kepala ${teks(school.name)} menerangkan bahwa:</p>
     ${tabelIdentitas([
       ['Nama Lengkap',doc.student?.name],

@@ -458,3 +458,106 @@ test('C23. Baris rekap ikut pada cetak semua siswa, satu per dokumen',()=>{
     assert.equal(new Set(angka).size,3,`${jenis}: rekap tidak tertukar antar siswa`);
   }
 });
+
+/* ================================================== JUDUL SKL: SATU BARIS, BUKAN DUA
+
+   Penyebabnya dulu bukan aturan tata letak melainkan <br/> yang ditanam di dalam h1, sehingga
+   "LULUS" selalu turun ke baris kedua berapa pun lebar kertasnya. Test ini menjaga judulnya
+   tetap satu simpul teks utuh, dan gagal bila pemenggalan itu kembali dalam bentuk apa pun -
+   <br>, dua heading, maupun span terpisah. */
+
+function judulSkl(html){return /<div class="letter-title"><h1>(.*?)<\/h1>/s.exec(html)?.[1]||'';}
+
+test('C24. Judul SKL berisi tepat "SURAT KETERANGAN LULUS" dalam satu baris markup',()=>{
+  siapkan();
+  for(const doc of buildClassDocuments(admin,'6A','SKL')){
+    const html=sklSheet(doc);
+    assert.equal(judulSkl(html),'SURAT KETERANGAN LULUS','judul utuh tanpa pemenggalan');
+    assert.equal((html.match(/<h1>/g)||[]).length,1,'hanya satu heading pada lembar SKL');
+  }
+});
+
+test('C25. Tidak ada pemenggalan apa pun di dalam judul SKL',()=>{
+  siapkan();
+  const html=sklSheet(buildClassDocuments(admin,'6A','SKL')[0]);
+  const judul=judulSkl(html);
+  for(const pemisah of ['<br>','<br/>','<br />','</h1>','<span','<div','\n'])
+    assert.equal(judul.includes(pemisah),false,`judul SKL tidak boleh memuat ${pemisah.trim()||'baris baru'}`);
+  /* Bentuk lama yang persis: "SURAT KETERANGAN" lalu <br/> lalu "LULUS". */
+  assert.equal(/SURAT KETERANGAN\s*<br\s*\/?>\s*LULUS/i.test(html),false,
+    'pemenggalan lama tidak boleh kembali');
+  /* Sumbernya pun tidak boleh lagi memuat pola itu. */
+  assert.equal(/SURAT KETERANGAN<br\/>LULUS/.test(read('src/pages/graduation-print.js')),false);
+});
+
+test('C26. Judul satu baris berlaku pada setiap siswa saat Cetak Semua',()=>{
+  const {siswa}=siapkan();
+  const potongan=buildClassDocuments(admin,'6A','SKL').map(sklSheet);
+  assert.equal(potongan.length,siswa.length);
+  for(const html of potongan)
+    assert.equal(judulSkl(html),'SURAT KETERANGAN LULUS','setiap lembar memakai judul yang sama');
+  /* Preview satu siswa memakai penyusun yang sama persis, jadi tidak mungkin berbeda. */
+  const satu=sklSheet(buildClassDocuments(admin,'6A','SKL')[0]);
+  assert.equal(judulSkl(satu),judulSkl(potongan[0]));
+});
+
+test('C27. Kata LULUS pada judul tidak mengubah status kelulusan siswa',()=>{
+  const {siswa}=siapkan();
+  const olehId=new Map(siswa.map(item=>[item.id,item]));
+  const label={GRADUATED:'LULUS',NOT_GRADUATED:'TIDAK LULUS','':''};
+  for(const doc of buildClassDocuments(admin,'6A','SKL')){
+    const diri=olehId.get(doc.student.id);
+    assert.equal(doc.statusLabel,label[diri.status],'status tetap dibaca dari graduationStatus');
+    const putusan=/<p class="letter-verdict">([^<]*)<\/p>/.exec(sklSheet(doc))?.[1];
+    assert.equal(putusan,label[diri.status]||'BELUM DITETAPKAN');
+  }
+});
+
+test('C28. Judul SKL tetap tengah, tebal, Times, dan mengikuti hierarki ukuran existing',()=>{
+  const gaya=read('src/styles/app.css');
+  const konteks={tag:'h1',kelas:[],nthChild:1,lastChild:false,
+    leluhur:['document-a4','letter-a4','skl-letter','letter-title'],leluhurTag:['section','div']};
+  for(const keadaan of [null,CETAK]){
+    assert.equal(nilaiMenang(gaya,konteks,'font-size',{mediaAktif:keadaan})?.nilai,'14pt','ukuran judul tidak berubah');
+    assert.equal(nilaiMenang(gaya,konteks,'font-weight',{mediaAktif:keadaan})?.nilai,'700','judul tetap tebal');
+  }
+  assert.match(gaya,/\.letter-title\{text-align:center/,'judul tetap rata tengah');
+  assert.match(gaya,/\.letter-a4,\.letter-a4 \*\{font-family:"Times New Roman",Times,serif\}/);
+  /* Tidak ada aturan yang memaksa judul membungkus. */
+  assert.equal(/\.letter-title h1\{[^}]*(white-space:pre|max-width)/.test(gaya),false);
+});
+
+/* Penjelasan perubahan harus tinggal di SUMBER, bukan di dalam lembar. Komentar HTML yang
+   ditulis di dalam template ikut terbawa ke dokumen yang dicetak: ia menambah teks yang tidak
+   diminta ke berkas resmi, dan kata apa pun di dalamnya - "cukup", "baik", "lulus" - membuat
+   pemindaian isi dokumen membaca sesuatu yang tidak pernah ditetapkan siapa pun. Test ini
+   gagal jika ada komentar HTML kembali masuk ke salah satu dari tiga lembar. */
+test('C30. Tiga lembar resmi tidak memuat komentar HTML apa pun',()=>{
+  siapkan();
+  const lembar=[
+    ['TRANSKRIP',transcriptSheet,buildClassDocuments(admin,'6A','TRANSKRIP')],
+    ['SKL',sklSheet,buildClassDocuments(admin,'6A','SKL')],
+    ['SKKB',skkbSheet,buildClassDocuments(admin,'6A','SKKB')],
+  ];
+  for(const [nama,susun,daftar] of lembar)
+    for(const doc of daftar){
+      const html=susun(doc);
+      assert.equal(html.includes('<!--'),false,`${nama} tidak boleh memuat komentar HTML`);
+      assert.equal(html.includes('-->'),false,`${nama} tidak boleh memuat penutup komentar HTML`);
+    }
+  /* Sumbernya pun tidak boleh menaruh komentar HTML di dalam template literal. */
+  const kode=read('src/pages/graduation-print.js');
+  assert.equal(kode.includes('<!--'),false,'komentar HTML tidak ditulis di renderer lembar');
+});
+
+test('C29. SKKB dan Transkrip tidak ikut terpengaruh',()=>{
+  siapkan();
+  /* SKKB memang punya pemenggalan sendiri dan sengaja TIDAK diubah pada pekerjaan ini. */
+  const skkb=skkbSheet(buildClassDocuments(admin,'6A','SKKB')[0]);
+  assert.match(skkb,/<h1>SURAT KETERANGAN KELAKUAN<br\/>BAIK<\/h1>/,'SKKB tetap seperti sebelumnya');
+  const transkrip=transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0]);
+  assert.match(transkrip,/<h1>TRANSKRIP NILAI<\/h1>/,'judul Transkrip tetap dari doc.title');
+  /* Baris rekap Nilai Rata-rata tetap utuh pada keduanya yang memilikinya. */
+  for(const html of [transkrip,sklSheet(buildClassDocuments(admin,'6A','SKL')[0])])
+    assert.match(html,/<th class="letter-average" colspan="2">NILAI RATA-RATA<\/th>/);
+});
