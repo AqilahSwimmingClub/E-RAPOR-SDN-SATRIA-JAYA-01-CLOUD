@@ -580,6 +580,80 @@ const KONTEKS_BALANCE={tag:'div',kelas:['letter-crest-balance'],nthChild:3,lastC
   leluhur:['document-a4','letter-a4','letter-head'],leluhurTag:['section','header']};
 const px=nilai=>Number.parseFloat(String(nilai||'').replace('px',''));
 
+/* ================================== LABEL IDENTITAS TIDAK PERNAH DIPENGGAL
+
+   "Nomor Pokok Sekolah Nasional" selebar 206,65px sementara kolom labelnya dulu 210px -
+   sisanya 2,51pt, sekitar seperenam huruf. Selama metrik hurufnya persis sama labelnya memang
+   muat; begitu berbeda sedikit - Times New Roman asli di Windows lawan penggantinya - kata
+   "Nasional" jatuh ke baris kedua. Karena itu yang dikunci dua-duanya: kolomnya cukup lebar,
+   DAN labelnya dinyatakan tidak boleh dipenggal. */
+
+const KONTEKS_LABEL_IDENTITAS={tag:'td',kelas:['letter-label'],nthChild:1,lastChild:false,
+  leluhur:['document-a4','letter-a4','letter-identity'],leluhurTag:['section','table','tbody','tr']};
+const LABEL_PANJANG=['Nomor Pokok Sekolah Nasional','Nomor Induk Siswa Nasional'];
+
+test('C43. Dua label "Nasional" ditulis utuh satu baris pada ketiga dokumen',()=>{
+  siapkan();
+  const lembar={
+    TRANSKRIP:transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0]),
+    SKL:sklSheet(buildClassDocuments(admin,'6A','SKL')[0]),
+    SKKB:skkbSheet(buildClassDocuments(admin,'6A','SKKB')[0]),
+  };
+  /* Transkrip memuat keduanya, SKL memuat Nomor Induk Siswa Nasional. */
+  assert.match(lembar.TRANSKRIP,/<td class="letter-label">Nomor Pokok Sekolah Nasional<\/td>/);
+  assert.match(lembar.TRANSKRIP,/<td class="letter-label">Nomor Induk Siswa Nasional<\/td>/);
+  assert.match(lembar.SKL,/<td class="letter-label">Nomor Induk Siswa Nasional<\/td>/);
+  for(const [nama,html] of Object.entries(lembar)){
+    /* Tidak ada <br> di seluruh blok identitas. */
+    const identitas=[...html.matchAll(/<table class="letter-identity">[\s\S]*?<\/table>/g)].map(m=>m[0]).join('');
+    assert.equal(/<br\s*\/?>/i.test(identitas),false,`${nama}: identitas tidak memakai <br>`);
+    /* Label tidak dipecah menjadi beberapa node. */
+    for(const label of LABEL_PANJANG)
+      if(html.includes(label))
+        assert.equal(html.includes(`>${label}<`),true,`${nama}: "${label}" utuh dalam satu sel`);
+  }
+});
+
+test('C44. Kolom label cukup lebar dan dikunci tidak boleh dipenggal',()=>{
+  const gaya=read('src/styles/app.css');
+  for(const keadaan of [null,CETAK]){
+    const lebar=Number.parseFloat(String(nilaiMenang(gaya,KONTEKS_LABEL_IDENTITAS,'width',{mediaAktif:keadaan})?.nilai||'').replace('px',''));
+    /* Label terpanjang ~206,65px pada 12pt. Kolom 210px hanya menyisakan 3px - itulah bentuk
+       lama yang membuat "Nasional" jatuh. Sekarang minimal 230px. */
+    assert.ok(lebar>=230,`kolom label minimal 230px, terbaca ${lebar}px`);
+    assert.ok(lebar>210,'tidak boleh kembali ke lebar lama yang mepet');
+    assert.equal(nilaiMenang(gaya,KONTEKS_LABEL_IDENTITAS,'white-space',{mediaAktif:keadaan})?.nilai,'nowrap',
+      'label identitas dinyatakan tidak boleh dipenggal');
+  }
+  /* Titik dua tetap kolom tersendiri sehingga seluruh baris sejajar. */
+  assert.match(gaya,/\.letter-colon\{width:14px\}/,'kolom titik dua tetap ada');
+  /* Tidak memakai jalan pintas yang dilarang. */
+  assert.equal(/\.letter-label\{[^}]*(position:absolute|transform:)/.test(gaya),false);
+});
+
+test('C45. Perbaikan label tidak mengubah lambang kop, judul, maupun rekap nilai',()=>{
+  siapkan();
+  const gaya=read('src/styles/app.css');
+  /* Lambang tetap seperti yang disetujui pada 8c7e2d9. */
+  assert.match(gaya,/\.letter-crest\{flex:none;width:124px;height:108px/,'ukuran lambang tidak berubah');
+  assert.match(gaya,/\.letter-crest img\{width:100%;height:100%;object-fit:contain/,'rasio lambang tetap dijaga');
+  assert.match(gaya,/\.letter-crest-balance\{flex:none;width:124px\}/,'penyeimbang kop tetap');
+  const transkrip=transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0]);
+  const skl=sklSheet(buildClassDocuments(admin,'6A','SKL')[0]);
+  const skkb=skkbSheet(buildClassDocuments(admin,'6A','SKKB')[0]);
+  assert.match(skl,/<h1>SURAT KETERANGAN LULUS<\/h1>/);
+  assert.match(skkb,/<h1>SURAT KETERANGAN KELAKUAN BAIK<\/h1>/);
+  assert.match(transkrip,/<h1>TRANSKRIP NILAI<\/h1>/);
+  for(const html of [transkrip,skl])
+    assert.match(html,/<th class="letter-average" colspan="2">NILAI RATA-RATA<\/th>/);
+  for(const html of [transkrip,skl,skkb])
+    for(const larangan of ['Kelompok A','Kelompok B'])
+      assert.equal(html.includes(larangan),false);
+  /* Lambang tetap dari sekolah, bukan tertanam. */
+  for(const html of [transkrip,skl,skkb])
+    assert.ok(html.includes(`<img src="${SEKOLAH.regionLogo}" alt="Lambang daerah"/>`));
+});
+
 test('C37. Ketiga dokumen memakai kop yang sama dan lambang dari data sekolah',()=>{
   siapkan();
   const lembar=[

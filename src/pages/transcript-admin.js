@@ -1,9 +1,11 @@
 import { CLASSES } from '../data/constants.js';
-import { listStudents } from '../services/students.js';
+import { listStudents, parseCsv } from '../services/students.js';
 import { getGraduationStatus, saveGraduationStatus } from '../services/completeness.js';
-import { CONDUCT_PREDICATES, GRADUATION_DECISIONS, getGraduationSettings, getStudentDocument, saveGraduationSettings, saveStudentDocuments } from '../services/graduation-documents.js';
+import { CONDUCT_PREDICATES, GRADUATION_DECISIONS, commitNumberStatusImport, getGraduationSettings, getStudentDocument, numberStatusTemplate, previewNumberStatusImport, saveGraduationSettings, saveStudentDocuments } from '../services/graduation-documents.js';
 import { getDiplomaNumber, getTranscriptSettings, saveDiplomaNumbers, saveTranscriptSettings } from '../services/transcript-admin.js';
-import { el, escapeHtml, toast } from '../ui/dom.js';
+import { createWorkbookBytes, readWorkbookRows } from '../services/excel.js';
+import { pickFile, saveFile } from '../services/file-io.js';
+import { confirmDialog, el, escapeHtml, toast } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
 import { renderTranscript } from './transcript.js';
 
@@ -60,11 +62,49 @@ export function renderTranscriptAdmin(session,section='numbers'){
     return `<select class="input" data-status="${escapeHtml(student.id)}"><option value="">Belum ditetapkan</option>${GRADUATION_DECISIONS.map(item=>`<option value="${item.id}" ${item.id===current?'selected':''}>${escapeHtml(item.label)}</option>`).join('')}</select>`;
   }
 
+  /* ------------------------------------------------- TEMPLATE EXCEL NOMOR & STATUS
+
+     Alurnya sama dengan Import yang sudah ada di aplikasi: unduh template berisi siswa rombel
+     terpilih, isi di laptop, lalu unggah kembali. Unggahan TIDAK langsung menyimpan - hasilnya
+     ditampilkan sebagai preview beserta setiap baris bermasalah, dan tombol simpan baru
+     terbuka bila seluruh baris valid. */
+  async function unduhTemplate(){
+    const template=numberStatusTemplate(session,classId);
+    await saveFile({name:template.fileName,
+      mime:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      data:createWorkbookBytes(template.sheetName,template.rows,
+        {columnWidths:template.columnWidths,textColumns:template.textColumns})});
+  }
+
+  function bukaPreviewImport(preview,fileName){
+    const modal=el(`<div class="modal-backdrop"><div class="modal-card modal-extra-wide"><div class="modal-head"><div><h3>Preview Import Nomor & Status Dokumen</h3><p>${escapeHtml(fileName)} · Kelas ${escapeHtml(preview.classId)} · ${preview.validCount} valid · ${preview.invalidCount} bermasalah</p></div><button class="btn btn-light btn-icon" data-close aria-label="Tutup">${icon('x',17)}</button></div><div class="table-scroll import-preview-table"><table class="data-table"><thead><tr><th>Baris</th><th>NIS/NISN</th><th>Siswa</th><th>Ijazah</th><th>Transkrip</th><th>SKL</th><th>SKKB</th><th>Peserta Ujian</th><th>Status</th><th>Predikat</th><th>Validasi</th></tr></thead><tbody>${preview.rows.map(row=>`<tr><td>${row.rowNumber}</td><td>${escapeHtml(row.identifier||'—')}</td><td>${escapeHtml(row.studentName||'—')}</td><td>${escapeHtml(row.diplomaNumber||'—')}</td><td>${escapeHtml(row.transcriptNumber||'—')}</td><td>${escapeHtml(row.sklNumber||'—')}</td><td>${escapeHtml(row.skkbNumber||'—')}</td><td>${escapeHtml(row.examNumber||'—')}</td><td>${escapeHtml(row.graduationStatus?GRADUATION_DECISIONS.find(item=>item.id===row.graduationStatus)?.label||row.graduationStatus:'—')}</td><td>${escapeHtml(row.conductPredicate||'—')}</td><td>${row.valid?'<span class="status-ok">Valid</span>':`<span class="status-error">${escapeHtml(row.errors.join(' '))}</span>`}</td></tr>`).join('')}</tbody></table></div><div class="modal-actions"><button class="btn btn-light" data-cancel>Batal</button><button class="btn btn-primary" data-commit ${preview.canCommit?'':'disabled'}>Simpan ${preview.validCount} Baris</button></div></div></div>`);
+    document.body.append(modal);const close=()=>modal.remove();
+    modal.querySelector('[data-close]').onclick=close;modal.querySelector('[data-cancel]').onclick=close;
+    modal.querySelector('[data-commit]').onclick=async()=>{
+      if(!preview.canCommit)return;
+      if(!await confirmDialog({title:'Konfirmasi Import',message:`Simpan ${preview.validCount} baris Nomor & Status Dokumen Kelas ${preview.classId}?`,confirmText:'Simpan Import'}))return;
+      try{
+        const ringkas=commitNumberStatusImport(session,classId,preview);
+        close();drawNumbers();
+        toast(`${ringkas.students} siswa diperbarui · ${ringkas.diplomas} nomor ijazah · ${ringkas.statuses} status kelulusan.`);
+      }catch(error){toast(error.message,'error');}
+    };
+  }
+
+  async function unggahImport(){
+    const file=await pickFile({accept:'.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'});
+    if(!file)return;
+    const matrix=/\.csv$/i.test(file.name)?parseCsv(file.text):readWorkbookRows(file.arrayBuffer);
+    bukaPreviewImport(previewNumberStatusImport(session,classId,matrix),file.name);
+  }
+
   function drawNumbers(){
     const scope={...session,role:'teacher',classId};
     const students=listStudents(scope,{classId});
     const lulusan=gradeOf(classId)===6;
-    actions.innerHTML='';
+    actions.innerHTML=`<button class="btn btn-light" data-template>${icon('download',16)} Unduh Template Excel</button><button class="btn btn-light" data-import>${icon('upload',16)} Import Excel</button>`;
+    actions.querySelector('[data-template]').onclick=()=>unduhTemplate().catch(error=>toast(error.message,'error'));
+    actions.querySelector('[data-import]').onclick=()=>unggahImport().catch(error=>toast(error.message,'error'));
     view.innerHTML=`<section class="card module-filter"><div class="field compact-field"><label for="documentClass">Rombel</label><select class="input" id="documentClass" data-class>${CLASSES.map(item=>`<option value="${item}" ${item===classId?'selected':''}>Kelas ${item}</option>`).join('')}</select></div><div class="scope-note">TRANSKRIP-SKL-SKKB<span>${escapeHtml(session.academicYear)} · ${students.length} siswa</span></div></section>${students.length?`<section class="card wide-table-card"><div class="table-scroll"><table class="data-table document-number-table"><thead><tr><th>Siswa</th><th>Nomor Ijazah</th><th>Nomor Transkrip</th><th>Nomor SKL</th><th>Nomor SKKB</th><th>No. Peserta Ujian</th><th>Status SKL</th><th>Predikat SKKB</th></tr></thead><tbody>${students.map(student=>{
       const record=getStudentDocument(session,student.id);
       const ijazah=getDiplomaNumber(session,student.id)?.number||'';

@@ -1499,7 +1499,24 @@ select.input option{background:#fff;color:var(--light-ink)}
 .letter-lead{margin:0 0 6px;text-align:justify}
 .letter-identity{width:100%;border-collapse:collapse;margin:0 0 8px}
 .letter-identity td{border:0;padding:0;font-size:12pt;line-height:1.32;vertical-align:top}
-.letter-label{width:210px}
+/* KOLOM LABEL IDENTITAS.
+
+   Lebarnya dulu 210px sementara label terpanjang - "Nomor Pokok Sekolah Nasional" - selebar
+   206,65px. Sisanya hanya 2,51pt, sekitar seperenam huruf. Selama huruf yang dipakai persis
+   sama, labelnya memang muat satu baris; begitu metrik hurufnya berbeda sedikit saja - Times
+   New Roman asli di Windows lawan penggantinya, atau pembulatan hinting yang berbeda - kata
+   "Nasional" langsung jatuh ke baris kedua. Itulah sebabnya pemenggalan ini terlihat di mesin
+   pengguna tetapi tidak selalu terlihat saat dirender di tempat lain.
+
+   Dua perbaikan sekaligus, keduanya deklaratif:
+   - lebarnya dinaikkan ke 230px sehingga label terpanjang bersisa ~17,5pt (11%), bukan 1,6%;
+   - white-space:nowrap menjadi jaminannya - label identitas TIDAK PERNAH dipenggal, berapa
+     pun selisih metrik huruf antar mesin.
+
+   Tidak memakai <br>, positioning absolut, transform, overlay, maupun margin negatif. Titik
+   dua tetap sejajar karena ia kolom tabel tersendiri: seluruh baris berbagi lebar kolom yang
+   sama, jadi kesejajarannya terjaga dengan sendirinya. */
+.letter-label{width:230px;white-space:nowrap}
 .letter-colon{width:14px}
 .letter-value{font-weight:700}
 .letter-body{margin:0 0 6px;text-align:justify}
@@ -1533,7 +1550,7 @@ select.input option{background:#fff;color:var(--light-ink)}
   .letter-head-text small{font-size:5.5pt}
   .letter-title h1{font-size:9pt}
   .letter-title p,.letter-identity td,.letter-sign-block,.letter-sign-block small{font-size:7.5pt}
-  .letter-label{width:132px}
+  .letter-label{width:144px}
   .letter-table th,.letter-table td{font-size:7pt;padding:1px 4px}
   .letter-table .letter-score{width:52px}
   .letter-verdict{font-size:10pt}
@@ -1552,7 +1569,7 @@ select.input option{background:#fff;color:var(--light-ink)}
   .letter-head-text small{font-size:9pt}
   .letter-title h1{font-size:14pt}
   .letter-title p,.letter-identity td,.letter-sign-block,.letter-sign-block small{font-size:12pt}
-  .letter-label{width:210px}
+  .letter-label{width:230px}
   .letter-table th,.letter-table td{font-size:11pt;padding:2px 7px}
   .letter-table .letter-score{width:74px}
   .letter-table .letter-average{text-align:center;vertical-align:middle}

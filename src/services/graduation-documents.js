@@ -1,4 +1,5 @@
 import { phaseForClassId } from '../data/learning-objective-defaults.js';
+import { cellText } from './excel.js';
 import { getGraduationStatus, saveGraduationStatus } from './completeness.js';
 import { getSchoolMaster } from './master.js';
 import { formatIndonesianPrintDate } from './print-settings.js';
@@ -39,6 +40,9 @@ function assertAdmin(session){if(session?.role!=='admin')throw new Error('Hanya 
 function yearOf(session){const year=clean(session?.academicYear,40);if(!year)throw new Error('Tahun pelajaran tidak ditemukan pada sesi aktif.');return year;}
 function documentKey(academicYear,studentId){return `${academicYear}|${studentId}`;}
 function teacherScope(session,classId){return {...session,role:'teacher',classId:clean(classId,10)||session.classId};}
+/* Status kelulusan hanya dimiliki kelas 6, sama seperti koleksi graduationStatus yang dipakai
+   Rapor - jadi rombel lain tidak boleh menerimanya lewat pintu mana pun, termasuk import. */
+function isGraduatingClass(classId){return Number.parseInt(String(classId||'').match(/^([1-6])/)?.[1]||'',10)===6;}
 
 /* ------------------------------------------------------------------ PENGATURAN PER TAHUN */
 
@@ -442,4 +446,173 @@ export function commitDocumentImport(session,classId,preview){
   saveStudentDocuments(session,dokumen);
   if(ijazah.length){saveDiplomaNumbers(session,ijazah);ringkas.diplomas=ijazah.length;}
   return ringkas;
+}
+
+/* ==================================== TEMPLATE NOMOR & STATUS DOKUMEN (TANPA NILAI)
+
+   Halaman Nomor & Status Dokumen hanya mengurus nomor surat, nomor peserta ujian, status
+   kelulusan, dan predikat kelakuan. Templatenya karena itu sengaja TIDAK memuat kolom mata
+   pelajaran: yang mengisi biasanya operator sekolah yang sedang menyalin nomor dari buku
+   induk, bukan guru yang sedang memasukkan nilai. Template lengkap dengan nilai tetap ada
+   pada halaman Import Data & Nilai dan tidak diubah.
+
+   TIDAK ADA PENYIMPANAN BARU. Seluruh hasil import ditulis lewat pintu yang sudah dipakai
+   tombol Simpan pada halaman yang sama:
+
+     Nomor Ijazah                  -> saveDiplomaNumbers   (settings.diplomaNumbers)
+     Nomor Transkrip/SKL/SKKB,
+     No. Peserta Ujian, Predikat   -> saveStudentDocuments (graduationDocuments)
+     Status SKL                    -> saveGraduationStatus (graduationStatus)
+
+   Dengan begitu apa pun yang masuk lewat Excel langsung terbaca Transkrip, SKL, dan SKKB. */
+
+export const NUMBER_STATUS_HEADERS=Object.freeze([
+  'No','NIS/NISN','Nama Siswa','No. Ijazah','No. Transkrip','No. SKL','No. SKKB',
+  'No. Peserta Ujian','Status SKL','Predikat SKKB',
+]);
+/* Kolom yang isinya nomor dokumen - bukan bilangan - ditandai sebagai teks di berkas Excel
+   supaya nol di depan tidak hilang dan nomor panjang tidak berubah menjadi notasi ilmiah. */
+export const NUMBER_STATUS_TEXT_COLUMNS=Object.freeze([1,3,4,5,6,7]);
+export const NUMBER_STATUS_GUIDE='PETUNJUK: kolom No, NIS/NISN, dan Nama Siswa hanya penunjuk baris - jangan diubah atau dihapus. Isi kolom yang diperlukan saja; kolom yang dikosongkan tidak mengubah data yang sudah tersimpan. Status SKL: LULUS atau TIDAK LULUS. Predikat SKKB: SANGAT BAIK, BAIK, atau CUKUP.';
+
+/* Identitas di kepala berkas dibaca dari Data Sekolah dan sesi aktif, tidak pernah diketik
+   di sini, sehingga sekolah mana pun mengunduh template dengan identitasnya sendiri. */
+function numberStatusIdentity(session,classId){
+  const school=getSchoolMaster(session)||{};
+  return [
+    ['Satuan Pendidikan',clean(school.name,150)],
+    ['NPSN',clean(school.npsn,40)],
+    ['Rombel',clean(classId,10)],
+    ['Tahun Pelajaran',yearOf(session)],
+  ];
+}
+
+export function numberStatusTemplate(session,classId){
+  assertAdmin(session);
+  const scope=teacherScope(session,classId);
+  const year=yearOf(session);
+  const students=listStudents(scope,{classId:scope.classId});
+  const identitas=numberStatusIdentity(session,scope.classId);
+  const rows=students.map((student,index)=>{
+    const record=readStudentDocument(year,student.id);
+    const status=graduationDecision(scope,student.id)?.status||'';
+    return [index+1,
+      clean(student.nisn||student.nis,40),
+      clean(student.name,150),
+      readDiplomaNumber(year,student.id)?.number||'',
+      record.transcriptNumber,record.sklNumber,record.skkbNumber,record.examNumber,
+      GRADUATION_DECISIONS.find(item=>item.id===status)?.label||'',
+      record.conductPredicate?record.conductPredicate.toUpperCase():''];
+  });
+  return {
+    sheetName:`NOMOR-STATUS ${scope.classId}`,
+    fileName:`TEMPLATE-NOMOR-STATUS-DOKUMEN-${scope.classId}-${year.replace('/','-')}.xlsx`,
+    rows:[[NUMBER_STATUS_GUIDE],[],
+      ...identitas.map(([label,value])=>[`${label}`,value]),[],
+      [...NUMBER_STATUS_HEADERS],...rows],
+    columnWidths:[6,18,30,24,26,26,26,20,15,16],
+    textColumns:[...NUMBER_STATUS_TEXT_COLUMNS],
+    identity:identitas,studentCount:students.length,classId:scope.classId,academicYear:year};
+}
+
+const NUMBER_STATUS_FIELDS=Object.freeze(['no','identifier','name','diplomaNumber','transcriptNumber','sklNumber','skkbNumber','examNumber','graduationStatus','conductPredicate']);
+const NUMBER_STATUS_LOOKUP=new Map(NUMBER_STATUS_HEADERS.map((label,index)=>[normalizeHeader(label),NUMBER_STATUS_FIELDS[index]]));
+
+/* Preview memeriksa SELURUH baris lalu melaporkan tiap baris bermasalah beserta alasannya.
+   Pencocokan siswa memakai NISN lalu NIS - identitas yang stabil dari Data Siswa - sehingga
+   urutan baris di Excel boleh diacak tanpa membuat data masuk ke siswa yang salah. Nomor urut
+   No sengaja TIDAK dipakai mencocokkan; ia hanya penanda bagi pembaca. */
+export function previewNumberStatusImport(session,classId,table){
+  assertAdmin(session);
+  const scope=teacherScope(session,classId);
+  const year=yearOf(session);
+  const matrix=(Array.isArray(table)?table:[]).map(row=>Array.isArray(row)?row:[]);
+  const headerIndex=matrix.findIndex(row=>row.some(cell=>normalizeHeader(cell)==='nis/nisn'));
+  if(headerIndex<0)throw new Error('Baris header tidak ditemukan. Gunakan template yang diunduh dari halaman Nomor & Status Dokumen.');
+  const headerRow=matrix[headerIndex].map(normalizeHeader);
+  const columns=headerRow.map(label=>label?(NUMBER_STATUS_LOOKUP.get(label)||{unknown:label}):null);
+  const asing=columns.filter(column=>column&&typeof column==='object'&&column.unknown).map(column=>column.unknown);
+  if(asing.length)throw new Error(`Kolom tidak dikenali: ${asing.join(', ')}. Gunakan template tanpa mengubah judul kolom.`);
+  if(!columns.includes('identifier'))throw new Error('Kolom NIS/NISN wajib ada pada template.');
+
+  const students=listStudents(scope,{classId:scope.classId});
+  const olehNisn=new Map(students.filter(student=>student.nisn).map(student=>[clean(student.nisn,40),student]));
+  const olehNis=new Map(students.filter(student=>student.nis).map(student=>[clean(student.nis,40),student]));
+  /* Nomor yang sudah dipakai siswa lain pada tahun ini tetap dijaga, sama seperti tombol Simpan. */
+  const nomorTersimpan=new Map(NUMBER_FIELDS.map(([field])=>[field,new Map()]));
+  for(const [kunci,record] of Object.entries(documentRecords())){
+    if(!kunci.startsWith(`${year}|`))continue;
+    for(const [field] of NUMBER_FIELDS){
+      const nomor=clean(record?.[field],80).toLowerCase();
+      if(nomor)nomorTersimpan.get(field).set(nomor,record.studentId);
+    }
+  }
+  const terlihat=new Set();
+  const rows=matrix.slice(headerIndex+1)
+    .filter(row=>row.some(cell=>String(cell??'').trim()))
+    .map((cells,index)=>{
+      const raw={};
+      columns.forEach((column,position)=>{if(typeof column==='string')raw[column]=cells[position];});
+      const errors=[];
+      /* Seluruh nomor dibaca sebagai TEKS, termasuk bila Excel terlanjur menyimpannya
+         sebagai bilangan - nomor panjang tidak boleh berubah menjadi notasi ilmiah. */
+      const identifier=clean(cellText(raw.identifier),40);
+      const student=(identifier&&(olehNisn.get(identifier)||olehNis.get(identifier)))||null;
+      if(!identifier)errors.push('NIS/NISN kosong.');
+      else if(!student)errors.push(`Siswa dengan NIS/NISN ${identifier} tidak ada pada rombel ini.`);
+      if(student){
+        if(terlihat.has(student.id))errors.push('Siswa muncul lebih dari satu kali pada berkas ini.');
+        terlihat.add(student.id);
+        /* Nama hanya rujukan tambahan: kalau berbeda jauh, kemungkinan barisnya salah tempel. */
+        const nama=clean(cellText(raw.name),150);
+        if(nama&&nama.toLowerCase()!==clean(student.name,150).toLowerCase())
+          errors.push(`Nama "${nama}" tidak cocok dengan pemilik NIS/NISN ${identifier} (${student.name}).`);
+      }
+      const numbers={};
+      for(const [field,label] of NUMBER_FIELDS){
+        const nomor=clean(cellText(raw[field]),80);
+        numbers[field]=nomor;
+        if(!nomor||!student)continue;
+        const pemilik=nomorTersimpan.get(field).get(nomor.toLowerCase());
+        if(pemilik&&pemilik!==student.id)errors.push(`${label} ${nomor} sudah dipakai siswa lain.`);
+        else nomorTersimpan.get(field).set(nomor.toLowerCase(),student.id);
+      }
+      let graduationStatus='',conductPredicate='';
+      try{graduationStatus=importStatus(raw.graduationStatus);}catch(error){errors.push(error.message);}
+      try{conductPredicate=normalizePredicate(raw.conductPredicate);}catch(error){errors.push(error.message);}
+      /* Status kelulusan hanya berlaku bagi kelas 6, persis seperti tabelnya. */
+      if(graduationStatus&&!isGraduatingClass(scope.classId))
+        errors.push('Status SKL hanya berlaku untuk rombel kelas 6.');
+      return {rowNumber:headerIndex+index+2,
+        studentId:student?.id||'',studentName:student?.name||clean(cellText(raw.name),150),
+        identifier,diplomaNumber:clean(cellText(raw.diplomaNumber),60),
+        transcriptNumber:numbers.transcriptNumber,sklNumber:numbers.sklNumber,skkbNumber:numbers.skkbNumber,
+        examNumber:clean(cellText(raw.examNumber),60),graduationStatus,conductPredicate,
+        valid:errors.length===0,errors};
+    });
+  const invalidCount=rows.filter(row=>!row.valid).length;
+  return {classId:scope.classId,academicYear:year,rows,
+    validCount:rows.length-invalidCount,invalidCount,
+    canCommit:rows.length>0&&invalidCount===0,sourceRows:matrix};
+}
+
+/* NOL PENYIMPANAN SEBAGIAN. Seluruh baris diperiksa ulang dari sumber yang sama lebih dulu;
+   begitu ada satu baris tidak valid, fungsi ini berhenti SEBELUM menyentuh database sama
+   sekali. Penulisannya sendiri dikumpulkan dahulu lalu dijalankan sekaligus, jadi tidak ada
+   keadaan setengah tersimpan bila salah satu penulisan menolak di tengah jalan. */
+export function commitNumberStatusImport(session,classId,preview){
+  assertAdmin(session);
+  if(!preview||!Array.isArray(preview.sourceRows))throw new Error('Preview import Nomor & Status Dokumen tidak valid.');
+  const checked=previewNumberStatusImport(session,classId,preview.sourceRows);
+  if(!checked.canCommit)throw new Error(checked.rows.flatMap(row=>row.errors)[0]||'Import Nomor & Status Dokumen tidak valid.');
+  const scope=teacherScope(session,classId);
+  const dokumen=checked.rows.map(row=>({studentId:row.studentId,
+    transcriptNumber:row.transcriptNumber,sklNumber:row.sklNumber,skkbNumber:row.skkbNumber,
+    examNumber:row.examNumber,conductPredicate:row.conductPredicate}));
+  const ijazah=checked.rows.filter(row=>row.diplomaNumber).map(row=>({studentId:row.studentId,number:row.diplomaNumber}));
+  const status=checked.rows.filter(row=>row.graduationStatus);
+  saveStudentDocuments(session,dokumen);
+  if(ijazah.length)saveDiplomaNumbers(session,ijazah);
+  for(const row of status)saveGraduationStatus(scope,row.studentId,row.graduationStatus);
+  return {students:dokumen.length,diplomas:ijazah.length,statuses:status.length,classId:checked.classId};
 }
