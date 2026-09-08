@@ -19,9 +19,12 @@ function isi(value,cadangan=kosong){const bersih=String(value??'').trim();return
 /* Nilai dokumen resmi ditulis dua desimal dengan koma, sesuai contoh transkrip sekolah. */
 function nilai(value){return Number.isFinite(value)?escapeHtml(Number(value).toFixed(2).replace('.',',')):'—';}
 
-/* Lambang daerah dicetak dengan tinggi tetap dan lebar mengikuti rasionya sendiri, sehingga
-   lambang berbentuk apa pun tidak pernah gepeng, terpotong, maupun teregang. Slotnya tetap
-   ada walau lambang belum diunggah supaya kop tidak bergeser. */
+/* Lambang daerah menempati slot dengan tinggi tetap; isinya diskalakan object-fit:contain
+   sehingga lambang berbentuk apa pun tidak pernah gepeng, terpotong, maupun teregang.
+   Slotnya tetap ada walau lambang belum diunggah supaya kop tidak bergeser.
+
+   Lambangnya SELALU dari school.regionLogo - unggahan masing-masing sekolah. Tidak ada satu
+   pun lambang yang ditanam di sini. */
 function lambangDaerah(school){
   const logo=String(school?.regionLogo||'').trim();
   return `<div class="letter-crest">${logo?`<img src="${escapeHtml(logo)}" alt="Lambang daerah"/>`:''}</div>`;
@@ -32,9 +35,15 @@ export function letterHead(doc){
   const baris=[school.regionHeading,'DINAS PENDIDIKAN',String(school.name||'').toUpperCase()].map(item=>String(item||'').trim()).filter(Boolean);
   const alamat=[school.addressLine,[school.phone&&`Telp. ${school.phone}`,school.email].filter(Boolean).join(' · ')]
     .map(item=>String(item||'').trim()).filter(Boolean);
+  /* PENYEIMBANG DI KANAN. Lambang menempati slot di kiri, jadi tanpa penyeimbang blok
+     identitas hanya akan terpusat pada SISA lebar - bukan pada lebar kertas - sehingga
+     seluruh kop terbaca bergeser ke kanan, dan makin bergeser setiap kali lambangnya
+     diperbesar. Slot kosong selebar slot lambang di sisi kanan membuat blok identitas
+     terpusat tepat pada sumbu kertas seperti surat resmi, berapa pun ukuran lambangnya.
+     Kotak ini murni ruang: tidak membawa teks dan disembunyikan dari pembaca layar. */
   return `<header class="letter-head">${lambangDaerah(school)}<div class="letter-head-text">${
     baris.map((item,index)=>`<${index===baris.length-1?'strong':'span'}>${teks(item)}</${index===baris.length-1?'strong':'span'}>`).join('')
-  }${alamat.map(item=>`<small>${teks(item)}</small>`).join('')}</div></header>`;
+  }${alamat.map(item=>`<small>${teks(item)}</small>`).join('')}</div><div class="letter-crest-balance" aria-hidden="true"></div></header>`;
 }
 
 /* Satu baris identitas: label, titik dua sejajar, lalu isinya. Titik dua berada di kolomnya

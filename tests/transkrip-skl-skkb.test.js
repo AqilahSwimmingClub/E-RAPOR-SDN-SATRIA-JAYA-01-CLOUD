@@ -245,9 +245,24 @@ test('L1. Lambang daerah pada tiga dokumen berasal dari unggahan Admin',()=>{
 
 test('L2. Lambang daerah dicetak proporsional, tidak gepeng dan tidak terpotong',()=>{
   const gaya=read('src/styles/app.css');
-  assert.match(gaya,/\.letter-crest img\{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain\}/,
-    'rasio lambang dijaga: lebar dan tinggi mengikuti berkasnya sendiri');
-  assert.equal(/\.letter-crest img\{[^}]*object-fit:cover/.test(gaya),false,'tidak pernah dipotong');
+  /* HARAPAN LAMA DIPERBARUI, BUKAN DILONGGARKAN.
+
+     Baris ini dulu mengunci `width:auto;height:auto` + max-*. Maksudnya benar - rasio lambang
+     harus terjaga - tetapi caranya membuat UKURAN CETAK bergantung pada ukuran piksel berkas
+     yang diunggah sekolah: lambang beresolusi kecil ikut tercetak kecil walau slotnya lapang.
+     Itu bagian dari sebab lambang terbaca mungil, dan persyaratannya kemudian diubah resmi
+     supaya ukurannya ditentukan tata letak.
+
+     Sekarang gambar mengisi slot dan object-fit:contain yang menjaga rasionya. Yang dijaga
+     test ini tetap sama - tidak gepeng, tidak terpotong - dan justru lebih ketat: bentuk lama
+     yang membuat ukuran bergantung berkas ikut dilarang muncul kembali. */
+  assert.match(gaya,/\.letter-crest img\{width:100%;height:100%;object-fit:contain;object-position:center\}/,
+    'ukuran ditentukan slot, rasio dijaga contain');
+  for(const perusak of ['cover','fill','scale-down'])
+    assert.equal(new RegExp(`\\.letter-crest img\\{[^}]*object-fit:${perusak}`).test(gaya),false,
+      `lambang tidak boleh object-fit:${perusak}`);
+  assert.equal(/\.letter-crest img\{[^}]*width:auto/.test(gaya),false,
+    'ukuran cetak tidak boleh kembali bergantung pada piksel berkas unggahan');
 });
 
 /* ============================================================ §39 MULTI-SEKOLAH */

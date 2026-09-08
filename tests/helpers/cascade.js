@@ -72,12 +72,32 @@ function bacaAturan(cssTextMentah){
         aturan.push({selektor:satu.trim(),deklarasi:m[2],urutan:urutan++,media});
     }
   };
-  /* Blok @media dipisahkan lebih dulu supaya isinya tidak tertelan regex di atas. */
-  const media=/@media([^{]+)\{((?:[^{}]*\{[^{}]*\})*)\}/g;
-  let m,tanpaMedia=cssText;
+  /* Blok @media dipisahkan lebih dulu supaya isinya tidak tertelan regex di atas.
+
+     KURUNGNYA DIHITUNG, TIDAK DICOCOKKAN DENGAN REGEX. Bentuk regex sebelumnya hanya sanggup
+     menangkap blok @media yang isinya beberapa aturan pendek; begitu satu blok memuat banyak
+     aturan, blok itu TIDAK dikenali sebagai @media dan seluruh isinya ikut terbaca sebagai
+     aturan biasa. Akibatnya penimpaan khusus cetak dan khusus layar sempit dianggap berlaku
+     di mana saja, dan karena letaknya paling belakang di berkas, justru ia yang selalu menang
+     - membuat test cascade lulus padahal aturan dasarnya sudah berubah. Menghitung kurung
+     membuat pemisahan ini benar berapa pun panjang bloknya. */
   const potongan=[];
-  while((m=media.exec(cssText)))potongan.push({query:m[1].trim(),isi:m[2]});
-  tanpaMedia=cssText.replace(media,'');
+  let tanpaMedia='',i=0;
+  while(i<cssText.length){
+    const mulai=cssText.indexOf('@media',i);
+    if(mulai<0){tanpaMedia+=cssText.slice(i);break;}
+    tanpaMedia+=cssText.slice(i,mulai);
+    const buka=cssText.indexOf('{',mulai);
+    if(buka<0){tanpaMedia+=cssText.slice(mulai);break;}
+    let dalam=1,j=buka+1;
+    while(j<cssText.length&&dalam>0){
+      if(cssText[j]==='{')dalam+=1;
+      else if(cssText[j]==='}')dalam-=1;
+      j+=1;
+    }
+    potongan.push({query:cssText.slice(mulai+6,buka).trim(),isi:cssText.slice(buka+1,j-1)});
+    i=j;
+  }
   telusuri(tanpaMedia,null);
   for(const p of potongan)telusuri(p.isi,p.query);
   return aturan;

@@ -559,6 +559,137 @@ test('C30. Tiga lembar resmi tidak memuat komentar HTML apa pun',()=>{
 
 function judulSkkb(html){return /<div class="letter-title"><h1>(.*?)<\/h1>/s.exec(html)?.[1]||'';}
 
+/* ============================================ KOP: LAMBANG DAERAH DAN KESEIMBANGANNYA
+
+   Lambang pada kop pernah tercetak jauh terlalu kecil: slotnya 66x66px sehingga lambang
+   hanya setinggi 46,66pt - kurang dari sepertiga tinggi kop - dan menyisakan ruang kosong
+   35pt di atas garis kop. Pada kop A4 acuan sekolah, lambangnya tergambar 85,65 x 80,7pt.
+
+   Selain itu blok identitas dulu hanya terpusat pada SISA lebar di sebelah kanan lambang,
+   bukan pada lebar kertas, sehingga seluruh kop bergeser 30pt ke kanan - dan akan makin
+   bergeser setiap kali lambangnya diperbesar.
+
+   Yang dikunci di bawah bukan sekadar "aturannya ada", melainkan NILAI YANG MENANG pada
+   cascade, di media layar maupun cetak. */
+
+const KONTEKS_CREST={tag:'div',kelas:['letter-crest'],nthChild:1,lastChild:false,
+  leluhur:['document-a4','letter-a4','letter-head'],leluhurTag:['section','header']};
+const KONTEKS_CREST_IMG={tag:'img',kelas:[],nthChild:1,lastChild:true,
+  leluhur:['document-a4','letter-a4','letter-head','letter-crest'],leluhurTag:['section','header','div']};
+const KONTEKS_BALANCE={tag:'div',kelas:['letter-crest-balance'],nthChild:3,lastChild:true,
+  leluhur:['document-a4','letter-a4','letter-head'],leluhurTag:['section','header']};
+const px=nilai=>Number.parseFloat(String(nilai||'').replace('px',''));
+
+test('C37. Ketiga dokumen memakai kop yang sama dan lambang dari data sekolah',()=>{
+  siapkan();
+  const lembar=[
+    ['TRANSKRIP',transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0])],
+    ['SKL',sklSheet(buildClassDocuments(admin,'6A','SKL')[0])],
+    ['SKKB',skkbSheet(buildClassDocuments(admin,'6A','SKKB')[0])],
+  ];
+  for(const [nama,html] of lembar){
+    assert.equal((html.match(/<header class="letter-head">/g)||[]).length,1,`${nama} punya satu kop`);
+    assert.equal((html.match(/<div class="letter-crest">/g)||[]).length,1,`${nama} punya satu slot lambang`);
+    /* Lambangnya persis berkas yang diunggah sekolah - bukan berkas lain, bukan yang ditanam. */
+    assert.ok(html.includes(`<img src="${SEKOLAH.regionLogo}" alt="Lambang daerah"/>`),
+      `${nama} memakai school.regionLogo apa adanya`);
+    assert.equal((html.match(/<div class="letter-crest-balance" aria-hidden="true"><\/div>/g)||[]).length,1,
+      `${nama} punya ruang penyeimbang di kanan`);
+  }
+  /* Kop ketiganya identik karena memang disusun satu fungsi bersama. */
+  const kop=html=>/<header class="letter-head">[\s\S]*?<\/header>/.exec(html)[0];
+  assert.equal(kop(lembar[0][1]),kop(lembar[1][1]),'kop Transkrip dan SKL identik');
+  assert.equal(kop(lembar[1][1]),kop(lembar[2][1]),'kop SKL dan SKKB identik');
+});
+
+test('C38. Lambang mengikuti sekolahnya, tidak ada satu pun lambang yang ditanam',()=>{
+  siapkan();
+  /* Ganti lambangnya: ketiga lembar harus ikut berubah, tanpa kecuali. */
+  const lain='data:image/png;base64,ZZZZLAMBANGSEKOLAHLAIN';
+  saveSchoolMaster(admin,{...SEKOLAH,regionLogo:lain});
+  for(const [susun,tipe] of [[transcriptSheet,'TRANSKRIP'],[sklSheet,'SKL'],[skkbSheet,'SKKB']]){
+    const html=susun(buildClassDocuments(admin,'6A',tipe)[0]);
+    assert.ok(html.includes(lain),`${tipe} memakai lambang sekolah yang baru`);
+    assert.equal(html.includes(SEKOLAH.regionLogo),false,`${tipe} tidak menyimpan lambang lama`);
+  }
+  /* Sekolah tanpa lambang tetap mendapat kop yang utuh, hanya slotnya kosong. */
+  saveSchoolMaster(admin,{...SEKOLAH,regionLogo:''});
+  const kosong=sklSheet(buildClassDocuments(admin,'6A','SKL')[0]);
+  assert.match(kosong,/<div class="letter-crest"><\/div>/,'slot tetap ada walau lambang belum diunggah');
+  assert.equal(/<img[^>]*Lambang daerah/.test(kosong),false,'tidak mengarang gambar');
+  /* Sumbernya tidak boleh memuat gambar tertanam sama sekali. */
+  const kode=read('src/pages/graduation-print.js');
+  assert.equal(/data:image\//.test(kode),false,'tidak ada gambar yang ditanam di renderer');
+  assert.equal(/base64/i.test(kode),false,'tidak ada berkas base64 di renderer');
+  const gaya=read('src/styles/app.css');
+  assert.equal(/\.letter-crest[^{]*\{[^}]*background-image/.test(gaya),false,
+    'lambang tidak boleh dipasang lewat background-image di CSS');
+});
+
+test('C39. Slot lambang berukuran seperti kop acuan, bukan ukuran mungil yang lama',()=>{
+  const gaya=read('src/styles/app.css');
+  for(const keadaan of [null,CETAK]){
+    const lebar=px(nilaiMenang(gaya,KONTEKS_CREST,'width',{mediaAktif:keadaan})?.nilai);
+    const tinggi=px(nilaiMenang(gaya,KONTEKS_CREST,'height',{mediaAktif:keadaan})?.nilai);
+    /* 108px = 81pt, sepadan dengan 80,7pt pada kop acuan A4. */
+    assert.equal(tinggi,108,'tinggi slot lambang mengikuti kop acuan');
+    assert.equal(lebar,124,'lebar slot lambang mengikuti kop acuan');
+    /* Penjaga arah: harus jauh lebih besar daripada slot lama 66x66. */
+    assert.ok(tinggi>66,`slot tidak boleh kembali mengecil (dulu 66px, kini ${tinggi}px)`);
+    assert.ok(tinggi/66>=1.5,'tinggi lambang minimal 1,5x ukuran lama');
+    /* Tinggi < lebar supaya TINGGI yang membatasi, sehingga seragam antar bentuk lambang. */
+    assert.ok(tinggi<lebar,'tinggi menjadi pembatas, bukan lebar');
+    /* Ruang penyeimbang harus selebar slot lambang, kalau tidak kop bergeser. */
+    const imbang=px(nilaiMenang(gaya,KONTEKS_BALANCE,'width',{mediaAktif:keadaan})?.nilai);
+    assert.equal(imbang,lebar,'ruang penyeimbang selebar slot lambang');
+  }
+});
+
+test('C40. Lambang diskalakan contain: tidak crop, tidak stretch, tidak gepeng',()=>{
+  const gaya=read('src/styles/app.css');
+  for(const keadaan of [null,CETAK]){
+    assert.equal(nilaiMenang(gaya,KONTEKS_CREST_IMG,'object-fit',{mediaAktif:keadaan})?.nilai,'contain',
+      'rasio asli lambang dipertahankan');
+    /* Gambar mengisi slot, sehingga ukuran cetak ditentukan tata letak - bukan ukuran piksel
+       berkas yang diunggah sekolah. Inilah yang dulu membuat lambang kecil ikut tercetak kecil. */
+    assert.equal(nilaiMenang(gaya,KONTEKS_CREST_IMG,'width',{mediaAktif:keadaan})?.nilai,'100%');
+    assert.equal(nilaiMenang(gaya,KONTEKS_CREST_IMG,'height',{mediaAktif:keadaan})?.nilai,'100%');
+  }
+  /* Yang merusak rasio dilarang muncul kembali. */
+  for(const perusak of ['object-fit:cover','object-fit:fill','object-fit:scale-down'])
+    assert.equal(gaya.includes(`.letter-crest img{${perusak}`),false,`lambang tidak boleh ${perusak}`);
+});
+
+test('C41. Blok identitas terpusat pada kertas, bukan pada sisa ruang di kanan lambang',()=>{
+  siapkan();
+  const html=sklSheet(buildClassDocuments(admin,'6A','SKL')[0]);
+  /* Urutannya: slot lambang, blok identitas, lalu ruang penyeimbang - simetris kiri-kanan. */
+  assert.match(html,/<div class="letter-crest">[\s\S]*?<div class="letter-head-text">[\s\S]*?<div class="letter-crest-balance"/,
+    'penyeimbang berada sesudah blok identitas');
+  const gaya=read('src/styles/app.css');
+  assert.match(gaya,/\.letter-head-text\{flex:1;text-align:center/,'blok identitas tetap rata tengah');
+  /* Penyeimbang murni ruang: tidak membawa teks apa pun. */
+  assert.match(html,/<div class="letter-crest-balance" aria-hidden="true"><\/div>/,
+    'penyeimbang kosong dan disembunyikan dari pembaca layar');
+});
+
+test('C42. Kop baru tidak merusak judul, rekap nilai, maupun aturan tanpa Kelompok A/B',()=>{
+  siapkan();
+  const transkrip=transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0]);
+  const skl=sklSheet(buildClassDocuments(admin,'6A','SKL')[0]);
+  const skkb=skkbSheet(buildClassDocuments(admin,'6A','SKKB')[0]);
+  assert.match(skl,/<h1>SURAT KETERANGAN LULUS<\/h1>/,'judul SKL tetap satu baris');
+  assert.match(skkb,/<h1>SURAT KETERANGAN KELAKUAN BAIK<\/h1>/,'judul SKKB tetap satu baris');
+  assert.match(transkrip,/<h1>TRANSKRIP NILAI<\/h1>/,'judul Transkrip tetap');
+  for(const html of [transkrip,skl]){
+    assert.match(html,/<th class="letter-average" colspan="2">NILAI RATA-RATA<\/th>/,'baris rekap utuh');
+    assert.match(html,/<th class="letter-score letter-average-score">/,'angka rekap pada kolom Nilai');
+  }
+  for(const html of [transkrip,skl,skkb])
+    for(const larangan of ['Kelompok A','Kelompok B'])
+      assert.equal(html.includes(larangan),false,`lembar tidak memuat ${larangan}`);
+});
+
 test('C31. Judul SKKB berisi tepat "SURAT KETERANGAN KELAKUAN BAIK" sebagai satu heading',()=>{
   siapkan();
   for(const doc of buildClassDocuments(admin,'6A','SKKB')){
