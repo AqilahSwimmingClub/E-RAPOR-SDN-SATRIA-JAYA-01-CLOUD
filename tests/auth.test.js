@@ -1,15 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ACADEMIC_YEAR, CLASSES } from '../src/data/constants.js';
-import { authenticate, changeOwnPassword, createPasswordHash, getSession, listUserAccounts, recoverAdmin, resetTeacherPassword, saveSession, setTeacherActive } from '../src/services/auth.js';
-import { loadDb, updateDb } from '../src/services/storage.js';
+import { authenticate, changeOwnPassword, getSession, listUserAccounts, recoverAdmin, resetTeacherPassword, saveSession, setTeacherActive } from '../src/services/auth.js';
+import { setupFirstAdmin } from '../src/services/admin-first-setup.js';
+import { loadDb } from '../src/services/storage.js';
 import { aktifkanLisensiLokal } from './helpers/license-local.js';
 
 function memoryStorage(){const values=new Map();return {getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};}
 
-test('Keamanan login memakai hash, mendukung 24 Guru, perubahan/reset password, dan expiry sesi',async()=>{
+test('Keamanan login memakai hash, mendukung 24 Guru, setup Admin berlisensi, perubahan/reset password, dan expiry sesi',async()=>{
   globalThis.localStorage=memoryStorage();globalThis.sessionStorage=memoryStorage();
-  /* Login kini bergerbang lisensi; perangkat uji dinyatakan berlisensi sah. */
+  /* Login dan pembuatan Admin pertama bergerbang lisensi; perangkat uji dinyatakan berlisensi sah. */
   aktifkanLisensiLokal();
   /* Akun Guru baru sengaja dibuat NONAKTIF, jadi Admin membukanya lebih dulu - persis seperti
      yang harus dilakukan Admin sungguhan setelah lisensi pertama kali aktif. */
@@ -24,9 +25,14 @@ test('Keamanan login memakai hash, mendukung 24 Guru, perubahan/reset password, 
   assert.equal(accounts.length,24);assert.ok(accounts.every(account=>account.passwordHash?.algorithm==='PBKDF2-SHA-256'));
   assert.ok(accounts.every(account=>!Object.hasOwn(account,'password')));assert.doesNotMatch(JSON.stringify(db.userAccounts),/Kelas1a/i);
 
-  const activation={recoveryCode:'ABCDE-FGHIJ-KLMNP-QRSTU'};const [passwordHash,recoveryHash]=await Promise.all([createPasswordHash('AdminSecure2026'),createPasswordHash(activation.recoveryCode)]);updateDb(next=>{next.userAccounts.admin={...next.userAccounts.admin,passwordHash,recoveryHash,requiresActivation:false};next.security.ownerActivated=true;return next;});
+  const activation=await setupFirstAdmin('AdminSecure2026');
+  assert.ok(activation.recoveryCode);
+  assert.equal(loadDb().userAccounts.admin.requiresActivation,false);
+  assert.equal(loadDb().security.ownerKeyId??null,null);
+  await assert.rejects(()=>setupFirstAdmin('AdminSecure2027'),/sudah dibuat/i);
+
   let admin=await authenticate({role:'admin',username:'Admin',password:'AdminSecure2026',semester:`Genap ${ACADEMIC_YEAR}`});
-  assert.equal(admin.role,'admin');assert.ok(activation.recoveryCode);
+  assert.equal(admin.role,'admin');
   const recovery=await recoverAdmin(activation.recoveryCode,'AdminRecovered2026');
   admin=await authenticate({role:'admin',username:'Admin',password:'AdminRecovered2026',semester:`Genap ${ACADEMIC_YEAR}`});
   assert.ok(recovery.recoveryCode);assert.equal((await listUserAccounts(admin)).length,24);
