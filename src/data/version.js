@@ -1,9 +1,9 @@
-export const APP_VERSION='1.3.10';
-export const VERSION_CODE=32;
+export const APP_VERSION='1.3.11';
+export const VERSION_CODE=33;
 export const APP_SCHEMA_VERSION=5;
 /* Penanda build sementara. Ditampilkan di halaman Pengaturan supaya terlihat langsung apakah
    aplikasi yang sedang dibuka benar-benar hasil build terbaru, bukan APK/EXE lama. */
-export const BUILD_TAG='1.3.10-MAPPING-AKTIF-DOKUMEN';
+export const BUILD_TAG='1.3.11-ADMIN-FIRST-SETUP';
 /* Rilis APK sebelumnya. Dipakai test untuk memastikan versionCode selalu naik sehingga APK
    baru dapat dipasang menimpa APK lama. Perbarui bersamaan saat menaikkan versi di atas. */
-export const PREVIOUS_RELEASE=Object.freeze({version:'1.3.9',versionCode:31});
+export const PREVIOUS_RELEASE=Object.freeze({version:'1.3.10',versionCode:32});
