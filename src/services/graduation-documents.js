@@ -39,7 +39,11 @@ function isoDate(value){const raw=clean(value,10);if(!raw)return '';if(!/^\d{4}-
 function assertAdmin(session){if(session?.role!=='admin')throw new Error('Hanya Admin yang dapat mengelola TRANSKRIP-SKL-SKKB.');}
 function yearOf(session){const year=clean(session?.academicYear,40);if(!year)throw new Error('Tahun pelajaran tidak ditemukan pada sesi aktif.');return year;}
 function documentKey(academicYear,studentId){return `${academicYear}|${studentId}`;}
-function teacherScope(session,classId){return {...session,role:'teacher',classId:clean(classId,10)||session.classId};}
+/* Data siswa dan nilai tetap berada pada scope rombel, sedangkan Mapping yang dilihat Admin
+   berada pada scope ALL. Penanda ini membuat layanan transkrip memakai Mapping Admin sebagai
+   sumber visibility tanpa mengubah kunci penyimpanan nilai historis. */
+function teacherScope(session,classId){return {...session,role:'teacher',
+  classId:clean(classId,10)||session.classId,adminContext:session?.role==='admin'||session?.adminContext===true};}
 /* Status kelulusan hanya dimiliki kelas 6, sama seperti koleksi graduationStatus yang dipakai
    Rapor - jadi rombel lain tidak boleh menerimanya lewat pintu mana pun, termasuk import. */
 function isGraduatingClass(classId){return Number.parseInt(String(classId||'').match(/^([1-6])/)?.[1]||'',10)===6;}

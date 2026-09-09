@@ -29,10 +29,12 @@ const DOCUMENT_TABS=Object.freeze([
 
 export function renderTranscript(session,mode='input'){
   const tab=Object.hasOwn(TRANSCRIPT_MODES,mode)?mode:'input';const halaman=TRANSCRIPT_MODES[tab];
-  let classId=session.role==='teacher'?session.classId:CLASSES[0];let scope={...session,role:'teacher',classId};let studentId='';let dokumen='transkrip';let previewed=false;let bulkMode=false;
+  let classId=session.role==='teacher'?session.classId:CLASSES[0];let scope={...session,role:'teacher',classId,
+    adminContext:session.role==='admin'||session.adminContext===true};let studentId='';let dokumen='transkrip';let previewed=false;let bulkMode=false;
   const root=el(`<div><div class="page-head no-print"><div><h1>${escapeHtml(halaman.title)}</h1><p>${escapeHtml(halaman.lead)}</p></div><div class="actions" data-actions></div></div>${session.role==='admin'?`<section class="card module-filter no-print"><div class="field compact-field"><label for="transcriptClass">Rombel</label><select class="input" id="transcriptClass" data-class>${classOptions(classId)}</select></div><div class="scope-note">TRANSKRIP-SKL-SKKB<span>${escapeHtml(session.academicYear)}</span></div></section>`:''}<div data-view></div></div>`);
   const view=root.querySelector('[data-view]');const actions=root.querySelector('[data-actions]');
-  function refreshScope(){scope={...session,role:'teacher',classId};const students=listStudents(scope,{classId});if(!students.some(student=>student.id===studentId))studentId=students[0]?.id||'';return students;}
+  function refreshScope(){scope={...session,role:'teacher',classId,
+    adminContext:session.role==='admin'||session.adminContext===true};const students=listStudents(scope,{classId});if(!students.some(student=>student.id===studentId))studentId=students[0]?.id||'';return students;}
   function selection(students,label='Siswa'){return `<section class="card module-filter no-print"><div class="field compact-field"><label>${label}</label><select class="input" data-student><option value="">${students.length?'Pilih siswa':'Belum ada siswa'}</option>${studentOptions(students,studentId)}</select></div><div class="scope-note">Kelas ${escapeHtml(classId)}<span>${escapeHtml(session.academicYear)} · tanpa scope semester</span></div></section>`;}
 
   /* Daftar mapel pada input nilai adalah SATU urutan 1..N mengikuti Mapping aktif. Label

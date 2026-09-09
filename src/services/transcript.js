@@ -1,6 +1,6 @@
 import { parseCsv } from './students.js';
 import { listStudents } from './students.js';
-import { loadDb, updateDb } from './storage.js';
+import { getSubjectMapping, loadDb, mappingKey, updateDb } from './storage.js';
 import { listActiveSubjects, religionOfSubject, religionSubjectForStudent } from './subjects.js';
 import { createWorkbookBytes, readWorkbookRows } from './excel.js';
 
@@ -33,14 +33,34 @@ function readTranscript(db,session,student,subjectId){
   return legacy?db.transcriptScores[legacy]||null:null;
 }
 function requireStudent(session,studentId){assertTeacher(session);const student=listStudents(session,{classId:session.classId}).find(item=>item.id===studentId);if(!student)throw new Error('Siswa tidak ditemukan pada scope rombel aktif.');return student;}
+function bySubjectOrder(a,b){return (Number(a.order)||0)-(Number(b.order)||0);}
+
+/* Halaman TRANSKRIP-SKL-SKKB milik Admin bekerja dengan scope Guru sintetis agar data siswa dan
+   nilai tetap dibaca per rombel. Mapping yang diatur Admin sendiri tersimpan pada scope ALL.
+   Bila Mapping ALL sudah pernah disimpan, status aktif dan order dari sana menjadi satu-satunya
+   sumber visibility dokumen; nilai lama dan penugasan Guru tidak boleh menghidupkan mapel lagi.
+
+   Fallback Mapping rombel dipertahankan hanya untuk instalasi lama yang belum memiliki Mapping
+   ALL, sehingga konfigurasi historis tetap terbaca sampai Admin menyimpan Mapping resminya. */
+function transcriptSubjectSource(session){
+  if(session?.adminContext===true){
+    const adminSession={...session,role:'admin'};
+    const mappings=loadDb().subjectMappings||{};
+    if(Object.hasOwn(mappings,mappingKey(adminSession)))
+      return {mappingSession:adminSession,subjects:getSubjectMapping(adminSession)
+        .filter(subject=>subject.active).sort(bySubjectOrder)};
+  }
+  return {mappingSession:session,subjects:listActiveSubjects(session)};
+}
 
 /* Transkrip dan dokumen kelulusan tunduk penuh pada Mapping aktif. Rapor tetap boleh memakai
    fallback agama historisnya sendiri, tetapi jalur Transkrip tidak boleh menghidupkan kembali
    mapel agama yang sudah dinonaktifkan Admin. Pilihan agama siswa tetap diterapkan di antara
    mapel yang AKTIF, sehingga hanya agama siswa tersebut yang muncul. */
 function listTranscriptSubjectsForStudent(session,student){
-  const selectedReligion=religionSubjectForStudent(session,student);
-  return listActiveSubjects(session)
+  const source=transcriptSubjectSource(session);
+  const selectedReligion=religionSubjectForStudent(source.mappingSession,student);
+  return source.subjects
     .filter(subject=>!religionOfSubject(subject)||subject.id===selectedReligion?.id);
 }
 

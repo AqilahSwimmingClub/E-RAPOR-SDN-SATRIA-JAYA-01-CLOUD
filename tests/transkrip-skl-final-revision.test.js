@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { saveSchoolMaster } from '../src/services/master.js';
 import { createStudent } from '../src/services/students.js';
-import { invalidateDbCache, loadDb } from '../src/services/storage.js';
+import { invalidateDbCache, loadDb, saveSubjectMapping as saveOfficialSubjectMapping } from '../src/services/storage.js';
 import { saveTranscriptScores } from '../src/services/transcript.js';
 import { saveSubjectMapping } from './helpers/penugasan.js';
 import { buildSklDocument, buildTranscriptDocument, saveGraduationSettings } from '../src/services/graduation-documents.js';
@@ -30,6 +30,11 @@ function mapping(activeOrder){
   const byId=new Map(SUBJECTS_DEFAULT.map(subject=>[subject.id,subject]));
   const ids=[...activeOrder,...SUBJECTS_DEFAULT.map(subject=>subject.id).filter(id=>!active.has(id))];
   return ids.map((id,index)=>({...byId.get(id),active:active.has(id),order:index+1}));
+}
+
+function officialMapping(activeIds){
+  const active=new Set(activeIds);
+  return SUBJECTS_DEFAULT.map(subject=>({...subject,active:active.has(subject.id)}));
 }
 
 function setup(activeOrder,school=sekolah){
@@ -63,6 +68,56 @@ test('Mapping aktif mengalahkan fallback agama tanpa menghapus nilai historis',(
   for(const doc of documents(student)){
     assert.deepEqual(doc.rows.map(row=>row.subjectId),['pancasila','agama','mtk']);
     assert.deepEqual(doc.rows.map(row=>row.score),[81,80,82],`${doc.type}: reaktivasi membaca nilai lama`);
+  }
+});
+
+test('Mapping Admin menjadi sumber tunggal visibility meski Mapping rombel dan nilai lama masih aktif',()=>{
+  useMemoryStorage();
+  saveSchoolMaster(admin,sekolah);
+  const activeIds=['pancasila','pjok','sunda','koding'];
+  const legacyMapping=mapping(activeIds).map(subject=>subject.id==='koding'
+    ?{...subject,parent:'Muatan Lokal'}:subject);
+  saveSubjectMapping(guru,legacyMapping);
+  const student=createStudent(guru,{classId:'6A',nis:'601',nisn:'3152513003',name:'Adwa Habibi Rizky',
+    gender:'L',religion:'Islam',birthPlace:'Bekasi',birthDate:'2015-09-04',parentName:'Orang Tua'});
+  saveGraduationSettings(admin,{graduationDate:'2026-06-15',documentDate:'2026-09-08',documentCity:''});
+  saveTranscriptScores(guru,student.id,{pancasila:84,pjok:89,sunda:85,koding:91});
+
+  saveOfficialSubjectMapping(admin,officialMapping(['pancasila','sunda']));
+
+  for(const doc of documents(student)){
+    assert.deepEqual(doc.rows.map(row=>row.subjectId),['pancasila','sunda'],
+      `${doc.type}: hanya status aktif Mapping Admin yang menentukan visibility`);
+    assert.equal(doc.rows.find(row=>row.subjectId==='sunda')?.number,11,
+      `${doc.type}: nomor Muatan Lokal berasal dari subject.order Mapping Admin`);
+    const html=doc.type==='TRANSKRIP'?transcriptSheet(doc):sklSheet(doc);
+    assert.equal(html.includes('Pendidikan Jasmani'),false,`${doc.type}: PJOK nonaktif harus hilang`);
+    assert.equal(html.includes('Koding dan Kecerdasan Artifisial'),false,
+      `${doc.type}: Koding nonaktif tidak boleh menjadi child Muatan Lokal`);
+    assert.match(html,/<td class="letter-no">11\.<\/td><td class="letter-subject">Muatan Lokal<\/td>/);
+    assert.match(html,/>a\. Bahasa Sunda<\/td><td class="letter-score">85,00<\/td>/);
+  }
+
+  const saved=Object.values(loadDb().transcriptScores).filter(record=>record.studentId===student.id);
+  assert.equal(saved.some(record=>record.subjectId==='pjok'&&record.score===89),true);
+  assert.equal(saved.some(record=>record.subjectId==='koding'&&record.score===91),true);
+
+  saveOfficialSubjectMapping(admin,officialMapping(activeIds));
+  for(const doc of documents(student)){
+    const rows=new Map(doc.rows.map(row=>[row.subjectId,row.score]));
+    assert.equal(rows.get('pjok'),89,`${doc.type}: nilai lama PJOK kembali saat diaktifkan`);
+    assert.equal(rows.get('koding'),91,`${doc.type}: nilai lama Koding kembali saat diaktifkan`);
+  }
+});
+
+test('Muatan Lokal tidak dicetak ketika seluruh mapel kategori itu nonaktif pada Mapping Admin',()=>{
+  const student=setup(['pancasila','sunda']);
+  saveTranscriptScores(guru,student.id,{pancasila:84,sunda:85});
+  saveOfficialSubjectMapping(admin,officialMapping(['pancasila']));
+  for(const doc of documents(student)){
+    const html=doc.type==='TRANSKRIP'?transcriptSheet(doc):sklSheet(doc);
+    assert.equal(html.includes('Bahasa Sunda'),false);
+    assert.equal(html.includes('Muatan Lokal'),false);
   }
 });
 
