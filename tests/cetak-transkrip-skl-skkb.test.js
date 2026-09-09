@@ -119,7 +119,8 @@ test('C3. Cetak Semua Transkrip tetap satu daftar tanpa Kelompok A/B dan urut Ma
   for(const larangan of ['Kelompok A','Kelompok B','subject-group-row'])
     assert.equal(html.includes(larangan),false,`cetak semua tidak memuat ${larangan}`);
   for(const doc of buildClassDocuments(admin,'6A','TRANSKRIP')){
-    assert.deepEqual(doc.rows.map(row=>row.number),[1,2,3,4]);
+    assert.deepEqual(doc.rows.map(row=>row.number),MAPEL.map(id=>SUBJECTS_DEFAULT.find(item=>item.id===id).order),
+      'nomor mempertahankan slot Mapping walau mapel lain nonaktif');
     assert.deepEqual(doc.rows.map(row=>row.subjectId),[...MAPEL]);
   }
 });

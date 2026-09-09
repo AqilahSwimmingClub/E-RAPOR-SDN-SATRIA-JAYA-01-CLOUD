@@ -34,18 +34,16 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.8 uses versionCode 30 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.8');
-  assert.equal(VERSION_CODE,30);
+test('release v1.3.9 uses versionCode 31 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.9');
+  assert.equal(VERSION_CODE,31);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.8 menambah Template Excel pada halaman Nomor & Status Dokumen dan melebarkan
-     kolom label identitas. Importnya menulis ke koleksi yang MEMANG SUDAH ADA -
-     settings.diplomaNumbers, graduationDocuments, dan graduationStatus - tanpa membuat
-     koleksi baru maupun mengubah bentuk catatan lama, jadi tidak ada migrasi yang perlu
-     dijalankan. Perbaikan labelnya murni presentasi. Koleksi TRANSKRIP-SKL-SKKB yang diperkenalkan 1.3.4 tetap
-     muncul sendiri lewat penggabungan baseDb saat database dibaca, jadi tidak ada migrasi
-     yang perlu dijalankan.
+     Rilis 1.3.9 memperbaiki pemilihan Mapping aktif, urutan, dan presentasi dokumen
+     TRANSKRIP-SKL. Nilai historis serta bentuk record transcriptScores tetap sama; perubahan
+     cetak Muatan Lokal, identitas, rata-rata, dan tanda tangan juga murni presentasi. Koleksi
+     TRANSKRIP-SKL-SKKB yang diperkenalkan 1.3.4 tetap muncul sendiri lewat penggabungan baseDb
+     saat database dibaca, jadi tidak ada migrasi yang perlu dijalankan.
 
      Alasan 1.3.2 sebelumnya, yang juga masih berlaku, dua hal berikut dan tak satu pun
      mengubah bentuk database sekolah:
@@ -60,10 +58,10 @@ test('release v1.3.8 uses versionCode 30 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.8-TEMPLATE-NOMOR-STATUS');
-  /* Rilis sebelumnya bergeser ke 1.3.7 - yang memang sudah terbit lewat workflow #45 -
+  assert.equal(BUILD_TAG,'1.3.9-TRANSKRIP-SKL-MAPPING');
+  /* Rilis sebelumnya bergeser ke 1.3.8 - yang memang sudah terbit lewat workflow #46 -
      supaya APK baru tetap dapat dipasang menimpanya tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.7',versionCode:29});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.8',versionCode:30});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{

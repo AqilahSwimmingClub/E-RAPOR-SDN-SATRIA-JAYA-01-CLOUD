@@ -88,7 +88,8 @@ test('T2. Transkrip memakai Mapping aktif sebagai satu daftar, tanpa Kelompok A/
   const doc=buildTranscriptDocument(admin,scope.classId,siswa.id);
   const html=transcriptSheet(doc);
   assert.equal(doc.rows.length,4,'hanya mapel aktif yang tampil');
-  assert.deepEqual(doc.rows.map(row=>row.number),[1,2,3,4],'satu sequence 1..N, tidak diulang per kelompok');
+  assert.deepEqual(doc.rows.map(row=>row.number),MAPEL_AKTIF.map(id=>SUBJECTS_DEFAULT.find(item=>item.id===id).order),
+    'nomor berasal dari satu urutan Mapping dan tidak dipadatkan saat mapel lain nonaktif');
   for(const larangan of ['Kelompok A','Kelompok B','subject-group-row'])
     assert.equal(html.includes(larangan),false,`transkrip tidak memuat ${larangan}`);
   /* Urutan mapel harus sama persis dengan urutan Mapping aktif - urutan yang dipakai Rapor. */
@@ -196,7 +197,7 @@ test('S5. Tabel nilai SKL mengikuti Mapping yang sama dengan Transkrip',()=>{
   const html=sklSheet(skl);
   for(const larangan of ['Kelompok A','Kelompok B'])
     assert.equal(html.includes(larangan),false,`SKL tidak memuat ${larangan}`);
-  assert.deepEqual(skl.rows.map(row=>row.number),[1,2,3,4]);
+  assert.deepEqual(skl.rows.map(row=>row.number),MAPEL_AKTIF.map(id=>SUBJECTS_DEFAULT.find(item=>item.id===id).order));
 });
 
 /* =================================================================== §37 SKKB */
