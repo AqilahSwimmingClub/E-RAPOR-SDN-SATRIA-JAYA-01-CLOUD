@@ -96,7 +96,7 @@ test('Seluruh kendali login wajib tetap ada pada halaman',()=>{
   const source=login();
   for(const id of ['semester','username','password','loginForm','loginError','forgot','loginHelp'])
     assert.match(source,new RegExp(`id="${id}"`),`kontrol ${id} tetap ada`);
-  for(const teks of ['Admin','Guru / Wali Kelas','Sekolah','Semester Aktif','Username','Password','Masuk','Aktivasi Admin Pertama','Lupa Password'])
+  for(const teks of ['Admin','Guru / Wali Kelas','Sekolah','Semester Aktif','Username','Password','Masuk','Buat Password Admin Pertama','Lupa Password'])
     assert.ok(source.includes(teks),`teks ${teks} tetap ada`);
   assert.match(source,/password-toggle/,'tampil atau sembunyikan password');
   assert.match(source,/data-activate/);

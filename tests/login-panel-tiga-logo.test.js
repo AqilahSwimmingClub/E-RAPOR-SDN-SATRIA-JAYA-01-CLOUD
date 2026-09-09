@@ -152,7 +152,7 @@ test('Sisa halaman Masuk tidak ikut berubah',()=>{
   /* Seluruh kendali dan logika masuk tidak tersentuh. */
   for(const id of ['semester','username','password','loginForm','loginError','forgot','loginHelp'])
     assert.match(source,new RegExp(`id="${id}"`),`kontrol ${id} tetap ada`);
-  for(const teks of ['Masuk ke e-Rapor','Pilih peran, semester, lalu masukkan akun Anda.','Admin','Guru / Wali Kelas','MASUK','Lupa Password?','Aktivasi Admin Pertama'])
+  for(const teks of ['Masuk ke e-Rapor','Pilih peran, semester, lalu masukkan akun Anda.','Admin','Guru / Wali Kelas','MASUK','Lupa Password?','Buat Password Admin Pertama'])
     assert.ok(source.includes(teks),`${teks} tetap ada`);
   for(const fungsi of ['authenticate(','saveSession(','recoverAdmin','ensureSecurityBootstrap','getSecurityStatus'])
     assert.ok(source.includes(fungsi),`${fungsi} tidak diubah`);

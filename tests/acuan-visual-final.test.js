@@ -220,7 +220,7 @@ test('13. Seluruh kendali dan logika masuk tidak diubah',()=>{
     'forgot','loginHelp'])
     assert.match(source,new RegExp(`id="${id}"`),`kontrol ${id} tetap ada`);
   for(const teks of ['Masuk ke e-Rapor','Admin','Guru / Wali Kelas','MASUK','Lupa Password?',
-    'Aktivasi Admin Pertama','password-toggle','login-version'])
+    'Buat Password Admin Pertama','password-toggle','login-version'])
     assert.ok(source.includes(teks),`${teks} tetap ada`);
   for(const fungsi of ['authenticate(','saveSession(','recoverAdmin','ensureSecurityBootstrap',
     'getSecurityStatus','refreshLicenseForLogin','onLicenseBlocked'])

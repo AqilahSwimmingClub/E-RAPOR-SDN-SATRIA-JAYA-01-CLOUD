@@ -73,7 +73,7 @@ test('Aset yang boleh diganti manual tidak tersangkut cache lama',()=>{
 
 test('Panel form, tema, dan identitas pengembang tidak ikut berubah',()=>{
   const source=login(),t=css();
-  for(const teks of ['Masuk ke e-Rapor','Admin','Guru / Wali Kelas','MASUK','Lupa Password?','Aktivasi Admin Pertama','DEVELOPER_NAME'])
+  for(const teks of ['Masuk ke e-Rapor','Admin','Guru / Wali Kelas','MASUK','Lupa Password?','Buat Password Admin Pertama','DEVELOPER_NAME'])
     assert.ok(source.includes(teks),`${teks} tetap ada`);
   assert.match(source,/v\$\{escapeHtml\(APP_VERSION\)\}/,'nomor versi tetap otomatis');
   /* PERUBAHAN BASELINE YANG DISENGAJA DAN DIMINTA: kisi dua kolom dibuang atas permintaan

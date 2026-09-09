@@ -5,7 +5,7 @@
    diperbarui WebView masih menjalankan JavaScript lama dari cache dan revisi baru tidak
    pernah muncul. Kini kode aplikasi diambil network-first supaya berkas dari APK terbaru
    selalu menang, sedangkan aset berat tetap cache-first agar offline tetap ringan. */
-const APP_CACHE_VERSION='1.3.10-32';
+const APP_CACHE_VERSION='1.3.11-33';
 const CACHE=`erapor-satria-${APP_CACHE_VERSION}`;
 const OFFLINE_SHELL='./index.html';
 const APP_SHELL=[
@@ -21,7 +21,7 @@ const APP_SHELL=[
   './src/pages/settings.js','./src/pages/students.js','./src/pages/transcript.js','./src/pages/transcript-admin.js','./src/pages/graduation-print.js','./src/pages/users.js','./src/pages/weights.js',
   './src/services/admin-status.js','./src/services/analytics.js','./src/services/assessment.js','./src/services/assessment-bulk.js','./src/services/assessment-import.js','./src/services/attendance.js','./src/services/attitudes.js','./src/services/auth.js',
   './src/services/backup.js','./src/services/cocurricular.js','./src/services/completeness.js','./src/services/descriptions.js','./src/services/documents.js','./src/services/dapodik-adapter.js','./src/services/dapodik-sync.js','./src/services/dapodik-bridge.js','./src/services/intracurricular.js',
-  './src/services/mapping.js','./src/services/admin-readiness.js','./src/services/installation.js','./src/services/device-identity.js','./src/services/student-handover.js','./src/services/license.js','./src/services/master.js','./src/services/objectives.js','./src/services/learning-objectives.js','./src/services/updates.js','./src/services/report.js',
+  './src/services/mapping.js','./src/services/admin-readiness.js','./src/services/admin-first-setup.js','./src/services/installation.js','./src/services/device-identity.js','./src/services/student-handover.js','./src/services/license.js','./src/services/master.js','./src/services/objectives.js','./src/services/learning-objectives.js','./src/services/updates.js','./src/services/report.js',
   './src/services/owner-activation.js','./src/services/print-settings.js','./src/services/publications.js','./src/services/references.js','./src/services/report-bulk.js','./src/services/report-rubric.js',
   './src/services/report-import.js','./src/services/snapshots.js','./src/services/migrations.js','./src/services/seed.js','./src/services/storage.js','./src/services/students.js',
   './src/services/objective-summary.js','./src/services/cp-descriptions.js','./src/services/cp-butir.js','./src/services/cp-attainment.js','./src/services/cp-evidence.js','./src/data/cp-butir-defaults.js','./src/services/subjects.js','./src/services/teacher-assignments.js','./src/services/transcript.js','./src/services/transcript-admin.js','./src/services/graduation-documents.js','./src/services/excel.js','./src/services/file-io.js','./src/services/print-service.js','./src/data/owner-verifier.js'

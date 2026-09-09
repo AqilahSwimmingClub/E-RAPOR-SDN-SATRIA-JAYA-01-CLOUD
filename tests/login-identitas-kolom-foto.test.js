@@ -95,6 +95,6 @@ test('Identitas di kiri, kartu Masuk di kanan, di atas satu latar yang sama',()=
   /* Identitas pengembang kini hanya di kiri bawah; kartu berakhir di nomor versi. */
   assert.doesNotMatch(source,/login-footer/,'footer kartu sudah dihapus');
   assert.match(source,/<span class="login-version">/,'nomor versi menjadi elemen terakhir kartu');
-  for(const teks of ['Masuk ke e-Rapor','MASUK','Lupa Password?','Aktivasi Admin Pertama'])
+  for(const teks of ['Masuk ke e-Rapor','MASUK','Lupa Password?','Buat Password Admin Pertama'])
     assert.ok(source.includes(teks),`${teks} tetap ada`);
 });

@@ -128,7 +128,7 @@ test('Seluruh kendali dan logika login tetap utuh',()=>{
   const source=read('src/pages/login.js');
   for(const id of ['semester','username','password','loginForm','loginError','forgot','loginHelp'])
     assert.match(source,new RegExp(`id="${id}"`),`kontrol ${id} tetap ada`);
-  for(const teks of ['Admin','Guru / Wali Kelas','Sekolah','Semester Aktif','Masuk','Aktivasi Admin Pertama','Lupa Password'])
+  for(const teks of ['Admin','Guru / Wali Kelas','Sekolah','Semester Aktif','Masuk','Buat Password Admin Pertama','Lupa Password'])
     assert.ok(source.includes(teks),`${teks} tetap ada`);
   assert.match(source,/authenticate\(\{role,username:/);
   assert.match(source,/saveSession\(session\)/);

@@ -34,16 +34,14 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.10 uses versionCode 32 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.10');
-  assert.equal(VERSION_CODE,32);
+test('release v1.3.11 uses versionCode 33 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.11');
+  assert.equal(VERSION_CODE,33);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.10 memastikan Mapping Admin menjadi satu-satunya sumber visibility TRANSKRIP-SKL.
-     Nilai historis serta bentuk record transcriptScores tetap sama; menonaktifkan atau
-     mengaktifkan mapel hanya mengubah daftar yang ditampilkan. Koleksi
-     TRANSKRIP-SKL-SKKB yang diperkenalkan 1.3.4 tetap muncul sendiri lewat penggabungan baseDb
-     saat database dibaca, jadi tidak ada migrasi yang perlu dijalankan.
+     Rilis 1.3.11 mengarahkan Admin yang belum diinisialisasi ke pembuatan password pertama.
+     Perubahan ini hanya menyentuh alur autentikasi dan tidak mengubah bentuk database sekolah,
+     sehingga tidak ada migrasi yang perlu dijalankan.
 
      Alasan 1.3.2 sebelumnya, yang juga masih berlaku, dua hal berikut dan tak satu pun
      mengubah bentuk database sekolah:
@@ -58,10 +56,10 @@ test('release v1.3.10 uses versionCode 32 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.10-MAPPING-AKTIF-DOKUMEN');
-  /* Rilis sebelumnya bergeser ke 1.3.9 - yang memang sudah terbit lewat workflow #47 -
+  assert.equal(BUILD_TAG,'1.3.11-ADMIN-FIRST-SETUP');
+  /* Rilis sebelumnya bergeser ke 1.3.10 - yang memang sudah terbit -
      supaya APK baru tetap dapat dipasang menimpanya tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.9',versionCode:31});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.10',versionCode:32});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{

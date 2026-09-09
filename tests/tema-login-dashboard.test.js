@@ -183,7 +183,7 @@ test('7. Seluruh kendali, teks, dan logika Masuk tidak berubah',()=>{
   for(const id of ['semester','username','password','loginForm','loginError','forgot','loginHelp'])
     assert.match(source,new RegExp(`id="${id}"`),`kontrol ${id} tetap ada`);
   for(const teks of ['Masuk ke e-Rapor','Admin','Guru / Wali Kelas','MASUK','Lupa Password?',
-    'Aktivasi Admin Pertama','Cerdas • Berkarakter • Berprestasi'])
+    'Buat Password Admin Pertama','Cerdas • Berkarakter • Berprestasi'])
     assert.ok(source.includes(teks),`${teks} tetap ada`);
   for(const fungsi of ['authenticate(','saveSession(','recoverAdmin','ensureSecurityBootstrap',
     'getSecurityStatus','refreshLicenseForLogin'])
