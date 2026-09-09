@@ -174,12 +174,6 @@ export function schoolAddressLine(school){
     .filter(Boolean).join(' ');
 }
 
-function averageScore(values){
-  const valid=values.filter(value=>Number.isFinite(value));
-  if(!valid.length)return null;
-  return Math.round((valid.reduce((sum,value)=>sum+value,0)/valid.length+Number.EPSILON)*100)/100;
-}
-
 /* Status kelulusan hanya ada pada rombel kelas 6. Untuk rombel lain jawabannya null - bukan
    galat - supaya pratinjau tetap dapat dibuka dan menyebutkan apa yang belum ditetapkan. */
 function graduationDecision(session,studentId){
@@ -189,9 +183,10 @@ function graduationDecision(session,studentId){
 
 function subjectRows(scope,studentId){
   return getTranscriptRows(scope,studentId).map((row,index)=>({
-    number:index+1,
+    number:Number(row.subject.order)||index+1,
     subjectId:row.subject.id,
     name:reportSubjectName(row.subject.name),
+    parent:clean(row.subject.parent,80),
     score:Number.isFinite(row.score)?row.score:null,
   }));
 }
@@ -221,7 +216,7 @@ export function buildTranscriptDocument(session,classId,studentId){
   const doc=baseDocument(session,classId,studentId);
   const rows=subjectRows(doc.scope,studentId);
   return {...doc,type:'TRANSKRIP',title:'TRANSKRIP NILAI',
-    number:doc.record.transcriptNumber,rows,average:averageScore(rows.map(row=>row.score))};
+    number:doc.record.transcriptNumber,rows};
 }
 
 export function buildSklDocument(session,classId,studentId){
@@ -230,7 +225,7 @@ export function buildSklDocument(session,classId,studentId){
   const decision=graduationDecision(doc.scope,studentId);
   const status=decision?.status||'';
   return {...doc,type:'SKL',title:'SURAT KETERANGAN LULUS',
-    number:doc.record.sklNumber,rows,average:averageScore(rows.map(row=>row.score)),
+    number:doc.record.sklNumber,rows,
     status,statusLabel:GRADUATION_DECISIONS.find(item=>item.id===status)?.label||''};
 }
 

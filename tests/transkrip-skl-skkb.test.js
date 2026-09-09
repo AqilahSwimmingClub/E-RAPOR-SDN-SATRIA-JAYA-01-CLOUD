@@ -102,19 +102,21 @@ test('T3. Mapel nonaktif tidak pernah muncul pada dokumen',()=>{
   assert.equal(transcriptSheet(doc).includes('Matematika'),false,'mapel yang dinonaktifkan hilang dari dokumen');
 });
 
-test('T4. Nilai dan rata-rata dihitung dari nilai yang tersimpan, bukan dikarang',()=>{
+test('T4. Nilai dibaca dari penyimpanan dan tabel tidak membuat rekap rata-rata',()=>{
   const {scope,siswa}=siapkan();
   isiNilai(scope,siswa.id,[80,90,70,60]);
   const doc=buildTranscriptDocument(admin,scope.classId,siswa.id);
   assert.deepEqual(doc.rows.map(row=>row.score),[80,90,70,60]);
-  assert.equal(doc.average,75);
-  assert.ok(transcriptSheet(doc).includes('75,00'),'nilai ditulis dua desimal dengan koma');
-  /* Mapel yang belum dinilai tidak menyeret rata-rata menjadi nol. */
+  assert.equal(Object.hasOwn(doc,'average'),false,'model dokumen tidak lagi membawa rata-rata');
+  const html=transcriptSheet(doc);
+  for(const score of ['80,00','90,00','70,00','60,00'])assert.ok(html.includes(score));
+  assert.equal(/RATA-RATA/i.test(html),false);
+  /* Mapel yang belum dinilai tetap ditulis apa adanya. */
   useMemoryStorage();
   const ulang=siapkan();
   isiNilai(ulang.scope,ulang.siswa.id,[100,50,null,null].map(value=>value??''));
   const sebagian=buildTranscriptDocument(admin,ulang.scope.classId,ulang.siswa.id);
-  assert.equal(sebagian.average,75,'rata-rata hanya dari mapel yang sudah dinilai');
+  assert.deepEqual(sebagian.rows.map(row=>row.score),[100,50,null,null]);
   assert.ok(transcriptSheet(sebagian).includes('—'),'mapel tanpa nilai ditulis apa adanya');
 });
 
@@ -189,7 +191,8 @@ test('S5. Tabel nilai SKL mengikuti Mapping yang sama dengan Transkrip',()=>{
   const transkrip=buildTranscriptDocument(admin,scope.classId,siswa.id);
   const skl=buildSklDocument(admin,scope.classId,siswa.id);
   assert.deepEqual(skl.rows,transkrip.rows,'mapel, urutan, nomor, dan nilai identik');
-  assert.equal(skl.average,transkrip.average);
+  assert.equal(Object.hasOwn(skl,'average'),false);
+  assert.equal(Object.hasOwn(transkrip,'average'),false);
   const html=sklSheet(skl);
   for(const larangan of ['Kelompok A','Kelompok B'])
     assert.equal(html.includes(larangan),false,`SKL tidak memuat ${larangan}`);

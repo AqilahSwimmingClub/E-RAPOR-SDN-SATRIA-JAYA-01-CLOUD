@@ -337,104 +337,58 @@ test('C16. Spacing tetap rapat setelah pergantian huruf',()=>{
   assert.match(deklarasi(gaya,'.letter-identity td'),/padding:0/,'baris identitas tidak diberi jarak tambahan');
   assert.match(deklarasi(gaya,'.letter-body'),/margin:0 0 6px/,'jarak antarparagraf tetap kecil');
   assert.match(deklarasi(gaya,'.letter-sign'),/margin-top:12px/,'tanda tangan tidak dijauhkan dari isi');
-  assert.match(deklarasi(gaya,'.letter-sign-block strong'),/margin-top:50px/,'ruang bubuh tanda tangan tetap secukupnya');
+  assert.match(deklarasi(gaya,'.letter-sign-space'),/height:3\.9em/,'ruang bubuh tanda tangan memakai spacer CSS tiga baris');
   /* Tidak ada tinggi minimum besar yang dipakai sekadar memenuhi halaman. */
   assert.equal(/\.letter-[a-z-]*[^{}]*\{[^}]*min-height:\s*[2-9]\d\dpx/.test(gaya),false);
 });
 
-/* ============================================ BARIS REKAP NILAI RATA-RATA (SKL DAN TRANSKRIP)
-
-   Sebelumnya labelnya rata kanan sehingga menempel ke garis kolom Nilai dan terbaca seperti
-   catatan kecil. Sekarang ia baris rekap tersendiri: label di TENGAH area No + Mata Pelajaran,
-   angka di TENGAH kolom Nilai.
-
-   Yang dijaga di sini bukan sekadar "aturannya tertulis" melainkan NILAI YANG MENANG pada
-   cascade - sebab bentuk lama pun punya aturan `.letter-average`, hanya isinya `right`. Test
-   ini karena itu gagal bila implementasi kembali ke model lama, walau selektornya sama. */
+/* =========================================== TABEL NILAI TANPA PRESENTATION RATA-RATA */
 
 import { nilaiMenang } from './helpers/cascade.js';
 
-const KONTEKS_LABEL={tag:'th',kelas:['letter-average'],nthChild:1,lastChild:false,
-  leluhur:['document-a4','letter-a4','letter-table','letter-average-row'],leluhurTag:['section','table','tfoot','tr']};
-const KONTEKS_ANGKA={tag:'th',kelas:['letter-score','letter-average-score'],nthChild:2,lastChild:true,
-  leluhur:['document-a4','letter-a4','letter-table','letter-average-row'],leluhurTag:['section','table','tfoot','tr']};
 const CETAK=query=>/(^|\s|\()print(\)|\s|$)/.test(query);
 
-function barisRekap(html){
-  return /<tfoot><tr class="letter-average-row">(.*?)<\/tr><\/tfoot>/s.exec(html)?.[1]||'';
-}
-
-test('C17. Nilai Rata-rata adalah baris rekap tersendiri setelah mapel terakhir',()=>{
-  const {siswa}=siapkan();
-  void siswa;
+test('C17. Transkrip dan SKL berhenti setelah mapel terakhir tanpa tfoot rata-rata',()=>{
+  siapkan();
   for(const [jenis,penyaji] of [['TRANSKRIP',transcriptSheet],['SKL',sklSheet]]){
     const doc=buildClassDocuments(admin,'6A',jenis)[0];
     const html=penyaji(doc);
-    const rekap=barisRekap(html);
-    assert.ok(rekap,`${jenis}: baris rekap ada dan berdiri sendiri di dalam tfoot`);
-    /* Berada SESUDAH mata pelajaran terakhir, bukan di antara baris mapel. */
-    const akhirTbody=html.indexOf('</tbody>');
-    assert.ok(html.indexOf('letter-average-row')>akhirTbody,`${jenis}: rekap sesudah mapel terakhir`);
-    assert.equal((html.match(/letter-average-row/g)||[]).length,1,`${jenis}: hanya satu baris rekap`);
-    /* Dua sel saja: label bergabung, angka berdiri sendiri di kolom Nilai. */
-    assert.equal((rekap.match(/<th/g)||[]).length,2,`${jenis}: baris rekap terdiri dari dua sel`);
-    assert.match(rekap,/<th class="letter-average" colspan="2">NILAI RATA-RATA<\/th>/,
-      `${jenis}: label menggabungkan kolom No dan Mata Pelajaran`);
-    assert.match(rekap,/<th class="letter-score letter-average-score">/,`${jenis}: angka tetap pada kolom Nilai`);
+    assert.equal(html.includes('<tfoot>'),false,`${jenis}: tidak membuat footer tabel`);
+    assert.equal(/RATA-RATA/i.test(html),false,`${jenis}: label rata-rata hilang`);
+    assert.equal(Object.hasOwn(doc,'average'),false,`${jenis}: model tidak membawa rata-rata`);
   }
 });
 
-test('C18. Label dan angka rekap sama-sama di tengah, mendatar maupun tegak',()=>{
+test('C18. CSS tidak menyimpan presentation rata-rata tersembunyi',()=>{
   const gaya=read('src/styles/app.css');
-  for(const keadaan of [{nama:'layar',mediaAktif:null},{nama:'cetak',mediaAktif:CETAK}])
-    for(const [label,konteks] of [['label',KONTEKS_LABEL],['angka',KONTEKS_ANGKA]]){
-      const mendatar=nilaiMenang(gaya,konteks,'text-align',{mediaAktif:keadaan.mediaAktif});
-      const tegak=nilaiMenang(gaya,konteks,'vertical-align',{mediaAktif:keadaan.mediaAktif});
-      assert.equal(mendatar?.nilai,'center',
-        `${keadaan.nama}: ${label} harus rata tengah, tetapi dimenangkan "${mendatar?.selektor}" dengan "${mendatar?.nilai}"`);
-      assert.equal(tegak?.nilai,'middle',`${keadaan.nama}: ${label} harus di tengah secara tegak`);
-    }
+  assert.equal(/letter-average|NILAI RATA-RATA/i.test(gaya),false);
 });
 
-test('C19. Model lama - label rata kanan yang menempel kolom Nilai - tidak boleh kembali',()=>{
-  const gaya=read('src/styles/app.css');
-  for(const keadaan of [null,CETAK])
-    assert.notEqual(nilaiMenang(gaya,KONTEKS_LABEL,'text-align',{mediaAktif:keadaan})?.nilai,'right',
-      'label rekap tidak boleh rata kanan');
-  const html=transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0]);
-  void html;
+test('C19. Model lama rata-rata tidak kembali melalui markup lain',()=>{
   siapkan();
-  const rekap=barisRekap(transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0]));
-  /* Bentuk lama menaruh label di dalam sel Mata Pelajaran biasa, atau menyisakan sel No kosong. */
-  assert.equal(/letter-subject/.test(rekap),false,'label rekap bukan sel Mata Pelajaran biasa');
-  assert.equal(/<th class="letter-no"><\/th>|<td class="letter-no"><\/td>/.test(rekap),false,
-    'tidak ada sel No kosong yang disisakan');
+  for(const html of [transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0]),
+    sklSheet(buildClassDocuments(admin,'6A','SKL')[0])])
+    for(const legacy of ['letter-average-row','letter-average-score','NILAI RATA-RATA'])
+      assert.equal(html.includes(legacy),false,`markup tidak memuat ${legacy}`);
 });
 
-test('C20. Bingkai baris rekap menyatu dengan tabel',()=>{
+test('C20. Bingkai tabel mapel tetap menyatu setelah footer rata-rata dihapus',()=>{
   const gaya=read('src/styles/app.css');
-  /* Bingkai datang dari aturan sel tabel yang sama; tidak ada aturan yang membuangnya. */
   assert.match(gaya,/\.letter-table th,\.letter-table td\{border:1px solid #333/);
-  assert.equal(/\.letter-average[^{]*\{[^}]*border:\s*(0|none)/.test(gaya),false,
-    'baris rekap tidak boleh menghapus bingkainya sendiri');
   assert.equal(/\.letter-table\{[^}]*border-collapse:separate/.test(gaya),false,'garis tabel tetap menyatu');
   assert.match(gaya,/\.letter-table\{[^}]*border-collapse:collapse/);
 });
 
-test('C21. Angka rata-rata tidak berubah oleh perubahan tata letak',()=>{
+test('C21. Nilai tiap siswa tetap utuh setelah fitur rata-rata dihapus',()=>{
   const {siswa}=siapkan();
   const olehId=new Map(siswa.map(item=>[item.id,item]));
-  for(const jenis of ['TRANSKRIP','SKL'])
+  for(const [jenis,penyaji] of [['TRANSKRIP',transcriptSheet],['SKL',sklSheet]])
     for(const doc of buildClassDocuments(admin,'6A',jenis)){
       const diri=olehId.get(doc.student.id);
-      /* Dihitung ulang dari nilai siswa itu sendiri, lalu dibandingkan dengan yang dicetak. */
-      const harusnya=Math.round((diri.nilai.reduce((sum,value)=>sum+value,0)/diri.nilai.length+Number.EPSILON)*100)/100;
-      assert.equal(doc.average,harusnya,`${jenis}: rata-rata ${diri.name} tetap dihitung dari nilainya sendiri`);
+      assert.deepEqual(doc.rows.map(row=>row.score),diri.nilai,`${jenis}: nilai ${diri.name} tetap lengkap`);
+      const html=penyaji(doc);
+      for(const score of diri.nilai)assert.ok(html.includes(`${score},00`),`${jenis}: nilai ${score} tercetak`);
     }
-  /* Dan angka yang tercetak sama persis dengan yang dihitung, dua desimal berkoma. */
-  const doc=buildClassDocuments(admin,'6A','TRANSKRIP')[0];
-  const tercetak=/<th class="letter-score letter-average-score">([^<]*)<\/th>/.exec(transcriptSheet(doc))?.[1];
-  assert.equal(tercetak,doc.average.toFixed(2).replace('.',','));
 });
 
 test('C22. SKKB tidak ikut menerima baris rekap',()=>{
@@ -446,16 +400,13 @@ test('C22. SKKB tidak ikut menerima baris rekap',()=>{
   }
 });
 
-test('C23. Baris rekap ikut pada cetak semua siswa, satu per dokumen',()=>{
+test('C23. Cetak semua siswa juga bebas dari presentation rata-rata',()=>{
   const {siswa}=siapkan();
   for(const [jenis,penyaji] of [['TRANSKRIP',transcriptSheet],['SKL',sklSheet]]){
     const potongan=buildClassDocuments(admin,'6A',jenis).map(penyaji);
     assert.equal(potongan.length,siswa.length);
     for(const html of potongan)
-      assert.equal((html.match(/letter-average-row/g)||[]).length,1,`${jenis}: setiap lembar punya satu baris rekap`);
-    /* Angka rekap tiap lembar berbeda karena nilai ketiga siswa memang berbeda. */
-    const angka=potongan.map(html=>/<th class="letter-score letter-average-score">([^<]*)<\/th>/.exec(html)?.[1]);
-    assert.equal(new Set(angka).size,3,`${jenis}: rekap tidak tertukar antar siswa`);
+      assert.equal(/letter-average|RATA-RATA|<tfoot>/i.test(html),false,`${jenis}: setiap lembar tanpa rekap`);
   }
 });
 
@@ -625,13 +576,17 @@ test('C44. Kolom label cukup lebar dan dikunci tidak boleh dipenggal',()=>{
     assert.equal(nilaiMenang(gaya,KONTEKS_LABEL_IDENTITAS,'white-space',{mediaAktif:keadaan})?.nilai,'nowrap',
       'label identitas dinyatakan tidak boleh dipenggal');
   }
-  /* Titik dua tetap kolom tersendiri sehingga seluruh baris sejajar. */
-  assert.match(gaya,/\.letter-colon\{width:14px\}/,'kolom titik dua tetap ada');
+  /* Label, titik dua, dan value memakai kolom tersendiri dengan gap tetap. */
+  const html=transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0]);
+  assert.match(html,/<col class="letter-label-column"\/><col class="letter-colon-column"\/><col class="letter-value-column"\/>/);
+  assert.match(gaya,/\.letter-colon-column,\.letter-colon\{width:18px\}/,'kolom titik dua tetap ada');
+  assert.match(gaya,/\.letter-label\{[^}]*padding-right:12px/,'label tidak menempel ke titik dua');
+  assert.match(gaya,/\.letter-value\{[^}]*padding-left:8px/,'value memiliki gap konsisten');
   /* Tidak memakai jalan pintas yang dilarang. */
   assert.equal(/\.letter-label\{[^}]*(position:absolute|transform:)/.test(gaya),false);
 });
 
-test('C45. Perbaikan label tidak mengubah lambang kop, judul, maupun rekap nilai',()=>{
+test('C45. Perbaikan label tidak mengubah lambang kop, judul, maupun aturan tanpa rata-rata',()=>{
   siapkan();
   const gaya=read('src/styles/app.css');
   /* Lambang tetap seperti yang disetujui pada 8c7e2d9. */
@@ -644,8 +599,7 @@ test('C45. Perbaikan label tidak mengubah lambang kop, judul, maupun rekap nilai
   assert.match(skl,/<h1>SURAT KETERANGAN LULUS<\/h1>/);
   assert.match(skkb,/<h1>SURAT KETERANGAN KELAKUAN BAIK<\/h1>/);
   assert.match(transkrip,/<h1>TRANSKRIP NILAI<\/h1>/);
-  for(const html of [transkrip,skl])
-    assert.match(html,/<th class="letter-average" colspan="2">NILAI RATA-RATA<\/th>/);
+  for(const html of [transkrip,skl])assert.equal(/RATA-RATA|letter-average/i.test(html),false);
   for(const html of [transkrip,skl,skkb])
     for(const larangan of ['Kelompok A','Kelompok B'])
       assert.equal(html.includes(larangan),false);
@@ -747,7 +701,7 @@ test('C41. Blok identitas terpusat pada kertas, bukan pada sisa ruang di kanan l
     'penyeimbang kosong dan disembunyikan dari pembaca layar');
 });
 
-test('C42. Kop baru tidak merusak judul, rekap nilai, maupun aturan tanpa Kelompok A/B',()=>{
+test('C42. Kop baru tidak merusak judul maupun aturan tanpa rata-rata dan Kelompok A/B',()=>{
   siapkan();
   const transkrip=transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0]);
   const skl=sklSheet(buildClassDocuments(admin,'6A','SKL')[0]);
@@ -755,10 +709,7 @@ test('C42. Kop baru tidak merusak judul, rekap nilai, maupun aturan tanpa Kelomp
   assert.match(skl,/<h1>SURAT KETERANGAN LULUS<\/h1>/,'judul SKL tetap satu baris');
   assert.match(skkb,/<h1>SURAT KETERANGAN KELAKUAN BAIK<\/h1>/,'judul SKKB tetap satu baris');
   assert.match(transkrip,/<h1>TRANSKRIP NILAI<\/h1>/,'judul Transkrip tetap');
-  for(const html of [transkrip,skl]){
-    assert.match(html,/<th class="letter-average" colspan="2">NILAI RATA-RATA<\/th>/,'baris rekap utuh');
-    assert.match(html,/<th class="letter-score letter-average-score">/,'angka rekap pada kolom Nilai');
-  }
+  for(const html of [transkrip,skl])assert.equal(/RATA-RATA|letter-average/i.test(html),false);
   for(const html of [transkrip,skl,skkb])
     for(const larangan of ['Kelompok A','Kelompok B'])
       assert.equal(html.includes(larangan),false,`lembar tidak memuat ${larangan}`);
@@ -856,7 +807,7 @@ test('C29. SKKB dan Transkrip memakai judul dari doc.title',()=>{
     'pemenggalan lama tidak boleh kembali');
   const transkrip=transcriptSheet(buildClassDocuments(admin,'6A','TRANSKRIP')[0]);
   assert.match(transkrip,/<h1>TRANSKRIP NILAI<\/h1>/,'judul Transkrip tetap dari doc.title');
-  /* Baris rekap Nilai Rata-rata tetap utuh pada keduanya yang memilikinya. */
+  /* Kedua dokumen nilai mengikuti requirement baru tanpa presentation rata-rata. */
   for(const html of [transkrip,sklSheet(buildClassDocuments(admin,'6A','SKL')[0])])
-    assert.match(html,/<th class="letter-average" colspan="2">NILAI RATA-RATA<\/th>/);
+    assert.equal(/RATA-RATA|letter-average/i.test(html),false);
 });

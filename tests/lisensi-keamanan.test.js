@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { startTestServer } from './helpers/license-server.js';
 import { APP_NAME, COPYRIGHT, DEVELOPER_CREDIT_LEAD, DEVELOPER_NAME, DEVELOPER_PHOTO, DEVELOPER_ROLE, FOOTER_CREDIT } from '../src/data/app-identity.js';
 
@@ -60,7 +61,7 @@ test('32. Rahasia server dan password pemilik tidak pernah ditanam di kode',()=>
   assert.match(config,/belum diisi/,'server menolak berjalan tanpa rahasia');
   /* Tidak ada nilai rahasia contoh yang terisi di berkas contoh. */
   const contoh=read('server/.env.example');
-  for(const baris of contoh.split('\n').filter(baris=>/^(LICENSE_HASH_PEPPER|LICENSE_RECOVERY_KEY|OWNER_PASSWORD|OWNER_USERNAME)=/.test(baris)))
+  for(const baris of contoh.split(/\r?\n/).filter(baris=>/^(LICENSE_HASH_PEPPER|LICENSE_RECOVERY_KEY|OWNER_PASSWORD|OWNER_USERNAME)=/.test(baris)))
     assert.match(baris,/=$/,`${baris.split('=')[0]} pada .env.example memang kosong`);
   /* Berkas rahasia sungguhan tidak boleh ada di repo dan sudah diabaikan Git. */
   const abaikan=read('.gitignore');
@@ -68,7 +69,7 @@ test('32. Rahasia server dan password pemilik tidak pernah ditanam di kode',()=>
     assert.ok(abaikan.includes(jalur),`${jalur} diabaikan Git`);
   for(const jalur of ['server/.env','server/secrets/license-signing-key.pem'])
     assert.equal(existsSync(new URL(jalur,root)),false,`${jalur} tidak ikut ter-commit`);
-  const terlacak=execFileSync('git',['ls-files'],{cwd:new URL('.',root).pathname,encoding:'utf8'});
+  const terlacak=execFileSync('git',['ls-files'],{cwd:fileURLToPath(root),encoding:'utf8'});
   for(const pola of [/server\/\.env$/m,/server\/secrets\//,/\.pem$/m])
     assert.doesNotMatch(terlacak,pola,`tidak ada berkas rahasia yang dilacak Git (${pola})`);
 });

@@ -82,7 +82,7 @@ export function listSubjectsForStudent(session,student){
   return [...bukanAgama,agama].sort(bySubjectOrder);
 }
 
-export { isReligionSubject };
+export { isReligionSubject, religionOfSubject };
 
 /* NAMA MATA PELAJARAN UNTUK LEMBAR RAPOR.
    Panduan Pembelajaran dan Asesmen meminta nama resmi ditulis utuh tanpa singkatan dalam

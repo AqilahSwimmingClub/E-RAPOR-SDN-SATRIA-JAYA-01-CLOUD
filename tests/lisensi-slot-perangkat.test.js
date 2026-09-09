@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { startTestServer, installBrowserEnv } from './helpers/license-server.js';
 import { loadLicenseService } from './helpers/license-module.js';
 import * as identitas from '../src/services/device-identity.js';
@@ -391,7 +392,7 @@ test('Q31. Tidak ada rahasia server di berkas yang ikut ke Web, APK, maupun EXE'
     assert.equal(/"d"\s*:/.test(isi),false,`${jalur} tidak memuat komponen kunci privat`);
   }
   /* Berkas rahasia tidak pernah dilacak Git. */
-  const terlacak=execFileSync('git',['ls-files'],{cwd:new URL('.',root).pathname,encoding:'utf8'});
+  const terlacak=execFileSync('git',['ls-files'],{cwd:fileURLToPath(root),encoding:'utf8'});
   for(const pola of [/\.pem$/m,/server\/\.env$/m])
     assert.doesNotMatch(terlacak,pola,`tidak ada berkas rahasia yang dilacak Git (${pola})`);
 });

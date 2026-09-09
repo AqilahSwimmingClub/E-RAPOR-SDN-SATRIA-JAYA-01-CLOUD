@@ -138,6 +138,6 @@ test('Dokumentasi memuat langkah deploy Vercel dan Neon',()=>{
     assert.ok(docs.includes(bagian),`dokumentasi menjelaskan ${bagian}`);
   const contoh=read('server/.env.example');
   assert.match(contoh,/DATABASE_URL=/,'DATABASE_URL ada di berkas contoh');
-  for(const baris of contoh.split('\n').filter(baris=>/^(DATABASE_URL|LICENSE_HASH_PEPPER|LICENSE_RECOVERY_KEY|OWNER_PASSWORD)=/.test(baris)))
+  for(const baris of contoh.split(/\r?\n/).filter(baris=>/^(DATABASE_URL|LICENSE_HASH_PEPPER|LICENSE_RECOVERY_KEY|OWNER_PASSWORD)=/.test(baris)))
     assert.match(baris,/=$/,`${baris.split('=')[0]} pada contoh memang kosong`);
 });

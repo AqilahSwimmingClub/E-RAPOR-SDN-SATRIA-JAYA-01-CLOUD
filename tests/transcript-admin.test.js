@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ACADEMIC_YEAR } from '../src/data/constants.js';
+import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import {
   getDiplomaNumber, getTranscriptSettings, previewDiplomaNumberImport,
   saveDiplomaNumbers, saveTranscriptSettings
@@ -8,6 +8,7 @@ import {
 import { createStudent } from '../src/services/students.js';
 import { saveTranscriptScores } from '../src/services/transcript.js';
 import { loadDb } from '../src/services/storage.js';
+import { saveSubjectMapping } from './helpers/penugasan.js';
 
 function useMemoryStorage(){const values=new Map();globalThis.localStorage={getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key),clear:()=>values.clear()};globalThis.sessionStorage=globalThis.localStorage;}
 const genap=`Genap ${ACADEMIC_YEAR}`;
@@ -17,6 +18,9 @@ function siswa(session,index,extra={}){return createStudent(session,{classId:ses
 
 test('Admin menyimpan setting transkrip dan nomor ijazah tanpa mengubah nilai transkrip',()=>{
   useMemoryStorage();
+  saveSubjectMapping(guru6a,SUBJECTS_DEFAULT.map((subject,index)=>({
+    ...subject,active:subject.id==='agama',order:index+1
+  })));
   const student=siswa(guru6a,1);
   saveTranscriptScores(guru6a,student.id,{agama:85},{partial:true});
   const sebelum=JSON.parse(JSON.stringify(loadDb().transcriptScores));

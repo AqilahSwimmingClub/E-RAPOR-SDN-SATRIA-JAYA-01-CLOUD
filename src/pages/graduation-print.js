@@ -52,23 +52,35 @@ function barisIdentitas(label,value){
   return `<tr><td class="letter-label">${teks(label)}</td><td class="letter-colon">:</td><td class="letter-value">${isi(value)}</td></tr>`;
 }
 function tabelIdentitas(rows){
-  return `<table class="letter-identity"><tbody>${rows.map(([label,value])=>barisIdentitas(label,value)).join('')}</tbody></table>`;
+  return `<table class="letter-identity"><colgroup><col class="letter-label-column"/><col class="letter-colon-column"/><col class="letter-value-column"/></colgroup><tbody>${rows.map(([label,value])=>barisIdentitas(label,value)).join('')}</tbody></table>`;
 }
 
 /* Tabel mata pelajaran dipakai Transkrip dan SKL dengan bentuk yang sama persis, sehingga
-   keduanya tidak mungkin memakai urutan atau penomoran yang berbeda.
+   keduanya tidak mungkin memakai urutan atau penomoran yang berbeda. Muatan Lokal disisipkan
+   pada nomor mapel induk pertama menurut Mapping; anaknya memakai a, b, c tanpa nomor utama.
+   Baris mapel terakhir langsung menutup tbody karena dokumen ini tidak lagi memuat rekap. */
+function localContentRow(row){return String(row?.parent||'').trim().toLowerCase()==='muatan lokal';}
+function alphabeticMarker(index){
+  let value=index+1,label='';
+  while(value>0){value-=1;label=String.fromCharCode(97+(value%26))+label;value=Math.floor(value/26);}
+  return label;
+}
+function subjectTableRows(rows){
+  const locals=rows.filter(localContentRow);
+  let localPrinted=false;
+  return rows.map(row=>{
+    if(!localContentRow(row))
+      return `<tr><td class="letter-no">${row.number}.</td><td class="letter-subject">${teks(row.name)}</td><td class="letter-score">${nilai(row.score)}</td></tr>`;
+    if(localPrinted)return '';
+    localPrinted=true;
+    return `<tr class="letter-local-heading"><td class="letter-no">${row.number}.</td><td class="letter-subject">${teks(row.parent)}</td><td class="letter-score"></td></tr>${
+      locals.map((local,index)=>`<tr class="letter-local-subject"><td class="letter-no"></td><td class="letter-subject">${alphabeticMarker(index)}. ${teks(local.name)}</td><td class="letter-score">${nilai(local.score)}</td></tr>`).join('')}`;
+  }).join('');
+}
 
-   BARIS REKAP NILAI RATA-RATA. Sebelumnya labelnya rata kanan sehingga menempel ke garis
-   kolom Nilai dan terbaca seperti catatan kecil, bukan seperti rekap. Sekarang ia menjadi
-   baris tersendiri sesudah mata pelajaran terakhir: satu sel menggabungkan kolom No dan Mata
-   Pelajaran dengan labelnya di TENGAH, dan angkanya tetap berdiri pada kolom Nilai, juga di
-   tengah. Yang berubah hanya tata letaknya - angkanya dihitung oleh penyusun dokumen dan
-   tidak disentuh sama sekali di sini. */
 export function subjectScoreTable(doc){
   const rows=Array.isArray(doc.rows)?doc.rows:[];
-  return `<table class="letter-table"><thead><tr><th class="letter-no">No.</th><th class="letter-subject">Mata Pelajaran</th><th class="letter-score">Nilai</th></tr></thead><tbody>${
-    rows.map(row=>`<tr><td class="letter-no">${row.number}.</td><td class="letter-subject">${teks(row.name)}</td><td class="letter-score">${nilai(row.score)}</td></tr>`).join('')
-  }</tbody>${rows.length?`<tfoot><tr class="letter-average-row"><th class="letter-average" colspan="2">NILAI RATA-RATA</th><th class="letter-score letter-average-score">${nilai(doc.average)}</th></tr></tfoot>`:''}</table>`;
+  return `<table class="letter-table"><thead><tr><th class="letter-no">No.</th><th class="letter-subject">Mata Pelajaran</th><th class="letter-score">Nilai</th></tr></thead><tbody>${subjectTableRows(rows)}</tbody></table>`;
 }
 
 /* Blok tanda tangan Kepala Sekolah. Nama dan NIP datang dari Data Sekolah; tempat dan tanggal
@@ -77,7 +89,7 @@ export function subjectScoreTable(doc){
 export function principalSignature(doc){
   const school=doc.school||{};
   const tanggal=String(doc.settings?.documentDateLabel||'').trim();
-  return `<div class="letter-sign"><div class="letter-sign-block"><span>${isi(tanggal,'')}</span><span>Kepala ${teks(school.name)}</span><strong>${isi(school.principalName)}</strong><small>NIP. ${isi(school.principalNip,'-')}</small></div></div>`;
+  return `<div class="letter-sign"><div class="letter-sign-block"><span class="letter-sign-date">${isi(tanggal,'')}</span><span class="letter-sign-role">Kepala Sekolah</span><span class="letter-sign-school">${isi(school.name)}</span><div class="letter-sign-space" aria-hidden="true"></div><strong>${isi(school.principalName)}</strong><small>NIP. ${isi(school.principalNip,'-')}</small></div></div>`;
 }
 
 export function transcriptSheet(doc){

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -29,7 +29,8 @@ function bangunDiDirektoriSementara(){
   cpSync(join(rootPath,'scripts/build-web.mjs'),join(temp,'scripts/build-web.mjs'));
   for(const berkas of ['index.html','manifest.webmanifest','sw.js'])
     cpSync(join(rootPath,berkas),join(temp,berkas));
-  for(const direktori of ['assets','src'])symlinkSync(join(rootPath,direktori),join(temp,direktori),'dir');
+  for(const direktori of ['assets','src'])
+    cpSync(join(rootPath,direktori),join(temp,direktori),{recursive:true});
   cpSync(join(rootPath,'server/public'),join(temp,'server/public'),{recursive:true});
   /* Halaman publik /beli juga wajib ada: build memeriksanya sebelum menyalin apa pun. */
   cpSync(join(rootPath,'public'),join(temp,'public'),{recursive:true});
