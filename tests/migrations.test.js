@@ -34,14 +34,14 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.9 uses versionCode 31 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.9');
-  assert.equal(VERSION_CODE,31);
+test('release v1.3.10 uses versionCode 32 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.10');
+  assert.equal(VERSION_CODE,32);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.9 memperbaiki pemilihan Mapping aktif, urutan, dan presentasi dokumen
-     TRANSKRIP-SKL. Nilai historis serta bentuk record transcriptScores tetap sama; perubahan
-     cetak Muatan Lokal, identitas, rata-rata, dan tanda tangan juga murni presentasi. Koleksi
+     Rilis 1.3.10 memastikan Mapping Admin menjadi satu-satunya sumber visibility TRANSKRIP-SKL.
+     Nilai historis serta bentuk record transcriptScores tetap sama; menonaktifkan atau
+     mengaktifkan mapel hanya mengubah daftar yang ditampilkan. Koleksi
      TRANSKRIP-SKL-SKKB yang diperkenalkan 1.3.4 tetap muncul sendiri lewat penggabungan baseDb
      saat database dibaca, jadi tidak ada migrasi yang perlu dijalankan.
 
@@ -58,10 +58,10 @@ test('release v1.3.9 uses versionCode 31 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.9-TRANSKRIP-SKL-MAPPING');
-  /* Rilis sebelumnya bergeser ke 1.3.8 - yang memang sudah terbit lewat workflow #46 -
+  assert.equal(BUILD_TAG,'1.3.10-MAPPING-AKTIF-DOKUMEN');
+  /* Rilis sebelumnya bergeser ke 1.3.9 - yang memang sudah terbit lewat workflow #47 -
      supaya APK baru tetap dapat dipasang menimpanya tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.8',versionCode:30});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.9',versionCode:31});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
