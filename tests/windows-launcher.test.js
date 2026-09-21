@@ -35,7 +35,17 @@ test('3. Server lokal hanya melayani komputer ini',()=>{
   const t=main();
   assert.match(t,/const HOST='127\.0\.0\.1'/,'listen hanya pada localhost');
   assert.equal(/0\.0\.0\.0/.test(t),false,'tidak pernah listen ke seluruh antarmuka jaringan');
-  assert.match(t,/if\(host&&!\['127\.0\.0\.1','localhost','\[::1\]','::1'\]\.includes\(host\)\)/,'Host asing ditolak');
+  /* v1.4.0 menambahkan mode LAN, sehingga daftar Host dibaca lewat hostDiizinkan(). Yang
+     diperiksa kini sifatnya: daftar loopback-nya tetap persis sama, tambahannya HANYA alamat
+     LAN yang sedang aktif, dan Host asing tetap ditolak dengan 403. Saat LAN mati,
+     lanAktif() bernilai false sehingga perilakunya kembali identik dengan sebelum v1.4.0. */
+  assert.match(t,/function hostDiizinkan\(host\)\{\s*if\(\['127\.0\.0\.1','localhost','\[::1\]','::1'\]\.includes\(host\)\)return true;\s*\n\s*return lanAktif\(\)&&host===lanAlamatAktif;/,
+    'Host asing ditolak; satu-satunya tambahan adalah alamat LAN aktif');
+  assert.match(t,/if\(host&&!hostDiizinkan\(host\)\)return kirim\(response,403,'Akses hanya dari komputer ini\.'\);/,
+    'penolakan Host asing tetap 403');
+  /* Pendengar LAN diikat ke SATU alamat tertentu. Mengikat 0.0.0.0 akan ikut membuka server
+     lewat adaptor VPN dan virtual yang kebetulan aktif. */
+  assert.match(t,/instance\.listen\(activePort,alamat,\(\)=>\{/,'LAN mengikat satu alamat, bukan seluruh antarmuka');
   assert.match(t,/return target\.startsWith\(distPath\)\?target:null/,'permintaan di luar folder dist ditolak');
   assert.equal(/https?:\/\/(?!127\.0\.0\.1|localhost)[a-z]/i.test(t.replace(/http:\/\/\$\{HOST\}/g,'')),false,'tidak ada alamat internet pada launcher');
 });

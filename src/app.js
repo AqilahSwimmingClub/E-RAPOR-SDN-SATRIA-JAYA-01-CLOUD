@@ -5,6 +5,7 @@ import { renderOwnerActivation } from './pages/activation.js';
 import { renderSchoolSetup } from './pages/school-setup.js';
 import { renderLicenseActivation } from './pages/license-activation.js';
 import { checkLicense, getLicenseState, noteClockObservation } from './services/license.js';
+import { kirimStatusLisensiKeServer } from './services/lan-admin.js';
 import { ensureInstallationId } from './services/installation.js';
 import { getAdminReadiness, isTeacherUsageActive } from './services/admin-readiness.js';
 import { hasTeacherAssignment, PESAN_BELUM_DITUGASKAN } from './services/teacher-assignments.js';
@@ -37,6 +38,7 @@ import { renderAdminStatus } from './pages/admin-status.js';
 import { renderPlaceholder } from './pages/placeholder.js';
 import { renderDapodik } from './pages/dapodik.js';
 import { renderSubjectMapping, renderBackupRestore, renderAccountSettings } from './pages/settings.js';
+import { renderLanServer } from './pages/lan-server.js';
 import { renderLayout } from './ui/layout.js';
 import { el, escapeHtml } from './ui/dom.js';
 import { icon } from './ui/icons.js';
@@ -48,7 +50,19 @@ let startupError=null;
 /* Status lisensi perangkat ini. Dibaca dari token bertanda tangan yang tersimpan lokal,
    sehingga penggunaan sehari-hari tidak pernah menunggu jaringan. */
 let licenseState={state:'UNLICENSED',canUseApp:false,canEditData:false,record:null};
-function refreshLicenseState(){try{licenseState=getLicenseState();}catch{licenseState={state:'UNLICENSED',canUseApp:false,canEditData:false,record:null};}return licenseState;}
+function refreshLicenseState(){
+  try{licenseState=getLicenseState();}
+  catch{licenseState={state:'UNLICENSED',canUseApp:false,canEditData:false,record:null};}
+  /* KEPUTUSAN LISENSI DIDORONG KE SERVER LAN.
+
+     Lisensi tinggal di komputer server, bukan di laptop guru, sehingga server perlu mengetahui
+     hasilnya untuk dapat menolak login LAN ketika lisensi dicabut atau masa tenggangnya habis.
+     Yang dikirim hanya HASIL keputusannya - activation token dan Installation ID tidak pernah
+     ikut. Pengiriman ini hanya berjalan di komputer server; di klien LAN fungsinya tidak
+     melakukan apa pun. */
+  kirimStatusLisensiKeServer(licenseState);
+  return licenseState;
+}
 /* Migration dijalankan lebih dulu, lalu satu pengaman idempotent: mapel bawaan baru
    dipastikan ada pada Mapping lama. Tidak ada data siswa yang pernah dimasukkan otomatis.
    Kegagalan pengaman tidak boleh membuat aplikasi gagal dibuka. */
@@ -203,6 +217,7 @@ function pageFor(route,session){
     case 'dashboard': return renderDashboard(session);
     case 'profile': return renderProfile(session);
     case 'backup': return renderBackupRestore(session);
+    case 'lan-server': return renderLanServer(session);
     case 'account-settings': return renderAccountSettings(session);
     case 'student-update': return renderStudents(session);
     case 'student-handover': return renderStudentHandover(session);

@@ -59,6 +59,11 @@ export const NAVIGATION=Object.freeze({
       item('transcript-import','Import Data & Nilai','upload','transcript-import'),
       item('transcript-print','Cetak TRANSKRIP-SKL-SKKB','printer','transcript-print')
     ]),
+    /* Server LAN adalah pengaturan komputer server, bukan pekerjaan akademik, sehingga ia
+       berdiri sebagai grup Admin tersendiri dan tidak pernah muncul pada menu Guru. */
+    group('admin-jaringan','JARINGAN SEKOLAH','settings',[
+      item('lan-server','Server LAN','settings','lan-server')
+    ]),
     group('admin-backup','BACKUP & RESTORE','database',[
       item('backup','Backup & Restore','database','backup')
     ]),

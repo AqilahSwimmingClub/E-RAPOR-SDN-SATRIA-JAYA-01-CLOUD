@@ -1584,3 +1584,31 @@ select.input option{background:#fff;color:var(--light-ink)}
   .letter-a4 .letter-sign{break-inside:avoid}
   .letter-a4+.letter-a4{break-before:page}
 }
+
+/* ------------------------------------------------------------------ Halaman Server LAN.
+
+   Alamat server dibaca dan diketik ulang orang di depan layar, jadi ia memakai huruf monospace
+   berukuran besar: 192.168.1.10 dan 192.168.l.lO tidak boleh terlihat sama. Tombol dibuat
+   setinggi minimal 44 piksel supaya tetap nyaman ditekan di tablet. */
+.lan-status{display:flex;flex-direction:column;gap:2px}
+.lan-status-row{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:10px 12px;border-radius:9px;background:var(--soft);font-size:13px}
+.lan-status-row strong{font-weight:700;letter-spacing:.02em}
+.lan-status-row strong.lan-on{color:#1a7f4b}
+.lan-status-row strong.lan-off{color:var(--maroon)}
+.lan-alamat{margin:14px 0;padding:14px 16px;border-radius:10px;background:var(--soft);
+  border:1px dashed var(--line);font-family:ui-monospace,'Cascadia Mono',Consolas,monospace;
+  font-size:clamp(15px,4.2vw,21px);font-weight:700;letter-spacing:.03em;
+  text-align:center;word-break:break-all;color:var(--ink)}
+.lan-aksi{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+.lan-aksi .btn{min-height:44px}
+.lan-qr{margin-top:18px;text-align:center}
+.lan-qr-kotak{display:inline-block;padding:12px;background:#fff;border:1px solid var(--line);border-radius:12px}
+.lan-qr-kotak svg{display:block;width:min(200px,60vw);height:auto}
+.lan-petunjuk{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:10px;
+  font-size:12.5px;line-height:1.6;color:var(--muted)}
+.lan-petunjuk strong{color:var(--ink)}
+@media (max-width:640px){
+  .lan-aksi{flex-direction:column}
+  .lan-aksi .btn{width:100%;justify-content:center}
+}

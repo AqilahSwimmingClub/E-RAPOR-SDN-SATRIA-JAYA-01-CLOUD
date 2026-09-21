@@ -24,6 +24,22 @@ files:
 asar: true
 
 win:
+  # IKON WINDOWS = IKON ANDROID.
+  #
+  # Sebelum v1.4.0 tidak ada baris ikon di sini sama sekali, sehingga electron-builder memakai
+  # ikon bawaan Electron: aplikasi yang sama tampil sebagai e-Rapor di HP tetapi sebagai ikon
+  # Electron generik di Desktop, Start Menu, dan taskbar.
+  #
+  # build/icon.ico dihasilkan scripts/generate-windows-icon.mjs dari
+  # assets/android-icon-master.png - berkas yang sama yang dipakai membuat ikon launcher
+  # Android - dan berisi tujuh resolusi (16..256) supaya tajam di setiap tempat Windows
+  # menampilkannya. Isinya generik "e-Rapor", tanpa nama sekolah, karena aplikasi ini dijual
+  # ke banyak sekolah.
+  #
+  # Mengganti IKON tidak mengganti IDENTITAS: appId, productName, guid NSIS, dan folder
+  # %APPDATA% di berkas ini sengaja tidak disentuh, sehingga Windows tetap mengenali instalasi
+  # v1.3.16 dan memperbaruinya di tempat tanpa kehilangan data guru.
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:
@@ -53,3 +69,8 @@ nsis:
   guid: 9a3f0d21-6c4b-5e88-9d17-2f6a1b7c4e30
   uninstallDisplayName: e-Rapor
   differentialPackage: false
+  # Ikon yang sama dipakai installer, uninstaller, dan entri Add/Remove Programs, sehingga
+  # pengguna melihat wajah yang sama sejak memasang sampai membuka aplikasinya.
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico

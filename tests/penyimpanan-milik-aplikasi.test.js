@@ -493,8 +493,25 @@ test('D1. Endpoint penyimpanan tetap loopback dan tidak melonggarkan penjagaan y
   const t=baca('electron/main.cjs');
   assert.match(t,/const HOST='127\.0\.0\.1'/,'tetap bind loopback');
   assert.equal(/0\.0\.0\.0/.test(t),false,'tidak pernah membuka seluruh antarmuka jaringan');
-  assert.match(t,/if\(host&&!\['127\.0\.0\.1','localhost','\[::1\]','::1'\]\.includes\(host\)\)/,'Host protection lama utuh');
-  assert.match(t,/function layaniDatabase\(request,response,jalur\)\{[\s\S]*?\['127\.0\.0\.1','localhost','\[::1\]','::1'\]/,'endpuan database memeriksa host sendiri');
+  /* ALASAN PERUBAHAN BENTUK ASSERTION INI PADA v1.4.0.
+
+     Daftar Host yang diizinkan kini dibaca lewat hostDiizinkan() karena mode LAN menambahkan
+     SATU alamat yang sah, yaitu alamat yang sedang benar-benar didengarkan server. Yang
+     diperiksa di sini karena itu bukan lagi bentuk tulisannya, melainkan SIFATNYA - dan
+     sifatnya diperketat, bukan dilonggarkan: daftar loopback-nya harus tetap persis sama, dan
+     satu-satunya tambahan yang boleh ada adalah alamat LAN yang sedang aktif. */
+  assert.match(t,/function hostDiizinkan\(host\)\{\s*if\(\['127\.0\.0\.1','localhost','\[::1\]','::1'\]\.includes\(host\)\)return true;/,
+    'daftar loopback lama utuh apa adanya');
+  assert.match(t,/return lanAktif\(\)&&host===lanAlamatAktif;/,
+    'satu-satunya Host tambahan adalah alamat LAN yang sedang aktif, bukan sembarang host');
+  assert.match(t,/if\(host&&!hostDiizinkan\(host\)\)return kirim\(response,403,/,'Host asing tetap ditolak');
+  assert.match(t,/function layaniDatabase\(request,response,jalur\)\{[\s\S]*?\['127\.0\.0\.1','localhost','\[::1\]','::1'\]/,'endpoint database memeriksa host sendiri');
+  /* BARU pada v1.4.0 dan justru lebih ketat: berkas mentah database TIDAK PERNAH dilayani ke
+     LAN, diputuskan dari alamat soket tujuan - bukan dari header yang dapat dipalsukan. */
+  assert.match(t,/if\(!permintaanDariLoopback\(request\)\)\s*\n\s*return jsonDb\(response,403,\{error:'Berkas database hanya dapat diakses dari komputer server\.'\}\);/,
+    'endpoint berkas mentah hanya melayani komputer server');
+  assert.match(t,/function permintaanDariLoopback\(request\)\{[\s\S]*?request\.socket\?\.localAddress/,
+    'asal permintaan dibaca dari soket, bukan dari header');
   assert.match(t,/if\(!tokenPermintaanCocok\(request\)\)/,'token peluncuran wajib');
   assert.equal(/Access-Control-Allow/.test(t),false,'tidak ada izin lintas-origin');
 });
@@ -518,8 +535,20 @@ test('D3. Service worker tidak pernah menyentuh endpoint penyimpanan',()=>{
 
 test('D4. Android tidak ikut dipindahkan pada rilis ini',()=>{
   const t=baca('src/services/storage.js');
-  assert.match(t,/penyimpananServerAktif\(\)\?bacaRawServer\(DB_KEY\):localStorage\.getItem\(DB_KEY\)/,
-    'tanpa penanda launcher, pembacaan tetap localStorage');
+  /* ALASAN PERUBAHAN BENTUK ASSERTION INI PADA v1.4.0.
+
+     Percabangan letak database kini bertiga karena klien LAN ditambahkan. Yang dijaga tetap
+     sama persis dan diperketat: tanpa penanda launcher MAUPUN penanda LAN, pembacaan harus
+     jatuh ke localStorage - itulah jalur Android dan web yang sengaja tidak diubah. Urutannya
+     ikut dikunci: LAN diperiksa LEBIH DULU, sebab klien LAN juga berjalan di browser dan
+     memiliki localStorage sendiri yang tidak boleh sampai dipakai menggantikan data sekolah. */
+  assert.match(t,/if\(modeLanAktif\(\)\)return bacaRawLan\(\);\s*\n\s*if\(penyimpananServerAktif\(\)\)return bacaRawServer\(DB_KEY\);\s*\n\s*return localStorage\.getItem\(DB_KEY\);/,
+    'LAN diperiksa lebih dulu, dan localStorage tetap menjadi jalur terakhir');
+  assert.match(t,/if\(modeLanAktif\(\)\)return tulisRawLan\(raw\);\s*\n\s*if\(penyimpananServerAktif\(\)\)return tulisRawServer\(DB_KEY,raw\);\s*\n\s*localStorage\.setItem\(DB_KEY,raw\);/,
+    'penulisan mengikuti urutan yang sama');
+  const lan=baca('src/services/lan-client.js');
+  assert.match(lan,/metaKonten\('erapor-desktop-db'\)==='lan'/,
+    'mode LAN hanya aktif bila server yang menyatakannya lewat penanda halaman');
   const backend=baca('src/services/db-backend.js');
   assert.match(backend,/metaKonten\('erapor-desktop-db'\)!=='server'\)return false/,
     'penyimpanan server hanya aktif pada launcher Windows versi ini');

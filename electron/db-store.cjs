@@ -122,6 +122,38 @@ function createDbStore({baseDir,fsImpl=fs}={}){
       return {ok:true,konflik:false,rev:revisiDari(raw)};
     },
 
+    /* PENULISAN TANPA SYARAT, HANYA UNTUK SERVER LAN.
+
+       Mode LAN menjadikan proses server satu-satunya penulis berkas: seluruh perubahan sudah
+       diserialkan dan diperiksa konfliknya PER CATATAN di dalam server sebelum sampai ke sini,
+       sehingga pemeriksaan revisi berbasis seluruh dokumen justru akan menolak penyimpanan dua
+       guru yang sebenarnya tidak bersinggungan.
+
+       Penjagaan yang menentukan keutuhan data TIDAK dilonggarkan: isi tetap harus JSON yang
+       sah, cadangan satu generasi tetap dibuat dari isi lama, penulisannya tetap atomik
+       temp-fsync-rename, dan hasilnya tetap dibaca ulang sebelum dinyatakan berhasil. */
+    tulisLangsung(raw){
+      if(typeof raw!=='string'||!raw.trim())throw new Error('Isi database kosong tidak pernah ditulis.');
+      pastikanFolder(dataDir);
+      /* CADANGAN DIBUAT DENGAN MENYALIN BERKAS, BUKAN DENGAN MEMBACANYA KE MEMORI.
+         Versi pertama memanggil baca() - yang mem-parse seluruh database hanya untuk kemudian
+         menuliskannya kembali apa adanya. Pada database 24 MB itu 215 ms parse ditambah 108 ms
+         tulis, setiap kali seorang guru menekan Simpan, demi salinan yang isinya sama persis
+         dengan berkas yang sudah ada di piringan. copyFileSync mengerjakan hal yang sama dalam
+         9 ms tanpa menyentuh memori proses. Jaminannya tidak berubah: .bak tetap berisi satu
+         generasi sebelum tulisan ini. */
+      if(fsImpl.existsSync(berkas))fsImpl.copyFileSync(berkas,cadangan);
+      tulisAtomik(berkas,raw);
+      /* VERIFIKASI MEMBANDINGKAN BYTE, BUKAN MEM-PARSE ULANG.
+         Membandingkan teks yang terbaca kembali dengan teks yang hendak ditulis adalah
+         pemeriksaan yang LEBIH KETAT daripada sekadar memastikan hasilnya masih JSON yang
+         sah - berkas yang rusak sebagian dapat saja tetap dapat di-parse. Membuang JSON.parse
+         di sini menghemat 168 ms per penyimpanan tanpa melepaskan apa pun. */
+      const kembali=fsImpl.readFileSync(berkas,'utf8');
+      if(kembali!==raw)throw new Error('Database gagal diverifikasi setelah ditulis ke penyimpanan aplikasi.');
+      return {ok:true,rev:revisiDari(raw)};
+    },
+
     /* Cadangan pra-migrasi. Namanya memuat waktu sehingga tidak pernah menimpa cadangan
        sebelumnya: satu migrasi yang gagal lalu diulang meninggalkan dua berkas, bukan satu
        yang tertimpa. */

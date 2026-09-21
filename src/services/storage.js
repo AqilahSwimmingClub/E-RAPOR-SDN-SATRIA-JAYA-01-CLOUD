@@ -2,6 +2,7 @@ import { SUBJECTS_DEFAULT, ASSESSMENT_DEFAULT, CLASSES, DEFAULT_SCHOOL_NAME, ACA
 import { normalizeMappingGroups } from './mapping.js';
 import { APP_SCHEMA_VERSION, APP_VERSION } from '../data/version.js';
 import { bacaRawServer, penyimpananServerAktif, tulisRawServer } from './db-backend.js';
+import { bacaRawLan, modeLanAktif, tandaiProyeksiLan, tulisRawLan } from './lan-client.js';
 
 const DB_KEY = 'erapor_satria_jaya_01_v1';
 
@@ -88,8 +89,11 @@ export function invalidateDbCache(){cacheRaw=null;cacheDb=null;}
    tidak perlu diubah satu baris pun: bentuk panggilannya tetap synchronous persis seperti
    sebelumnya.
 
-   - WINDOWS (launcher versi ini): berkas milik aplikasi di %APPDATA%. Penulisannya menunggu
-     sampai berkasnya benar-benar ter-fsync ke piringan, dan MELEMPAR bila gagal.
+   - KLIEN LAN (laptop guru, tablet, HP): tidak memegang database akademik sama sekali. Yang
+     dibacanya adalah PROYEKSI dari server - hanya catatan yang menjadi haknya - dan yang
+     dikirimkannya kembali hanya catatan yang benar-benar ia ubah.
+   - WINDOWS KOMPUTER SERVER: berkas milik aplikasi di %APPDATA%. Penulisannya menunggu sampai
+     berkasnya benar-benar ter-fsync ke piringan, dan MELEMPAR bila gagal.
    - ANDROID, WEB, DAN LAUNCHER VERSI LAMA: localStorage, persis seperti sebelumnya. Rilis ini
      sengaja TIDAK memindahkan Android.
 
@@ -98,9 +102,15 @@ export function invalidateDbCache(){cacheRaw=null;cacheDb=null;}
    ikut berubah - dua salinan yang sama-sama berubah justru membuat tidak ada yang tahu mana
    yang benar. */
 function bacaRaw(){
-  return penyimpananServerAktif()?bacaRawServer(DB_KEY):localStorage.getItem(DB_KEY);
+  /* Tiga kemungkinan letak, diperiksa dari yang paling khusus. Urutannya penting: klien LAN
+     juga berjalan di browser, jadi kalau localStorage diperiksa lebih dulu ia akan memakai
+     sisa data lama di laptop guru alih-alih data sekolah yang sah di server. */
+  if(modeLanAktif())return bacaRawLan();
+  if(penyimpananServerAktif())return bacaRawServer(DB_KEY);
+  return localStorage.getItem(DB_KEY);
 }
 function tulisRaw(raw){
+  if(modeLanAktif())return tulisRawLan(raw);
   if(penyimpananServerAktif())return tulisRawServer(DB_KEY,raw);
   localStorage.setItem(DB_KEY,raw);
   return raw;
@@ -119,6 +129,10 @@ export function loadDb(){
       key,Array.isArray(mapping)?normalizeMappingGroups(mapping):mapping
     ]));
     cacheRaw=raw;cacheDb=db;
+    /* Pembanding klien LAN disetel ke dokumen SESUDAH normalisasi, sehingga penyimpanan
+       berikutnya hanya mengirim catatan yang benar-benar diubah guru - bukan hasil
+       normalisasi yang memang selalu dikerjakan ulang setiap pembacaan. */
+    if(modeLanAktif())tandaiProyeksiLan(db);
     return db;
   } catch (error) {
     invalidateDbCache();

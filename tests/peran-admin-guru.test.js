@@ -70,13 +70,23 @@ test('2. Admin tetap memegang seluruh fungsi sistem',()=>{
     'transcript-number-import','transcript-settings','transcript-mapping',
     'transcript-input','transcript-import','transcript-print',
     'backup','account-settings','about-updates',
+    /* BARU pada v1.4.0: pengaturan Server LAN. */
+    'lan-server',
   ]) assert.ok(menu.includes(route),`Admin memiliki ${route}`);
   const grup=navigationForRole('admin').map(item=>item.label);
   /* Nama grup berubah karena modulnya memang berubah: ia kini menerbitkan tiga dokumen -
      Transkrip Nilai, SKL, dan SKKB - bukan transkrip ijazah saja. Route id-nya sengaja tidak
      ikut berubah, dan daftar route di atas membuktikan tak satu pun fungsi Admin hilang. */
+  /* JARINGAN SEKOLAH ditambahkan pada v1.4.0. Menyalakan dan mematikan Server LAN adalah
+     keputusan tentang komputer server dan siapa yang boleh menjangkaunya - wewenang Admin
+     sekolah, bukan pekerjaan akademik seorang wali kelas. Karena itu ia berdiri sebagai grup
+     Admin tersendiri, dan test di bawah memastikan ia TIDAK pernah bocor ke menu Guru. */
   assert.deepEqual(grup,['UTAMA','DAPODIK','DATA PENGGUNA','DATA REFERENSI','MONITORING',
-    'TRANSKRIP-SKL-SKKB','BACKUP & RESTORE','AKUN']);
+    'TRANSKRIP-SKL-SKKB','JARINGAN SEKOLAH','BACKUP & RESTORE','AKUN']);
+  const menuGuru=rute('teacher');
+  assert.equal(menuGuru.includes('lan-server'),false,'Guru tidak pernah memegang pengaturan Server LAN');
+  assert.equal(navigationForRole('teacher').some(item=>item.label==='JARINGAN SEKOLAH'),false,
+    'grup jaringan tidak muncul pada menu Guru');
 });
 
 /* --------------------------------------------------------------- Menu Guru (§F) */

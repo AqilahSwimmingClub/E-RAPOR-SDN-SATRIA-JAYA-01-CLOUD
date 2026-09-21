@@ -2,7 +2,8 @@ import { CLASSES, SEMESTERS } from '../data/constants.js';
 import { getAdminProfile, getSchoolMaster, getTeacherProfile } from './master.js';
 import { listLoginSemesters, resolveSemesterAcademicYear } from './references.js';
 import { assertLicenseAllowsLogin } from './license.js';
-import { loadDb, updateDb } from './storage.js';
+import { invalidateDbCache, loadDb, updateDb } from './storage.js';
+import { keluarLan, masukLan, modeLanAktif } from './lan-client.js';
 
 const SESSION_KEY='erapor_satria_session_v2';
 const HASH_ITERATIONS=120000;
@@ -31,6 +32,13 @@ export async function ensureSecurityBootstrap(){
   const current=loadDb();
   if(current.userAccounts.admin&&CLASSES.every(classId=>current.userAccounts[teacherKey(classId)]))return true;
   if(bootstrapPromise)return bootstrapPromise;
+  /* KLIEN LAN TIDAK PERNAH MEM-BOOTSTRAP AKUN.
+
+     Bootstrap menulis akun Admin dan 24 akun Guru sekaligus. Di komputer server itu memang
+     tugasnya; dari laptop guru ia akan menulis akun rekan-rekannya - tepat yang dilarang
+     otorisasi server - sehingga permintaannya ditolak dan login gagal tanpa sebab yang jelas.
+     Komputer server sudah menjalankannya, jadi di sini tidak ada yang perlu dikerjakan. */
+  if(modeLanAktif()){bootstrapPromise=Promise.resolve(true);return bootstrapPromise;}
   bootstrapPromise=(async()=>{const db=loadDb();const missing=CLASSES.filter(classId=>!db.userAccounts[teacherKey(classId)]);const hashed=await Promise.all(missing.map(async classId=>[classId,await createPasswordHash(initialTeacherPassword(classId))]));updateDb(next=>{if(!next.userAccounts.admin)next.userAccounts.admin={id:'admin',role:'admin',username:'Admin',active:true,passwordHash:null,recoveryHash:null,requiresActivation:true,mustChangePassword:false,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};/* Akun Guru dibuat NONAKTIF. Lisensi yang sah membuka aplikasi untuk Admin, bukan untuk
        seluruh wali kelas sekaligus; Admin yang menentukan rombel mana yang benar-benar dipakai
        tahun ini lewat Akun Guru & Penugasan.
@@ -66,6 +74,39 @@ function sessionFor(account,semester){
    Gerbang lisensi diletakkan di sini, bukan hanya di halaman Login, supaya tidak ada jalur
    masuk yang dapat melewatinya. Tidak satu pun cabang di bawah menghapus atau mengubah data. */
 export async function authenticate({role,username,password,semester}){
+  /* DI MODE LAN, KEPUTUSAN LOGIN BUKAN MILIK HALAMAN INI.
+
+     Yang dikerjakan di sini hanya mengantarkan kredensial ke server dan memakai jawabannya.
+     Server yang memverifikasi PBKDF2, yang memutuskan peran dan rombel, dan yang menegakkan
+     lisensi komputer server. Karena itu `role` dan `classId` pada sesi di bawah datang dari
+     JAWABAN SERVER, bukan dari yang dikirim halaman - menyunting sessionStorage tidak
+     memindahkan seorang guru ke kelas lain, sebab setiap pembacaan dan penyimpanan berikutnya
+     tetap diperiksa ulang server terhadap sesinya sendiri.
+
+     Gerbang lisensi lokal sengaja DILEWATI pada cabang ini: laptop guru memang tidak memegang
+     lisensi apa pun, dan lisensilah komputer server yang menentukan - diperiksa di server. */
+  if(modeLanAktif()){
+    /* SEMESTER TIDAK DIVALIDASI DI SINI, dan itu disengaja. Memvalidasinya lebih dulu berarti
+       membaca Data Referensi dari database, padahal database baru boleh dibaca setelah sesi
+       ada - lingkaran yang membuat login LAN selalu gagal. Server memeriksanya terhadap Data
+       Referensi yang sama dan menolak semester yang tidak tersedia, jadi pemeriksaannya tidak
+       hilang, hanya berpindah ke pihak yang memang sudah memegang datanya. */
+    const dariServer=masukLan({role,username,password,semester});
+    invalidateDbCache();
+    try{
+      const db=loadDb();
+      const akun=db.userAccounts?.[dariServer.accountId]||{};
+      return sessionFor({...akun,
+        id:dariServer.accountId,role:dariServer.role,
+        classId:dariServer.classId,username:dariServer.username,
+        mustChangePassword:dariServer.mustChangePassword},dariServer.semester);
+    }catch(error){
+      /* Sesi di server tidak boleh tertinggal hidup ketika halaman gagal menyiapkan sesinya
+         sendiri - kalau dibiarkan, ia tetap sah sampai kedaluwarsa tanpa ada yang memakainya. */
+      try{keluarLan();}catch{/* server mungkin memang sudah tidak terjangkau */}
+      throw error;
+    }
+  }
   assertLicenseAllowsLogin();
   await ensureSecurityBootstrap();const db=loadDb();let account=null;let passwordToVerify=String(password||'');if(role==='admin'){if(normalizeUsername(username)!=='admin')throw new Error('Username atau password Admin tidak sesuai.');account=db.userAccounts.admin;if(account?.requiresActivation||!db.security?.ownerActivated)throw new Error('Akun Admin belum diaktivasi oleh pemilik aplikasi.');}else if(role==='teacher'){account=await resolveTeacherAccount(username,passwordToVerify);if(account?.bootstrapCredential&&passwordToVerify.toLowerCase()===initialTeacherPassword(account.classId).toLowerCase())passwordToVerify=initialTeacherPassword(account.classId);}else throw new Error('Pilih peran login terlebih dahulu.');
   const kataSandiBenar=Boolean(account)&&await verifyPassword(passwordToVerify,account.passwordHash);
@@ -102,7 +143,13 @@ export async function listUserAccounts(session){if(session?.role!=='admin')throw
 export async function getSecurityStatus(){await ensureSecurityBootstrap();const db=loadDb();return {initialized:Boolean(db.security.initializedAt),adminActivated:Boolean(db.security.ownerActivated&&!db.userAccounts.admin.requiresActivation),teacherCount:CLASSES.filter(classId=>db.userAccounts[teacherKey(classId)]).length,algorithm:db.security.hashAlgorithm};}
 
 export function saveSession(session){sessionStorage.setItem(SESSION_KEY,JSON.stringify(session));}
-export function clearSession(){sessionStorage.removeItem(SESSION_KEY);}
+export function clearSession(){
+  /* Sesi di server ikut diputus, bukan hanya jejaknya di browser. Tanpa ini, cookie sesi tetap
+     sah sampai kedaluwarsa sendiri sehingga menekan Keluar di laptop bersama tidak benar-benar
+     mengeluarkan siapa pun. */
+  if(modeLanAktif()){try{keluarLan();}catch{/* server mungkin memang sudah tidak terjangkau */}}
+  sessionStorage.removeItem(SESSION_KEY);
+}
 export function getSession(now=Date.now()){
   try{const session=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');if(!session)return null;if(!session.expiresAt||new Date(session.expiresAt).getTime()<=now){clearSession();return null;}const db=loadDb();const account=db.userAccounts[session.accountId];if(!account?.active||(session.role==='admin'&&(!db.security?.ownerActivated||account.requiresActivation))){clearSession();return null;}const profile=session.role==='admin'?getAdminProfile():getTeacherProfile(session.classId);return {...session,school:getSchoolMaster().name,displayName:profile.name,profile};}catch{clearSession();return null;}
 }

@@ -15,6 +15,8 @@ const {createDapodikConfigStore}=require('./dapodik-config.cjs');
 const {createDapodikClient}=require('./dapodik-client.cjs');
 const {createDapodikBridge,DAPODIK_BRIDGE_PREFIX}=require('./dapodik-bridge.cjs');
 const {createDbStore}=require('./db-store.cjs');
+const {createLanServer,PREFIX:LAN_PREFIX}=require('./lan-server.cjs');
+const {daftarAlamatLan,pilihAlamat}=require('./lan-network.cjs');
 
 if(require('electron-squirrel-startup'))app.quit();
 
@@ -44,6 +46,108 @@ const STORAGE_KEY='erapor_satria_jaya_01_v1';
 const DB_PREFIX='/__erapor/db';
 const DB_BODY_LIMIT=96*1024*1024;
 const dbStore=createDbStore({baseDir:userDataPath});
+
+/* ------------------------------------------------------------------ MODE SERVER LAN
+
+   Dua kondisi, dan LAN TIDAK PERNAH menyala dengan sendirinya:
+
+   - LOCAL  : server hanya mendengarkan 127.0.0.1, persis seperti rilis-rilis sebelumnya.
+   - LAN    : server TAMBAHAN mendengarkan satu alamat IPv4 privat yang dipilih Admin.
+
+   Pendengar loopback SELALU ada, juga saat LAN menyala, sehingga aplikasi di komputer server
+   sendiri tetap berjalan seperti biasa. Pendengar LAN diikat ke SATU alamat tertentu, bukan ke
+   alamat wildcard: mengikat SELURUH antarmuka sekaligus berarti ikut membuka server lewat
+   adaptor VPN dan virtual yang kebetulan aktif - jaringan yang sama sekali bukan jaringan
+   sekolah. Karena itu launcher ini tidak pernah memakai alamat wildcard mana pun.
+
+   Statusnya disimpan di %APPDATA%, di luar database akademik. Mematikan LAN tidak menyentuh
+   satu catatan nilai pun. */
+const lanConfigPath=path.join(userDataPath,'data','lan-config.json');
+const lanLicensePath=path.join(userDataPath,'data','lan-license.json');
+const LAN_CONTROL_PREFIX='/__erapor/lan-control/';
+let lanServerHttp=null;
+let lanAlamatAktif='';
+let lanApp=null;
+
+function bacaLanConfig(){
+  try{return JSON.parse(fs.readFileSync(lanConfigPath,'utf8'))||{};}catch{return {enabled:false};}
+}
+function tulisLanConfig(isi){
+  try{
+    fs.mkdirSync(path.dirname(lanConfigPath),{recursive:true});
+    fs.writeFileSync(lanConfigPath,JSON.stringify({...isi,updatedAt:new Date().toISOString()},null,2));
+  }catch{/* penyimpanan status bersifat kenyamanan; kegagalannya tidak mematikan server */}
+}
+
+/* Cuplikan keputusan lisensi yang didorong halaman di komputer server. Yang disimpan HANYA
+   hasil keputusannya - boleh dipakai atau tidak, dan sampai kapan - bukan activation token
+   maupun Installation ID. Keduanya tetap tinggal di komputer server dan tidak pernah
+   menyeberang ke klien mana pun. */
+function bacaLanLicense(){
+  try{
+    const isi=JSON.parse(fs.readFileSync(lanLicensePath,'utf8'))||{};
+    if(isi.graceExpiresAt&&Date.parse(isi.graceExpiresAt)<=Date.now())
+      return {canUseApp:false,state:'GRACE_EXPIRED',
+        message:'Lisensi komputer server perlu diperiksa ulang. Sambungkan internet di komputer server lalu buka e-Rapor di sana.'};
+    return isi;
+  }catch{
+    return {canUseApp:false,state:'UNKNOWN',
+      message:'Status lisensi komputer server belum diketahui. Buka e-Rapor di komputer server terlebih dahulu.'};
+  }
+}
+function tulisLanLicense(isi){
+  fs.mkdirSync(path.dirname(lanLicensePath),{recursive:true});
+  fs.writeFileSync(lanLicensePath,JSON.stringify({
+    canUseApp:Boolean(isi?.canUseApp),
+    state:String(isi?.state||''),
+    message:String(isi?.message||''),
+    graceExpiresAt:isi?.graceExpiresAt?String(isi.graceExpiresAt):null,
+    updatedAt:new Date().toISOString(),
+  },null,2));
+}
+
+function siapkanLanApp(){
+  if(lanApp)return lanApp;
+  lanApp=createLanServer({store:dbStore,bacaLisensi:bacaLanLicense});
+  lanApp.muat();
+  return lanApp;
+}
+
+/* Permintaan dari LAN dikenali dari alamat soket TUJUAN, bukan dari header yang dikirim
+   klien. Header dapat dipalsukan; soket tidak. */
+function permintaanDariLoopback(request){
+  const lokal=String(request.socket?.localAddress||'');
+  return lokal===''||lokal==='127.0.0.1'||lokal==='::1'||lokal==='::ffff:127.0.0.1';
+}
+
+function lanAktif(){return Boolean(lanServerHttp&&lanAlamatAktif);}
+const lanUrl=()=>lanAktif()?`http://${lanAlamatAktif}:${activePort}/`:'';
+
+function hentikanLan(){
+  if(!lanServerHttp)return false;
+  try{lanServerHttp.close();}catch{/* pendengar memang ditutup */}
+  lanServerHttp=null;lanAlamatAktif='';
+  /* Seluruh sesi guru diputus begitu LAN dimatikan: tidak ada token yang tetap sah setelah
+     Admin menyatakan jaringan ditutup. */
+  try{lanApp?.sessions.hapusSemua();}catch{/* belum pernah dinyalakan */}
+  return true;
+}
+
+function mulaiLan(alamatDisukai){
+  const alamat=pilihAlamat(alamatDisukai);
+  if(!alamat)throw new Error('Tidak ada alamat jaringan lokal (Wi-Fi/LAN) yang dapat dipakai pada komputer ini.');
+  hentikanLan();
+  siapkanLanApp();
+  return new Promise((resolve,reject)=>{
+    const instance=http.createServer(handleRequest);
+    instance.once('error',reject);
+    instance.listen(activePort,alamat,()=>{
+      lanServerHttp=instance;lanAlamatAktif=alamat;
+      tulisLanConfig({enabled:true,alamat});
+      resolve({alamat,url:lanUrl()});
+    });
+  });
+}
 
 /* Token bridge dibuat acak setiap peluncuran dan hanya disuntikkan ke index.html yang dilayani
    server lokal ini. Halaman lain di browser yang sama tidak dapat menebaknya, sehingga tidak
@@ -348,16 +452,122 @@ function layaniDatabase(request,response,jalur){
   return jsonDb(response,405,{error:'Metode tidak didukung pada penyimpanan.'});
 }
 
+function hostDiizinkan(host){
+  if(['127.0.0.1','localhost','[::1]','::1'].includes(host))return true;
+  return lanAktif()&&host===lanAlamatAktif;
+}
+
+function badanPermintaan(request,batas){return bacaBadanPermintaan(request,batas);}
+
+/* ------------------------------------------------------- KONTROL LAN (KOMPUTER SERVER SAJA)
+
+   Menyalakan, mematikan, dan membaca status LAN hanya dapat dilakukan DARI KOMPUTER SERVER
+   ITU SENDIRI. Seorang guru yang sudah masuk lewat LAN karena itu tidak dapat memindahkan
+   server ke jaringan lain, mengubah alamatnya, atau mematikannya dari jauh - permintaannya
+   datang lewat soket LAN dan langsung ditolak di sini. */
+function layaniKontrolLan(request,response,jalur){
+  if(!permintaanDariLoopback(request))
+    return jsonDb(response,403,{error:'Pengaturan Server LAN hanya dapat diubah dari komputer server.'});
+  if(!tokenPermintaanCocok(request))
+    return jsonDb(response,403,{error:'Permintaan pengaturan tidak diizinkan.'});
+  const aksi=jalur.slice(LAN_CONTROL_PREFIX.length);
+  const metode=String(request.method||'GET').toUpperCase();
+
+  if(aksi==='status'&&metode==='GET'){
+    const config=bacaLanConfig();
+    return jsonDb(response,200,{
+      aktif:lanAktif(),
+      alamat:lanAlamatAktif||'',
+      url:lanUrl(),
+      port:activePort,
+      /* Daftar disusun ULANG setiap kali status dibaca, sehingga alamat yang berubah karena
+         DHCP langsung terlihat apa adanya. */
+      pilihan:daftarAlamatLan(),
+      tersimpan:config.alamat||'',
+      lisensi:(()=>{const l=bacaLanLicense();return {berlaku:Boolean(l.canUseApp),state:l.state||'',pesan:l.message||''};})(),
+      sesiAktif:lanApp?lanApp.sessions.jumlahSesi():0,
+    });
+  }
+
+  if(aksi==='enable'&&metode==='POST'){
+    badanPermintaan(request,64*1024).then(async body=>{
+      let muatan={};try{muatan=JSON.parse(body||'{}');}catch{/* alamat boleh dikosongkan */}
+      const lisensi=bacaLanLicense();
+      if(!lisensi.canUseApp)
+        return jsonDb(response,403,{error:lisensi.message||'Lisensi komputer server belum berlaku, jadi Server LAN tidak dapat dinyalakan.'});
+      try{
+        const hasil=await mulaiLan(muatan.alamat||bacaLanConfig().alamat||null);
+        return jsonDb(response,200,{ok:true,...hasil});
+      }catch(error){
+        return jsonDb(response,500,{error:`Server LAN gagal dinyalakan: ${error.message}`});
+      }
+    }).catch(()=>jsonDb(response,500,{error:'Server LAN gagal dinyalakan.'}));
+    return;
+  }
+
+  if(aksi==='disable'&&metode==='POST'){
+    hentikanLan();
+    tulisLanConfig({enabled:false,alamat:bacaLanConfig().alamat||''});
+    return jsonDb(response,200,{ok:true,aktif:false});
+  }
+
+  if(aksi==='license'&&metode==='POST'){
+    badanPermintaan(request,64*1024).then(body=>{
+      let muatan={};try{muatan=JSON.parse(body||'{}');}catch{return jsonDb(response,400,{error:'Status lisensi tidak valid.'});}
+      try{
+        tulisLanLicense(muatan);
+        /* Lisensi yang dicabut memutus seluruh sesi guru yang sedang berjalan seketika, bukan
+           menunggu sesinya kedaluwarsa sendiri. Tidak satu pun data akademik disentuh. */
+        if(!muatan?.canUseApp){hentikanLan();tulisLanConfig({enabled:false,alamat:bacaLanConfig().alamat||''});}
+        return jsonDb(response,200,{ok:true});
+      }catch(error){
+        return jsonDb(response,500,{error:`Status lisensi gagal dicatat: ${error.message}`});
+      }
+    }).catch(()=>jsonDb(response,500,{error:'Status lisensi gagal dicatat.'}));
+    return;
+  }
+
+  return jsonDb(response,405,{error:'Metode tidak didukung pada pengaturan LAN.'});
+}
+
+/* ------------------------------------------------------------------- API LAN UNTUK KLIEN */
+function layaniLan(request,response,jalur){
+  const app=siapkanLanApp();
+  badanPermintaan(request,16*1024*1024).then(async body=>{
+    const hasil=await app.tangani({
+      pathname:jalur,method:request.method,headers:request.headers,body:body||'',
+    });
+    response.writeHead(hasil.status,hasil.headers);
+    response.end(hasil.body);
+  }).catch(error=>jsonDb(response,500,{error:`Permintaan LAN gagal diproses: ${error.message}`}));
+}
+
 function handleRequest(request,response){
   /* Hanya permintaan dari mesin ini yang dilayani. Host asing ditolak sebagai pengaman
      tambahan di samping listen yang memang hanya pada 127.0.0.1. */
   const host=String(request.headers.host||'').split(':')[0];
-  if(host&&!['127.0.0.1','localhost','[::1]','::1'].includes(host))return kirim(response,403,'Akses hanya dari komputer ini.');
+  /* Daftar Host yang diizinkan TIDAK dilonggarkan: ia tetap hanya loopback, ditambah SATU
+     alamat LAN yaitu alamat yang sedang benar-benar didengarkan server. Saat LAN mati,
+     daftarnya kembali persis seperti sebelumnya. Nama host asing tetap ditolak, sehingga
+     serangan DNS rebinding tidak dapat memakai server ini. */
+  if(host&&!hostDiizinkan(host))return kirim(response,403,'Akses hanya dari komputer ini.');
   const url=String(request.url||'/');
   if(url.startsWith(HEALTH_PATH))return kirim(response,200,JSON.stringify({app:HEALTH_TOKEN,version:app.getVersion(),port:activePort,pid:process.pid}),'application/json; charset=utf-8');
   if(url.startsWith('/__erapor/legacy-consumed')){markLegacyConsumed();return kirim(response,204,'');}
-  if(url.split('?')[0]===DB_PREFIX||url.split('?')[0].startsWith(`${DB_PREFIX}/`)){
-    layaniDatabase(request,response,url.split('?')[0]);
+  const jalurBersih=url.split('?')[0];
+  if(jalurBersih.startsWith(LAN_CONTROL_PREFIX)){layaniKontrolLan(request,response,jalurBersih);return;}
+  if(jalurBersih.startsWith(LAN_PREFIX)){layaniLan(request,response,jalurBersih);return;}
+  if(jalurBersih===DB_PREFIX||jalurBersih.startsWith(`${DB_PREFIX}/`)){
+    /* BERKAS MENTAH DATABASE TIDAK PERNAH DILAYANI KE LAN.
+
+       Endpoint ini mengirim dan menerima SELURUH dokumen sekolah sekaligus. Itu memang yang
+       dibutuhkan aplikasi di komputer server sendiri, tetapi memberikannya kepada klien LAN
+       berarti setiap laptop guru dapat mengunduh seluruh nilai sekolah dalam satu permintaan,
+       atau menimpanya sekaligus. Klien LAN memakai API bercakupan di /__erapor/lan/ yang
+       memeriksa hak akses per catatan. */
+    if(!permintaanDariLoopback(request))
+      return jsonDb(response,403,{error:'Berkas database hanya dapat diakses dari komputer server.'});
+    layaniDatabase(request,response,jalurBersih);
     return;
   }
   if(url.startsWith('/__erapor/exit')){kirim(response,200,'Menutup e-Rapor.');setTimeout(()=>keluar(),200);return;}
@@ -381,7 +591,21 @@ function handleRequest(request,response){
     if(error)return kirim(response,404,'Berkas tidak ditemukan.');
     const type=MIME[path.extname(file).toLowerCase()]||'application/octet-stream';
     if(path.basename(file)==='index.html'){
-      const html=data.toString('utf8').replace('</head>',`${bridgeTokenMeta()}${deviceIdMeta()}${legacyBootstrapScript()}</head>`);
+      /* APA YANG DISUNTIKKAN BERGANTUNG DARI MANA PERMINTAANNYA DATANG.
+
+         Ke komputer server sendiri: token bridge, identitas perangkat, dan penyalin data lama
+         - semuanya memang milik komputer itu.
+
+         Ke klien LAN: TIDAK SATU PUN dari ketiganya. Token bridge membuka bridge Dapodik dan
+         berkas mentah database; identitas perangkat adalah bahan lisensi; dan penyalin data
+         lama hanya bermakna pada komputer server. Laptop guru tidak berkepentingan atas
+         satu pun di antaranya, jadi tidak ada alasan mengirimkannya - yang tidak pernah
+         dikirim tidak dapat bocor. */
+      const dariServerSendiri=permintaanDariLoopback(request);
+      const suntikan=dariServerSendiri
+        ?`${bridgeTokenMeta()}${deviceIdMeta()}${legacyBootstrapScript()}`
+        :'<meta name="erapor-desktop-platform" content="lan"><meta name="erapor-desktop-db" content="lan">';
+      const html=data.toString('utf8').replace('</head>',`${suntikan}</head>`);
       return kirim(response,200,html,type);
     }
     response.writeHead(200,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
@@ -443,6 +667,7 @@ function pasangTray(){
     tray.setToolTip(`e-Rapor · ${appUrl()}`);
     tray.setContextMenu(Menu.buildFromTemplate([
       {label:`e-Rapor berjalan di ${appUrl()}`,enabled:false},
+      ...(lanAktif()?[{label:`Server LAN: ${lanUrl()}`,enabled:false}]:[]),
       {type:'separator'},
       {label:'Buka e-Rapor di Browser',click:()=>bukaBrowserDefault()},
       {label:'Keluar e-Rapor',click:()=>keluar()},
@@ -456,6 +681,7 @@ function keluar(){
   if(sedangKeluar)return;
   sedangKeluar=true;
   try{tray?.destroy();}catch{/* tray memang dilepas */}
+  hentikanLan();
   const selesai=()=>app.quit();
   if(server)server.close(selesai);else selesai();
   /* Pengaman supaya proses tidak menggantung bila ada koneksi yang belum tertutup. */
@@ -473,12 +699,20 @@ if(!lock){
     legacyPayload=loadLegacyPayload();
     await siapkanServer();
     writeLastRunVersion(app.getVersion());
+    /* LAN yang sebelumnya dinyalakan Admin dinyalakan kembali, TETAPI alamatnya ditentukan
+       ulang sekarang: DHCP kerap memberi alamat berbeda setiap komputer dinyalakan, sehingga
+       memakai alamat lama begitu saja akan gagal mengikat atau - lebih buruk - memberi guru
+       alamat yang sudah bukan milik komputer ini lagi. */
+    try{
+      const lanConfig=bacaLanConfig();
+      if(lanConfig.enabled&&bacaLanLicense().canUseApp)await mulaiLan(lanConfig.alamat||null);
+    }catch{/* LAN gagal menyala tidak boleh menggagalkan aplikasi di komputer server sendiri */}
     pasangTray();
     await bukaBrowserDefault();
   }).catch(()=>{app.exit(1);});
   /* Tidak ada jendela aplikasi, sehingga penutupan jendela tidak boleh mematikan launcher. */
   app.on('window-all-closed',()=>{});
-  app.on('before-quit',()=>{try{server?.close();}catch{/* server memang ditutup */}});
+  app.on('before-quit',()=>{try{hentikanLan();server?.close();}catch{/* server memang ditutup */}});
 }
 
 module.exports={PRIMARY_PORT,FALLBACK_PORTS,HOST,HEALTH_PATH,HEALTH_TOKEN};
