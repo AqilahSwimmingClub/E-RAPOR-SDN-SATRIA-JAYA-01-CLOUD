@@ -34,12 +34,21 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.14 uses versionCode 36 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.14');
-  assert.equal(VERSION_CODE,36);
+test('release v1.3.15 uses versionCode 37 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.15');
+  assert.equal(VERSION_CODE,37);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.14 menambahkan pilihan "Gunakan Bobot Penilaian" pada catatan pengaturan
+     Rilis 1.3.15 menambahkan kemampuan MEMBATALKAN override manual pada Nilai Rapor. Tidak ada
+     kolom, koleksi, maupun bentuk catatan baru: pembatalan hanya menulis ulang catatan rapor
+     yang sudah ada memakai automaticRecord yang sudah dipakai Simpan Otomatis sejak lama, pada
+     kunci yang sama persis. Override lama TIDAK direset otomatis saat boot maupun migrasi -
+     ia tetap menjadi override sampai guru sendiri menekan Batalkan Override - sehingga tidak
+     ada data sekolah yang berubah hanya karena aplikasi diperbarui. Perilaku itu dikunci test
+     "KOMPATIBILITAS" pada tests/batalkan-override-nilai-rapor.test.js.
+
+     Alasan 1.3.14 sebelumnya juga masih berlaku, yaitu pilihan "Gunakan Bobot Penilaian" pada
+     catatan pengaturan
      penilaian - tempat bobot, KKTP, dan rubrik sudah tinggal sejak lama. Kolom baru itu
      OPSIONAL dan BACKWARD-COMPATIBLE: catatan lama yang belum memilikinya dibaca sebagai ON,
      yaitu perilaku aplikasi sejak awal, sehingga database sekolah yang sudah berjalan
@@ -68,10 +77,10 @@ test('release v1.3.14 uses versionCode 36 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.14-MODE-BOBOT-NILAI-AKHIR');
-  /* Rilis sebelumnya bergeser ke 1.3.13 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.3.15-BATALKAN-OVERRIDE-RAPOR');
+  /* Rilis sebelumnya bergeser ke 1.3.14 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.13',versionCode:35});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.14',versionCode:36});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
