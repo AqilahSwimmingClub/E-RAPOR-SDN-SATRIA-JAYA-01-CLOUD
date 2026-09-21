@@ -34,15 +34,20 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.12 uses versionCode 34 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.12');
-  assert.equal(VERSION_CODE,34);
+test('release v1.3.13 uses versionCode 35 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.13');
+  assert.equal(VERSION_CODE,35);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.12 membawa perbaikan sinkronisasi Import Nilai dengan Menu Penilaian. Yang
-     berubah hanya penyaringan saat MEMBACA nilai per Butir CP; tidak ada koleksi baru, tidak
-     ada bentuk catatan yang berubah, dan tidak ada nilai lama yang ditulis ulang - sehingga
-     tidak ada migrasi yang perlu dijalankan.
+     Rilis 1.3.13 membuat hasil Import Nilai benar-benar menimpa angka lama pada SELURUH mata
+     pelajaran. Yang berubah hanya jalur MENULIS saat import: bukti Butir CP yang selama ini
+     menopang angka lama ikut dikoreksi, memakai koleksi bukti yang bentuknya sudah ada sejak
+     schema 5. Tidak ada koleksi baru, tidak ada bentuk catatan yang berubah, dan tidak ada
+     nilai lama yang ditulis ulang di luar yang memang diimport guru - sehingga tidak ada
+     migrasi yang perlu dijalankan.
+
+     Alasan 1.3.12 sebelumnya juga masih berlaku: perbaikan penyaringan saat MEMBACA nilai per
+     Butir CP pun tidak mengubah bentuk database.
 
      Alasan 1.3.2 sebelumnya, yang juga masih berlaku, dua hal berikut dan tak satu pun
      mengubah bentuk database sekolah:
@@ -57,10 +62,10 @@ test('release v1.3.12 uses versionCode 34 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.12-IMPORT-NILAI-SINKRON');
-  /* Rilis sebelumnya bergeser ke 1.3.11 - yang memang sudah terbit lewat workflow #53 -
-     supaya APK baru tetap dapat dipasang menimpanya tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.11',versionCode:33});
+  assert.equal(BUILD_TAG,'1.3.13-IMPORT-TIMPA-SEMUA-MAPEL');
+  /* Rilis sebelumnya bergeser ke 1.3.12 supaya APK baru tetap dapat dipasang menimpanya
+     tanpa uninstall. */
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.12',versionCode:34});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
