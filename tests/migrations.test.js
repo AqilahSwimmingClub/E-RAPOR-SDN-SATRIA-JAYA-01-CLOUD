@@ -34,14 +34,15 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.11 uses versionCode 33 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.11');
-  assert.equal(VERSION_CODE,33);
+test('release v1.3.12 uses versionCode 34 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.12');
+  assert.equal(VERSION_CODE,34);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.11 mengarahkan Admin yang belum diinisialisasi ke pembuatan password pertama.
-     Perubahan ini hanya menyentuh alur autentikasi dan tidak mengubah bentuk database sekolah,
-     sehingga tidak ada migrasi yang perlu dijalankan.
+     Rilis 1.3.12 membawa perbaikan sinkronisasi Import Nilai dengan Menu Penilaian. Yang
+     berubah hanya penyaringan saat MEMBACA nilai per Butir CP; tidak ada koleksi baru, tidak
+     ada bentuk catatan yang berubah, dan tidak ada nilai lama yang ditulis ulang - sehingga
+     tidak ada migrasi yang perlu dijalankan.
 
      Alasan 1.3.2 sebelumnya, yang juga masih berlaku, dua hal berikut dan tak satu pun
      mengubah bentuk database sekolah:
@@ -56,10 +57,10 @@ test('release v1.3.11 uses versionCode 33 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.11-ADMIN-FIRST-SETUP');
-  /* Rilis sebelumnya bergeser ke 1.3.10 - yang memang sudah terbit -
+  assert.equal(BUILD_TAG,'1.3.12-IMPORT-NILAI-SINKRON');
+  /* Rilis sebelumnya bergeser ke 1.3.11 - yang memang sudah terbit lewat workflow #53 -
      supaya APK baru tetap dapat dipasang menimpanya tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.10',versionCode:32});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.11',versionCode:33});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
