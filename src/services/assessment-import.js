@@ -190,7 +190,11 @@ export function commitAssessmentImport(session,preview){
     });
   });
   const hasil=[];
-  perKomponen.forEach((values,id)=>{if(Object.keys(values).length)hasil.push(saveAssessmentScores(session,checked.subjectId,id,values));});
+  /* Import adalah KOREKSI atas angka yang sekarang tersimpan - templatenya memang dibangkitkan
+     dari angka itu - sehingga bukti Butir CP yang menopangnya ikut diganti. Tanpa ini, halaman
+     Penilaian tetap menampilkan angka lama sesudah import, misalnya nilai hasil Isi Semua
+     Nilai, sementara Nilai Akhir sudah memakai angka baru. */
+  perKomponen.forEach((values,id)=>{if(Object.keys(values).length)hasil.push(saveAssessmentScores(session,checked.subjectId,id,values,{replaceInheritedEvidence:true}));});
   return {subjectId:checked.subjectId,components:checked.components,sheets:hasil,
     studentCount:checked.rows.length,newScoreCount:checked.newScoreCount,updatedScoreCount:checked.updatedScoreCount};
 }

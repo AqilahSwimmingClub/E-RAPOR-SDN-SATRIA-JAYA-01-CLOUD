@@ -117,17 +117,33 @@ test('TEST 4. Import menimpa nilai manual pada nilai komponen yang dipakai Nilai
   assert.deepEqual(komponen.rows.map(row=>row.score),[88,88,88],'nilai komponen tertimpa import');
   assert.equal(calculateReportScore(scope,MAPEL,siswa[0].id).finalScore,88,'Nilai Akhir mengikuti import');
 
-  /* BUKTI BUTIR CP TIDAK IKUT DITIMPA, dan itu memang disengaja: kolom pada halaman Penilaian
-     saat sebuah butir dipilih diberi judul "Nilai Butir CP (bukan sumber Nilai Akhir)" - ia
-     catatan pengukuran kompetensi tersebut, bukan angka yang dipakai rapor. Angka 50 memang
-     pernah diukur sebagai bukti butir itu, jadi menimpanya dengan angka import yang tidak
-     menyebut butir apa pun akan menghapus data yang sah. Perilaku ini dikunci pula oleh
-     tests/penilaian-butir-cp.test.js butir 13. */
+  /* HARAPAN DIPERBARUI - DAN DIPERKETAT.
+
+     Versi sebelumnya berkas ini mengunci angka 50 tetap bertahan sebagai bukti butir sesudah
+     import. Harapan itu keliru dan justru menyembunyikan cacat yang nyata: guru melihat 50 di
+     halaman Penilaian sementara Nilai Akhir sudah memakai 88 - satu pengukuran, dua angka yang
+     saling bertentangan. Itulah gejala yang dilaporkan pemakai.
+
+     Sebabnya ada pada bentuk Template Nilai itu sendiri: template dibangkitkan DARI angka yang
+     tersimpan sekarang, diunduh, disunting, lalu diunggah kembali. Angka yang masuk karena itu
+     merupakan KOREKSI atas pengukuran yang sama, bukan kegiatan penilaian baru yang berdiri
+     sendiri, sehingga bukti yang selama ini menopangnya ikut terkoreksi.
+
+     Yang dikunci sekarang LEBIH BANYAK daripada sebelumnya: keterangan butir tetap tersambung,
+     seluruh siswa ikut terkoreksi, dan angka yang dilihat guru wajib sama dengan angka yang
+     dipakai rapor. Batasnya tetap dijaga berkas lain: bukti butir LAIN tidak pernah disentuh
+     (TEST 21 pada tests/import-overwrite-semua-mapel.test.js) dan penyimpanan biasa tanpa
+     menyebut butir tetap membiarkan bukti apa adanya (tests/penilaian-butir-cp.test.js butir
+     13, tetap PASS tanpa diubah). */
   const db=loadDb();
   const catatan=Object.values(db.assessmentScores).find(item=>item.subjectId===MAPEL&&item.assessmentType==='formative');
   assert.equal(catatan.cpButirId,butir,'keterangan Butir CP yang sudah benar tidak diputus oleh import');
-  assert.equal(getAssessmentSheet(scope,MAPEL,'formative',{cpButirId:butir}).rows[0].score,50,
-    'bukti butir tetap angka yang memang diukur sebagai bukti butir itu');
+  const padaButir=()=>getAssessmentSheet(scope,MAPEL,'formative',{cpButirId:butir});
+  for(const orang of siswa)
+    assert.equal(padaButir().rows.find(row=>row.studentId===orang.id).score,88,
+      'angka yang dilihat guru pada butir itu ikut terkoreksi - untuk seluruh siswa');
+  assert.equal(padaButir().rows[0].score,calculateReportScore(scope,MAPEL,siswa[0].id).finalScore,
+    'yang dilihat guru dan yang dipakai rapor adalah satu angka yang sama');
 });
 
 test('TEST 5. Nilai milik Butir CP lain tetap tidak bocor ke butir yang sedang dibuka',()=>{

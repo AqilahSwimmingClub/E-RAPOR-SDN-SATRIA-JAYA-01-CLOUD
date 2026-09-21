@@ -241,7 +241,21 @@ export function assertCpButirDinilai(session,subjectId,cpButirId){
   return butir;
 }
 
-export function saveAssessmentScores(session,subjectId,assessmentType,values,{cpButirId=null}={}){
+/* `replaceInheritedEvidence` menyatakan bahwa penyimpanan ini MENGGANTI angka yang sudah ada,
+   termasuk bukti Butir CP yang selama ini menopang angka tersebut.
+
+   Ia dipakai Import Nilai, dan alasannya ada pada bentuk templatenya sendiri: Template Nilai
+   dibangkitkan DARI nilai komponen yang tersimpan sekarang. Guru mengunduhnya, menyunting
+   angkanya, lalu mengunggahnya kembali - jadi angka yang masuk adalah KOREKSI atas pengukuran
+   yang sama, bukan kegiatan penilaian baru yang berdiri sendiri. Membiarkan buktinya memegang
+   angka lama membuat halaman Penilaian menampilkan angka lama sementara Nilai Akhir memakai
+   angka baru: satu nilai, dua tampilan yang bertentangan.
+
+   Penyimpanan biasa TIDAK memakainya. Menyimpan ulang tanpa menyebut butir - misalnya kegiatan
+   penilaian lain pada komponen yang sama - tetap membiarkan bukti butir apa adanya, sebab
+   angka itu memang pernah diukur sebagai bukti butir tersebut. Perbedaan inilah yang membuat
+   keduanya dapat hidup berdampingan. */
+export function saveAssessmentScores(session,subjectId,assessmentType,values,{cpButirId=null,replaceInheritedEvidence=false}={}){
   requireActiveSubject(session,subjectId);assertAssessmentType(assessmentType);
   /* Butir CP hanya diperiksa bila pemanggil memang menyebutkannya. Pemanggil lama - termasuk
      import nilai dan test yang menguji perhitungan - tetap berjalan apa adanya, dan nilainya
@@ -299,6 +313,14 @@ export function saveAssessmentScores(session,subjectId,assessmentType,values,{cp
         return;
       }
       const previous=db.assessmentScores[key];
+      /* Bukti yang selama ini menopang angka lama ikut diperbarui HANYA bila pemanggil memang
+         menyatakan penggantian. Butir yang diwarisi dibaca dari catatan sebelumnya, jadi ini
+         berlaku sama untuk mata pelajaran apa pun - tidak ada satu pun mapel yang diperlakukan
+         khusus. Bukti milik butir LAIN tidak pernah tersentuh. */
+      const butirWarisan=!butir&&replaceInheritedEvidence
+        ? String(previous?.cpButirId||'').trim()||null
+        : null;
+      if(butirWarisan)tulisCpEvidence(db,session,{subjectId,studentId,assessmentType,cpButirId:butirWarisan,score,parts:rincian,now});
       db.assessmentScores[key]={
         studentId,classId:session.classId,subjectId,semester:session.semester,academicYear:session.academicYear,
         assessmentType,score,createdAt:previous?.createdAt||now,updatedAt:now,
