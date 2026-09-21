@@ -48,8 +48,17 @@ win:
   # sehingga Windows tetap mengenali instalasi lama dan memperbaruinya di tempat, dan
   # %APPDATA%/e-Rapor SDN Satria Jaya 01 tetap menjadi tempat data guru.
   artifactName: E-Rapor-SD-v${version}-Setup.${ext}
-  # Tanpa signing: sesuai permintaan, tidak ada sertifikat yang dibuat pada tahap ini.
-  signAndEditExecutable: false
+  # Tanpa CODE SIGNING - tidak ada sertifikat yang dibuat pada tahap ini - tetapi resource
+  # .exe TETAP disunting supaya ikon dan metadata versi benar-benar menempel pada berkasnya.
+  #
+  # Sebelumnya di sini tertulis `signAndEditExecutable: false`, yang mematikan KEDUANYA
+  # sekaligus. Akibatnya terbaca jelas pada log build v1.4.0 pertama:
+  #   "executable resource editing and code signing skipped - signAndEditExecutable is false.
+  #    To skip only code signing while keeping icon and metadata applied, use
+  #    signExecutable: false instead."
+  # Dengan kata lain ikon memang dipasang ke installer dan shortcut, tetapi berkas .exe-nya
+  # sendiri tetap membawa ikon bawaan Electron - persis cacat yang hendak diperbaiki rilis ini.
+  signExecutable: false
 
 nsis:
   # Upgrade di tempat: installer mendeteksi versi lama lewat appId lalu menimpanya.

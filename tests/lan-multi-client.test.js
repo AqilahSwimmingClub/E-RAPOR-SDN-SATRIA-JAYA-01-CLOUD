@@ -1015,6 +1015,19 @@ test('I5. electron-builder memakai ikon itu untuk EXE, installer, dan shortcut',
   assert.match(yml,/installerHeaderIcon:\s*build\/icon\.ico/);
   assert.match(yml,/createDesktopShortcut:\s*true/);
   assert.match(yml,/createStartMenuShortcut:\s*true/);
+  /* CACAT NYATA YANG DITEMUKAN SAAT MEMERIKSA LOG BUILD v1.4.0 PERTAMA.
+
+     `signAndEditExecutable: false` mematikan DUA hal sekaligus: penandatanganan kode DAN
+     penyuntingan resource .exe. Penyuntingan resource itulah yang menempelkan ikon ke berkas
+     .exe, sehingga installer dan shortcut memang beri kon baru tetapi berkas aplikasinya
+     sendiri tetap membawa ikon bawaan Electron. electron-builder menyebutkan penggantinya
+     pada log: signExecutable: false - yang hanya melewati penandatanganan. */
+  assert.match(yml,/^\s+signExecutable:\s*false$/m,'penandatanganan dilewati, penyuntingan resource tidak');
+  /* Yang diperiksa adalah KUNCI YAML yang aktif, bukan penyebutan namanya - komentar di atas
+     memang menjelaskan setelan lama itu, dan penjelasan yang baik tidak boleh menggagalkan
+     test. Baris komentar diawali '#', jadi pola ini hanya mencocoki kunci sungguhan. */
+  assert.equal(/^\s*signAndEditExecutable\s*:/m.test(yml),false,
+    'setelan yang ikut mematikan penyuntingan resource tidak dipakai lagi');
 });
 
 test('I6. Identitas aplikasi Windows TIDAK berubah oleh penggantian ikon',()=>{
