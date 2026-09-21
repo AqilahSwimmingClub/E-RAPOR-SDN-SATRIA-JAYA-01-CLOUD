@@ -34,17 +34,23 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.13 uses versionCode 35 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.13');
-  assert.equal(VERSION_CODE,35);
+test('release v1.3.14 uses versionCode 36 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.14');
+  assert.equal(VERSION_CODE,36);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.13 membuat hasil Import Nilai benar-benar menimpa angka lama pada SELURUH mata
-     pelajaran. Yang berubah hanya jalur MENULIS saat import: bukti Butir CP yang selama ini
-     menopang angka lama ikut dikoreksi, memakai koleksi bukti yang bentuknya sudah ada sejak
-     schema 5. Tidak ada koleksi baru, tidak ada bentuk catatan yang berubah, dan tidak ada
-     nilai lama yang ditulis ulang di luar yang memang diimport guru - sehingga tidak ada
-     migrasi yang perlu dijalankan.
+     Rilis 1.3.14 menambahkan pilihan "Gunakan Bobot Penilaian" pada catatan pengaturan
+     penilaian - tempat bobot, KKTP, dan rubrik sudah tinggal sejak lama. Kolom baru itu
+     OPSIONAL dan BACKWARD-COMPATIBLE: catatan lama yang belum memilikinya dibaca sebagai ON,
+     yaitu perilaku aplikasi sejak awal, sehingga database sekolah yang sudah berjalan
+     menghitung nilainya persis seperti sebelum rilis ini. Tidak ada catatan lama yang ditulis
+     ulang dan tidak ada data pengguna yang dihapus, jadi tidak ada migrasi yang perlu
+     dijalankan. Perilaku ini dikunci test "KOMPATIBILITAS" pada
+     tests/mesin-nilai-akhir-bobot.test.js, yang sengaja membuang kolom itu dari database lalu
+     memastikan hasil hitungnya tidak berubah.
+
+     Alasan 1.3.13 sebelumnya juga masih berlaku: perbaikan jalur MENULIS saat Import Nilai
+     memakai koleksi bukti yang bentuknya sudah ada sejak schema 5.
 
      Alasan 1.3.12 sebelumnya juga masih berlaku: perbaikan penyaringan saat MEMBACA nilai per
      Butir CP pun tidak mengubah bentuk database.
@@ -62,10 +68,10 @@ test('release v1.3.13 uses versionCode 35 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.13-IMPORT-TIMPA-SEMUA-MAPEL');
-  /* Rilis sebelumnya bergeser ke 1.3.12 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.3.14-MODE-BOBOT-NILAI-AKHIR');
+  /* Rilis sebelumnya bergeser ke 1.3.13 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.12',versionCode:34});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.13',versionCode:35});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
