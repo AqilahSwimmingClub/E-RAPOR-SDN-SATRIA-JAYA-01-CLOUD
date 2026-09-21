@@ -114,13 +114,25 @@ function reportContext(session,subjectId){
    bobot 40 dan 20 dengan nilai 80 dan 90 menghasilkan (80x40 + 90x20) / (40+20), bukan dibagi
    100. Satu komponen terisi menghasilkan nilai komponen itu sendiri, dan kelima komponen
    terisi menghasilkan nilai berbobot penuh seperti biasa. Bila seluruh bobot komponen terisi
-   bernilai 0 atau tidak valid, dipakai rata-rata polos sebagai pengaman agar tidak NaN. */
-function composeScore(components){
+   bernilai 0 atau tidak valid, dipakai rata-rata polos sebagai pengaman agar tidak NaN.
+
+   `useWeights` adalah pilihan guru "Gunakan Bobot Penilaian". OFF berarti seluruh komponen
+   yang terisi dijumlahkan lalu dibagi jumlah komponen yang terisi itu - rata-rata polos yang
+   perhitungannya memang sudah ada di bawah sebagai pengaman, kini dipakai dengan sengaja.
+   Aturan komponen kosong tidak berubah sedikit pun di antara kedua mode: yang kosong tetap
+   tidak dianggap nol dan tetap tidak ikut penyebut, sehingga OFF membagi dengan jumlah
+   komponen yang BERLAKU, bukan selalu lima.
+
+   Rata-rata polos itu tetap `weightValid:true` ketika memang diminta guru - ia bukan gejala
+   bobot yang rusak, jadi tidak boleh memunculkan peringatan "perbaiki Bobot Penilaian". */
+function composeScore(components,useWeights=true){
   const filled=components.filter(component=>component.score!==null);
   if(!filled.length)return {rawScore:null,filledCount:0,weightTotal:0,weightValid:true};
+  const rataRata=()=>filled.reduce((sum,component)=>sum+component.score,0)/filled.length;
+  if(!useWeights)return {rawScore:rataRata(),filledCount:filled.length,weightTotal:0,weightValid:true};
   const bobot=filled.map(component=>{const value=Number(component.weight);return Number.isFinite(value)&&value>0?value:0;});
   const weightTotal=bobot.reduce((sum,value)=>sum+value,0);
-  if(weightTotal<=0)return {rawScore:filled.reduce((sum,component)=>sum+component.score,0)/filled.length,filledCount:filled.length,weightTotal:0,weightValid:false};
+  if(weightTotal<=0)return {rawScore:rataRata(),filledCount:filled.length,weightTotal:0,weightValid:false};
   const rawScore=filled.reduce((sum,component,index)=>sum+component.score*bobot[index],0)/weightTotal;
   return {rawScore,filledCount:filled.length,weightTotal,weightValid:true};
 }
@@ -136,7 +148,10 @@ export function calculateReportScore(session,subjectId,studentId,context=null){
     return {id:type.id,label:type.label,score,weight,source:fromAttendance?'attendance':'manual',weightedValue:score===null?null:score*weight/100};
   });
   const total=components.length;
-  const {rawScore,filledCount,weightTotal,weightValid}=composeScore(components);
+  /* Catatan pengaturan lama yang belum mengenal kolom ini sudah dibaca sebagai ON oleh
+     getAssessmentSettings; pembacaan di sini hanya berjaga bila konteks disusun pemanggil. */
+  const useWeights=ctx.settings.useWeights!==false;
+  const {rawScore,filledCount,weightTotal,weightValid}=composeScore(components,useWeights);
   const roundedScore=rawScore===null?null:Math.round(rawScore);
   const complete=filledCount===total;
   return {
@@ -144,6 +159,7 @@ export function calculateReportScore(session,subjectId,studentId,context=null){
     semester:session.semester,academicYear:session.academicYear,components,kktp:ctx.settings.kktp,
     rawScore,roundedScore,finalScore:roundedScore,
     filledCount,componentCount:total,weightTotal,weightValid,
+    useWeights,weightMode:useWeights?'WEIGHTED':'AVERAGE',
     weightWarning:weightValid?'':'Total bobot komponen terisi tidak valid. Nilai memakai rata-rata polos; perbaiki Bobot Penilaian mapel ini.',
     completionStatus:complete?'COMPLETE':filledCount?'PARTIAL':'EMPTY',
     completionLabel:complete?'LENGKAP':filledCount?`SEBAGIAN ${filledCount}/${total}`:'BELUM ADA NILAI',
@@ -161,7 +177,10 @@ export function calculateReportSheet(session,subjectId){
 
 function automaticRecord(calculation,previous=null){
   const now=new Date().toISOString();
-  return {...calculation,isManualOverride:false,previousScoreReference:null,calculationMethod:'WEIGHTED_AUTOMATIC',createdAt:previous?.createdAt||now,updatedAt:now};
+  /* Catatan rapor menyebut cara nilainya benar-benar dihitung. Menandai hasil rata-rata
+     sebagai WEIGHTED_AUTOMATIC akan menyesatkan siapa pun yang membaca kembali catatan itu. */
+  const cara=calculation.useWeights===false?'AVERAGE_AUTOMATIC':'WEIGHTED_AUTOMATIC';
+  return {...calculation,isManualOverride:false,previousScoreReference:null,calculationMethod:cara,createdAt:previous?.createdAt||now,updatedAt:now};
 }
 function referenceFrom(record){
   if(!record)return null;

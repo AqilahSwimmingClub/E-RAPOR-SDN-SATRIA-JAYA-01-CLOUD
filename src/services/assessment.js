@@ -100,7 +100,7 @@ function rubrikBawaan(kktp){
   return suggestReportRubricForKktp(defaultReportRubric(),kktp)||defaultReportRubric();
 }
 export function defaultAssessmentSettings(){
-  return {...ASSESSMENT_DEFAULT,kktp:DEFAULT_KKTP,rubric:rubrikBawaan(DEFAULT_KKTP)};
+  return {...ASSESSMENT_DEFAULT,kktp:DEFAULT_KKTP,useWeights:true,rubric:rubrikBawaan(DEFAULT_KKTP)};
 }
 
 /* Rubrik yang dipakai satu catatan pengaturan. Catatan lama yang belum punya kolom ini dibaca
@@ -109,6 +109,22 @@ export function defaultAssessmentSettings(){
 function rubrikCatatan(record){
   if(record?.rubric)return readReportRubric(record.rubric);
   return rubrikBawaan(record?.kktp??DEFAULT_KKTP);
+}
+
+/* GUNAKAN BOBOT PENILAIAN - satu catatan pengaturan, satu mata pelajaran.
+
+   Kolom ini menentukan CARA Nilai Akhir dihitung: ON memakai persentase bobot, OFF memakai
+   rata-rata komponen yang terisi. Ia tidak menentukan SUMBER nilai mana pun - itu urusan
+   "Penilaian Harian dari Absensi", yang tersimpan terpisah dan tetap berdiri sendiri.
+
+   Catatan lama yang belum punya kolom ini dibaca sebagai ON. Itulah perilaku aplikasi sejak
+   awal, sehingga database sekolah yang sudah berjalan menghitung nilainya persis seperti
+   kemarin tanpa satu pun migrasi - dibaca saja, tidak ditulis ulang.
+
+   Bobotnya sendiri tidak pernah ikut dimatikan: angkanya tetap tersimpan lengkap dan tetap
+   divalidasi 100%, jadi menyalakannya kembali langsung memakai bobot yang sama. */
+function bacaPemakaianBobot(record){
+  return record?.useWeights===undefined||record?.useWeights===null?true:Boolean(record.useWeights);
 }
 
 /* Apakah rubrik satu mata pelajaran selaras dengan KKTP-nya. Dipakai halaman Bobot Penilaian
@@ -122,7 +138,7 @@ export function getAssessmentSettings(session,subjectId){
   requireActiveSubject(session,subjectId);
   const record=loadDb().assessmentSettings[settingsKey(session,subjectId)];
   if(!record)return defaultAssessmentSettings();
-  return {...clone(record),rubric:rubrikCatatan(record)};
+  return {...clone(record),useWeights:bacaPemakaianBobot(record),rubric:rubrikCatatan(record)};
 }
 
 export function saveAssessmentSettings(session,subjectId,input){
@@ -139,7 +155,12 @@ export function saveAssessmentSettings(session,subjectId,input){
     const rubric=input?.rubric===undefined||input?.rubric===null
       ? rubrikCatatan(sebelum)
       : normalizeReportRubric(input.rubric);
-    saved={...weights,kktp,rubric,subjectId,classId:session.classId,semester:session.semester,
+    /* Sama seperti rubrik: pemanggil yang tidak menyebut "Gunakan Bobot Penilaian" tidak
+       dianggap mematikannya. Pilihan guru yang sudah tersimpan dipertahankan. */
+    const useWeights=input?.useWeights===undefined||input?.useWeights===null
+      ? bacaPemakaianBobot(sebelum)
+      : Boolean(input.useWeights);
+    saved={...weights,kktp,useWeights,rubric,subjectId,classId:session.classId,semester:session.semester,
       academicYear:session.academicYear,updatedAt:new Date().toISOString()};
     db.assessmentSettings[key]=saved;
     return db;
@@ -157,6 +178,7 @@ export function saveAllAssessmentSettings(session,entries){
     const subject=requireActiveSubject(session,entry.subjectId);
     try{
       return {subjectId:subject.id,weights:normalizeWeights(entry),kktp:numberInRange(entry?.kktp,'KKTP'),
+        useWeights:entry?.useWeights===undefined||entry?.useWeights===null?null:Boolean(entry.useWeights),
         rubric:entry?.rubric===undefined||entry?.rubric===null?null:normalizeReportRubric(entry.rubric)};
     }catch(error){throw new Error(`${subject.name}: ${error.message}`);}
   });
@@ -164,9 +186,11 @@ export function saveAllAssessmentSettings(session,entries){
   updateDb(db=>{
     prepared.forEach(item=>{
       const key=settingsKey(session,item.subjectId);
-      /* Sama seperti penyimpanan satu mapel: rubrik yang tidak dikirim tetap dipertahankan. */
+      /* Sama seperti penyimpanan satu mapel: rubrik dan pilihan pemakaian bobot yang tidak
+         dikirim tetap dipertahankan. */
       const rubric=item.rubric||rubrikCatatan(db.assessmentSettings[key]);
-      const record={...item.weights,kktp:item.kktp,rubric,subjectId:item.subjectId,classId:session.classId,semester:session.semester,academicYear:session.academicYear,updatedAt:now};
+      const useWeights=item.useWeights===null?bacaPemakaianBobot(db.assessmentSettings[key]):item.useWeights;
+      const record={...item.weights,kktp:item.kktp,useWeights,rubric,subjectId:item.subjectId,classId:session.classId,semester:session.semester,academicYear:session.academicYear,updatedAt:now};
       db.assessmentSettings[key]=record;saved.push(record);
     });
     return db;

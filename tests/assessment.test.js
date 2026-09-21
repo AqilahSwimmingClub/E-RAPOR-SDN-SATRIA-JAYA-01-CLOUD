@@ -47,10 +47,24 @@ test('Weights and KKTP remain different between subjects and can reset independe
   /* Rubrik bawaan diselaraskan dengan KKTP catatan itu: batas bawah CUKUP berimpit dengan
      KKTP 75, sehingga tidak ada murid yang sekaligus BELUM TUNTAS menurut KKTP dan "cukup
      mencapai kompetensi" menurut rapornya. */
+  /* Bentuk defaultnya bertambah satu kolom lagi: `useWeights`, pilihan "Gunakan Bobot
+     Penilaian". Sama seperti penambahan rubrik di atas, harapan test ini diperbarui dengan
+     sengaja mengikuti perubahan resmi - bukan supaya hijau - dan bobot maupun KKTP-nya tidak
+     bergeser sedikit pun. Bawaannya WAJIB ON supaya sekolah yang sudah berjalan menghitung
+     nilainya persis seperti sebelum kolom ini ada. */
   assert.deepEqual(getAssessmentSettings(teacher5b,'agama'),{formative:30,daily:20,practice:20,
-    scopeSummative:15,semesterSummative:15,kktp:75,
+    scopeSummative:15,semesterSummative:15,kktp:75,useWeights:true,
     rubric:suggestReportRubricForKktp(DEFAULT_REPORT_RUBRIC,75)});
   assert.equal(getAssessmentSettings(teacher5b,'mtk').kktp,80);
+  /* Kuncinya diperketat: mematikan toggle pada satu mapel tidak boleh menular ke mapel lain,
+     dan Reset Default mengembalikannya ke ON bersama bobotnya. */
+  saveAssessmentSettings(teacher5b,'mtk',{formative:20,daily:20,practice:20,scopeSummative:20,
+    semesterSummative:20,kktp:80,useWeights:false});
+  assert.equal(getAssessmentSettings(teacher5b,'mtk').useWeights,false);
+  assert.equal(getAssessmentSettings(teacher5b,'agama').useWeights,true,'mapel lain tidak ikut mati');
+  assert.equal(getAssessmentSettings(teacher5b,'mtk').formative,20,'bobotnya tetap tersimpan saat OFF');
+  resetAssessmentSettings(teacher5b,'mtk');
+  assert.equal(getAssessmentSettings(teacher5b,'mtk').useWeights,true,'Reset Default mengembalikan ke ON');
 });
 
 test('Only active mapped subjects are available for assessment modules',()=>{
