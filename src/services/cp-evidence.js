@@ -103,7 +103,22 @@ export function cpEvidenceKomponen(db,session,subjectId,assessmentType,cpButirId
   for(const [kunci,record] of Object.entries(db?.assessmentScores||{})){
     if(!kunci.startsWith(awalan))continue;
     if(record?.subjectId!==subjectId||record?.assessmentType!==assessmentType)continue;
-    if(String(record?.cpButirId||'').trim()!==cpButirId)continue;
+    /* NILAI KOMPONEN YANG BELUM BERKETERANGAN BUTIR IKUT DITAMPILKAN.
+
+       Nilai komponen dapat masuk tanpa keterangan Butir CP - Import Nilai adalah jalurnya
+       yang paling nyata, sebab templatenya memang tidak punya kolom Butir CP. Sebelumnya
+       catatan seperti itu disaring habis di sini karena butirnya tidak sama dengan butir yang
+       sedang dibuka, padahal ia BUKAN milik butir lain: ia belum menjadi milik butir mana pun.
+
+       Akibatnya guru melihat grid Penilaian kosong sesudah import, sementara Nilai Akhir
+       justru sudah terisi - dua tampilan yang saling bertentangan atas satu angka yang sama.
+
+       Sekarang yang disaring hanyalah catatan yang MEMANG sudah menjadi bukti butir LAIN.
+       Catatan tanpa keterangan tetap tampil pada butir mana pun yang sedang dibuka, dan
+       begitu guru menyimpannya ia memperoleh keterangan butir itu - persis alur yang sama
+       dengan mengetik nilai secara manual. */
+    const milikButir=String(record?.cpButirId||'').trim();
+    if(milikButir&&milikButir!==cpButirId)continue;
     if(angka(record?.score)===null)continue;
     if(hasil.has(record.studentId))continue;
     hasil.set(record.studentId,record);
