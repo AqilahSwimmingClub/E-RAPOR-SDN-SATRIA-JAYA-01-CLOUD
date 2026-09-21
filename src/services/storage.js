@@ -1,6 +1,7 @@
 import { SUBJECTS_DEFAULT, ASSESSMENT_DEFAULT, CLASSES, DEFAULT_SCHOOL_NAME, ACADEMIC_YEAR, SEMESTERS, availableAcademicYears, semestersOf } from '../data/constants.js';
 import { normalizeMappingGroups } from './mapping.js';
 import { APP_SCHEMA_VERSION, APP_VERSION } from '../data/version.js';
+import { bacaRawServer, penyimpananServerAktif, tulisRawServer } from './db-backend.js';
 
 const DB_KEY = 'erapor_satria_jaya_01_v1';
 
@@ -80,9 +81,34 @@ function baseDb(){
 let cacheRaw=null,cacheDb=null;
 export function invalidateDbCache(){cacheRaw=null;cacheDb=null;}
 
+/* SATU-SATUNYA TEMPAT YANG TAHU DI MANA DATABASE TINGGAL.
+
+   Sejak rilis ini ada dua kemungkinan letak, dan keduanya dilayani dua fungsi kecil di bawah
+   ini saja. Itulah sebabnya seluruh aplikasi - 89 pembacaan dan 86 penulisan di 31 berkas -
+   tidak perlu diubah satu baris pun: bentuk panggilannya tetap synchronous persis seperti
+   sebelumnya.
+
+   - WINDOWS (launcher versi ini): berkas milik aplikasi di %APPDATA%. Penulisannya menunggu
+     sampai berkasnya benar-benar ter-fsync ke piringan, dan MELEMPAR bila gagal.
+   - ANDROID, WEB, DAN LAUNCHER VERSI LAMA: localStorage, persis seperti sebelumnya. Rilis ini
+     sengaja TIDAK memindahkan Android.
+
+   localStorage TIDAK PERNAH DITULISI lagi saat penyimpanan aplikasi aktif. Isi lamanya
+   ditinggalkan utuh sebagai jalur pemulihan terakhir, bukan sebagai salinan kedua yang
+   ikut berubah - dua salinan yang sama-sama berubah justru membuat tidak ada yang tahu mana
+   yang benar. */
+function bacaRaw(){
+  return penyimpananServerAktif()?bacaRawServer(DB_KEY):localStorage.getItem(DB_KEY);
+}
+function tulisRaw(raw){
+  if(penyimpananServerAktif())return tulisRawServer(DB_KEY,raw);
+  localStorage.setItem(DB_KEY,raw);
+  return raw;
+}
+
 export function loadDb(){
   try {
-    const raw = localStorage.getItem(DB_KEY);
+    const raw = bacaRaw();
     if (!raw) return baseDb();
     if(raw===cacheRaw&&cacheDb)return cacheDb;
     const parsed = JSON.parse(raw);
@@ -96,6 +122,10 @@ export function loadDb(){
     return db;
   } catch (error) {
     invalidateDbCache();
+    /* Kegagalan penyimpanan aplikasi sudah membawa pesannya sendiri yang menjelaskan apa yang
+       terjadi dan apa yang masih utuh. Membungkusnya lagi hanya akan menyembunyikan itu di
+       balik kalimat umum. */
+    if(error?.penyimpananAplikasi||error?.konflikRevisi)throw error;
     throw new Error(`Database lokal tidak dapat dibaca: ${error.message}`);
   }
 }
@@ -103,17 +133,36 @@ export function loadDb(){
 export function saveDb(db){
   const next = {...db, updatedAt:new Date().toISOString()};
   const raw=JSON.stringify(next);
-  localStorage.setItem(DB_KEY, raw);
+  /* Bila penulisan gagal, fungsi ini MELEMPAR dan tidak pernah mengembalikan apa pun. Seluruh
+     pemanggilnya memakai pola `try{ simpan; toast('berhasil') }catch{ toast(pesan,'error') }`,
+     sehingga kegagalan penyimpanan tidak pernah muncul sebagai pemberitahuan berhasil. */
+  tulisRaw(raw);
   /* Cache diperbarui bersama penulisan agar pembacaan berikutnya tetap mutakhir. */
   invalidateDbCache();
   return next;
 }
 
+/* SELURUH PENULISAN APLIKASI LEWAT SINI, dan setiap penulisan adalah fungsi murni dari isi
+   database saat itu - tidak ada satu pun pemanggil saveDb() di luar berkas ini. Sifat itulah
+   yang membuat pengulangan di bawah aman: ketika tab lain menulis lebih dulu, mutator cukup
+   dijalankan ULANG di atas data terbaru, dan hasilnya sama seperti bila kedua penyimpanan
+   terjadi berurutan sejak awal. Tanpa pengulangan ini, tab yang membawa salinan basi akan
+   menimpa pekerjaan tab sebelah tanpa seorang pun tahu.
+
+   Batas tiga kali disengaja: konflik yang masih berulang setelah itu bukan lagi balapan biasa,
+   dan lebih baik dilaporkan kepada guru daripada diulang tanpa akhir. */
 export function updateDb(mutator){
-  const db = loadDb();
-  const draft = clone(db);
-  const result = mutator(draft) || draft;
-  return saveDb(result);
+  for(let percobaan=0;;percobaan+=1){
+    const db = loadDb();
+    const draft = clone(db);
+    const result = mutator(draft) || draft;
+    try{
+      return saveDb(result);
+    }catch(error){
+      if(error?.konflikRevisi&&percobaan<3){invalidateDbCache();continue;}
+      throw error;
+    }
+  }
 }
 
 export function scopeKey(session){

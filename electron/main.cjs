@@ -14,6 +14,7 @@ const {safeStorage}=require('electron');
 const {createDapodikConfigStore}=require('./dapodik-config.cjs');
 const {createDapodikClient}=require('./dapodik-client.cjs');
 const {createDapodikBridge,DAPODIK_BRIDGE_PREFIX}=require('./dapodik-bridge.cjs');
+const {createDbStore}=require('./db-store.cjs');
 
 if(require('electron-squirrel-startup'))app.quit();
 
@@ -32,6 +33,17 @@ app.setPath('userData',userDataPath);
 const versionMarkerPath=path.join(userDataPath,'desktop-release.json');
 const legacyExportPath=path.join(userDataPath,'legacy-localstorage.json');
 const STORAGE_KEY='erapor_satria_jaya_01_v1';
+
+/* Database akademik kini dimiliki aplikasi, bukan profil browser. Letaknya di bawah folder
+   %APPDATA% yang sama dengan identitas perangkat, sehingga installer versi baru tidak pernah
+   menyentuhnya dan berganti browser tidak lagi membuat data sekolah seolah hilang.
+
+   Batas ukuran badan permintaan dipasang longgar dengan sengaja: satu rombel terukur sekitar
+   1,9 MB, dan satu sekolah 24 rombel sekitar 46 MB. Batas 96 MB memberi ruang dua kali lipat
+   tanpa membiarkan permintaan tak berbatas menghabiskan memori launcher. */
+const DB_PREFIX='/__erapor/db';
+const DB_BODY_LIMIT=96*1024*1024;
+const dbStore=createDbStore({baseDir:userDataPath});
 
 /* Token bridge dibuat acak setiap peluncuran dan hanya disuntikkan ke index.html yang dilayani
    server lokal ini. Halaman lain di browser yang sama tidak dapat menebaknya, sehingga tidak
@@ -213,7 +225,11 @@ function desktopDeviceId(){
 
 function deviceIdMeta(){
   return `<meta name="erapor-desktop-device-id" content="${desktopDeviceId()}">`
-    +'<meta name="erapor-desktop-platform" content="windows">';
+    +'<meta name="erapor-desktop-platform" content="windows">'
+    /* Penanda ini yang membuat halaman memakai penyimpanan milik aplikasi. Ia hanya ada pada
+       index.html yang dilayani launcher versi ini, sehingga Android, web, dan launcher versi
+       lama tetap memakai localStorage seperti sebelumnya tanpa perubahan apa pun. */
+    +'<meta name="erapor-desktop-db" content="server">';
 }
 
 function legacyBootstrapScript(){
@@ -235,6 +251,103 @@ function kirim(response,status,body,type='text/plain; charset=utf-8'){
   response.end(body);
 }
 
+/* ----------------------------------------------------- Endpoint database milik aplikasi
+
+   Tiga lapis izin, dan ketiganya harus lulus:
+
+   1. Host loopback. Sudah dijaga handleRequest untuk seluruh server, diperiksa lagi di sini
+      supaya endpoint ini tetap aman bila suatu saat dirutekan dari tempat lain.
+   2. Token peluncuran. Nilainya acak setiap kali aplikasi dijalankan dan hanya disuntikkan ke
+      index.html yang dilayani server ini, jadi halaman lain di browser yang sama tidak dapat
+      menebaknya.
+   3. Tidak ada satu pun header izin lintas-origin yang dikirim. Tanpa izin itu browser
+      menolak membacakan jawaban endpoint ini kepada halaman dari origin lain, dan PUT
+      ber-JSON memicu preflight yang tidak pernah dijawab.
+
+   Letak berkas database TIDAK PERNAH dikirim ke halaman. Yang keluar hanya isi database,
+   revisinya, dan status migrasinya - bukan path %APPDATA% tempat ia disimpan. */
+function jsonDb(response,status,body){
+  kirim(response,status,JSON.stringify(body),'application/json; charset=utf-8');
+}
+
+function tokenPermintaanCocok(request){
+  const diberi=String(request.headers['x-erapor-bridge-token']||'');
+  if(!bridgeToken||diberi.length!==bridgeToken.length)return false;
+  let beda=0;
+  for(let i=0;i<diberi.length;i+=1)beda|=diberi.charCodeAt(i)^bridgeToken.charCodeAt(i);
+  return beda===0;
+}
+
+function layaniDatabase(request,response,jalur){
+  const host=String(request.headers.host||'').split(':')[0];
+  if(host&&!['127.0.0.1','localhost','[::1]','::1'].includes(host))
+    return jsonDb(response,403,{error:'Penyimpanan hanya melayani komputer ini.'});
+  if(!tokenPermintaanCocok(request))
+    return jsonDb(response,403,{error:'Permintaan penyimpanan tidak diizinkan.'});
+  const method=String(request.method||'GET').toUpperCase();
+
+  if(jalur===DB_PREFIX&&method==='GET'){
+    try{
+      const isi=dbStore.baca();
+      return jsonDb(response,200,{rev:isi.rev,database:isi.raw,sumber:isi.sumber,migrasi:dbStore.bacaState()});
+    }catch(error){
+      return jsonDb(response,500,{error:`Database aplikasi tidak dapat dibaca: ${error.message}`});
+    }
+  }
+
+  if(jalur===DB_PREFIX&&method==='PUT'){
+    bacaBadanPermintaan(request,DB_BODY_LIMIT).then(body=>{
+      if(body===null)return jsonDb(response,413,{error:'Data yang dikirim ke penyimpanan terlalu besar.'});
+      let muatan;
+      try{muatan=JSON.parse(body);}catch{return jsonDb(response,400,{error:'Isi permintaan penyimpanan bukan JSON yang valid.'});}
+      try{
+        const hasil=dbStore.tulis(String(muatan?.database||''),muatan?.baseRev??'');
+        /* Konflik BUKAN kegagalan penyimpanan: ia berarti ada penulis lain yang menang lebih
+           dulu. Isi terbarunya ikut dikirim supaya halaman dapat mengulang perubahannya di
+           atas data terbaru itu, bukan menimpanya. */
+        if(hasil.konflik)return jsonDb(response,409,{konflik:true,rev:hasil.rev,database:hasil.raw});
+        return jsonDb(response,200,{ok:true,rev:hasil.rev});
+      }catch(error){
+        return jsonDb(response,500,{error:`Database gagal disimpan: ${error.message}`});
+      }
+    }).catch(()=>jsonDb(response,500,{error:'Database gagal disimpan.'}));
+    return;
+  }
+
+  if(jalur===`${DB_PREFIX}/backup`&&method==='POST'){
+    bacaBadanPermintaan(request,DB_BODY_LIMIT).then(body=>{
+      if(body===null)return jsonDb(response,413,{error:'Cadangan yang dikirim terlalu besar.'});
+      let muatan;
+      try{muatan=JSON.parse(body);}catch{return jsonDb(response,400,{error:'Isi cadangan bukan JSON yang valid.'});}
+      try{
+        const hasil=dbStore.simpanCadanganMigrasi(String(muatan?.database||''),muatan?.waktu);
+        /* Hanya NAMA berkasnya yang dikembalikan, bukan path lengkapnya. */
+        return jsonDb(response,200,{ok:true,nama:hasil.nama,bytes:hasil.bytes});
+      }catch(error){
+        return jsonDb(response,500,{error:`Cadangan gagal dibuat: ${error.message}`});
+      }
+    }).catch(()=>jsonDb(response,500,{error:'Cadangan gagal dibuat.'}));
+    return;
+  }
+
+  if(jalur===`${DB_PREFIX}/state`&&method==='POST'){
+    bacaBadanPermintaan(request,256*1024).then(body=>{
+      if(body===null)return jsonDb(response,413,{error:'Status migrasi terlalu besar.'});
+      let muatan;
+      try{muatan=JSON.parse(body);}catch{return jsonDb(response,400,{error:'Status migrasi bukan JSON yang valid.'});}
+      try{
+        dbStore.tulisState(muatan||{});
+        return jsonDb(response,200,{ok:true});
+      }catch(error){
+        return jsonDb(response,500,{error:`Status migrasi gagal dicatat: ${error.message}`});
+      }
+    }).catch(()=>jsonDb(response,500,{error:'Status migrasi gagal dicatat.'}));
+    return;
+  }
+
+  return jsonDb(response,405,{error:'Metode tidak didukung pada penyimpanan.'});
+}
+
 function handleRequest(request,response){
   /* Hanya permintaan dari mesin ini yang dilayani. Host asing ditolak sebagai pengaman
      tambahan di samping listen yang memang hanya pada 127.0.0.1. */
@@ -243,6 +356,10 @@ function handleRequest(request,response){
   const url=String(request.url||'/');
   if(url.startsWith(HEALTH_PATH))return kirim(response,200,JSON.stringify({app:HEALTH_TOKEN,version:app.getVersion(),port:activePort,pid:process.pid}),'application/json; charset=utf-8');
   if(url.startsWith('/__erapor/legacy-consumed')){markLegacyConsumed();return kirim(response,204,'');}
+  if(url.split('?')[0]===DB_PREFIX||url.split('?')[0].startsWith(`${DB_PREFIX}/`)){
+    layaniDatabase(request,response,url.split('?')[0]);
+    return;
+  }
   if(url.startsWith('/__erapor/exit')){kirim(response,200,'Menutup e-Rapor.');setTimeout(()=>keluar(),200);return;}
   /* Jalur bridge dirutekan sebelum berkas statis supaya tidak pernah jatuh ke index.html. */
   if(url.startsWith(DAPODIK_BRIDGE_PREFIX)){

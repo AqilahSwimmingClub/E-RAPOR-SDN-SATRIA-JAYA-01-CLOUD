@@ -23,7 +23,7 @@ const APP_SHELL=[
   './src/services/backup.js','./src/services/cocurricular.js','./src/services/completeness.js','./src/services/descriptions.js','./src/services/documents.js','./src/services/dapodik-adapter.js','./src/services/dapodik-sync.js','./src/services/dapodik-bridge.js','./src/services/intracurricular.js',
   './src/services/mapping.js','./src/services/admin-readiness.js','./src/services/admin-first-setup.js','./src/services/installation.js','./src/services/device-identity.js','./src/services/student-handover.js','./src/services/license.js','./src/services/master.js','./src/services/objectives.js','./src/services/learning-objectives.js','./src/services/updates.js','./src/services/report.js',
   './src/services/owner-activation.js','./src/services/print-settings.js','./src/services/publications.js','./src/services/references.js','./src/services/report-bulk.js','./src/services/report-rubric.js',
-  './src/services/report-import.js','./src/services/snapshots.js','./src/services/migrations.js','./src/services/seed.js','./src/services/storage.js','./src/services/students.js',
+  './src/services/report-import.js','./src/services/snapshots.js','./src/services/migrations.js','./src/services/seed.js','./src/services/storage.js','./src/services/db-backend.js','./src/services/students.js',
   './src/services/objective-summary.js','./src/services/cp-descriptions.js','./src/services/cp-butir.js','./src/services/cp-attainment.js','./src/services/cp-evidence.js','./src/data/cp-butir-defaults.js','./src/services/subjects.js','./src/services/teacher-assignments.js','./src/services/transcript.js','./src/services/transcript-admin.js','./src/services/graduation-documents.js','./src/services/excel.js','./src/services/file-io.js','./src/services/print-service.js','./src/data/owner-verifier.js'
 ];
 
@@ -39,6 +39,18 @@ self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys
    BUKAN kerangka aplikasi sekolah. Keduanya dibiarkan lewat apa adanya: bila ikut disimpan
    sebagai OFFLINE_SHELL, sekolah yang sedang offline akan membuka halaman promosi alih-alih
    e-Rapor. */
+/* ENDPOINT PENYIMPANAN MILIK APLIKASI TIDAK PERNAH LEWAT SERVICE WORKER.
+
+   Di bawah /__erapor/ ada database sekolah, cadangannya, dan status migrasinya. Menyimpannya
+   ke cache berarti dua hal yang sama-sama berbahaya: isinya ikut tertinggal di penyimpanan
+   browser - tempat yang justru sedang ditinggalkan rilis ini - dan pembacaan berikutnya bisa
+   dijawab dari salinan basi sehingga guru melihat nilai lama dan menyimpan di atasnya.
+
+   Permintaan ke sana karena itu dilepas apa adanya ke server lokal, tanpa cache dan tanpa
+   fallback offline: penyimpanan aplikasi memang hanya ada selama launcher berjalan, dan
+   kegagalannya HARUS terlihat sebagai kegagalan, bukan disamarkan oleh jawaban lama. */
+function isStorageEndpoint(url){return new URL(url).pathname.startsWith('/__erapor/');}
+
 function isAppNavigation(url){const path=new URL(url).pathname;return !/^\/(?:beli|owner)(?:\/|$)/.test(path);}
-self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;if(event.request.mode==='navigate'){if(!isAppNavigation(event.request.url))return;event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(OFFLINE_SHELL,copy));return response;}).catch(()=>caches.match(OFFLINE_SHELL)));return;}event.respondWith(isAppCode(event.request.url)||isSwappableAsset(event.request.url)?networkFirst(event.request):cacheFirst(event.request));});
+self.addEventListener('fetch',event=>{if(isStorageEndpoint(event.request.url))return;if(event.request.method!=='GET')return;if(event.request.mode==='navigate'){if(!isAppNavigation(event.request.url))return;event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(OFFLINE_SHELL,copy));return response;}).catch(()=>caches.match(OFFLINE_SHELL)));return;}event.respondWith(isAppCode(event.request.url)||isSwappableAsset(event.request.url)?networkFirst(event.request):cacheFirst(event.request));});
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting();});
