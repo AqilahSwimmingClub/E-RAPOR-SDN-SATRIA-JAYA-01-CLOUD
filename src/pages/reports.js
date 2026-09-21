@@ -3,7 +3,7 @@ import { generateAllReportDescriptions, generateReportDescription, getReportDesc
 import { listCpButirForSemester } from '../services/cp-butir.js';
 import { commitReportImport, previewReportImport, reportTemplateCsv } from '../services/report-import.js';
 import { calculateReportSheet, getCompletionSummary, getReportScore, getStoredReportRows, saveAutomaticReportScores, saveManualReportScore, saveManualReportScoresBulk, visibleStoredReportRows } from '../services/report.js';
-import { saveAllAutomaticReports } from '../services/report-bulk.js';
+import { cancelManualReportOverrides, saveAllAutomaticReports } from '../services/report-bulk.js';
 import { getReportStatistics } from '../services/analytics.js';
 import { listStudents } from '../services/students.js';
 import { listActiveSubjects } from '../services/subjects.js';
@@ -47,9 +47,17 @@ export function renderReportInput(session,mode='input'){
     };
     actions.querySelector('[data-save-auto]').onclick=()=>jalankan(actions.querySelector('[data-save-auto]'),'Menyimpan…',()=>{
       const saved=saveAutomaticReportScores(session,subjectId);
-      const bernilai=saved.filter(item=>item.finalScore!==null).length;
+      /* Catatan yang dilewati karena override manual ikut dikembalikan layanan apa adanya.
+         Menghitungnya sebagai "memperoleh nilai" membuat pesan ini mengaku berhasil menulis
+         sesuatu yang justru sengaja tidak ditulis - persis keadaan yang membuat guru mengira
+         nilainya sudah diperbarui padahal rapor masih memakai angka lama. */
+      const otomatis=saved.filter(item=>!item.isManualOverride);
+      const dipertahankan=saved.length-otomatis.length;
+      const bernilai=otomatis.filter(item=>item.finalScore!==null).length;
       drawAutomatic();
-      toast(`${bernilai} dari ${saved.length} siswa memperoleh nilai rapor. Override manual tetap dipertahankan.`);
+      const catatan=[`${bernilai} nilai otomatis diperbarui`];
+      if(dipertahankan)catatan.push(`${dipertahankan} nilai manual dipertahankan — batalkan override pada tab Input Manual bila ingin memakai nilai otomatis terbaru`);
+      toast(catatan.join('. '),dipertahankan?'warning':'success');
     });
     /* GENERATE SEMUA SISWA - satu klik, satu mata pelajaran.
 
@@ -78,6 +86,7 @@ export function renderReportInput(session,mode='input'){
         const result=saveAllAutomaticReports(session);
         drawAutomatic();
         const catatan=[`${result.scoreCount} nilai dan ${result.descriptionCount} deskripsi tersimpan otomatis`];
+        if(result.manualKeptCount)catatan.push(`${result.manualKeptCount} nilai manual dipertahankan`);
         if(result.skippedCount)catatan.push(`${result.skippedCount} dipertahankan atau belum bernilai`);
         if(result.errors.length)catatan.push(`${result.errors.length} belum dapat dibuat — aktifkan Butir CP mapel tersebut pada menu Capaian Pembelajaran`);
         toast(catatan.join(' · '),result.errors.length?'warning':'success');
@@ -93,12 +102,24 @@ export function renderReportInput(session,mode='input'){
     const description=getReportDescription(session,subjectId,row.studentId);return `<article class="card report-mobile-card"><div class="student-card-head"><div><h3>${escapeHtml(row.studentName)}</h3><p>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</p></div>${statusBadge(row.completionStatus==='COMPLETE',row.completionLabel)}</div>${componentsHtml(row)}<div class="report-result-grid"><span><b>Mentah</b>${number(row.rawScore)}</span><span><b>Pembulatan</b>${number(row.roundedScore,0)}</span><span><b>KKTP</b>${row.kktp}</span><span><b>Ketuntasan</b>${escapeHtml(row.masteryStatus||'—')}</span></div><button class="btn btn-light btn-small" data-description data-id="${escapeHtml(row.studentId)}">${description?.text?'Edit Deskripsi':'Buat Deskripsi'}</button></article>`;
   }
   function bindDescriptionButtons(){view.querySelectorAll('[data-description]').forEach(button=>button.onclick=()=>openDescription(button.dataset.id));}
+  /* Asal override ditampilkan apa adanya supaya guru tahu nilai mana yang sedang mengunci
+     rapor dan dari mana ia datang. Catatan otomatis tidak pernah disebut manual. */
+  function labelOverride(saved){
+    if(!saved?.isManualOverride)return '';
+    return saved.calculationMethod==='IMPORT_MANUAL'?'Import Manual':'Manual';
+  }
   function drawManual(){
-    const rows=calculateReportSheet(session,subjectId);actions.innerHTML=`<button class="btn btn-primary" data-save-manual>${icon('save',17)} Simpan Override</button>`;
-    if(!rows.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan siswa sebelum input manual.</p></section>';actions.querySelector('[data-save-manual]').disabled=true;return;}
-    const tableRows=rows.map(row=>{const saved=getReportScore(session,subjectId,row.studentId);return `<tr><td><strong>${escapeHtml(row.studentName)}</strong><span>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</span></td><td>${number(row.roundedScore,0)}<span>${row.completionLabel}</span></td><td><input class="input score-input" type="number" min="0" max="100" step="0.01" data-manual data-id="${escapeHtml(row.studentId)}" value="${saved?.isManualOverride?saved.finalScore:''}" aria-label="Override ${escapeHtml(row.studentName)}"/></td><td>${saved?.isManualOverride?statusBadge(true,`Override ${saved.finalScore}`):'<span class="muted">Belum override</span>'}</td></tr>`;}).join('');
-    const cards=rows.map(row=>{const saved=getReportScore(session,subjectId,row.studentId);return `<article class="card report-mobile-card"><div class="student-card-head"><div><h3>${escapeHtml(row.studentName)}</h3><p>Referensi otomatis: ${number(row.roundedScore,0)} · ${row.completionLabel}</p></div></div><div class="field compact-field"><label>Nilai Override 0–100</label><input class="input" type="number" min="0" max="100" step="0.01" data-manual data-id="${escapeHtml(row.studentId)}" value="${saved?.isManualOverride?saved.finalScore:''}" aria-label="Override ${escapeHtml(row.studentName)}"/></div></article>`;}).join('');
-    view.innerHTML=`<div class="source-banner warning-banner">Override manual menyimpan nilai otomatis atau nilai tersimpan sebelumnya sebagai referensi.</div><section class="card report-table-card"><div class="table-scroll"><table class="data-table manual-report-table"><thead><tr><th>Siswa</th><th>Referensi Otomatis</th><th>Nilai Override</th><th>Status</th></tr></thead><tbody>${tableRows}</tbody></table></div></section><div class="report-card-list">${cards}</div>`;bindMirroredInputs('[data-manual]');
+    const rows=calculateReportSheet(session,subjectId);
+    const overrideAda=rows.some(row=>getReportScore(session,subjectId,row.studentId)?.isManualOverride);
+    actions.innerHTML=`<button class="btn btn-light" data-cancel-all ${overrideAda?'':'disabled'} title="Kembalikan seluruh nilai manual dan import pada rombel, semester, dan tahun pelajaran aktif menjadi nilai otomatis terbaru">${icon('rotate',17)} Batalkan Semua Override</button><button class="btn btn-primary" data-save-manual>${icon('save',17)} Simpan Override</button>`;
+    if(!rows.length){view.innerHTML='<section class="card empty-state"><h3>Belum ada Data Siswa</h3><p>Tambahkan siswa sebelum input manual.</p></section>';actions.querySelector('[data-save-manual]').disabled=true;actions.querySelector('[data-cancel-all]').disabled=true;return;}
+    const aksiBaris=(row,saved)=>saved?.isManualOverride
+      ? `<button class="btn btn-light btn-small" data-cancel-one data-id="${escapeHtml(row.studentId)}">Batalkan Override</button><button class="btn btn-light btn-small" data-cancel-student data-id="${escapeHtml(row.studentId)}" title="Seluruh mata pelajaran siswa ini">Semua Mapel</button>`
+      : '<span class="muted">—</span>';
+    const tableRows=rows.map(row=>{const saved=getReportScore(session,subjectId,row.studentId);return `<tr><td><strong>${escapeHtml(row.studentName)}</strong><span>${escapeHtml(row.nis)} · ${escapeHtml(row.nisn)}</span></td><td>${number(row.roundedScore,0)}<span>${row.completionLabel}</span></td><td><input class="input score-input" type="number" min="0" max="100" step="0.01" data-manual data-id="${escapeHtml(row.studentId)}" value="${saved?.isManualOverride?saved.finalScore:''}" aria-label="Override ${escapeHtml(row.studentName)}"/></td><td>${saved?.isManualOverride?`${statusBadge(true,`${labelOverride(saved)} ${saved.finalScore}`)}`:'<span class="muted">Belum override</span>'}</td><td class="cell-actions">${aksiBaris(row,saved)}</td></tr>`;}).join('');
+    const cards=rows.map(row=>{const saved=getReportScore(session,subjectId,row.studentId);return `<article class="card report-mobile-card"><div class="student-card-head"><div><h3>${escapeHtml(row.studentName)}</h3><p>Referensi otomatis: ${number(row.roundedScore,0)} · ${row.completionLabel}</p></div>${saved?.isManualOverride?statusBadge(true,`${labelOverride(saved)} ${saved.finalScore}`):''}</div><div class="field compact-field"><label>Nilai Override 0–100</label><input class="input" type="number" min="0" max="100" step="0.01" data-manual data-id="${escapeHtml(row.studentId)}" value="${saved?.isManualOverride?saved.finalScore:''}" aria-label="Override ${escapeHtml(row.studentName)}"/></div>${saved?.isManualOverride?`<div class="row-actions"><button class="btn btn-light btn-small" data-cancel-one data-id="${escapeHtml(row.studentId)}">Batalkan Override</button><button class="btn btn-light btn-small" data-cancel-student data-id="${escapeHtml(row.studentId)}">Semua Mapel</button></div>`:''}</article>`;}).join('');
+    view.innerHTML=`<div class="source-banner warning-banner">Override manual menyimpan nilai otomatis atau nilai tersimpan sebelumnya sebagai referensi. Selama override aktif, Simpan Hasil Otomatis tidak menimpanya — tekan Batalkan Override bila ingin memakai nilai otomatis terbaru.</div><section class="card report-table-card"><div class="table-scroll"><table class="data-table manual-report-table"><thead><tr><th>Siswa</th><th>Referensi Otomatis</th><th>Nilai Override</th><th>Status</th><th class="cell-actions">Aksi</th></tr></thead><tbody>${tableRows}</tbody></table></div></section><div class="report-card-list">${cards}</div>`;bindMirroredInputs('[data-manual]');
+    bindCancelButtons();
     /* Seluruh nilai dikumpulkan dulu lalu ditulis dalam satu commit, bukan satu penyimpanan
    per sel, sehingga simpan satu rombel penuh cepat dan UI tidak membeku. */
     actions.querySelector('[data-save-manual]').onclick=async()=>{
@@ -113,6 +134,37 @@ export function renderReportInput(session,mode='input'){
         drawManual();toast(`${hasil.saved} nilai berhasil disimpan sekaligus.`);
       }catch(error){toast(error.message,'error');button.disabled=false;button.innerHTML=label;}
     };
+    actions.querySelector('[data-cancel-all]').onclick=()=>batalkanOverride({},
+      {title:'Batalkan Semua Override',
+        message:`Semua nilai manual dan hasil Import Nilai Rapor pada Kelas ${session.classId} · ${session.semester} · ${session.academicYear} akan dikembalikan ke hasil perhitungan otomatis terbaru. Nilai penilaian, absensi, bobot, dan KKTP tidak diubah. Rombel, semester, dan tahun pelajaran lain tidak tersentuh.`,
+        confirmText:'Batalkan Semua'});
+  }
+  /* SATU PINTU untuk ketiga tingkat pembatalan: yang membedakan hanya sasarannya. Seluruhnya
+     memanggil layanan yang sama, sehingga hasilnya tidak mungkin berbeda antar tingkat. */
+  async function batalkanOverride(target,dialog){
+    if(!await confirmDialog(dialog))return;
+    try{
+      const hasil=cancelManualReportOverrides(session,target);
+      drawManual();
+      if(!hasil.clearedCount){toast('Tidak ada override yang perlu dibatalkan.','warning');return;}
+      const catatan=[`${hasil.clearedCount} nilai kembali memakai perhitungan otomatis terbaru`];
+      if(hasil.descriptionCount)catatan.push(`${hasil.descriptionCount} deskripsi diselaraskan`);
+      toast(catatan.join(' · '));
+    }catch(error){toast(error.message,'error');}
+  }
+  function bindCancelButtons(){
+    const nama=id=>calculateReportSheet(session,subjectId).find(row=>row.studentId===id)?.studentName||'siswa ini';
+    const mapel=subjects.find(subject=>subject.id===subjectId)?.name||'';
+    view.querySelectorAll('[data-cancel-one]').forEach(button=>button.onclick=()=>batalkanOverride(
+      {subjectId,studentId:button.dataset.id},
+      {title:'Batalkan Override',
+        message:`Nilai rapor ${nama(button.dataset.id)} pada mata pelajaran ${mapel} akan dikembalikan ke hasil perhitungan otomatis terbaru. Mata pelajaran lain dan siswa lain tidak berubah.`,
+        confirmText:'Batalkan'}));
+    view.querySelectorAll('[data-cancel-student]').forEach(button=>button.onclick=()=>batalkanOverride(
+      {studentId:button.dataset.id},
+      {title:'Batalkan Override Semua Mapel',
+        message:`Nilai manual/import untuk seluruh mata pelajaran ${nama(button.dataset.id)} akan dikembalikan ke hasil perhitungan otomatis terbaru, pada Kelas ${session.classId} · ${session.semester} · ${session.academicYear}. Siswa lain tidak berubah.`,
+        confirmText:'Batalkan Semua Mapel'}));
   }
   function bindMirroredInputs(selector){view.querySelectorAll(selector).forEach(input=>input.oninput=()=>view.querySelectorAll(`${selector}[data-id="${CSS.escape(input.dataset.id)}"]`).forEach(other=>{if(other!==input)other.value=input.value;}));}
   function drawImport(){

@@ -1,7 +1,36 @@
 import { generateAllReportDescriptions } from './descriptions.js';
-import { saveAutomaticReportScores } from './report.js';
+import { clearManualReportOverrides, saveAutomaticReportScores } from './report.js';
 import { listStudents } from './students.js';
 import { listActiveSubjects } from './subjects.js';
+
+/* BATALKAN OVERRIDE MANUAL, LALU SELARASKAN DESKRIPSINYA.
+
+   Pembatalan angkanya dikerjakan layanan rapor; di sini ditambahkan satu hal yang memang sudah
+   menjadi pola aplikasi pada Simpan Otomatis Semua Mapel: begitu Nilai Akhir berubah,
+   deskripsi rapornya disusun ulang supaya angka dan kalimat tidak saling bertentangan.
+
+   Penjaganya sama persis dengan jalur otomatis existing - deskripsi yang TERKUNCI dan yang
+   SUDAH DISUNTING guru tetap dipertahankan, dan murid yang belum punya nilai dilewati. Tidak
+   ada generator deskripsi kedua: yang dipanggil generateAllReportDescriptions yang itu juga.
+
+   Hanya mata pelajaran yang benar-benar berubah yang disusun ulang, sehingga membatalkan satu
+   nilai tidak menyentuh kalimat mata pelajaran lain. */
+export function cancelManualReportOverrides(session,target={}){
+  const hasil=clearManualReportOverrides(session,target);
+  const descriptionErrors=[];let descriptionCount=0;
+  for(const subjectId of hasil.subjectIds){
+    try{
+      const deskripsi=generateAllReportDescriptions(session,subjectId,{requireScore:true});
+      descriptionCount+=deskripsi.terisi;
+      for(const gagal of deskripsi.gagal)
+        descriptionErrors.push({subjectId,studentId:gagal.studentId,
+          studentName:gagal.name,message:gagal.alasan});
+    }catch(error){
+      descriptionErrors.push({subjectId,studentId:null,studentName:null,message:error.message});
+    }
+  }
+  return {...hasil,descriptionCount,descriptionErrors};
+}
 
 /* SIMPAN OTOMATIS SELURUH MATA PELAJARAN.
 
@@ -44,12 +73,17 @@ export function saveAllAutomaticReports(session,{onProgress,overwriteEdited=fals
   const students=listStudents(session,{classId:session.classId});
   const errors=[];
   let scoreCount=0;let descriptionCount=0;let completedSubjects=0;let skippedCount=0;
+  let manualKeptCount=0;
   const subjectsWithDescription=[];
   subjects.forEach((subject,index)=>{
     try{
       /* 1. NILAI AKHIR DULU. Deskripsi membaca Nilai Akhir, jadi ia harus sudah tersimpan. */
+      /* Catatan yang dilewati karena override manual ikut dikembalikan layanan apa adanya.
+         Menghitungnya sebagai "tersimpan" membuat laporan mengaku berhasil menulis sesuatu
+         yang justru sengaja tidak ditulis, jadi keduanya dihitung terpisah di sini. */
       const scores=saveAutomaticReportScores(session,subject.id);
-      scoreCount+=scores.length;
+      scoreCount+=scores.filter(item=>!item.isManualOverride).length;
+      manualKeptCount+=scores.filter(item=>item.isManualOverride).length;
       /* 2. LALU DESKRIPSINYA, otomatis. subject.id dikirim apa adanya - bukan indeks, bukan
          mapel aktif halaman - sehingga hasilnya selalu tersimpan pada mata pelajaran yang
          sedang diproses dan tidak pernah bocor ke mata pelajaran lain. */
@@ -70,6 +104,6 @@ export function saveAllAutomaticReports(session,{onProgress,overwriteEdited=fals
       percentage:subjects.length?Math.round((index+1)/subjects.length*100):100});
   });
   return {subjectCount:subjects.length,studentCount:students.length,completedSubjects,
-    scoreCount,descriptionCount,skippedCount,subjectsWithDescription,
+    scoreCount,manualKeptCount,descriptionCount,skippedCount,subjectsWithDescription,
     errors,success:errors.length===0};
 }

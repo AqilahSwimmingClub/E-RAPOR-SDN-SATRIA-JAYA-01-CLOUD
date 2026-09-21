@@ -203,6 +203,70 @@ export function saveAutomaticReportScores(session,subjectId){
   return clone(saved);
 }
 
+/* BATALKAN OVERRIDE MANUAL.
+
+   Nilai rapor yang ditulis guru sendiri - lewat Input Manual maupun Import Nilai Rapor -
+   sengaja kebal terhadap Simpan Otomatis: angka yang diketik guru tidak boleh hilang hanya
+   karena ia menekan tombol simpan otomatis. Penjagaan itu tetap ada dan tidak dilonggarkan.
+
+   Yang selama ini tidak ada adalah pintu keluarnya. Sekali sebuah catatan menjadi override,
+   tidak ada satu pun jalur di aplikasi yang dapat mengembalikannya menjadi otomatis, sehingga
+   Nilai Akhir terbaru tidak pernah sampai ke rapor. Fungsi inilah pintu itu, dan ia hanya
+   terbuka bila guru sendiri yang memintanya.
+
+   Membatalkan override BUKAN menghapus nilai. Nilainya dihitung ulang oleh mesin yang sama
+   dengan Simpan Otomatis - calculateReportScore lewat calculateReportSheet - sehingga Bobot
+   ON/OFF, sumber Penilaian Harian, aturan komponen kosong, dan pembulatannya persis sama.
+   Catatan hasilnya pun dibentuk automaticRecord yang sama, jadi tidak ada bentuk record baru.
+
+   Cakupannya ditentukan pemanggil dan selalu terkurung pada scope aktif, sebab seluruh kunci
+   dibentuk reportKey yang sudah memuat tahun pelajaran, semester, dan rombel:
+
+     {subjectId,studentId} satu siswa pada satu mata pelajaran
+     {studentId}          satu siswa pada seluruh mata pelajaran aktif
+     {}                   seluruh siswa pada seluruh mata pelajaran aktif
+
+   Daftar mapelnya diambil dari listActiveSubjects, bukan daftar yang ditulis tangan, sehingga
+   mata pelajaran apa pun yang dipakai sekolah ikut terlayani tanpa perlakuan khusus.
+
+   Catatan yang MEMANG sudah otomatis tidak disentuh sama sekali - tidak dihitung ulang, tidak
+   ditulis ulang, dan tidak ikut terhitung sebagai perubahan. Nilai penilaian, absensi, bobot,
+   KKTP, rubrik, dan bukti Butir CP tidak pernah dibaca untuk ditulis di sini. */
+export function clearManualReportOverrides(session,{subjectId=null,studentId=null}={}){
+  assertTeacher(session);
+  const subjects=subjectId?[requireActiveSubject(session,subjectId)]:listActiveSubjects(session);
+  const students=listStudents(session,{classId:session.classId});
+  if(studentId&&!students.some(student=>student.id===studentId))
+    throw new Error('Siswa tidak ditemukan pada scope rombel aktif.');
+  const sasaran=studentId?students.filter(student=>student.id===studentId):students;
+  const db=loadDb();
+  /* Hanya mata pelajaran yang benar-benar punya override yang dihitung ulang, sehingga
+     membatalkan satu nilai tidak memaksa seluruh rombel dihitung tanpa perlu. */
+  const perluHitung=subjects.filter(subject=>sasaran.some(student=>
+    db.reportScores[reportKey(session,subject.id,student.id)]?.isManualOverride));
+  const hitunganMapel=new Map(perluHitung.map(subject=>{
+    const ctx=reportContext(session,subject.id);
+    return [subject.id,new Map(sasaran.map(student=>
+      [student.id,calculateReportScore(session,subject.id,student.id,ctx)]))];
+  }));
+  const dipulihkan=[];const mapelTersentuh=new Set();
+  updateDb(current=>{
+    for(const subject of perluHitung)for(const student of sasaran){
+      const key=reportKey(session,subject.id,student.id);
+      const previous=current.reportScores[key];
+      if(!previous?.isManualOverride)continue;
+      const record=automaticRecord(hitunganMapel.get(subject.id).get(student.id),previous);
+      current.reportScores[key]=record;
+      dipulihkan.push({subjectId:subject.id,studentId:student.id,
+        sebelum:referenceFrom(previous),sesudah:referenceFrom(record)});
+      mapelTersentuh.add(subject.id);
+    }
+    return current;
+  });
+  return {clearedCount:dipulihkan.length,subjectIds:[...mapelTersentuh],rows:clone(dipulihkan),
+    scope:{academicYear:session.academicYear,semester:session.semester,classId:session.classId}};
+}
+
 export function saveManualReportScore(session,subjectId,studentId,value,{source='MANUAL'}={}){
   requireActiveSubject(session,subjectId);const manualScore=scoreValue(value,'Nilai rapor manual');const automatic=calculateReportScore(session,subjectId,studentId);let saved;
   updateDb(db=>{

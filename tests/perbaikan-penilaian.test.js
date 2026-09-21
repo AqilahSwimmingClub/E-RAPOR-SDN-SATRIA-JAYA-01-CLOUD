@@ -5,7 +5,7 @@ import { ACADEMIC_YEAR, SUBJECTS_DEFAULT } from '../src/data/constants.js';
 import { APP_SCHEMA_VERSION, APP_VERSION, PREVIOUS_RELEASE, VERSION_CODE } from '../src/data/version.js';
 import { saveAssessmentScores } from '../src/services/assessment.js';
 import { fillAllAssessmentScores } from '../src/services/assessment-bulk.js';
-import { calculateReportScore, calculateReportSheet, getStoredReportRows, saveAutomaticReportScores } from '../src/services/report.js';
+import { calculateReportScore, calculateReportSheet, getStoredReportRows, saveAutomaticReportScores, saveManualReportScore } from '../src/services/report.js';
 import { saveAllAutomaticReports } from '../src/services/report-bulk.js';
 import { getLeger, getReportCompleteness, getReportDocument } from '../src/services/documents.js';
 import { getTranscriptRows, saveTranscriptScores } from '../src/services/transcript.js';
@@ -97,8 +97,29 @@ test('5. Simpan Hasil Otomatis menyimpan nilai dan memberi umpan balik yang jela
   const page=read('src/pages/reports.js');
   assert.match(page,/const jalankan=async\(button,label,kerja\)=>/,'tombol punya status sibuk dan penanganan galat');
   assert.match(page,/catch\(error\)\{toast\(error\.message,'error'\);?\}/,'galat ditampilkan, tombol tidak diam saja');
-  assert.match(page,/memperoleh nilai rapor/,'umpan balik jumlah siswa yang mendapat nilai');
+  /* KALIMAT UMPAN BALIKNYA DIPERBARUI - DAN KUNCINYA DIPERKETAT.
+
+     Sebelumnya berkas ini cukup menuntut kalimat "memperoleh nilai rapor". Kalimat itu dihitung
+     dari SELURUH catatan yang dikembalikan layanan, padahal catatan yang dilewati karena
+     override manual ikut di dalamnya - sehingga guru diberi tahu "30 dari 30 siswa memperoleh
+     nilai rapor" walaupun tidak satu pun benar-benar ditulis. Justru itulah yang membuat ia
+     mengira rapor sudah diperbarui padahal masih memakai angka lama.
+
+     Yang dikunci sekarang lebih banyak: halaman WAJIB memisahkan yang benar-benar ditulis dari
+     yang sengaja dipertahankan, dan wajib menghitungnya dengan menyaring isManualOverride -
+     bukan sekadar memakai panjang array. */
+  assert.match(page,/saved\.filter\(item=>!item\.isManualOverride\)/,
+    'yang dilaporkan tersimpan hanya catatan yang memang ditulis otomatis');
+  assert.match(page,/nilai otomatis diperbarui/,'umpan balik jumlah nilai otomatis yang ditulis');
+  assert.match(page,/nilai manual dipertahankan/,'override yang dilewati dilaporkan terpisah');
   assert.match(page,/\[data-save-all-auto\]'\)\.onclick=async\(\)=>/,'tombol semua mapel terpasang');
+
+  /* Dan kunci perilakunya, bukan hanya kalimatnya: satu override membuat hitungan otomatis
+     berkurang tepat satu, tidak pernah diakui sebagai tersimpan. */
+  saveManualReportScore(session,'mtk',anak.id,55);
+  const sesudah=saveAutomaticReportScores(session,'mtk');
+  assert.equal(sesudah.filter(item=>!item.isManualOverride).length,0,'tidak ada yang ditulis');
+  assert.equal(sesudah.filter(item=>item.isManualOverride).length,1,'satu override dipertahankan');
 });
 
 /* --------------------------------------------------------- 6, 7, 8. Siswa Islam dan Kristen */
