@@ -34,12 +34,21 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.16 uses versionCode 38 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.16');
-  assert.equal(VERSION_CODE,38);
+test('release v1.4.0 uses versionCode 39 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.4.0');
+  assert.equal(VERSION_CODE,39);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.16 memindahkan LETAK database akademik pada Windows - dari localStorage browser
+     Rilis 1.4.0 mengubah SIAPA yang boleh menjangkau database dan LEWAT MANA - bukan bentuk
+     datanya. Klien LAN menerima PROYEKSI: dokumen dengan koleksi dan bentuk kunci yang sama
+     persis, hanya berisi lebih sedikit catatan. Yang ditulis ke berkas server pun catatan
+     dengan bentuk yang sama, pada kunci yang sama. Tidak ada koleksi baru, tidak ada kolom
+     baru, dan tidak ada catatan lama yang ditulis ulang, sehingga database sekolah yang
+     berjalan sejak 1.3.16 terbaca apa adanya - termasuk oleh APK Android yang sengaja tidak
+     diubah pada rilis ini. Perilaku itu dikunci test "L63" pada
+     tests/lan-multi-client.test.js.
+
+     Alasan 1.3.16 sebelumnya juga masih berlaku: perpindahan LETAK database akademik pada Windows - dari localStorage browser
      ke berkas milik aplikasi di %APPDATA% - dan TIDAK mengubah bentuknya. Yang ditulis ke
      berkas itu adalah teks JSON yang sama persis dengan yang sebelumnya ada di localStorage:
      tidak ada koleksi baru, tidak ada kolom baru, dan tidak ada catatan lama yang ditulis
@@ -88,10 +97,10 @@ test('release v1.3.16 uses versionCode 38 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.16-PENYIMPANAN-MILIK-APLIKASI');
-  /* Rilis sebelumnya bergeser ke 1.3.15 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.4.0-SERVER-LAN-SEKOLAH');
+  /* Rilis sebelumnya bergeser ke 1.3.16 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.15',versionCode:37});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.16',versionCode:38});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
