@@ -34,12 +34,23 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.3.15 uses versionCode 37 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.3.15');
-  assert.equal(VERSION_CODE,37);
+test('release v1.3.16 uses versionCode 38 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.3.16');
+  assert.equal(VERSION_CODE,38);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.3.15 menambahkan kemampuan MEMBATALKAN override manual pada Nilai Rapor. Tidak ada
+     Rilis 1.3.16 memindahkan LETAK database akademik pada Windows - dari localStorage browser
+     ke berkas milik aplikasi di %APPDATA% - dan TIDAK mengubah bentuknya. Yang ditulis ke
+     berkas itu adalah teks JSON yang sama persis dengan yang sebelumnya ada di localStorage:
+     tidak ada koleksi baru, tidak ada kolom baru, dan tidak ada catatan lama yang ditulis
+     ulang. Migrasinya bahkan MEMBANDINGKAN karakter per karakter sebelum berani menyebut
+     dirinya berhasil, sehingga database sekolah yang sudah berjalan dibaca sesudah pindah
+     persis seperti sebelumnya. Android sengaja tidak ikut dipindahkan pada rilis ini dan
+     tetap memakai localStorage, jadi satu database yang sama tetap terbaca oleh kedua
+     platform tanpa konversi apa pun. Perilaku itu dikunci test "D5" pada
+     tests/penyimpanan-milik-aplikasi.test.js.
+
+     Alasan 1.3.15 sebelumnya juga masih berlaku, yaitu kemampuan MEMBATALKAN override manual pada Nilai Rapor. Tidak ada
      kolom, koleksi, maupun bentuk catatan baru: pembatalan hanya menulis ulang catatan rapor
      yang sudah ada memakai automaticRecord yang sudah dipakai Simpan Otomatis sejak lama, pada
      kunci yang sama persis. Override lama TIDAK direset otomatis saat boot maupun migrasi -
@@ -77,10 +88,10 @@ test('release v1.3.15 uses versionCode 37 and schema 5',()=>{
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
      tanpa manfaat, persis seperti pada rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.3.15-BATALKAN-OVERRIDE-RAPOR');
-  /* Rilis sebelumnya bergeser ke 1.3.14 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.3.16-PENYIMPANAN-MILIK-APLIKASI');
+  /* Rilis sebelumnya bergeser ke 1.3.15 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.14',versionCode:36});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.15',versionCode:37});
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
