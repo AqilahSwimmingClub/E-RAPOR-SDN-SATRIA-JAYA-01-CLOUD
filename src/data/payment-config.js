@@ -90,10 +90,17 @@ export function findPaymentMethod(id){
 
    Hanya memuat aturan yang MEMANG sudah berjalan di kode: satu lisensi memberi satu slot
    Android dan satu slot Windows (server/src/licenses.js, DEVICE_SLOTS), dan reset slot hanya
-   dapat dilakukan Pemilik. Tidak ada satu pun janji fitur yang belum ada. */
+   dapat dilakukan Pemilik. Tidak ada satu pun janji fitur yang belum ada.
+
+   Aplikasi DIJUAL PER GURU. Kalimat "satu lisensi untuk satu sekolah" pernah ada di sini dan
+   itu keliru dua arah sekaligus: ia menjanjikan kepada sekolah sesuatu yang tidak diberikan
+   kode - seluruh gurunya TIDAK mendapat akses dari satu kunci - sekaligus membuat guru yang
+   membeli sendiri mengira ia tidak berhak. Yang dijaga kode adalah jumlah PERANGKAT per
+   kunci, dan itulah yang ditulis di sini. */
 export const LICENSE_SCOPE=Object.freeze([
-  'Satu lisensi berlaku untuk satu sekolah.',
+  'Satu lisensi berlaku untuk satu pembeli, yaitu satu guru. Dua guru membeli dua lisensi.',
   'Satu lisensi memberi dua slot perangkat sekaligus: satu Android dan satu Windows.',
+  'Guru lain yang membuka aplikasi lewat browser dari komputer Windows berlisensi (Server LAN) tidak memakai slot aktivasi.',
   'Aktivasi Android dan Windows berdiri sendiri. Reset perangkat Android tidak menghapus aktivasi Windows, dan sebaliknya.',
   'Pemindahan lisensi ke perangkat lain dilakukan lewat reset slot oleh Developer.',
   'Data akademik sekolah tersimpan di perangkat sekolah sendiri, bukan di server lisensi.',

@@ -631,6 +631,19 @@ test('36. Cakupan lisensi yang dijanjikan halaman sama dengan yang berjalan di s
   /* Tidak ada satu pun janji fitur yang belum ada. */
   for(const janji of ['segera','coming soon','akan hadir','dalam pengembangan'])
     assert.equal(teks.includes(janji),false,`tidak ada janji "${janji}"`);
+
+  /* APLIKASI DIJUAL PER GURU, dan halaman pembelian harus mengatakan itu.
+     "Satu lisensi untuk satu sekolah" pernah tertulis di sini dan keliru dua arah: sekolah
+     mengira seluruh gurunya tercakup, padahal kode hanya memberi dua slot perangkat; dan guru
+     yang membeli sendiri mengira ia tidak berhak. */
+  assert.equal(/satu lisensi berlaku untuk satu sekolah/.test(teks),false,
+    'tidak ada lagi janji lisensi per sekolah');
+  assert.match(teks,/satu pembeli|per guru|satu guru/,'cakupan dinyatakan per pembeli');
+  for(const dilarang of ['seluruh guru','semua guru','tanpa batas guru','unlimited'])
+    assert.equal(teks.includes(dilarang),false,`tidak ada janji "${dilarang}" yang tidak ditegakkan kode`);
+
+  /* Yang benar-benar dijaga kode adalah jumlah perangkat per kunci, bukan jumlah guru. */
+  assert.match(server,/ux_one_active_slot/,'satu perangkat aktif per slot dijaga UNIQUE database');
 });
 
 test('37. Pesan kegagalan pemesanan menjelaskan keadaan sebenarnya',()=>{
