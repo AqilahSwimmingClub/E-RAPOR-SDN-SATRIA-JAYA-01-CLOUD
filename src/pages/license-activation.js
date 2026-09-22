@@ -35,7 +35,8 @@ export function renderLicenseActivation({onActivated}={}){
         ${school.npsn?`<div><span>NPSN</span><strong>${escapeHtml(school.npsn)}</strong></div>`:''}
         <div><span>Installation ID</span><code>${escapeHtml(getInstallationId())}</code></div>
       </div>
-      <p class="setup-hint">Satu License Key melayani <strong>satu perangkat Android</strong> dan <strong>satu komputer Windows</strong>. Keduanya berdiri sendiri: mengaktifkan di HP tidak memakai jatah komputer, dan sebaliknya.</p>
+      <p class="setup-hint">License Key ini milik <strong>satu pembeli</strong> dan melayani <strong>satu perangkat Android</strong> serta <strong>satu komputer Windows</strong>. Keduanya berdiri sendiri: mengaktifkan di HP tidak memakai jatah komputer, dan sebaliknya.</p>
+      <p class="setup-hint">Guru lain yang membuka aplikasi lewat browser dari komputer Windows ini (Server LAN) <strong>tidak</strong> memakai jatah aktivasi: browser hanya menjadi layar bagi komputer yang lisensinya sudah aktif.</p>
       <p class="setup-hint">${escapeHtml(DEVICE_SOURCE_NOTES[getInstallationSource()]||'')}</p>
 
       ${perluVerifikasi?`<div class="license-verify" data-verify>
@@ -43,7 +44,7 @@ export function renderLicenseActivation({onActivated}={}){
         <div class="actions"><button class="btn btn-primary" type="button" data-recheck>${icon('rotate',16)} PERIKSA LISENSI SEKARANG</button></div>
         <div class="login-error hidden" data-verify-error role="alert"></div>
       </div>
-      <p class="setup-hint">Bila lisensi sekolah ini memang sudah diganti, masukkan License Key baru di bawah.</p>`:''}
+      <p class="setup-hint">Bila License Key Anda memang sudah diganti, masukkan yang baru di bawah.</p>`:''}
 
       <form data-form>
         <div class="field"><label>License Key</label>

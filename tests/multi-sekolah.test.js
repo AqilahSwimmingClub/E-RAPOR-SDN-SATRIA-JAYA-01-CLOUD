@@ -303,7 +303,7 @@ test('19. Setup Awal hanya muncul selama identitas sekolah belum diisi',()=>{
   useMemoryStorage();
   assert.equal(isSchoolIdentityReady(),false,'instalasi baru belum siap dipakai');
   const app=read('src/app.js');
-  assert.match(app,/if\(!startupError&&!isSchoolIdentityReady\(\)\)\{/,'gerbang setup dipasang di router');
+  assert.match(app,/if\(!startupError&&!klienLan&&!isSchoolIdentityReady\(\)\)\{/,'gerbang setup dipasang di router');
   /* Aktivasi lisensi diperiksa lebih dulu, jadi saat Setup Awal terbuka perangkat sudah aktif
      dan langkah berikutnya adalah login, bukan aktivasi lagi. */
   assert.match(app,/renderSchoolSetup\(\{onComplete:\(\)=>navigate\('login'\)\}\)/,'setup selesai lanjut ke login');

@@ -78,12 +78,24 @@ function cariAkunGuru(doc,username,kataSandi){
    dibaca dari Data Referensi di dalam database, dan database baru dapat dibaca setelah ada
    sesi. Server memegang dokumen yang sama, jadi ia melakukan pencarian yang persis sama -
    dari sumber yang sama - tanpa lingkaran itu. */
+/* SEMESTER LOGIN HANYA BOLEH BERASAL DARI DATA REFERENSI SEKOLAH.
+
+   Klien LAN tidak lagi menambahkan tahun pelajaran bawaan saat membaca dokumen - lihat
+   periodeBawaanDipakai() pada src/services/storage.js. Daftar semester yang ditawarkan
+   Halaman Masuk di laptop guru karena itu persis sama dengan yang tersimpan di server.
+
+   Server sengaja TIDAK memakai daftar cadangan apa pun. Sebuah cadangan akan meloloskan
+   sesi ke cakupan tahun yang tidak memuat satu pun rombel, siswa, atau nilai: guru masuk,
+   melihat kelasnya kosong, lalu setiap simpanannya ditolak. Menolak di muka jauh lebih
+   jujur, dan Admin dapat menambah tahun pelajaran dari Data Referensi di PC server. */
 function tahunUntukSemester(doc,semester){
+  const label=String(semester||'');
   const daftar=doc?.masterData?.references?.semesters;
-  if(!Array.isArray(daftar))throw galat('Data Referensi semester belum tersedia di server.','SEMESTER_TIDAK_ADA');
-  const catatan=daftar.find(item=>item&&item.label===semester&&item.active!==false);
-  if(!catatan)throw galat('Semester login tidak tersedia pada Data Referensi sekolah.','SEMESTER_TIDAK_ADA');
-  return String(catatan.academicYear||'');
+  if(Array.isArray(daftar)){
+    const catatan=daftar.find(item=>item&&item.label===label&&item.active!==false);
+    if(catatan)return String(catatan.academicYear||'');
+  }
+  throw galat('Semester login tidak tersedia pada Data Referensi sekolah.','SEMESTER_TIDAK_ADA');
 }
 
 function galat(pesan,kode){
@@ -212,4 +224,4 @@ function bacaCookie(header,nama){
   return '';
 }
 
-module.exports={createLanSessions,bacaCookie,kataSandiCocok,NAMA_COOKIE,KELAS_SAH};
+module.exports={createLanSessions,bacaCookie,kataSandiCocok,tahunUntukSemester,NAMA_COOKIE,KELAS_SAH};

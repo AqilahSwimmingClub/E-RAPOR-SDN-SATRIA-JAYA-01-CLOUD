@@ -135,19 +135,25 @@ async function gambarDashboard(host){
 /* ------------------------------------------------------------------------ Lisensi
 
    Setiap status punya halamannya sendiri sehingga satu lisensi tidak pernah muncul di dua
-   kategori. Identitas pemiliknya — nama pembeli, nama sekolah, dan NPSN — selalu ikut
-   ditampilkan supaya kunci yang sudah terbit dapat ditelusuri milik siapa. */
+   kategori. Identitas pemiliknya selalu ikut ditampilkan supaya kunci yang sudah terbit dapat
+   ditelusuri milik siapa.
+
+   Yang menentukan sebuah lisensi adalah PEMBELINYA, bukan sekolahnya: aplikasi dijual per
+   guru. Karena itu hanya Nama Pembeli yang wajib. Sekolah dan NPSN adalah keterangan
+   tambahan - berguna untuk penagihan dan dukungan, tetapi tidak pernah menjadi dasar berapa
+   perangkat yang boleh dipakai. Dua guru dari satu sekolah membeli dua lisensi. */
 
 async function gambarLisensi(host,{status='',type='',judul='Lisensi',sub='',buat=false,buatDeveloper=false}={}){
   const {customers}=buat?await api('/owner/customers'):{customers:[]};
   const formBuat=buat?`<section class="card">
       <h2>Buat License Key Pembeli</h2>
       <p class="sub">Kunci ditampilkan utuh satu kali saja di sini. Simpan sebelum menutup halaman.
-        Nama pembeli, nama sekolah, dan NPSN wajib diisi.</p>
+        Satu lisensi berlaku untuk SATU pembeli: 1 aktivasi Windows dan 1 aktivasi Android.
+        Hanya Nama Pembeli yang wajib; sekolah dan NPSN sekadar keterangan.</p>
       <form class="row" data-buat style="margin-top:12px">
         <div><label>Nama Pembeli *</label><input name="buyerName" placeholder="Budi Santoso" required/></div>
-        <div><label>Nama Sekolah *</label><input name="schoolName" placeholder="SDN Maju Jaya 01" required/></div>
-        <div><label>NPSN *</label><input name="npsn" placeholder="12345678" required/></div>
+        <div><label>Nama Sekolah (opsional)</label><input name="schoolName" placeholder="SDN Maju Jaya 01"/></div>
+        <div><label>NPSN (opsional)</label><input name="npsn" placeholder="12345678" inputmode="numeric" pattern="\\d{8}"/></div>
         <div><label>Jumlah</label><input name="count" type="number" min="1" max="500" value="1" required/></div>
         <div><label>Pembeli terdaftar (opsional)</label><select name="customerId"><option value="">—</option>
           ${customers.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></div>
@@ -186,7 +192,7 @@ async function gambarLisensi(host,{status='',type='',judul='Lisensi',sub='',buat
       const hasil=await api('/owner/licenses',{method:'POST',body:{
         count:Number(form.count.value),buyerName:form.buyerName.value,schoolName:form.schoolName.value,
         npsn:form.npsn.value,customerId:form.customerId.value||null}});
-      host.querySelector('[data-hasil]').innerHTML=`<div class="msg ok">${hasil.created} License Key dibuat untuk ${esc(form.schoolName.value)}.</div>
+      host.querySelector('[data-hasil]').innerHTML=`<div class="msg ok">${hasil.created} License Key dibuat untuk ${esc(form.buyerName.value)}.</div>
         <div class="keylist">${hasil.licenses.map(l=>esc(l.key)).join('\n')}</div>
         <p class="warn">Salin sekarang. Setelah halaman ditutup, kunci utuh hanya dapat diambil lewat tombol Lihat Key.</p>`;
       form.reset();

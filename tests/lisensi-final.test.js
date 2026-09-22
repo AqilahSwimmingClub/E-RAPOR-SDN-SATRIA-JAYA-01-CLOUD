@@ -145,30 +145,69 @@ test('7b. Alur rilis Windows menyiapkan dan memeriksa konfigurasi produksi yang 
 
 /* ------------------------------------------------- 40-41. Status dan identitas Owner Panel */
 
-test('8. Identitas pembeli wajib saat membuat lisensi',async()=>{
+test('8. Yang wajib pada lisensi adalah PEMBELInya, bukan sekolahnya',async()=>{
   const s=await startTestServer();
   try{
     const token=await s.ownerToken();
-    const tolak=async(body,pola)=>{
-      const {status,data}=await s.call('/owner/licenses',{method:'POST',token,body:{count:1,...body}});
-      assert.equal(status,400,`seharusnya ditolak: ${JSON.stringify(body)}`);
-      assert.match(data.error.message,pola);
-    };
-    await tolak({schoolName:'SDN Maju Jaya 01',npsn:'12345678'},/Nama Pembeli/);
-    await tolak({buyerName:'Budi',npsn:'12345678'},/Nama Sekolah/);
-    await tolak({buyerName:'Budi',schoolName:'SDN Maju Jaya 01'},/NPSN/);
-    await tolak({buyerName:'Budi',schoolName:'SDN Maju Jaya 01',npsn:'123'},/8 digit/);
+    const buat=body=>s.call('/owner/licenses',{method:'POST',token,body:{count:1,...body}});
 
-    const {status,data}=await s.call('/owner/licenses',{method:'POST',token,body:{count:1,...IDENTITAS}});
-    assert.equal(status,200);
-    assert.equal(data.created,1);
+    /* Nama Pembeli tetap wajib: tanpa itu kunci yang terbit tidak dapat ditelusuri milik siapa. */
+    const tanpaPembeli=await buat({schoolName:'SDN Maju Jaya 01',npsn:'12345678'});
+    assert.equal(tanpaPembeli.status,400);
+    assert.match(tanpaPembeli.data.error.message,/Nama Pembeli/);
+
+    /* APLIKASI DIJUAL PER GURU. Seorang guru boleh membeli tanpa menyebut sekolah atau NPSN. */
+    const hanyaPembeli=await buat({buyerName:'Budi Santoso'});
+    assert.equal(hanyaPembeli.status,200,'lisensi per pembeli tidak memerlukan identitas sekolah');
+    assert.equal(hanyaPembeli.data.created,1);
+
+    /* NPSN yang DIISI tetap diperiksa, supaya keterangan yang ada tidak menyesatkan. */
+    const npsnPendek=await buat({buyerName:'Budi',npsn:'123'});
+    assert.equal(npsnPendek.status,400);
+    assert.match(npsnPendek.data.error.message,/8 digit/);
+
+    /* TIDAK ADA LISENSI PER SEKOLAH: dua guru dari satu sekolah mendapat DUA lisensi terpisah,
+       masing-masing dengan jatah perangkatnya sendiri - bukan satu lisensi yang dibagi. */
+    assert.equal((await buat({buyerName:'Guru Pertama',schoolName:'SDN Maju Jaya 01',npsn:'12345678'})).status,200);
+    assert.equal((await buat({buyerName:'Guru Kedua',schoolName:'SDN Maju Jaya 01',npsn:'12345678'})).status,200);
+
     const daftar=await s.call('/owner/licenses',{token});
-    const lisensi=daftar.data.licenses[0];
-    assert.equal(lisensi.buyer_name,'Budi Santoso');
-    assert.equal(lisensi.school_name,'SDN Maju Jaya 01');
-    assert.equal(lisensi.npsn,'12345678');
-    assert.equal(lisensi.license_type,'CUSTOMER');
-    assert.match(lisensi.license_hint,/^ERAPOR-••••-••••-[A-Z0-9]{4}$/,'daftar hanya memuat kunci tersamar');
+    const semua=daftar.data.licenses;
+    const seNpsn=semua.filter(item=>item.npsn==='12345678');
+    assert.equal(seNpsn.length,2,'NPSN yang sama menghasilkan dua lisensi, bukan satu yang dipakai bersama');
+    assert.equal(new Set(seNpsn.map(item=>item.id)).size,2,'keduanya record berbeda');
+    assert.deepEqual(seNpsn.map(item=>item.buyer_name).sort(),['Guru Kedua','Guru Pertama']);
+    /* Kontrol positif untuk pemeriksaan di 8b: dengan NPSN, customer MEMANG tersambung -
+       sehingga "tidak tersambung" pada lisensi tanpa NPSN benar-benar bermakna. */
+    for(const lisensi of seNpsn)
+      assert.ok(lisensi.customer_id,'lisensi ber-NPSN tetap tersambung ke pembeli terdaftar');
+
+    const perorangan=semua.find(item=>item.buyer_name==='Budi Santoso');
+    assert.ok(perorangan,'lisensi tanpa sekolah tetap tercatat atas nama pembelinya');
+    assert.ok(!perorangan.school_name,'tidak ada nama sekolah yang dikarang');
+    assert.ok(!perorangan.npsn,'tidak ada NPSN yang dikarang');
+    assert.equal(perorangan.license_type,'CUSTOMER');
+
+    for(const lisensi of semua)
+      assert.match(lisensi.license_hint,/^ERAPOR-••••-••••-[A-Z0-9]{4}$/,'daftar hanya memuat kunci tersamar');
+  }finally{await s.close();}
+});
+
+test('8b. Lisensi tanpa NPSN tidak dilebur ke pembeli lain yang kebetulan senama',async()=>{
+  const s=await startTestServer();
+  try{
+    const token=await s.ownerToken();
+    /* Tanpa NPSN satu-satunya pembanding adalah nama. Meleburnya akan menyatukan dua guru
+       berbeda menjadi satu pembeli pada daftar Owner. */
+    for(let i=0;i<2;i++)
+      assert.equal((await s.call('/owner/licenses',{method:'POST',token,
+        body:{count:1,buyerName:'Siti Aminah'}})).status,200);
+
+    const {data}=await s.call('/owner/licenses',{token});
+    const senama=data.licenses.filter(item=>item.buyer_name==='Siti Aminah');
+    assert.equal(senama.length,2);
+    for(const lisensi of senama)
+      assert.ok(!lisensi.customer_id,'lisensi tanpa NPSN berdiri sendiri sampai Owner menyambungkannya');
   }finally{await s.close();}
 });
 

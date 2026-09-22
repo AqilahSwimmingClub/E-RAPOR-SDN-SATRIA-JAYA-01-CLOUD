@@ -129,8 +129,15 @@ function periksaPerubahan(perubahan,session){
     const cakupan=cakupanDariKunci(item.kunci);
     if(cakupan===null)
       return {boleh:false,alasan:`Data bersama sekolah hanya dapat diubah Admin: ${item.koleksi}.`};
-    if(cakupan!==awalan)
-      return {boleh:false,alasan:`Sesi ini hanya berwenang atas rombel ${session.classId}.`};
+    if(cakupan!==awalan){
+      /* Cakupan terdiri dari tahun, semester, DAN rombel. Menyebut "rombel" untuk setiap
+         penolakan menyesatkan guru yang sebenarnya salah semester: ia melihat namanya sendiri
+         pada pesan dan mengira aplikasi rusak. Sebut bagian yang benar-benar berbeda. */
+      const milikKunci=cakupan.split('|');
+      if(milikKunci[2]!==session.classId)
+        return {boleh:false,alasan:`Sesi ini hanya berwenang atas rombel ${session.classId}.`};
+      return {boleh:false,alasan:`Sesi ini masuk pada ${session.semester}, sehingga data ${milikKunci[1]} tidak dapat diubah. Keluar lalu masuk kembali pada semester tersebut.`};
+    }
   }
   return {boleh:true};
 }

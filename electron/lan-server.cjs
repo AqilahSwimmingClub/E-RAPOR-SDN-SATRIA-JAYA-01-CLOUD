@@ -172,6 +172,46 @@ function createLanServer({store,bacaLisensi,sekarang=()=>Date.now()}={}){
       return jawab(200,{ok:true},{'Set-Cookie':sessions.cookieKosong()});
     }
 
+    /* DOKUMEN PRA-LOGIN.
+
+       Halaman Login perlu tahu dua hal sebelum siapa pun masuk: nama sekolah untuk judulnya,
+       dan daftar semester untuk pilihannya. Keduanya dibaca dari database, sedangkan database
+       baru boleh dibaca setelah ada sesi - sehingga klien LAN sebelumnya gagal menampilkan
+       halaman Login sama sekali.
+
+       Yang dikirim di sini HANYA kedua hal itu, dalam bentuk dokumen yang sama sehingga kode
+       aplikasi membacanya seperti biasa. Tidak ada satu pun catatan akademik, akun, nilai,
+       atau rahasia di dalamnya - yang memang sudah terlihat siapa pun yang membuka alamat
+       server di jaringan sekolah, tidak lebih. */
+    if(aksi==='publik'&&metode==='GET'){
+      const referensi=dokumen?.masterData?.references||{};
+      /* Satu keterangan lagi yang dibutuhkan sebelum login: apakah instalasi ini sudah
+         disiapkan. Tanpa itu aplikasi menyangka Admin belum pernah dibuat, lalu menawarkan
+         "Buat Password Admin Pertama" kepada guru yang sebenarnya hanya hendak masuk.
+
+         Yang dikirim hanya JAWABANNYA - sudah siap atau belum - dalam bentuk catatan akun
+         kosong tanpa satu pun rahasia: tidak ada hash kata sandi, tidak ada kode recovery,
+         tidak ada nama pengguna. Keterangan ini pun bukan rahasia: siapa saja yang dapat
+         membuka alamat server di jaringan sekolah sudah dapat menyimpulkannya dari halaman
+         yang muncul. */
+      const admin=dokumen?.userAccounts?.admin;
+      const sudahDisiapkan=Boolean(dokumen?.security?.ownerActivated&&admin&&!admin.requiresActivation);
+      return jawab(200,{ok:true,database:JSON.stringify({
+        appSchemaVersion:dokumen?.appSchemaVersion,
+        appVersion:dokumen?.appVersion,
+        security:{ownerActivated:Boolean(dokumen?.security?.ownerActivated)},
+        userAccounts:sudahDisiapkan?{admin:{id:'admin',role:'admin',requiresActivation:false}}:{},
+        masterData:{
+          school:{name:dokumen?.masterData?.school?.name||''},
+          references:{
+            academicYears:Array.isArray(referensi.academicYears)?referensi.academicYears:[],
+            semesters:Array.isArray(referensi.semesters)?referensi.semesters:[],
+            subjects:[],
+          },
+        },
+      })});
+    }
+
     const sesi=sesiDari(permintaan);
     if(!sesi)return jawab(401,{error:'Sesi tidak ditemukan atau sudah berakhir. Masuk kembali.',kode:'SESI_TIDAK_SAH'});
 

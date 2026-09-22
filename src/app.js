@@ -6,6 +6,7 @@ import { renderSchoolSetup } from './pages/school-setup.js';
 import { renderLicenseActivation } from './pages/license-activation.js';
 import { checkLicense, getLicenseState, noteClockObservation } from './services/license.js';
 import { kirimStatusLisensiKeServer } from './services/lan-admin.js';
+import { modeLanAktif } from './services/lan-client.js';
 import { ensureInstallationId } from './services/installation.js';
 import { getAdminReadiness, isTeacherUsageActive } from './services/admin-readiness.js';
 import { hasTeacherAssignment, PESAN_BELUM_DITUGASKAN } from './services/teacher-assignments.js';
@@ -66,8 +67,20 @@ function refreshLicenseState(){
 /* Migration dijalankan lebih dulu, lalu satu pengaman idempotent: mapel bawaan baru
    dipastikan ada pada Mapping lama. Tidak ada data siswa yang pernah dimasukkan otomatis.
    Kegagalan pengaman tidak boleh membuat aplikasi gagal dibuka. */
-try{runAppMigrations();}catch(error){startupError=error;}
-if(!startupError){try{ensureDefaultSubjects();}catch{}}
+/* KLIEN LAN TIDAK MENYENTUH DATABASE SEBELUM ADA SESI.
+
+   Migration dan pengaman mapel bawaan adalah pekerjaan pemilik database, yaitu komputer
+   server. Menjalankannya dari laptop guru mustahil sekaligus salah: mustahil karena database
+   baru boleh dibaca setelah login, dan salah karena satu klien tidak berhak memigrasi
+   database sekolah milik komputer lain.
+
+   Tanpa penjagaan ini, boot klien LAN membaca database, menerima 401, lalu gagal sebelum
+   satu piksel pun tampil - halaman kosong, bukan halaman Login. */
+const klienLan=(()=>{try{return modeLanAktif();}catch{return false;}})();
+if(!klienLan){
+  try{runAppMigrations();}catch(error){startupError=error;}
+  if(!startupError){try{ensureDefaultSubjects();}catch{}}
+}
 let session=startupError?null:getSession();
 let expiryTimer=null;
 
@@ -82,6 +95,10 @@ let expiryTimer=null;
    kapan sebuah status menjadi REVOKED atau SUSPENDED. Tidak ada data yang disentuh. */
 function segarkanLisensiDariServer(){
   if(startupError)return;
+  /* Klien LAN tidak punya catatan lisensi untuk disegarkan, dan tidak boleh membuat Installation
+     ID: identitas perangkat adalah bahan aktivasi, sedangkan laptop yang hanya membuka server
+     memang tidak pernah diaktivasi dan tidak boleh memakan slot pembelian siapa pun. */
+  if(klienLan)return;
   /* Waktu yang sedang dilihat aplikasi dicatat lebih dulu, sehingga jam yang dimundurkan tidak
      memperpanjang masa tenggang offline. */
   try{noteClockObservation();}catch{}
@@ -117,7 +134,18 @@ function mount(requestedRoute){
      punya identitas sekolah langsung membuka Setup Awal dan aktivasi terlewat sama sekali.
      Perangkat wajib punya lisensi yang sah sebelum apa pun yang lain — termasuk sebelum Setup
      Awal. Tidak ada pengecualian berdasarkan sekolah, NPSN, atau siapa pun penggunanya. */
-  if(!startupError&&!licenseState.canUseApp){
+  /* LISENSI KLIEN LAN ADALAH LISENSI KOMPUTER SERVERNYA, BUKAN MILIK LAPTOP INI.
+
+     Laptop guru memang tidak pernah memegang catatan lisensi - dan memang tidak seharusnya,
+     sebab ia bukan perangkat yang diaktivasi. Menerapkan gerbang lisensi lokal di sini membuat
+     setiap klien LAN diminta memasukkan License Key, dan bila ia menurut, satu pembelian akan
+     termakan oleh laptop yang sebenarnya hanya menumpang membuka server.
+
+     Yang menjaga pintu bagi klien LAN adalah SERVER: login LAN ditolak ketika lisensi komputer
+     server dicabut atau masa tenggangnya habis, dan setiap pembacaan maupun penyimpanan
+     sesudahnya tetap melewati sesi server yang sama. Jadi gerbangnya tidak hilang - ia berada
+     di tempat yang memang memegang lisensinya. */
+  if(!startupError&&!klienLan&&!licenseState.canUseApp){
     document.documentElement.dataset.route='license';
     app.innerHTML='';
     app.append(renderLicenseActivation({onActivated:()=>{refreshLicenseState();navigate('login');}}));
@@ -125,7 +153,10 @@ function mount(requestedRoute){
   }
   /* Baru setelah perangkat berlisensi, identitas sekolah diisi. Setelah nama sekolah tersimpan,
      gerbang ini tidak pernah muncul lagi dan alur kembali ke aktivasi/login yang sudah ada. */
-  if(!startupError&&!isSchoolIdentityReady()){
+  /* Setup Awal identitas sekolah pun milik komputer server: ia menulis data bersama yang
+     otorisasi LAN memang tidak izinkan diubah seorang guru, dan pemeriksaannya membaca
+     database yang belum terbaca sebelum login. */
+  if(!startupError&&!klienLan&&!isSchoolIdentityReady()){
     document.documentElement.dataset.route='school-setup';
     app.innerHTML='';
     app.append(renderSchoolSetup({onComplete:()=>navigate('login')}));

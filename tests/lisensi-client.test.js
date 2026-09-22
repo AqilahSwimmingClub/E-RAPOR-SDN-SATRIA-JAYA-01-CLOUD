@@ -44,9 +44,13 @@ test('01-03. Alur fresh install: aktivasi lisensi lebih dulu, baru setup sekolah
   const app=read('src/app.js');
   /* Urutannya pernah terbalik: Setup Awal diperiksa duluan, sehingga instalasi baru yang belum
      punya identitas sekolah langsung membuka Setup Awal dan aktivasi terlewat sama sekali. */
-  assert.match(app,/if\(!startupError&&!licenseState\.canUseApp\)\{/,'tanpa lisensi aplikasi berhenti di gerbang aktivasi');
+  /* Pengecualian klienLan BUKAN pelonggaran: browser guru di LAN bukan sebuah instalasi, ia
+     hanya jendela ke instalasi Windows yang lisensinya sudah diperiksa di server. Gerbang ini
+     tetap berlaku penuh untuk setiap instalasi Windows dan Android. */
+  assert.match(app,/if\(!startupError&&!klienLan&&!licenseState\.canUseApp\)\{/,'tanpa lisensi aplikasi berhenti di gerbang aktivasi');
   assert.match(app,/app\.append\(renderLicenseActivation\(/,'halaman aktivasi yang ditampilkan');
-  assert.match(app,/if\(!startupError&&!isSchoolIdentityReady\(\)\)/,'setup sekolah tetap ada sebagai gerbang berikutnya');
+  assert.match(app,/if\(!startupError&&!klienLan&&!isSchoolIdentityReady\(\)\)/,'setup sekolah tetap ada sebagai gerbang berikutnya');
+  assert.match(app,/const klienLan=\(\(\)=>\{try\{return modeLanAktif\(\);\}catch\{return false;\}\}\)\(\)/,'status klien LAN dibaca dari meta halaman, bukan dari nilai yang dapat disetel halaman');
   assert.match(app,/renderSchoolSetup\(\{onComplete:\(\)=>navigate\('login'\)\}\)/,'setup selesai lanjut ke login');
   assert.ok(app.indexOf('!licenseState.canUseApp')<app.indexOf('!isSchoolIdentityReady()'),
     'gerbang lisensi wajib dievaluasi sebelum gerbang Setup Awal');

@@ -82,11 +82,18 @@ export function slotForPlatform(platform){
   return 'windows';
 }
 
-/* Lisensi pembeli WAJIB membawa identitas pemiliknya: tanpa nama pembeli, nama sekolah, dan
-   NPSN, kunci yang sudah terbit tidak dapat ditelusuri lagi milik siapa. Lisensi DEVELOPER
-   adalah lisensi resmi milik pemilik aplikasi untuk QA dan demo, jadi ia tidak memerlukan
-   identitas sekolah pembeli — tetapi tetap record nyata dengan kunci, aktivasi server, ikatan
-   perangkat, dan audit yang sama persis. */
+/* SATU LISENSI = SATU PEMBELI, BUKAN SATU SEKOLAH.
+
+   Aplikasi dijual per guru. Yang WAJIB karena itu hanya Nama Pembeli: tanpa nama pembeli,
+   kunci yang sudah terbit tidak dapat ditelusuri lagi milik siapa. Nama Sekolah dan NPSN
+   bersifat keterangan tambahan - seorang guru boleh membeli tanpa menyebut sekolahnya, dan
+   dua guru dari sekolah yang sama membeli DUA lisensi terpisah, masing-masing dengan jatah
+   perangkatnya sendiri. NPSN yang DIISI tetap diperiksa delapan digit supaya keterangan yang
+   ada tidak menyesatkan.
+
+   Lisensi DEVELOPER adalah lisensi resmi milik pemilik aplikasi untuk QA dan demo, jadi ia
+   tidak memerlukan identitas pembeli - tetapi tetap record nyata dengan kunci, aktivasi
+   server, ikatan perangkat, dan audit yang sama persis. */
 /* ------------------------------------------------- SEKOLAH/PEMBELI SEBAGAI SATU IDENTITAS
 
    Data sekolah sudah dimasukkan Owner ketika membuat lisensi. Meminta Owner mengetiknya lagi
@@ -147,19 +154,20 @@ export async function createLicenses(store,{count=1,customerId=null,buyerName=''
   const pembeli=bersih(buyerName,150);
   const sekolah=bersih(schoolName,150);
   const npsnBersih=bersih(npsn,40);
-  if(tipe==='CUSTOMER'){
-    const kurang=[];
-    if(!pembeli)kurang.push('Nama Pembeli');
-    if(!sekolah)kurang.push('Nama Sekolah');
-    if(!npsnBersih)kurang.push('NPSN');
-    if(kurang.length)
-      throw new LicenseError('IDENTITAS_WAJIB',`Lengkapi identitas lisensi: ${kurang.join(', ')}.`,400);
-    if(!/^\d{8}$/.test(npsnBersih))throw new LicenseError('INVALID_NPSN','NPSN wajib 8 digit angka.',400);
-  }
+  if(tipe==='CUSTOMER'&&!pembeli)
+    throw new LicenseError('IDENTITAS_WAJIB','Lengkapi identitas lisensi: Nama Pembeli.',400);
+  if(npsnBersih&&!/^\d{8}$/.test(npsnBersih))
+    throw new LicenseError('INVALID_NPSN','NPSN wajib 8 digit angka.',400);
   /* Identitas pembeli yang baru saja diisi Owner langsung menjadi/menyambung ke customer,
-     sehingga menu Sekolah/Pembeli tidak perlu diisi untuk kedua kalinya. */
+     sehingga menu Sekolah/Pembeli tidak perlu diisi untuk kedua kalinya.
+
+     Penyambungan itu hanya dilakukan bila ADA NPSN. Tanpa NPSN satu-satunya pembanding yang
+     tersisa adalah nama, dan dua guru berbeda yang kebetulan bernama sama akan dilebur menjadi
+     satu pembeli. Lisensinya sendiri tetap berdiri sendiri, tetapi daftar pembeli menjadi
+     salah. Lisensi tanpa NPSN karena itu berdiri tanpa customer sampai Owner sendiri yang
+     menyambungkannya dari menu Sekolah/Pembeli. */
   let customerAktif=bersih(customerId,60)||null;
-  if(!customerAktif&&tipe==='CUSTOMER'){
+  if(!customerAktif&&tipe==='CUSTOMER'&&npsnBersih){
     const customer=await ensureCustomer(store,{name:sekolah||pembeli,npsn:npsnBersih,contact:'',actor});
     if(customer)customerAktif=customer.id;
   }
@@ -254,7 +262,7 @@ export async function activateLicense(store,input,secrets){
   /* Perangkat yang sudah terikat lisensi pembelian LAIN tidak boleh berpindah begitu saja.
      Perpindahan dilakukan lewat Reset perangkat oleh Owner. Lisensi OWNER dikecualikan: ia
      memang dipakai berpindah-pindah untuk QA dan demo. */
-  /* Lisensi yang SUDAH DICABUT dikecualikan dari penjagaan ini. Sekolah yang lisensinya dicabut
+  /* Lisensi yang SUDAH DICABUT dikecualikan dari penjagaan ini. Pembeli yang lisensinya dicabut
      lalu membeli kunci pengganti harus dapat langsung mengaktifkannya di perangkat yang sama;
      ikatan lama yang sudah mati tidak boleh menyanderanya. Barisnya tetap disimpan apa adanya
      untuk audit - tidak ada yang dihapus. */

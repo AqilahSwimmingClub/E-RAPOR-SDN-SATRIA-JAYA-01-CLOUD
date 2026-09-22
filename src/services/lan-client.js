@@ -104,6 +104,21 @@ export function keluarLan(){
 function hidrasi(){
   const jawaban=panggil('GET','state');
   if(jawaban.status===401){
+    /* BELUM MASUK BUKAN BERARTI GAGAL.
+
+       Sebelum seorang guru login, klien LAN memang tidak berhak atas satu pun catatan
+       akademik - tetapi halaman Login tetap perlu tampil, dan halaman itu membaca nama
+       sekolah serta daftar semester dari database. Melempar di sini membuat aplikasi mati
+       sebelum satu piksel pun muncul: yang dilihat guru hanyalah halaman kosong.
+
+       Karena itu keadaan "belum masuk" dijawab dengan dokumen pra-login dari server: bentuknya
+       sama, isinya hanya data rujukan yang memang publik. Begitu login berhasil, masukLan()
+       melupakan hidrasi ini sehingga proyeksi sebenarnya diambil ulang. */
+    const publik=panggil('GET','publik');
+    if(publik.status===200&&typeof publik.isi?.database==='string'){
+      const raw=publik.isi.database;
+      return {terhidrasi:true,praLogin:true,rev:0,raw,proyeksi:JSON.parse(raw),sesi:null};
+    }
     memori={terhidrasi:false,rev:0,raw:null,proyeksi:null,sesi:null};
     throw galat('Sesi Anda sudah berakhir. Masuk kembali untuk melanjutkan.',{sesiBerakhir:true});
   }
@@ -163,6 +178,11 @@ export function hitungPerubahan(lama,baru){
 
 export function tulisRawLan(raw){
   const dasar=pastikanTerhidrasi();
+  /* Dokumen pra-login hanya untuk MENAMPILKAN halaman Login. Menyimpan di atasnya tidak pernah
+     boleh, dan ditolak di sini sebelum satu permintaan pun dikirim - server juga akan
+     menolaknya, tetapi pesan yang jelas lebih berguna daripada 401 yang membingungkan. */
+  if(dasar.praLogin)
+    throw galat('Belum ada yang masuk pada perangkat ini, jadi tidak ada yang dapat disimpan.',{sesiBerakhir:true});
   const baru=JSON.parse(raw);
   const perubahan=hitungPerubahan(dasar.proyeksi,baru);
   if(!perubahan.length){

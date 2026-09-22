@@ -22,10 +22,18 @@ function uniqueRecords(records,keyOf){
   const seen=new Set();return records.filter(record=>{const key=keyOf(record);if(!key||seen.has(key))return false;seen.add(key);return true;});
 }
 
+/* Pada klien LAN, server Windows adalah satu-satunya pemilik Data Referensi. Klien tidak boleh
+   menambah tahun pelajaran atau semester bawaan: ia tidak dapat menuliskannya ke server, sehingga
+   periode karangan itu hanya akan muncul pada daftar login lalu ditolak server saat dipakai. */
+function periodeBawaanDipakai(){
+  try{return !modeLanAktif();}catch{return true;}
+}
+
 function normalizeReferenceData(input){
   const defaults=defaultReferenceData();const source=input&&typeof input==='object'?input:{};
-  const academicYears=uniqueRecords([...(Array.isArray(source.academicYears)?source.academicYears:[]),...defaults.academicYears].map(item=>({id:String(item?.id||item?.label||'').trim(),label:String(item?.label||item?.id||'').trim(),active:item?.active!==false})),item=>item.id);
-  const semesters=uniqueRecords([...(Array.isArray(source.semesters)?source.semesters:[]),...defaults.semesters].map(item=>({id:String(item?.id||item?.label||'').trim(),label:String(item?.label||item?.id||'').trim(),name:String(item?.name||'').trim(),academicYear:String(item?.academicYear||'').trim(),active:item?.active!==false})),item=>item.id);
+  const periode=periodeBawaanDipakai();
+  const academicYears=uniqueRecords([...(Array.isArray(source.academicYears)?source.academicYears:[]),...(periode?defaults.academicYears:[])].map(item=>({id:String(item?.id||item?.label||'').trim(),label:String(item?.label||item?.id||'').trim(),active:item?.active!==false})),item=>item.id);
+  const semesters=uniqueRecords([...(Array.isArray(source.semesters)?source.semesters:[]),...(periode?defaults.semesters:[])].map(item=>({id:String(item?.id||item?.label||'').trim(),label:String(item?.label||item?.id||'').trim(),name:String(item?.name||'').trim(),academicYear:String(item?.academicYear||'').trim(),active:item?.active!==false})),item=>item.id);
   /* Mapping tersimpan menang atas bawaan, TETAPI hanya untuk mapel yang memang ada di dalamnya.
      Mapel bawaan yang belum pernah dikenal Mapping sebuah sekolah memakai status bawaannya
      sendiri - itulah yang membuat mapel baru dapat ditambahkan dalam keadaan nonaktif tanpa

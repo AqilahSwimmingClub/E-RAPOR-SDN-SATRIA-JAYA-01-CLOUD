@@ -34,73 +34,46 @@ function legacyFixture(){
 
 function migrateFixture(){const fixture=legacyFixture();const result=runAppMigrations();return {...fixture,result,after:JSON.parse(localStorage.getItem(storageKey()))};}
 
-test('release v1.4.0 uses versionCode 39 and schema 5',()=>{
-  assert.equal(APP_VERSION,'1.4.0');
-  assert.equal(VERSION_CODE,39);
+test('release v1.4.1 uses versionCode 40 and schema 5',()=>{
+  assert.equal(APP_VERSION,'1.4.1');
+  assert.equal(VERSION_CODE,40);
   /* SCHEMA TETAP 5.
 
-     Rilis 1.4.0 mengubah SIAPA yang boleh menjangkau database dan LEWAT MANA - bukan bentuk
-     datanya. Klien LAN menerima PROYEKSI: dokumen dengan koleksi dan bentuk kunci yang sama
-     persis, hanya berisi lebih sedikit catatan. Yang ditulis ke berkas server pun catatan
-     dengan bentuk yang sama, pada kunci yang sama. Tidak ada koleksi baru, tidak ada kolom
-     baru, dan tidak ada catatan lama yang ditulis ulang, sehingga database sekolah yang
-     berjalan sejak 1.3.16 terbaca apa adanya - termasuk oleh APK Android yang sengaja tidak
-     diubah pada rilis ini. Perilaku itu dikunci test "L63" pada
-     tests/lan-multi-client.test.js.
+     Rilis 1.4.1 memperbaiki SIAPA yang dianggap sebuah instalasi berlisensi, bukan bentuk
+     data. Tiga perubahannya semuanya di luar database akademik:
 
-     Alasan 1.3.16 sebelumnya juga masih berlaku: perpindahan LETAK database akademik pada Windows - dari localStorage browser
-     ke berkas milik aplikasi di %APPDATA% - dan TIDAK mengubah bentuknya. Yang ditulis ke
-     berkas itu adalah teks JSON yang sama persis dengan yang sebelumnya ada di localStorage:
-     tidak ada koleksi baru, tidak ada kolom baru, dan tidak ada catatan lama yang ditulis
-     ulang. Migrasinya bahkan MEMBANDINGKAN karakter per karakter sebelum berani menyebut
-     dirinya berhasil, sehingga database sekolah yang sudah berjalan dibaca sesudah pindah
-     persis seperti sebelumnya. Android sengaja tidak ikut dipindahkan pada rilis ini dan
-     tetap memakai localStorage, jadi satu database yang sama tetap terbaca oleh kedua
-     platform tanpa konversi apa pun. Perilaku itu dikunci test "D5" pada
-     tests/penyimpanan-milik-aplikasi.test.js.
+       - Klien LAN melewati gerbang lisensi, Installation ID, dan migrasi lokal. Ia tidak
+         pernah memiliki database sendiri untuk dimigrasikan.
+       - Klien LAN berhenti menambahkan tahun pelajaran bawaan ke Data Referensi yang
+         dibacanya. Penambahan itu hanya hidup di memori halaman; tidak satu pun pernah
+         tertulis ke berkas server, sehingga tidak ada catatan yang berubah bentuknya.
+       - Nama Sekolah dan NPSN menjadi keterangan opsional pada penerbitan lisensi. Itu
+         kolom di database Owner Panel, bukan di database sekolah.
 
-     Alasan 1.3.15 sebelumnya juga masih berlaku, yaitu kemampuan MEMBATALKAN override manual pada Nilai Rapor. Tidak ada
-     kolom, koleksi, maupun bentuk catatan baru: pembatalan hanya menulis ulang catatan rapor
-     yang sudah ada memakai automaticRecord yang sudah dipakai Simpan Otomatis sejak lama, pada
-     kunci yang sama persis. Override lama TIDAK direset otomatis saat boot maupun migrasi -
-     ia tetap menjadi override sampai guru sendiri menekan Batalkan Override - sehingga tidak
-     ada data sekolah yang berubah hanya karena aplikasi diperbarui. Perilaku itu dikunci test
-     "KOMPATIBILITAS" pada tests/batalkan-override-nilai-rapor.test.js.
+     Tidak ada koleksi baru, tidak ada kolom baru, dan tidak ada catatan lama yang ditulis
+     ulang. Database sekolah yang berjalan sejak 1.3.16 - dan yang ditulis 1.4.0 - terbaca apa
+     adanya, termasuk oleh APK Android yang sengaja tidak diubah pada rilis ini.
 
-     Alasan 1.3.14 sebelumnya juga masih berlaku, yaitu pilihan "Gunakan Bobot Penilaian" pada
-     catatan pengaturan
-     penilaian - tempat bobot, KKTP, dan rubrik sudah tinggal sejak lama. Kolom baru itu
-     OPSIONAL dan BACKWARD-COMPATIBLE: catatan lama yang belum memilikinya dibaca sebagai ON,
-     yaitu perilaku aplikasi sejak awal, sehingga database sekolah yang sudah berjalan
-     menghitung nilainya persis seperti sebelum rilis ini. Tidak ada catatan lama yang ditulis
-     ulang dan tidak ada data pengguna yang dihapus, jadi tidak ada migrasi yang perlu
-     dijalankan. Perilaku ini dikunci test "KOMPATIBILITAS" pada
-     tests/mesin-nilai-akhir-bobot.test.js, yang sengaja membuang kolom itu dari database lalu
-     memastikan hasil hitungnya tidak berubah.
+     Alasan 1.4.0 masih berlaku seluruhnya: klien LAN menerima PROYEKSI, yaitu dokumen dengan
+     koleksi dan bentuk kunci yang sama persis, hanya berisi lebih sedikit catatan; dan yang
+     ditulis ke berkas server adalah catatan dengan bentuk yang sama, pada kunci yang sama.
+     Perilaku itu dikunci test "L63" pada tests/lan-multi-client.test.js.
 
-     Alasan 1.3.13 sebelumnya juga masih berlaku: perbaikan jalur MENULIS saat Import Nilai
-     memakai koleksi bukti yang bentuknya sudah ada sejak schema 5.
-
-     Alasan 1.3.12 sebelumnya juga masih berlaku: perbaikan penyaringan saat MEMBACA nilai per
-     Butir CP pun tidak mengubah bentuk database.
-
-     Alasan 1.3.2 sebelumnya, yang juga masih berlaku, dua hal berikut dan tak satu pun
-     mengubah bentuk database sekolah:
-
-     1. Mapping mata pelajaran memakai satu urutan tunggal 1..N. Field `group` TIDAK dihapus -
-        ia tetap tersimpan apa adanya supaya backup lama, mapping lama, dan penugasan Guru lama
-        tetap terbaca. Yang berubah hanya penomorannya, dan itu dilakukan sekali saat mapping
-        lama pertama kali dibaca oleh normalizeMappingOrder(), bukan oleh migration.
-     2. Pesanan lisensi dan tautan unduhan adalah tabel di database SERVER, bukan di database
-        sekolah. Keduanya tidak pernah menyentuh localStorage aplikasi.
+     Alasan 1.3.16 juga masih berlaku: perpindahan LETAK database akademik pada Windows - dari
+     localStorage browser ke berkas milik aplikasi di %APPDATA% - TIDAK mengubah bentuknya.
+     Migrasinya membandingkan karakter per karakter sebelum berani menyebut dirinya berhasil.
+     Android sengaja tidak ikut dipindahkan dan tetap memakai localStorage, jadi satu database
+     yang sama tetap terbaca kedua platform tanpa konversi apa pun. Perilaku itu dikunci test
+     "D5" pada tests/penyimpanan-milik-aplikasi.test.js.
 
      Menaikkan schema karena itu akan memicu migration yang tidak mengerjakan apa pun - risiko
-     tanpa manfaat, persis seperti pada rilis sebelumnya. */
+     tanpa manfaat, persis seperti pada rilis-rilis sebelumnya. */
   assert.equal(APP_SCHEMA_VERSION,5);
-  assert.equal(BUILD_TAG,'1.4.0-SERVER-LAN-SEKOLAH');
-  /* Rilis sebelumnya bergeser ke 1.3.16 supaya APK baru tetap dapat dipasang menimpanya
+  assert.equal(BUILD_TAG,'1.4.1-LISENSI-PER-PEMBELI');
+  /* Rilis sebelumnya bergeser ke 1.4.0 supaya APK baru tetap dapat dipasang menimpanya
      tanpa uninstall. */
-  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.3.16',versionCode:38});
+  assert.deepEqual(PREVIOUS_RELEASE,{version:'1.4.0',versionCode:39});
+  assert.ok(VERSION_CODE>PREVIOUS_RELEASE.versionCode,'versionCode selalu naik');
 });
 
 test('migration 4 to 5 adds new collections without changing old records',()=>{
