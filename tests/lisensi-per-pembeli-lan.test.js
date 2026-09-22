@@ -447,3 +447,89 @@ test('V3. Seluruh berkas sumber baru ikut ke dalam app shell service worker',()=
   for(const berkas of ['/src/services/lan-client.js','/src/services/storage.js','/src/app.js','/src/pages/license-activation.js'])
     assert.ok(sw.includes(berkas),`${berkas} terdaftar di APP_SHELL`);
 });
+
+/* ======================== BUKTI PERILAKU: bukan membaca sumber, tetapi menjalankannya */
+
+/* Pemeriksaan di atas sebagian membaca kode. Dua test berikut MENJALANKANNYA: mereka menaruh
+   rahasia di tempat sebenarnya lalu memeriksa hasilnya, sehingga tetap menggigit walaupun
+   kodenya kelak ditulis ulang dengan nama dan bentuk yang sama sekali berbeda. */
+
+function penyimpananPalsu(){
+  const nilai=new Map();
+  globalThis.localStorage={getItem:k=>nilai.has(k)?nilai.get(k):null,
+    setItem:(k,v)=>nilai.set(k,String(v)),removeItem:k=>nilai.delete(k),clear:()=>nilai.clear(),
+    get length(){return nilai.size;},key:i=>[...nilai.keys()][i]};
+  return nilai;
+}
+
+test('B4. Menyunting penyimpanan browser tidak membuat instalasi menjadi berlisensi',async()=>{
+  penyimpananPalsu();
+  const {getLicenseState}=await import('../src/services/license.js');
+  assert.equal(getLicenseState().canUseApp,false,'tanpa catatan lisensi, aplikasi tertutup');
+
+  /* Setiap bentuk pemalsuan yang masuk akal dari sisi halaman. Yang menentukan bukan medan
+     mana pun di sini, melainkan Activation Token bertanda tangan server - dan tanda tangan
+     itu tidak dapat dibuat tanpa kunci privat yang memang tidak ada di sisi aplikasi. */
+  const palsu=[
+    ['licensed:true polos',{licensed:true}],
+    ['status ACTIVE tanpa token',{status:'ACTIVE',canUseApp:true}],
+    ['canUseApp:true langsung',{canUseApp:true,status:'ACTIVE',licensed:true}],
+    ['token karangan',{status:'ACTIVE',activationToken:'token.palsu.buatan-sendiri',
+      lastVerifiedAt:new Date().toISOString()}],
+    ['token JWT-mirip alg:none',{status:'ACTIVE',lastVerifiedAt:new Date().toISOString(),
+      activationToken:Buffer.from(JSON.stringify({alg:'none'})).toString('base64url')+'.'
+        +Buffer.from(JSON.stringify({licenseType:'OWNER',status:'ACTIVE',
+          exp:Math.floor(Date.now()/1000)+99999})).toString('base64url')+'.'}],
+    ['mengaku OWNER tanpa batas',{status:'ACTIVE',licenseType:'OWNER',unlimited_devices:true,
+      lastVerifiedAt:new Date().toISOString()}],
+  ];
+  for(const [nama,isi] of palsu){
+    globalThis.localStorage.clear();
+    globalThis.localStorage.setItem('erapor_license_v1',JSON.stringify(isi));
+    assert.equal(getLicenseState().canUseApp,false,`pemalsuan "${nama}" tidak boleh membuka aplikasi`);
+  }
+});
+
+test('E5. Cadangan sungguhan membawa data akademik dan nol rahasia',async()=>{
+  const nilai=penyimpananPalsu();
+  const {loadDb,updateDb,invalidateDbCache}=await import('../src/services/storage.js');
+  const {buildBackup,restoreBackup}=await import('../src/services/backup.js');
+  invalidateDbCache();loadDb();
+
+  /* Rahasia ditaruh di tempatnya yang SEBENARNYA - kunci penyimpanannya sendiri. */
+  const RAHASIA={lisensi:'TOKEN-AKTIVASI-RAHASIA-JANGAN-BOCOR',pemasangan:'inst_RAHASIA_PERANGKAT',
+    sesi:'SESI-LAN-RAHASIA-COOKIE',csrf:'CSRF-RAHASIA-HEADER'};
+  globalThis.localStorage.setItem('erapor_license_v1',
+    JSON.stringify({licenseKey:'ERAPOR-AAAA-BBBB-CCCC',activationToken:RAHASIA.lisensi,status:'ACTIVE'}));
+  globalThis.localStorage.setItem('erapor_installation_v1',RAHASIA.pemasangan);
+  globalThis.localStorage.setItem('erapor_lan_session',RAHASIA.sesi);
+  globalThis.localStorage.setItem('erapor_lan_csrf',RAHASIA.csrf);
+
+  updateDb(db=>{
+    db.masterData.school.name='SD Uji Cadangan';
+    db.students['2025/2026|Ganjil 2025/2026|5B|s1']={id:'s1',name:'Ananda Uji',classId:'5B',nis:'001'};
+    db.reportScores['2025/2026|Ganjil 2025/2026|5B|agama|s1']={studentId:'s1',subjectId:'agama',finalScore:88};
+    return db;
+  });
+
+  const sesi={role:'admin',classId:null,semester:'Ganjil 2025/2026',academicYear:'2025/2026'};
+  const teks=JSON.stringify(buildBackup(sesi));
+  assert.ok(teks.includes('Ananda Uji'),'kontrol positif: cadangan memang berisi data akademik');
+
+  for(const [nama,isi] of Object.entries(RAHASIA))
+    assert.equal(teks.includes(isi),false,`cadangan tidak boleh memuat rahasia ${nama}`);
+  for(const pola of ['activationToken','licenseKey','ERAPOR-AAAA','erapor_license_v1',
+    'erapor_installation_v1','erapor_lan_session','erapor_lan_csrf','passwordHash'])
+    assert.equal(teks.includes(pola),false,`cadangan tidak boleh memuat pola ${pola}`);
+
+  /* Memulihkan cadangan bukan aktivasi: tidak satu pun catatan lisensi, perangkat, atau sesi
+     boleh berubah - termasuk yang sudah ada sebelumnya. */
+  const kunciLain=k=>k!=='erapor_satria_jaya_01_v1';
+  const sebelum=new Map([...nilai.entries()].filter(([k])=>kunciLain(k)));
+  restoreBackup(JSON.parse(teks),sesi);
+  const sesudah=new Map([...nilai.entries()].filter(([k])=>kunciLain(k)));
+  assert.deepEqual([...sesudah.entries()].sort(),[...sebelum.entries()].sort(),
+    'pemulihan tidak menyentuh satu pun catatan lisensi, perangkat, atau sesi');
+  assert.equal(loadDb().students['2025/2026|Ganjil 2025/2026|5B|s1']?.name,'Ananda Uji',
+    'kontrol positif: data akademik memang pulih');
+});
